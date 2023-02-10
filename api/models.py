@@ -30,16 +30,16 @@ class Transaction(models.Model):
 
 class JournalEntry(models.Model):
     date = models.DateField()
-    description = models.CharField(max_length=200)
-    journal_entry = models.OneToOneField('Transaction',on_delete=models.CASCADE,null=True,blank=True)
+    description = models.CharField(max_length=200,blank=True)
+    transaction = models.OneToOneField('Transaction',on_delete=models.CASCADE,null=True,blank=True)
 
-class JournalEntryItems(models.Model):
+class JournalEntryItem(models.Model):
 
     class JournalEntryType(models.TextChoices):
         DEBIT = 'D', _('Debit')
         CREDIT = 'C', _('Credit')
 
-    journel_entry = models.ForeignKey('JournalEntry',on_delete=models.CASCADE)
+    journal_entry = models.ForeignKey('JournalEntry',related_name='journal_entry_items',on_delete=models.CASCADE)
     type = models.CharField(max_length=1,choices=JournalEntryType.choices)
     amount = models.DecimalField(decimal_places=2,max_digits=12)
     account = models.ForeignKey('Account',on_delete=models.CASCADE)

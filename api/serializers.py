@@ -2,16 +2,53 @@ import csv
 import io
 from datetime import datetime, date
 from rest_framework import serializers
-from api.models import Transaction, Account
+from api.models import Transaction, Account, JournalEntry, JournalEntryItem
 
-class TransactionsOutputSerializer(serializers.ModelSerializer):
+class JournalEntryItemInputSerializer(serializers.ModelSerializer):
+    account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
+
+    class Meta:
+        model = JournalEntryItem
+        fields = ['type','amount','account']
+
+class JournalEntryItemOutputSerializer(serializers.ModelSerializer):
+    account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
+
+    class Meta:
+        model = JournalEntryItem
+        fields = ['id','type','amount','account']
+
+class JournalEntryInputSerializer(serializers.ModelSerializer):
+    journal_entry_items = JournalEntryItemInputSerializer(many=True)
+
+    class Meta:
+        model = JournalEntry
+        fields = '__all__'
+
+    def create(self, validated_data):
+        journal_entry_items_data = validated_data.pop('journal_entry_items')
+        journal_entry = JournalEntry.objects.create(**validated_data)
+        for journal_entry_item_data in journal_entry_items_data:
+            print(journal_entry_items_data)
+            JournalEntryItem.objects.create(journal_entry=journal_entry, **journal_entry_item_data)
+
+        return journal_entry
+
+class JournalEntryOutputSerializer(serializers.ModelSerializer):
+    journal_entry_items = JournalEntryItemOutputSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = JournalEntry
+        fields = ['id','date','description','transaction','journal_entry_items']
+
+class TransactionOutputSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Transaction
         fields = '__all__'
 
 
-class TransactionsCsvSerializer(serializers.Serializer):
+class TransactionCsvSerializer(serializers.Serializer):
     file = serializers.FileField()
     account = serializers.CharField()
 
