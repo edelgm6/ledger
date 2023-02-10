@@ -25,6 +25,9 @@ class JournalEntryInputSerializer(serializers.ModelSerializer):
         model = JournalEntry
         fields = '__all__'
 
+    # Add in a validation first to check that the journal entry
+    # items balance debits and credits
+
     def create(self, validated_data):
         journal_entry_items_data = validated_data.pop('journal_entry_items')
         journal_entry = JournalEntry.objects.create(**validated_data)
