@@ -1,7 +1,7 @@
 from django.contrib import admin
-from api.models import Account, Transaction, JournalEntry, JournalEntryItems
+from api.models import Account, Transaction, JournalEntry, JournalEntryItem
 
 admin.site.register(Account)
 admin.site.register(Transaction)
 admin.site.register(JournalEntry)
-admin.site.register(JournalEntryItems)
+admin.site.register(JournalEntryItem)
