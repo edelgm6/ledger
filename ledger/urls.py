@@ -21,6 +21,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', Index.as_view()),
     # path('transactions-upload/', TransactionsUploadView.as_view()),
-    path('journal-entry/', JournalEntryView.as_view()),
-    path('transaction/', TransactionView.as_view()),
+    path('journal-entries/', JournalEntryView.as_view()),
+    path('transactions/', TransactionView.as_view()),
 ]
