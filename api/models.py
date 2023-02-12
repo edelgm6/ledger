@@ -32,6 +32,11 @@ class Transaction(models.Model):
     def __str__(self):
         return str(self.date) + ' ' + self.account.name + ' ' + self.description + ' $' + str(self.amount)
 
+    def close(self, date):
+        self.is_closed = True
+        self.date_closed = date
+        self.save()
+
 class JournalEntry(models.Model):
     date = models.DateField()
     description = models.CharField(max_length=200,blank=True)
@@ -50,3 +55,6 @@ class JournalEntryItem(models.Model):
     type = models.CharField(max_length=6,choices=JournalEntryType.choices)
     amount = models.DecimalField(decimal_places=2,max_digits=12)
     account = models.ForeignKey('Account',on_delete=models.CASCADE)
+
+    def __str__(self):
+        return str(self.journal_entry.id) + ' ' + self.type + ' $' + str(self.amount)

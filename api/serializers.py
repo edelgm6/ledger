@@ -25,15 +25,36 @@ class JournalEntryInputSerializer(serializers.ModelSerializer):
         model = JournalEntry
         fields = '__all__'
 
-    # Add in a validation first to check that the journal entry
-    # items balance debits and credits
+    def validate(self, data):
+        journal_entry_items = data['journal_entry_items']
+        debits = 0
+        credits = 0
+        for journal_entry_item in journal_entry_items:
+            amount = journal_entry_item['amount']
+            type = journal_entry_item['type']
+
+            if type == 'debit':
+                debits += amount
+            elif type == 'credit':
+                credits += amount
+
+        if debits != credits:
+            raise serializers.ValidationError(
+                'Debits and Credits not equal \n' +
+                'Debits = ' + str(debits) + '\n'
+                'Credits = ' + str(credits) + '\n'
+                )
+
+        return data
 
     def create(self, validated_data):
         journal_entry_items_data = validated_data.pop('journal_entry_items')
         journal_entry = JournalEntry.objects.create(**validated_data)
+
         for journal_entry_item_data in journal_entry_items_data:
-            print(journal_entry_items_data)
             JournalEntryItem.objects.create(journal_entry=journal_entry, **journal_entry_item_data)
+
+        journal_entry.transaction.close(date.today())
 
         return journal_entry
 
