@@ -4,14 +4,18 @@ from django.utils.translation import gettext_lazy as _
 class Account(models.Model):
 
     class AccountType(models.TextChoices):
-        ASSET = 'A', _('Asset')
-        LIABILITY = 'L', _('Liability')
-        INCOME = 'I', _('Income')
-        EXPENSE = 'E', _('Expense')
-        EQUITY = 'Q', _('Equity')
+        ASSET = 'asset', _('Asset')
+        LIABILITY = 'liability', _('Liability')
+        INCOME = 'income', _('Income')
+        EXPENSE = 'expense', _('Expense')
+        EQUITY = 'equity', _('Equity')
+
+    class AccountSubType(models.TextChoices):
+        CREDIT_CARD = 'credit_card', _('Credit Card')
 
     name = models.CharField(max_length=200,unique=True)
-    type = models.CharField(max_length=1,choices=AccountType.choices)
+    type = models.CharField(max_length=9,choices=AccountType.choices)
+    sub_type = models.CharField(max_length=30,choices=AccountSubType.choices)
 
     def __str__(self):
         return self.name
