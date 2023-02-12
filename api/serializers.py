@@ -46,9 +46,12 @@ class JournalEntryOutputSerializer(serializers.ModelSerializer):
 
 class TransactionOutputSerializer(serializers.ModelSerializer):
 
+    # account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
+
     class Meta:
         model = Transaction
         fields = '__all__'
+        depth = 1
 
 # class TransactionCsvSerializer(serializers.Serializer):
 #     file = serializers.FileField()
