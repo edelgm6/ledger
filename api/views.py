@@ -9,8 +9,8 @@ from rest_framework.parsers import FileUploadParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
-from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer
-from api.models import Transaction
+from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer
+from api.models import Transaction, Account
 from api.forms import TransactionsUploadForm
 from api.CsvHandler import CsvHandler
 
@@ -32,6 +32,15 @@ class Index(View):
         else:
             print('invalid')
             return render(request, self.template, {'form': self.form})
+
+class AccountView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        accounts = Account.objects.all()
+        account_output_serializer = AccountOutputSerializer(accounts,many=True)
+        return Response(account_output_serializer.data)
 
 class TransactionView(APIView):
     authentication_classes = [TokenAuthentication]
