@@ -44,6 +44,12 @@ class JournalEntryOutputSerializer(serializers.ModelSerializer):
         model = JournalEntry
         fields = ['id','date','description','transaction','journal_entry_items']
 
+class AccountOutputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Account
+        fields = '__all__'
+
+
 class TransactionOutputSerializer(serializers.ModelSerializer):
 
     # account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
