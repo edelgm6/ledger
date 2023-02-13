@@ -28,6 +28,7 @@ class Transaction(models.Model):
     category = models.CharField(max_length=200)
     is_closed = models.BooleanField(default=False)
     date_closed = models.DateField(null=True,blank=True)
+    suggested_account = models.ForeignKey('Account',related_name='suggested_account',on_delete=models.CASCADE,null=True,blank=True)
 
     def __str__(self):
         return str(self.date) + ' ' + self.account.name + ' ' + self.description + ' $' + str(self.amount)
@@ -58,3 +59,10 @@ class JournalEntryItem(models.Model):
 
     def __str__(self):
         return str(self.journal_entry.id) + ' ' + self.type + ' $' + str(self.amount)
+
+class AutoTag(models.Model):
+    search_string = models.CharField(max_length=20)
+    account = models.ForeignKey('Account',on_delete=models.CASCADE)
+
+    def __str__(self):
+        return '"' + self.search_string +  '": ' + str(self.account)
