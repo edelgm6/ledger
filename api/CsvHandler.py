@@ -25,10 +25,13 @@ class CsvHandler:
             only_date = parsed_date.date()
 
             suggested_account = None
+            suggested_type = None
             # TODO: pre-tag the rows instead of referring literally here
             for tag in auto_tags:
                 if tag.search_string in row[2].lower():
                     suggested_account = tag.account
+                    if tag.transaction_type:
+                        suggested_type = tag.transaction_type
                     break
 
             transactions_list.append(Transaction(
@@ -37,7 +40,8 @@ class CsvHandler:
                 amount = row[5],
                 description = row[2],
                 category = row[3],
-                suggested_account = suggested_account
+                suggested_account = suggested_account,
+                suggested_type = suggested_type
             ))
         self.csv_file.close()
         transactions = Transaction.objects.bulk_create(transactions_list)

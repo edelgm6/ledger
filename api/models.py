@@ -21,6 +21,13 @@ class Account(models.Model):
         return self.name
 
 class Transaction(models.Model):
+
+    class TransactionType(models.TextChoices):
+        INCOME = 'income', _('Income')
+        PURCHASE = 'purchase', _('Purchase')
+        PAYMENT = 'payment', _('Payment')
+        TRANSFER = 'transfer', _('Transfer')
+
     date = models.DateField()
     account = models.ForeignKey('Account',on_delete=models.CASCADE)
     amount = models.DecimalField(decimal_places=2,max_digits=12)
@@ -29,6 +36,8 @@ class Transaction(models.Model):
     is_closed = models.BooleanField(default=False)
     date_closed = models.DateField(null=True,blank=True)
     suggested_account = models.ForeignKey('Account',related_name='suggested_account',on_delete=models.CASCADE,null=True,blank=True)
+    type = models.CharField(max_length=8,choices=TransactionType.choices,blank=True)
+    suggested_type = models.CharField(max_length=8,choices=TransactionType.choices,blank=True)
 
     def __str__(self):
         return str(self.date) + ' ' + self.account.name + ' ' + self.description + ' $' + str(self.amount)
@@ -63,6 +72,7 @@ class JournalEntryItem(models.Model):
 class AutoTag(models.Model):
     search_string = models.CharField(max_length=20)
     account = models.ForeignKey('Account',on_delete=models.CASCADE)
+    transaction_type = models.CharField(max_length=8,choices=Transaction.TransactionType.choices,blank=True)
 
     def __str__(self):
         return '"' + self.search_string +  '": ' + str(self.account)
