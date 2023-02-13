@@ -52,6 +52,8 @@ class TransactionView(generics.ListAPIView):
         is_closed = self.request.query_params.get('is_closed')
         if is_closed:
             queryset = queryset.filter(is_closed=is_closed)
+
+        queryset = queryset.order_by('date')
         return queryset
 
 
