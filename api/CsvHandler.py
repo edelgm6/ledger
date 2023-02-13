@@ -25,7 +25,7 @@ class CsvHandler:
             only_date = parsed_date.date()
 
             suggested_account = None
-            suggested_type = ''
+            suggested_type = None
             # TODO: pre-tag the rows instead of referring literally here
             for tag in auto_tags:
                 if tag.search_string in row[2].lower():
