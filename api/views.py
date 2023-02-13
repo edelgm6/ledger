@@ -8,7 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import FileUploadParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework import status
+from rest_framework import status, generics
 from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer
 from api.models import Transaction, Account
 from api.forms import TransactionsUploadForm
@@ -42,14 +42,17 @@ class AccountView(APIView):
         account_output_serializer = AccountOutputSerializer(accounts,many=True)
         return Response(account_output_serializer.data)
 
-class TransactionView(APIView):
+class TransactionView(generics.ListAPIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
+    serializer_class = TransactionOutputSerializer
 
-    def get(self, request, *args, **kwargs):
-        transactions = Transaction.objects.all()
-        transactions_output_serializer = TransactionOutputSerializer(transactions,many=True)
-        return Response(transactions_output_serializer.data)
+    def get_queryset(self):
+        queryset = Transaction.objects.all()
+        is_closed = self.request.query_params.get('is_closed')
+        if is_closed:
+            queryset = queryset.filter(is_closed=is_closed)
+        return queryset
 
 
 class JournalEntryView(APIView):
