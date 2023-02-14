@@ -142,6 +142,6 @@ STATIC_URL = '/static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 try:
-    from ledger.local_settings import SECRET_KEY#, DEBUG, DATABASES
+    from ledger.local_settings import SECRET_KEY, DEBUG, DATABASES
 except ImportError:
     pass
