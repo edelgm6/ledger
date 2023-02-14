@@ -77,11 +77,10 @@ class TransactionOutputSerializer(serializers.ModelSerializer):
         fields = '__all__'
         depth = 1
 
-class TransactionInputSerializer(serializers.Serializer):
-    date = serializers.DateField()
-    amount = serializers.DecimalField(max_digits=12,decimal_places=2)
-    type = serializers.CharField(max_length=100)
-    description = serializers.CharField(max_length=200)
+class TransactionInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transaction
+        fields = ['date','amount','category','description']
 
 class TransactionUploadSerializer(serializers.Serializer):
 
