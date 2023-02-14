@@ -42,6 +42,8 @@ class AccountView(APIView):
         account_output_serializer = AccountOutputSerializer(accounts,many=True)
         return Response(account_output_serializer.data)
 
+# TODO: Update this endpoint to take a single blob — will require changing retool to insert the account
+# into the transactions blog instead of sending separately
 class UploadTransactionsView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
