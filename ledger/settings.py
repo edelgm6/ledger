@@ -26,7 +26,7 @@ TEMPLATE_DIR = os.path.join(BASE_DIR,'ledger/templates')
 SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = ['https://*.fly.dev']
@@ -142,6 +142,6 @@ STATIC_URL = '/static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 try:
-    from ledger.local_settings import SECRET_KEY, DEBUG, DATABASES
+    from ledger.local_settings import SECRET_KEY#, DEBUG, DATABASES
 except ImportError:
     pass
