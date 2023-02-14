@@ -26,7 +26,7 @@ TEMPLATE_DIR = os.path.join(BASE_DIR,'ledger/templates')
 SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = ['https://*.fly.dev']
