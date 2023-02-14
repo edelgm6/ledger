@@ -9,7 +9,7 @@ from rest_framework.parsers import FileUploadParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, generics
-from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer
+from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionUploadSerializer
 from api.models import Transaction, Account
 from api.forms import TransactionsUploadForm
 from api.CsvHandler import CsvHandler
@@ -42,6 +42,19 @@ class AccountView(APIView):
         account_output_serializer = AccountOutputSerializer(accounts,many=True)
         return Response(account_output_serializer.data)
 
+class UploadTransactionsView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        transaction_upload_serializer = TransactionUploadSerializer(data=request.data)
+        if transaction_upload_serializer.is_valid():
+            transactions = transaction_upload_serializer.save()
+            transaction_output_serializer = TransactionOutputSerializer(transactions,many=True)
+            return Response(transaction_output_serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(transaction_upload_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 class TransactionView(generics.ListAPIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -61,12 +74,6 @@ class JournalEntryView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
-    # def get(self, request, *args, **kwargs):
-    #     journal_entries = JournalEntry.objects.all()
-    #     print(journal_entries)
-    #     journal_entry_output_serializer = JournalEntryOutputSerializer(journal_entries,many=True)
-    #     return Response(journal_entry_output_serializer.data)
-
     def post(self, request, *args, **kwargs):
 
         journal_entry_input_serializer = JournalEntryInputSerializer(data=request.data)
@@ -78,17 +85,3 @@ class JournalEntryView(APIView):
         else:
             print(journal_entry_input_serializer.errors)
             return Response(journal_entry_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-# class TransactionsUploadView(APIView):
-#     parser_class = (FileUploadParser,)
-
-#     def post(self, request, *args, **kwargs):
-#         print(request.data)
-#         file_serializer = TransactionCsvSerializer(data=request.data)
-#         if file_serializer.is_valid():
-#             files = file_serializer.save()
-#             transactions_output_serializer = TransactionOutputSerializer(files,many=True)
-#             return Response(transactions_output_serializer.data, status=status.HTTP_201_CREATED)
-#         else:
-#             print(file_serializer.errors)
-#             return Response(file_serializer.errors, status=status.HTTP_400_BAD_REQUEST)

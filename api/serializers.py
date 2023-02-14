@@ -70,60 +70,33 @@ class AccountOutputSerializer(serializers.ModelSerializer):
         model = Account
         fields = '__all__'
 
-
 class TransactionOutputSerializer(serializers.ModelSerializer):
-
-    # account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
 
     class Meta:
         model = Transaction
         fields = '__all__'
         depth = 1
 
-# class TransactionCsvSerializer(serializers.Serializer):
-#     file = serializers.FileField()
-#     account = serializers.CharField()
+class TransactionInputSerializer(serializers.Serializer):
+    date = serializers.DateField()
+    amount = serializers.DecimalField(max_digits=12,decimal_places=2)
+    type = serializers.CharField(max_length=100)
+    description = serializers.CharField(max_length=200)
 
-#     def validate_file(self, csv_file):
-#         print(csv_file.name)
-#         if csv_file.name[-4:] != '.csv':
-#             raise serializers.ValidationError('File must be CSV')
+class TransactionUploadSerializer(serializers.Serializer):
 
-#         # Add any additional validation logic here
+    account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
+    transactions = TransactionInputSerializer(many=True)
 
-#         return csv_file
+    def create(self, validated_data):
+        transactions_data = validated_data.pop('transactions')
 
-#     def validate_account(self, account):
-#         # Need to make sure the account is in the list of possible accounts
-#         account_names = Account.objects.values_list('name',flat=True)
-#         if account not in account_names:
-#             raise serializers.ValidationError('Invalid account name')
+        transactions_list = []
+        for transaction_data in transactions_data:
+            transactions_list.append(
+                Transaction(account=validated_data['account'],**transaction_data)
+            )
 
-#         return account
+        transactions = Transaction.objects.bulk_create(transactions_list)
 
-#     def create(self, validated_data):
-#         csv_file = validated_data['file']
-#         account = Account.objects.get(name=validated_data['account'])
-
-#         file = io.StringIO(csv_file.read().decode('utf-8'))
-#         reader = csv.reader(file)
-#         headers = next(reader)
-#         transactions_list = []
-#         for row in reader:
-#             date_string = row[0]
-#             date_format = "%m/%d/%Y"
-#             parsed_date = datetime.strptime(date_string, date_format)
-#             only_date = parsed_date.date()
-
-#             transactions_list.append(Transaction(
-#                 date=only_date,
-#                 account = account,
-#                 amount = row[5],
-#                 description = row[2],
-#                 category = row[3]
-#             ))
-#         csv_file.close()
-
-#         transactions = Transaction.objects.bulk_create(transactions_list)
-
-#         return transactions
+        return transactions
