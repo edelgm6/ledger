@@ -31,7 +31,7 @@ class Transaction(models.Model):
     date = models.DateField()
     account = models.ForeignKey('Account',on_delete=models.CASCADE)
     amount = models.DecimalField(decimal_places=2,max_digits=12)
-    description = models.CharField(max_length=200)
+    description = models.CharField(max_length=200,blank=True)
     category = models.CharField(max_length=200)
     is_closed = models.BooleanField(default=False)
     date_closed = models.DateField(null=True,blank=True)
