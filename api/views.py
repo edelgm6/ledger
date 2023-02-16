@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.views import View
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, Http404
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from rest_framework.authentication import TokenAuthentication
@@ -9,10 +9,11 @@ from rest_framework.parsers import FileUploadParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, generics
-from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionUploadSerializer
+from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionUploadSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer
 from api.models import Transaction, Account
 from api.forms import TransactionsUploadForm
 from api.CsvHandler import CsvHandler
+from api import helpers
 
 @method_decorator(login_required, name='dispatch')
 class Index(View):
@@ -32,6 +33,18 @@ class Index(View):
         else:
             print('invalid')
             return render(request, self.template, {'form': self.form})
+
+class AccountBalanceView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+
+        account_balance_list = helpers.get_account_balances(start_date,end_date)
+        account_balance_output_serializer = AccountBalanceOutputSerializer(account_balance_list, many=True)
+        return Response(account_balance_output_serializer.data)
 
 class AccountView(APIView):
     authentication_classes = [TokenAuthentication]
@@ -62,15 +75,32 @@ class TransactionView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = TransactionOutputSerializer
 
+    def get_transaction(self, pk):
+        try:
+            return Transaction.objects.get(pk=pk)
+        except Transaction.DoesNotExist:
+            raise Http404
+
     def get_queryset(self):
         queryset = Transaction.objects.all()
         is_closed = self.request.query_params.get('is_closed')
+        transaction_types = self.request.query_params.getlist('type')
         if is_closed:
             queryset = queryset.filter(is_closed=is_closed)
+        if transaction_types:
+            queryset = queryset.filter(type__in=transaction_types)
 
-        queryset = queryset.order_by('date')
+        queryset = queryset.order_by('date','account','description')
         return queryset
 
+    def put(self, request, pk, format=None):
+        transaction = self.get_transaction(pk)
+        transaction_input_serializer = TransactionInputSerializer(transaction, data=request.data, partial=True)
+        if transaction_input_serializer.is_valid():
+            transaction = transaction_input_serializer.save()
+            transaction_output_serializer = TransactionOutputSerializer(transaction)
+            return Response(transaction_output_serializer.data)
+        return Response(transaction_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class JournalEntryView(APIView):
     authentication_classes = [TokenAuthentication]
