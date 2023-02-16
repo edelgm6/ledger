@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, generics
 from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionUploadSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer
-from api.models import Transaction, Account, JournalEntryItem
+from api.models import Transaction, Account
 from api.forms import TransactionsUploadForm
 from api.CsvHandler import CsvHandler
 from api import helpers
