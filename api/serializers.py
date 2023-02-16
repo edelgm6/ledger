@@ -4,6 +4,10 @@ from datetime import datetime, date
 from rest_framework import serializers
 from api.models import Transaction, Account, JournalEntry, JournalEntryItem
 
+class AccountBalanceOutputSerializer(serializers.Serializer):
+    account = serializers.CharField(max_length=200)
+    balance = serializers.DecimalField(max_digits=12,decimal_places=2)
+
 class JournalEntryItemInputSerializer(serializers.ModelSerializer):
     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
 
