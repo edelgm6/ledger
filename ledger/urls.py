@@ -22,6 +22,7 @@ urlpatterns = [
     path('', Index.as_view()),
     # path('transactions-upload/', TransactionsUploadView.as_view()),
     path('journal-entries/', JournalEntryView.as_view()),
+    path('transactions/<int:pk>', TransactionView.as_view()),
     path('transactions/', TransactionView.as_view()),
     path('upload-transactions/', UploadTransactionsView.as_view()),
     path('accounts/', AccountView.as_view()),

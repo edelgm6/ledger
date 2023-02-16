@@ -39,6 +39,7 @@ class Transaction(models.Model):
     suggested_account = models.ForeignKey('Account',related_name='suggested_account',on_delete=models.CASCADE,null=True,blank=True)
     type = models.CharField(max_length=25,choices=TransactionType.choices,blank=True)
     suggested_type = models.CharField(max_length=25,choices=TransactionType.choices,blank=True)
+    linked_transaction = models.OneToOneField('Transaction',on_delete=models.CASCADE,null=True,blank=True)
 
     def __str__(self):
         return str(self.date) + ' ' + self.account.name + ' ' + self.description + ' $' + str(self.amount)
