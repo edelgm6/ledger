@@ -2,9 +2,22 @@ from django.db.models import Sum
 from api.models import JournalEntryItem
 
 def get_account_balances(start_date, end_date):
-    # TODO: Should have a topline account type for balance sheet or income statement
-    income_statement_aggregates = JournalEntryItem.objects.filter(account__type__in=['income','expense'],journal_entry__date__gte=start_date,journal_entry__date__lte=end_date).values('account__name','account__type','type').annotate(total=Sum('amount'))
-    balance_sheet_aggregates = JournalEntryItem.objects.filter(account__type__in=['asset','liability','equity']).values('account__name','account__type','type').annotate(total=Sum('amount'))
+    INCOME_STATEMENT_ACCOUNT_TYPES = ['income','expense']
+    BALANCE_SHEET_ACCOUNT_TYPES = ['asset','liability','equity']
+    income_statement_aggregates = JournalEntryItem.objects.filter(
+            account__type__in=INCOME_STATEMENT_ACCOUNT_TYPES,
+            journal_entry__date__gte=start_date,
+            journal_entry__date__lte=end_date
+            ).values(
+                'account__name',
+                'account__type',
+                'type'
+            ).annotate(total=Sum('amount'))
+    balance_sheet_aggregates = JournalEntryItem.objects.filter(
+        account__type__in=BALANCE_SHEET_ACCOUNT_TYPES).values(
+            'account__name',
+            'account__type',
+            'type').annotate(total=Sum('amount'))
 
     account_summaries = {}
     aggregate_groups = [income_statement_aggregates,balance_sheet_aggregates]
