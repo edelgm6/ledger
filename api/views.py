@@ -9,7 +9,7 @@ from rest_framework.parsers import FileUploadParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, generics
-from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionUploadSerializer
+from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionUploadSerializer, TransactionInputSerializer
 from api.models import Transaction, Account
 from api.forms import TransactionsUploadForm
 from api.CsvHandler import CsvHandler
@@ -62,6 +62,12 @@ class TransactionView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = TransactionOutputSerializer
 
+    def get_transaction(self, pk):
+        try:
+            return Transaction.objects.get(pk=pk)
+        except Transaction.DoesNotExist:
+            raise Http404
+
     def get_queryset(self):
         queryset = Transaction.objects.all()
         is_closed = self.request.query_params.get('is_closed')
@@ -71,6 +77,14 @@ class TransactionView(generics.ListAPIView):
         queryset = queryset.order_by('date')
         return queryset
 
+    def put(self, request, pk, format=None):
+        transaction = self.get_transaction(pk)
+        transaction_input_serializer = TransactionInputSerializer(transaction, data=request.data, partial=True)
+        if transaction_input_serializer.is_valid():
+            transaction = transaction_input_serializer.save()
+            transaction_output_serializer = TransactionOutputSerializer(transaction)
+            return Response(transaction_output_serializer.data)
+        return Response(transaction_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class JournalEntryView(APIView):
     authentication_classes = [TokenAuthentication]

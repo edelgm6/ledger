@@ -79,9 +79,34 @@ class TransactionOutputSerializer(serializers.ModelSerializer):
         depth = 1
 
 class TransactionInputSerializer(serializers.ModelSerializer):
+    linked_transaction = serializers.PrimaryKeyRelatedField(required=False,queryset=Transaction.objects.all())
+    is_closed = serializers.BooleanField(required=False)
+
     class Meta:
         model = Transaction
-        fields = ['date','amount','category','description']
+        fields = ['date','amount','category','description','linked_transaction','is_closed']
+
+    def update(self, instance, validated_data):
+        instance.linked_transaction = validated_data.get('linked_transaction', instance.linked_transaction)
+        instance.date = validated_data.get('date', instance.date)
+        instance.amount = validated_data.get('amount', instance.amount)
+        instance.category = validated_data.get('category', instance.category)
+        instance.description = validated_data.get('description', instance.description)
+
+        # TODO: Is there a clean way to always update the date when this field is updated?
+        instance.is_closed = validated_data.get('is_closed', instance.is_closed)
+        if validated_data.get('is_closed'):
+            instance.close(date.today())
+        instance.save()
+
+        return instance
+
+# class TransactionUpdateSerializer(serializers.ModelSerializer):
+#     linked_transaction = serializers.IntegerField()
+
+#     class Meta:
+#         model = Transaction
+#         fields = ['linked_transaction']
 
 class TransactionUploadSerializer(serializers.Serializer):
 
