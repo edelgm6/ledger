@@ -71,8 +71,11 @@ class TransactionView(generics.ListAPIView):
     def get_queryset(self):
         queryset = Transaction.objects.all()
         is_closed = self.request.query_params.get('is_closed')
+        transaction_types = self.request.query_params.getlist('type')
         if is_closed:
             queryset = queryset.filter(is_closed=is_closed)
+        if transaction_types:
+            queryset = queryset.filter(type__in=transaction_types)
 
         queryset = queryset.order_by('date')
         return queryset
