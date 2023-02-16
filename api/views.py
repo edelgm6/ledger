@@ -3,14 +3,15 @@ from django.views import View
 from django.http import HttpResponseRedirect
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
+from django.db.models import Sum
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import FileUploadParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, generics
-from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionUploadSerializer, TransactionInputSerializer
-from api.models import Transaction, Account
+from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionUploadSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer
+from api.models import Transaction, Account, JournalEntryItem
 from api.forms import TransactionsUploadForm
 from api.CsvHandler import CsvHandler
 
@@ -32,6 +33,71 @@ class Index(View):
         else:
             print('invalid')
             return render(request, self.template, {'form': self.form})
+
+# class AccountBalanceView(generics.ListAPIView):
+class AccountBalanceView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    # serializer_class = AccountBalanceOutputSerializer
+
+    def get(self, request, *args, **kwargs):
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        # TODO: Should have a topline account type for balance sheet or income statement
+        income_statement_accounts = JournalEntryItem.objects.filter(account__type__in=['income','expense'],journal_entry__date__gte=start_date,journal_entry__date__lte=end_date).values('account__name','account__type','type').annotate(total=Sum('amount'))
+        balance_sheet_accounts = JournalEntryItem.objects.filter(account__type__in=['asset','liability','equity']).values('account__name','account__type','type').annotate(total=Sum('amount'))
+
+        # TODO: Turn all of this logic into something that is done in a helper function
+        account_balances = {}
+        account_groups = [income_statement_accounts,balance_sheet_accounts]
+        for account_group in account_groups:
+            for entry in account_group:
+                account_name = entry['account__name']
+                account_type = entry['account__type']
+                journal_entry_type = entry['type']
+                if not account_balances.get(account_name):
+                    account_balances[account_name] = {
+                        'type': account_type,
+                        'debits': 0,
+                        'credits': 0
+                    }
+                if journal_entry_type == 'credit':
+                    account_balances[account_name]['credits'] = entry['total']
+                elif journal_entry_type == 'debit':
+                    account_balances[account_name]['debits'] = entry['total']
+
+        print(account_balances)
+        account_balance_list = []
+        for key, value in account_balances.items():
+            balance = 0
+            if value['type'] in ('asset','expense'):
+                balance = value['debits'] - value['credits']
+            else:
+                balance = value['credits'] - value['debits']
+
+            account_balance_list.append({'account': key, 'balance': balance})
+
+        account_balance_output_serializer = AccountBalanceOutputSerializer(account_balance_list, many=True)
+        return Response(account_balance_output_serializer.data)
+        # for account in journal_entry_summary:
+        #     account_balances[account['account__name']] = 0
+
+
+
+    # def get(self, request, *args, **kwargs):
+    #     account_balance_input_serializer = AccountBalanceInputSerializer(data=request.data)
+    #     if account_balance_input_serializer.is_valid():
+    #         start_date = account_balance_input_serializer.data['start_date']
+    #         end_date = account_balance_input_serializer.data['end_date']
+    #         journal_entry_items = JournalEntryItem.objects.select_related('journal_entry').select_related('account')
+    #         journal_entry_items = journal_entry_items.filter(account__date__gte=start_date,account__date__lte=end_date)
+    #         print(journal_entry_items)
+    #         return Response()
+    #     return Response(account_balance_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
 
 class AccountView(APIView):
     authentication_classes = [TokenAuthentication]
@@ -77,7 +143,7 @@ class TransactionView(generics.ListAPIView):
         if transaction_types:
             queryset = queryset.filter(type__in=transaction_types)
 
-        queryset = queryset.order_by('date')
+        queryset = queryset.order_by('date','account','description')
         return queryset
 
     def put(self, request, pk, format=None):
