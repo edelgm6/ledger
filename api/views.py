@@ -34,11 +34,9 @@ class Index(View):
             print('invalid')
             return render(request, self.template, {'form': self.form})
 
-# class AccountBalanceView(generics.ListAPIView):
 class AccountBalanceView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
-    # serializer_class = AccountBalanceOutputSerializer
 
     def get(self, request, *args, **kwargs):
         start_date = self.request.query_params.get('start_date')
@@ -66,7 +64,6 @@ class AccountBalanceView(APIView):
                 elif journal_entry_type == 'debit':
                     account_balances[account_name]['debits'] = entry['total']
 
-        print(account_balances)
         account_balance_list = []
         for key, value in account_balances.items():
             balance = 0
@@ -79,25 +76,6 @@ class AccountBalanceView(APIView):
 
         account_balance_output_serializer = AccountBalanceOutputSerializer(account_balance_list, many=True)
         return Response(account_balance_output_serializer.data)
-        # for account in journal_entry_summary:
-        #     account_balances[account['account__name']] = 0
-
-
-
-    # def get(self, request, *args, **kwargs):
-    #     account_balance_input_serializer = AccountBalanceInputSerializer(data=request.data)
-    #     if account_balance_input_serializer.is_valid():
-    #         start_date = account_balance_input_serializer.data['start_date']
-    #         end_date = account_balance_input_serializer.data['end_date']
-    #         journal_entry_items = JournalEntryItem.objects.select_related('journal_entry').select_related('account')
-    #         journal_entry_items = journal_entry_items.filter(account__date__gte=start_date,account__date__lte=end_date)
-    #         print(journal_entry_items)
-    #         return Response()
-    #     return Response(account_balance_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-
 
 class AccountView(APIView):
     authentication_classes = [TokenAuthentication]
