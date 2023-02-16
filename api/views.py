@@ -41,7 +41,6 @@ class AccountBalanceView(APIView):
     def get(self, request, *args, **kwargs):
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
-        # TODO: Should have a topline account type for balance sheet or income statement
 
         account_balance_list = helpers.get_account_balances(start_date,end_date)
         account_balance_output_serializer = AccountBalanceOutputSerializer(account_balance_list, many=True)
