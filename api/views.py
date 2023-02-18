@@ -30,9 +30,8 @@ class Index(View):
             handler = CsvHandler(request.FILES['file'], request.POST['account'])
             handler.create_transactions()
             return HttpResponseRedirect('/')
-        else:
-            print('invalid')
-            return render(request, self.template, {'form': self.form})
+
+        return render(request, self.template, {'form': self.form})
 
 class AccountBalanceView(APIView):
     authentication_classes = [TokenAuthentication]
