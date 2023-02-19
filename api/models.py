@@ -18,6 +18,8 @@ class Account(models.Model):
         SECURITIES = 'securities', _('Securities')
         RETAINED_EARNINGS = 'retained_earnings', _('Retained Earnings')
         INVESTMENT_GAINS = 'investment_gains', _('Investment Gains')
+        INCOME = 'income', _('Income')
+        PURCHASES = 'purchases', _('Purchases')
 
     name = models.CharField(max_length=200,unique=True)
     type = models.CharField(max_length=9,choices=AccountType.choices)
