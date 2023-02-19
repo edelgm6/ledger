@@ -61,7 +61,7 @@ class JournalEntry(models.Model):
     transaction = models.OneToOneField('Transaction',on_delete=models.CASCADE,null=True,blank=True)
 
     def __str__(self):
-        return str(self.date) + ' ' + self.description
+        return str(self.pk) + ': ' + str(self.date) + ' ' + self.description
 
 class JournalEntryItem(models.Model):
 
