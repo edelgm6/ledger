@@ -26,8 +26,14 @@ def journal_entries(journal_entry):
 
     return entries_list
 
+class JournalEntryItemInline(admin.TabularInline):
+    model = JournalEntryItem
+
 class JournalEntryAdmin(admin.ModelAdmin):
     list_display = ('pk', 'date', 'description', 'transaction', journal_entries)
+    inlines = [
+        JournalEntryItemInline,
+    ]
 
 class TransactionAdmin(admin.ModelAdmin):
     list_display = ('date', 'account', 'amount', 'description', 'category', 'is_closed')
