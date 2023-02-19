@@ -12,6 +12,12 @@ class Account(models.Model):
 
     class AccountSubType(models.TextChoices):
         CREDIT_CARD = 'credit_card', _('Credit Card')
+        LOAN = 'loan', _('Loan')
+        CASH = 'cash', _('Cash')
+        REAL_ESTATE = 'real_estate', _('Real Estate')
+        SECURITIES = 'securities', _('Securities')
+        RETAINED_EARNINGS = 'retained_earnings', _('Retained Earnings')
+        INVESTMENT_GAINS = 'investment_gains', _('Investment Gains')
 
     name = models.CharField(max_length=200,unique=True)
     type = models.CharField(max_length=9,choices=AccountType.choices)
