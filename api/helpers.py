@@ -14,10 +14,13 @@ def get_account_balances(start_date, end_date):
                 'type'
             ).annotate(total=Sum('amount'))
     balance_sheet_aggregates = JournalEntryItem.objects.filter(
-        account__type__in=BALANCE_SHEET_ACCOUNT_TYPES).values(
+        account__type__in=BALANCE_SHEET_ACCOUNT_TYPES,
+        journal_entry__date__lte=end_date
+        ).values(
             'account__name',
             'account__type',
-            'type').annotate(total=Sum('amount'))
+            'type'
+        ).annotate(total=Sum('amount'))
 
     account_summaries = {}
     aggregate_groups = [income_statement_aggregates,balance_sheet_aggregates]

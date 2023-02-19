@@ -105,13 +105,6 @@ class TransactionInputSerializer(serializers.ModelSerializer):
 
         return instance
 
-# class TransactionUpdateSerializer(serializers.ModelSerializer):
-#     linked_transaction = serializers.IntegerField()
-
-#     class Meta:
-#         model = Transaction
-#         fields = ['linked_transaction']
-
 class TransactionUploadSerializer(serializers.Serializer):
 
     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
