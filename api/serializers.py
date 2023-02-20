@@ -102,6 +102,10 @@ class TransactionInputSerializer(serializers.ModelSerializer):
         instance.is_closed = validated_data.get('is_closed', instance.is_closed)
         if validated_data.get('is_closed'):
             instance.close(date.today())
+
+        if validated_data.get('linked_transaction'):
+            validated_data.get('linked_transaction').close(date.today())
+
         instance.save()
 
         return instance
