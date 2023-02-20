@@ -58,10 +58,8 @@ class JournalEntryInputSerializer(serializers.ModelSerializer):
         for journal_entry_item_data in journal_entry_items_data:
             JournalEntryItem.objects.create(journal_entry=journal_entry, **journal_entry_item_data)
 
-        try:
+        if journal_entry.transaction:
             journal_entry.transaction.close(date.today())
-        except AttributeError:
-            pass
 
         return journal_entry
 
