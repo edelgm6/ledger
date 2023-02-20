@@ -19,12 +19,10 @@ from api.views import JournalEntryView, Index, TransactionView, AccountView, Upl
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', Index.as_view()),
-    # path('transactions-upload/', TransactionsUploadView.as_view()),
-    path('journal-entries/', JournalEntryView.as_view()),
-    path('transactions/<int:pk>', TransactionView.as_view()),
-    path('transactions/', TransactionView.as_view()),
-    path('upload-transactions/', UploadTransactionsView.as_view()),
-    path('account-balances/', AccountBalanceView.as_view()),
-    path('accounts/', AccountView.as_view()),
+    path('', Index.as_view(), name='index'),
+    path('journal-entries/', JournalEntryView.as_view(), name='journal-entries'),
+    path('transactions/<int:pk>', TransactionView.as_view(), name='transactions'),
+    path('upload-transactions/', UploadTransactionsView.as_view(), name='upload-transactions'),
+    path('account-balances/', AccountBalanceView.as_view(), name='account-balances'),
+    path('accounts/', AccountView.as_view(), name='accounts'),
 ]
