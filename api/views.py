@@ -9,7 +9,7 @@ from rest_framework.parsers import FileUploadParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, generics
-from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionUploadSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer
+from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionUploadSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer
 from api.models import Transaction, Account
 from api.forms import TransactionsUploadForm
 from api.CsvHandler import CsvHandler
@@ -26,12 +26,23 @@ class Index(View):
     def post(self, request, format=None):
         whatever = self.form(request.POST, request.FILES)
         if whatever.is_valid():
-            print(request.FILES['file'])
             handler = CsvHandler(request.FILES['file'], request.POST['account'])
             handler.create_transactions()
             return HttpResponseRedirect('/')
 
         return render(request, self.template, {'form': self.form})
+
+class TransactionTypeView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        transaction_types = Transaction.TransactionType.choices
+        transaction_types_list = []
+        for transaction_type in transaction_types:
+            transaction_types_list.append({'id': transaction_type[0], 'label': transaction_type[1]})
+        transaction_type_serializer = TransactionTypeOutputSerializer(transaction_types_list, many=True)
+        return Response(transaction_type_serializer.data)
 
 class AccountBalanceView(APIView):
     authentication_classes = [TokenAuthentication]
@@ -86,7 +97,6 @@ class TransactionView(generics.ListAPIView):
         include_types = self.request.query_params.getlist('include_type')
         exclude_types = self.request.query_params.getlist('exclude_type')
         has_linked_transaction = self.request.query_params.get('has_linked_transaction')
-        print(has_linked_transaction)
         if is_closed:
             queryset = queryset.filter(is_closed=is_closed)
         if include_types:
@@ -121,6 +131,5 @@ class JournalEntryView(APIView):
             journal_entry = journal_entry_input_serializer.save()
             journal_entry_output_serializer = JournalEntryOutputSerializer(journal_entry)
             return Response(journal_entry_output_serializer.data, status=status.HTTP_201_CREATED)
-        else:
-            print(journal_entry_input_serializer.errors)
-            return Response(journal_entry_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(journal_entry_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
