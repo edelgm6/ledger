@@ -88,7 +88,6 @@ class JournalEntryViewTest(TestCase):
         self.assertEqual(journal_entry_items.count(), 2)
 
 
-
 class AccountViewTest(TestCase):
 
     def setUp(self):
@@ -188,14 +187,16 @@ class TransactionViewTest(TestCase):
             amount=-10.23,
             description='test exclude',
             category='whatever',
-            type=Transaction.TransactionType.PURCHASE
+            type=Transaction.TransactionType.PURCHASE,
+            linked_transaction=transaction
         )
 
         user = User.objects.create(username='admin')
         factory = APIRequestFactory()
         payload = {
             'exclude_type': ['payment','transfer'],
-            'is_closed': False
+            'is_closed': False,
+            'has_linked_transaction': True
         }
 
         request = factory.get(self.ENDPOINT, payload)

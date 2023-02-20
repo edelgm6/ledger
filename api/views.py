@@ -85,12 +85,17 @@ class TransactionView(generics.ListAPIView):
         is_closed = self.request.query_params.get('is_closed')
         include_types = self.request.query_params.getlist('include_type')
         exclude_types = self.request.query_params.getlist('exclude_type')
+        has_linked_transaction = self.request.query_params.get('has_linked_transaction')
+        print(has_linked_transaction)
         if is_closed:
             queryset = queryset.filter(is_closed=is_closed)
         if include_types:
             queryset = queryset.filter(type__in=include_types)
         if exclude_types:
             queryset = queryset.exclude(type__in=exclude_types)
+        if has_linked_transaction:
+            null_filter = has_linked_transaction.lower() != 'true'
+            queryset = queryset.filter(linked_transaction__isnull=null_filter)
 
         queryset = queryset.order_by('date','account','description')
         return queryset
