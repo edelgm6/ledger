@@ -76,6 +76,10 @@ class AccountOutputSerializer(serializers.ModelSerializer):
         fields = '__all__'
         depth = 1
 
+class TransactionTypeOutputSerializer(serializers.Serializer):
+    id = serializers.CharField(max_length=200)
+    label = serializers.CharField(max_length=200)
+
 class TransactionOutputSerializer(serializers.ModelSerializer):
 
     class Meta:

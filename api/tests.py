@@ -4,7 +4,21 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIRequestFactory, force_authenticate
 from api.models import Account, Transaction, JournalEntry, JournalEntryItem
-from api.views import AccountView, UploadTransactionsView, TransactionView, JournalEntryView
+from api.views import AccountView, UploadTransactionsView, TransactionView, JournalEntryView, TransactionTypeView
+
+class TransactionTypeViewTest(TestCase):
+    def setUp(self):
+        self.ENDPOINT = '/transaction-types/'
+        self.VIEW = TransactionTypeView
+
+    def test_returns_transaction_types(self):
+        user = User.objects.create(username='admin')
+        factory = APIRequestFactory()
+        request = factory.get(self.ENDPOINT)
+        force_authenticate(request, user=user)
+        response = self.VIEW.as_view()(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue('id' in response.data[0].keys())
 
 class JournalEntryViewTest(TestCase):
     def setUp(self):
