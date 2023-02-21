@@ -3,8 +3,37 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIRequestFactory, force_authenticate
-from api.models import Account, Transaction, JournalEntry, JournalEntryItem
-from api.views import AccountView, UploadTransactionsView, TransactionView, JournalEntryView, TransactionTypeView
+from api.models import Account, Transaction, JournalEntry, JournalEntryItem, CSVProfile
+from api.views import AccountView, UploadTransactionsView, TransactionView, JournalEntryView, TransactionTypeView, CSVProfileView
+
+class CSVProfileViewTest(TestCase):
+    def setUp(self):
+        self.ENDPOINT = '/csv-profiles/'
+        self.VIEW = CSVProfileView
+
+    def test_returns_csv_profiles(self):
+        user = User.objects.create(username='admin')
+        profile = CSVProfile.objects.create(
+            name='name',
+            date='date',
+            amount='amount',
+            description='description',
+            category='category'
+        )
+        chase = Account.objects.create(
+            name='1200-Chase',
+            type='liability',
+            sub_type='credit_card',
+            csv_profile=profile
+        )
+
+        factory = APIRequestFactory()
+        request = factory.get(self.ENDPOINT)
+        force_authenticate(request, user=user)
+        response = self.VIEW.as_view()(request)
+        print(response.data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(CSVProfile.objects.get(pk=1), profile)
 
 class TransactionTypeViewTest(TestCase):
     def setUp(self):
