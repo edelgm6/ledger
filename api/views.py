@@ -9,8 +9,8 @@ from rest_framework.parsers import FileUploadParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, generics
-from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionUploadSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer
-from api.models import Transaction, Account
+from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionUploadSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer
+from api.models import Transaction, Account, CSVProfile
 from api.forms import TransactionsUploadForm
 from api.CsvHandler import CsvHandler
 from api import helpers
@@ -31,6 +31,15 @@ class Index(View):
             return HttpResponseRedirect('/')
 
         return render(request, self.template, {'form': self.form})
+
+class CSVProfileView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        csv_profiles = CSVProfile.objects.all()
+        csv_profile_output_serializer = CSVProfileOutputSerializer(csv_profiles, many=True)
+        return Response(csv_profile_output_serializer.data)
 
 class TransactionTypeView(APIView):
     authentication_classes = [TokenAuthentication]
