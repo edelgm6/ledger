@@ -24,7 +24,7 @@ class Account(models.Model):
     name = models.CharField(max_length=200,unique=True)
     type = models.CharField(max_length=9,choices=AccountType.choices)
     sub_type = models.CharField(max_length=30,choices=AccountSubType.choices)
-    csv_profile = models.ForeignKey('CSVProfile',on_delete=models.PROTECT,null=True,blank=True)
+    csv_profile = models.ForeignKey('CSVProfile',related_name='accounts',on_delete=models.PROTECT,null=True,blank=True)
 
     def __str__(self):
         return self.name

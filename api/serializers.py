@@ -2,7 +2,13 @@ import csv
 import io
 from datetime import datetime, date
 from rest_framework import serializers
-from api.models import Transaction, Account, JournalEntry, JournalEntryItem
+from api.models import Transaction, Account, JournalEntry, JournalEntryItem, CSVProfile
+
+class CSVProfileOutputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CSVProfile
+        fields = ['name','date','amount','description','category','accounts']
+        depth = 1
 
 class AccountBalanceOutputSerializer(serializers.Serializer):
     account = serializers.CharField(max_length=200)
