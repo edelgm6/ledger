@@ -43,6 +43,7 @@ class JournalEntryViewTest(TestCase):
             type='expense',
             sub_type='purchase'
         )
+
         payload = {
             'date': '2023-01-01',
             'journal_entry_items': [
@@ -76,8 +77,19 @@ class JournalEntryViewTest(TestCase):
             type='expense',
             sub_type='purchase'
         )
+        transaction = Transaction.objects.create(
+            date='2023-01-01',
+            account=chase,
+            amount=-100.23,
+            description='test whatever',
+            category='whatever',
+            type=Transaction.TransactionType.INCOME
+        )
+
         payload = {
             'date': '2023-01-01',
+            'transaction': transaction.pk,
+            'transaction_type': 'payment',
             'journal_entry_items': [
                 {
                     'type': 'debit',
@@ -99,8 +111,10 @@ class JournalEntryViewTest(TestCase):
         journal_entry = JournalEntry.objects.get(pk=1)
         journal_entry_items = JournalEntryItem.objects.all()
         self.assertEqual(journal_entry.date, datetime.date(2023, 1, 1))
+        self.assertEqual(journal_entry.transaction, transaction)
         self.assertEqual(journal_entry_items.count(), 2)
-
+        transaction = Transaction.objects.get(pk=1)
+        self.assertEqual(transaction.type, 'payment')
 
 class AccountViewTest(TestCase):
 
