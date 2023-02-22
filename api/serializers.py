@@ -127,6 +127,24 @@ class TransactionInputSerializer(serializers.ModelSerializer):
             'suggested_type'
         ]
 
+    def create(self, validated_data):
+        suggested_account = None
+        suggested_type = ''
+        auto_tags = AutoTag.objects.all()
+
+        for tag in auto_tags:
+            if tag.search_string in validated_data['description'].lower():
+                suggested_account = tag.account
+                if tag.transaction_type:
+                    suggested_type = tag.transaction_type
+                break
+
+        validated_data['suggested_account'] = suggested_account
+        validated_data['suggested_type'] = suggested_type
+        transaction = Transaction.objects.create(**validated_data)
+
+        return transaction
+
     def update(self, instance, validated_data):
         instance.linked_transaction = validated_data.get('linked_transaction', instance.linked_transaction)
         instance.date = validated_data.get('date', instance.date)
@@ -145,32 +163,3 @@ class TransactionInputSerializer(serializers.ModelSerializer):
         instance.save()
 
         return instance
-
-class TransactionUploadSerializer(serializers.Serializer):
-    account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
-    transactions = TransactionInputSerializer(many=True)
-
-    def create(self, validated_data):
-        transactions_data = validated_data.pop('transactions')
-        for transaction_data in transactions_data:
-            transaction_data['account'] = validated_data['account']
-
-            suggested_account = None
-            suggested_type = ''
-            auto_tags = AutoTag.objects.all()
-
-            for tag in auto_tags:
-                if tag.search_string in transaction_data['description'].lower():
-                    suggested_account = tag.account
-                    if tag.transaction_type:
-                        suggested_type = tag.transaction_type
-                    break
-
-            transaction_data['suggested_account'] = suggested_account
-            transaction_data['suggested_type'] = suggested_type
-
-        transactions_input_serializer = TransactionInputSerializer(data=transactions_data, many=True)
-        if transactions_input_serializer.is_valid():
-            transactions = transactions_input_serializer.save()
-
-        return transactions
