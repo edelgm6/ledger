@@ -142,7 +142,7 @@ class TransactionUploadSerializer(serializers.Serializer):
         transactions_list = []
         for transaction_data in transactions_data:
             suggested_account = None
-            suggested_type = None
+            suggested_type = ''
             auto_tags = AutoTag.objects.all()
             # TODO: pre-tag the rows instead of referring literally here
             for tag in auto_tags:
