@@ -107,12 +107,25 @@ class TransactionOutputSerializer(serializers.ModelSerializer):
         depth = 1
 
 class TransactionInputSerializer(serializers.ModelSerializer):
+    account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name',required=False)
     linked_transaction = serializers.PrimaryKeyRelatedField(required=False,queryset=Transaction.objects.all())
     is_closed = serializers.BooleanField(required=False)
+    suggested_account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name',required=False)
+    suggested_type = serializers.CharField(max_length=25,required=False)
 
     class Meta:
         model = Transaction
-        fields = ['date','amount','category','description','linked_transaction','is_closed']
+        fields = [
+            'date',
+            'amount',
+            'category',
+            'description',
+            'account',
+            'linked_transaction',
+            'is_closed',
+            'suggested_account',
+            'suggested_type'
+        ]
 
     def update(self, instance, validated_data):
         instance.linked_transaction = validated_data.get('linked_transaction', instance.linked_transaction)
@@ -139,12 +152,13 @@ class TransactionUploadSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         transactions_data = validated_data.pop('transactions')
-        transactions_list = []
         for transaction_data in transactions_data:
+            transaction_data['account'] = validated_data['account']
+
             suggested_account = None
             suggested_type = ''
             auto_tags = AutoTag.objects.all()
-            # TODO: pre-tag the rows instead of referring literally here
+
             for tag in auto_tags:
                 if tag.search_string in transaction_data['description'].lower():
                     suggested_account = tag.account
@@ -152,15 +166,11 @@ class TransactionUploadSerializer(serializers.Serializer):
                         suggested_type = tag.transaction_type
                     break
 
-            transactions_list.append(
-                Transaction(
-                    account=validated_data['account'],
-                    suggested_account=suggested_account,
-                    suggested_type=suggested_type,
-                    **transaction_data
-                )
-            )
+            transaction_data['suggested_account'] = suggested_account
+            transaction_data['suggested_type'] = suggested_type
 
-        transactions = Transaction.objects.bulk_create(transactions_list)
+        transactions_input_serializer = TransactionInputSerializer(data=transactions_data, many=True)
+        if transactions_input_serializer.is_valid():
+            transactions = transactions_input_serializer.save()
 
         return transactions
