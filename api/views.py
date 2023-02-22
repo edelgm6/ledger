@@ -1,36 +1,12 @@
-from django.shortcuts import render
-from django.views import View
-from django.http import HttpResponseRedirect, Http404
-from django.contrib.auth.decorators import login_required
-from django.utils.decorators import method_decorator
+from django.http import Http404
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.parsers import FileUploadParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, generics
 from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionUploadSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer
 from api.models import Transaction, Account, CSVProfile
-from api.forms import TransactionsUploadForm
-from api.CsvHandler import CsvHandler
 from api import helpers
-
-@method_decorator(login_required, name='dispatch')
-class Index(View):
-    template = 'api/index.html'
-    form = TransactionsUploadForm
-
-    def get(self, request, format=None):
-        return render(request, self.template, {'form': self.form})
-
-    def post(self, request, format=None):
-        whatever = self.form(request.POST, request.FILES)
-        if whatever.is_valid():
-            handler = CsvHandler(request.FILES['file'], request.POST['account'])
-            handler.create_transactions()
-            return HttpResponseRedirect('/')
-
-        return render(request, self.template, {'form': self.form})
 
 class CSVProfileView(APIView):
     authentication_classes = [TokenAuthentication]
