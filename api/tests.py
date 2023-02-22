@@ -31,7 +31,6 @@ class CSVProfileViewTest(TestCase):
         request = factory.get(self.ENDPOINT)
         force_authenticate(request, user=user)
         response = self.VIEW.as_view()(request)
-        print(response.data)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(CSVProfile.objects.get(pk=1), profile)
 
@@ -342,6 +341,7 @@ class UploadTransactionsViewTest(TestCase):
         request = factory.post(self.ENDPOINT, payload, format='json')
         force_authenticate(request, user=user)
         response = self.VIEW.as_view()(request)
+        print(response.data)
         self.assertEqual(response.status_code, 201)
         transaction = Transaction.objects.get(category='transfer')
         self.assertEqual(transaction.account, account)
