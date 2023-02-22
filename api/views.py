@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, generics
-from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionUploadSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer
+from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer
 from api.models import Transaction, Account, CSVProfile
 from api import helpers
 
@@ -57,13 +57,13 @@ class UploadTransactionsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        transaction_upload_serializer = TransactionUploadSerializer(data=request.data)
-        if transaction_upload_serializer.is_valid():
-            transactions = transaction_upload_serializer.save()
+        transaction_input_serializer = TransactionInputSerializer(data=request.data, many=True)
+        if transaction_input_serializer.is_valid():
+            transactions = transaction_input_serializer.save()
             transaction_output_serializer = TransactionOutputSerializer(transactions,many=True)
             return Response(transaction_output_serializer.data, status=status.HTTP_201_CREATED)
 
-        return Response(transaction_upload_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(transaction_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class TransactionView(generics.ListAPIView):
     authentication_classes = [TokenAuthentication]

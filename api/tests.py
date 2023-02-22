@@ -329,15 +329,15 @@ class UploadTransactionsViewTest(TestCase):
         )
 
         factory = APIRequestFactory()
-        payload = {
-            'account': account.name,
-            'transactions': [{
+        payload = [
+            {
+                'account': account.name,
                 'date': '2023-01-01',
                 'amount': -11.50,
                 'category': 'transfer',
-                'description': 'uber ride',
-            }]
-        }
+                'description': 'uber ride'
+            }
+        ]
         request = factory.post(self.ENDPOINT, payload, format='json')
         force_authenticate(request, user=user)
         response = self.VIEW.as_view()(request)
