@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIRequestFactory, force_authenticate
-from api.models import Account, Transaction, JournalEntry, JournalEntryItem, CSVProfile
+from api.models import Account, Transaction, JournalEntry, JournalEntryItem, CSVProfile, AutoTag
 from api.views import AccountView, UploadTransactionsView, TransactionView, JournalEntryView, TransactionTypeView, CSVProfileView
 
 class CSVProfileViewTest(TestCase):
@@ -323,6 +323,11 @@ class UploadTransactionsViewTest(TestCase):
             type='liability',
             sub_type='credit_card'
         )
+        auto_tag = AutoTag.objects.create(
+            search_string='uber',
+            account=account,
+            transaction_type='payment'
+        )
 
         factory = APIRequestFactory()
         payload = {
@@ -341,3 +346,5 @@ class UploadTransactionsViewTest(TestCase):
         transaction = Transaction.objects.get(category='transfer')
         self.assertEqual(transaction.account, account)
         self.assertEqual(transaction.description, 'uber ride')
+        self.assertEqual(transaction.suggested_account, account)
+        self.assertEqual(transaction.suggested_type,'payment')

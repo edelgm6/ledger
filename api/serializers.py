@@ -2,7 +2,7 @@ import csv
 import io
 from datetime import datetime, date
 from rest_framework import serializers
-from api.models import Transaction, Account, JournalEntry, JournalEntryItem, CSVProfile
+from api.models import Transaction, Account, JournalEntry, JournalEntryItem, CSVProfile, AutoTag
 
 class CSVProfileOutputSerializer(serializers.ModelSerializer):
     class Meta:
@@ -141,8 +141,24 @@ class TransactionUploadSerializer(serializers.Serializer):
         transactions_data = validated_data.pop('transactions')
         transactions_list = []
         for transaction_data in transactions_data:
+            suggested_account = None
+            suggested_type = None
+            auto_tags = AutoTag.objects.all()
+            # TODO: pre-tag the rows instead of referring literally here
+            for tag in auto_tags:
+                if tag.search_string in transaction_data['description'].lower():
+                    suggested_account = tag.account
+                    if tag.transaction_type:
+                        suggested_type = tag.transaction_type
+                    break
+
             transactions_list.append(
-                Transaction(account=validated_data['account'],**transaction_data)
+                Transaction(
+                    account=validated_data['account'],
+                    suggested_account=suggested_account,
+                    suggested_type=suggested_type,
+                    **transaction_data
+                )
             )
 
         transactions = Transaction.objects.bulk_create(transactions_list)
