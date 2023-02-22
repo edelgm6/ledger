@@ -134,13 +134,11 @@ class TransactionInputSerializer(serializers.ModelSerializer):
         return instance
 
 class TransactionUploadSerializer(serializers.Serializer):
-
     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
     transactions = TransactionInputSerializer(many=True)
 
     def create(self, validated_data):
         transactions_data = validated_data.pop('transactions')
-
         transactions_list = []
         for transaction_data in transactions_data:
             transactions_list.append(

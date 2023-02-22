@@ -81,6 +81,8 @@ class UploadTransactionsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        # print(request.data)
+        # print(wtd)
         transaction_upload_serializer = TransactionUploadSerializer(data=request.data)
         if transaction_upload_serializer.is_valid():
             transactions = transaction_upload_serializer.save()
