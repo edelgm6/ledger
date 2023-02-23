@@ -113,6 +113,7 @@ class TransactionOutputSerializer(serializers.ModelSerializer):
 
 class TransactionInputSerializer(serializers.ModelSerializer):
     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name',required=False)
+    type = serializers.CharField(max_length=25,required=False)
     linked_transaction = serializers.PrimaryKeyRelatedField(required=False,queryset=Transaction.objects.all())
     is_closed = serializers.BooleanField(required=False)
     suggested_account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name',required=False)
@@ -126,6 +127,7 @@ class TransactionInputSerializer(serializers.ModelSerializer):
             'category',
             'description',
             'account',
+            'type',
             'linked_transaction',
             'is_closed',
             'suggested_account',
@@ -156,6 +158,7 @@ class TransactionInputSerializer(serializers.ModelSerializer):
         instance.amount = validated_data.get('amount', instance.amount)
         instance.category = validated_data.get('category', instance.category)
         instance.description = validated_data.get('description', instance.description)
+        instance.type = validated_data.get('type', instance.type)
 
         # TODO: Is there a clean way to always update the date when this field is updated?
         instance.is_closed = validated_data.get('is_closed', instance.is_closed)
