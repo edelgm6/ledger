@@ -129,7 +129,7 @@ class TransactionInputSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         suggested_account = None
-        suggested_type = ''
+        suggested_type = Transaction.TransactionType.PURCHASE
         auto_tags = AutoTag.objects.all()
 
         for tag in auto_tags:
