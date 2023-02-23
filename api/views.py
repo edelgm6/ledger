@@ -46,7 +46,7 @@ class AccountView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        accounts = Account.objects.all()
+        accounts = Account.objects.all().order_by('name')
         account_output_serializer = AccountOutputSerializer(accounts,many=True)
         return Response(account_output_serializer.data)
 
