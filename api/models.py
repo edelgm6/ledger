@@ -53,7 +53,6 @@ class Account(models.Model):
     type = models.CharField(max_length=9,choices=AccountType.choices)
     sub_type = models.CharField(max_length=30,choices=AccountSubType.choices)
     csv_profile = models.ForeignKey('CSVProfile',related_name='accounts',on_delete=models.PROTECT,null=True,blank=True)
-    default_transaction_type = models.CharField(max_length=25,choices=Transaction.TransactionType.choices,blank=True)
 
     def __str__(self):
         return self.name
