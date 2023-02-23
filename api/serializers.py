@@ -63,6 +63,12 @@ class JournalEntryInputSerializer(serializers.ModelSerializer):
                 'Credits = ' + str(credits) + '\n'
                 )
 
+        if data.get('transaction'):
+            transaction = data['transaction']
+            transaction_amount = abs(transaction.amount)
+            if debits != transaction_amount or credits != transaction_amount:
+                raise serializers.ValidationError('If connecting to a transactions, debits and credits must equal transaction amount.')
+
         return data
 
     def create(self, validated_data):
@@ -70,15 +76,14 @@ class JournalEntryInputSerializer(serializers.ModelSerializer):
         transaction_type = validated_data.pop('transaction_type')
         journal_entry = JournalEntry.objects.create(**validated_data)
 
-        if transaction_type:
-            journal_entry.transaction.type = transaction_type
-            journal_entry.transaction.save()
+        if journal_entry.transaction:
+            journal_entry.transaction.close(date.today())
+            if transaction_type:
+                journal_entry.transaction.type = transaction_type
+                journal_entry.transaction.save()
 
         for journal_entry_item_data in journal_entry_items_data:
             JournalEntryItem.objects.create(journal_entry=journal_entry, **journal_entry_item_data)
-
-        if journal_entry.transaction:
-            journal_entry.transaction.close(date.today())
 
         return journal_entry
 
