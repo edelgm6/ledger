@@ -121,12 +121,12 @@ class JournalEntryViewTest(TestCase):
             'journal_entry_items': [
                 {
                     'type': 'debit',
-                    'amount': 100,
+                    'amount': 100.23,
                     'account': '1200-Chase'
                 },
                 {
                     'type': 'credit',
-                    'amount': 100,
+                    'amount': 100.23,
                     'account': '5000-Groceries'
                 }
             ]
@@ -135,6 +135,7 @@ class JournalEntryViewTest(TestCase):
         request = factory.post(self.ENDPOINT, payload, format='json')
         force_authenticate(request, user=user)
         response = self.VIEW.as_view()(request)
+        print(response.data)
         self.assertEqual(response.status_code, 201)
         journal_entry = JournalEntry.objects.get(pk=1)
         journal_entry_items = JournalEntryItem.objects.all()
