@@ -1,34 +1,6 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-class Account(models.Model):
-
-    class AccountType(models.TextChoices):
-        ASSET = 'asset', _('Asset')
-        LIABILITY = 'liability', _('Liability')
-        INCOME = 'income', _('Income')
-        EXPENSE = 'expense', _('Expense')
-        EQUITY = 'equity', _('Equity')
-
-    class AccountSubType(models.TextChoices):
-        CREDIT_CARD = 'credit_card', _('Credit Card')
-        LOAN = 'loan', _('Loan')
-        CASH = 'cash', _('Cash')
-        REAL_ESTATE = 'real_estate', _('Real Estate')
-        SECURITIES = 'securities', _('Securities')
-        RETAINED_EARNINGS = 'retained_earnings', _('Retained Earnings')
-        INVESTMENT_GAINS = 'investment_gains', _('Investment Gains')
-        INCOME = 'income', _('Income')
-        PURCHASES = 'purchases', _('Purchases')
-
-    name = models.CharField(max_length=200,unique=True)
-    type = models.CharField(max_length=9,choices=AccountType.choices)
-    sub_type = models.CharField(max_length=30,choices=AccountSubType.choices)
-    csv_profile = models.ForeignKey('CSVProfile',related_name='accounts',on_delete=models.PROTECT,null=True,blank=True)
-
-    def __str__(self):
-        return self.name
-
 class Transaction(models.Model):
 
     class TransactionType(models.TextChoices):
@@ -56,6 +28,35 @@ class Transaction(models.Model):
         self.is_closed = True
         self.date_closed = date
         self.save()
+
+class Account(models.Model):
+
+    class AccountType(models.TextChoices):
+        ASSET = 'asset', _('Asset')
+        LIABILITY = 'liability', _('Liability')
+        INCOME = 'income', _('Income')
+        EXPENSE = 'expense', _('Expense')
+        EQUITY = 'equity', _('Equity')
+
+    class AccountSubType(models.TextChoices):
+        CREDIT_CARD = 'credit_card', _('Credit Card')
+        LOAN = 'loan', _('Loan')
+        CASH = 'cash', _('Cash')
+        REAL_ESTATE = 'real_estate', _('Real Estate')
+        SECURITIES = 'securities', _('Securities')
+        RETAINED_EARNINGS = 'retained_earnings', _('Retained Earnings')
+        INVESTMENT_GAINS = 'investment_gains', _('Investment Gains')
+        INCOME = 'income', _('Income')
+        PURCHASES = 'purchases', _('Purchases')
+
+    name = models.CharField(max_length=200,unique=True)
+    type = models.CharField(max_length=9,choices=AccountType.choices)
+    sub_type = models.CharField(max_length=30,choices=AccountSubType.choices)
+    csv_profile = models.ForeignKey('CSVProfile',related_name='accounts',on_delete=models.PROTECT,null=True,blank=True)
+    default_transaction_type = models.CharField(max_length=25,choices=Transaction.TransactionType.choices,blank=True)
+
+    def __str__(self):
+        return self.name
 
 class JournalEntry(models.Model):
     date = models.DateField()
