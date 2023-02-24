@@ -66,8 +66,9 @@ class JournalEntryInputSerializer(serializers.ModelSerializer):
         if data.get('transaction'):
             transaction = data['transaction']
             transaction_amount = abs(transaction.amount)
-            if debits != transaction_amount or credits != transaction_amount:
-                raise serializers.ValidationError('If connecting to a transactions, debits and credits must equal transaction amount.')
+            journal_entry_amounts = [journal_entry_item['amount'] for journal_entry_item in journal_entry_items]
+            if transaction_amount not in journal_entry_amounts:
+                raise serializers.ValidationError('If connecting to a transactions, at least one journal entry item must equal the transaction amount.')
 
         return data
 
