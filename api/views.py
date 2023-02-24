@@ -95,6 +95,14 @@ class TransactionView(generics.ListAPIView):
         queryset = queryset.order_by('date','account','description')
         return queryset
 
+    def post(self, request, *args, **kwargs):
+        transaction_input_serializer = TransactionInputSerializer(data=request.data)
+        if transaction_input_serializer.is_valid():
+            transaction = transaction_input_serializer.save()
+            transaction_output_serializer = TransactionOutputSerializer(transaction)
+            return Response(transaction_output_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(transaction_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     def put(self, request, pk, format=None):
         transaction = self.get_transaction(pk)
         transaction_input_serializer = TransactionInputSerializer(transaction, data=request.data, partial=True)
