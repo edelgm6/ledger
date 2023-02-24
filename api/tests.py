@@ -135,7 +135,6 @@ class JournalEntryViewTest(TestCase):
         request = factory.post(self.ENDPOINT, payload, format='json')
         force_authenticate(request, user=user)
         response = self.VIEW.as_view()(request)
-        print(response.data)
         self.assertEqual(response.status_code, 201)
         journal_entry = JournalEntry.objects.get(pk=1)
         journal_entry_items = JournalEntryItem.objects.all()
@@ -188,6 +187,31 @@ class TransactionViewTest(TestCase):
         request = factory.get(self.ENDPOINT)
         response = self.VIEW.as_view()(request)
         self.assertEqual(response.status_code, 401)
+
+    def test_create_transaction(self):
+        chase = Account.objects.create(
+            name='1200-Chase',
+            type='liability',
+            sub_type='credit_card'
+        )
+
+        user = User.objects.create(username='admin')
+        factory = APIRequestFactory()
+        payload = {
+            'date': '2023-02-24',
+            'amount': 120.11,
+            'description': 'test description',
+            'category': 'deposit',
+            'type': Transaction.TransactionType.INCOME,
+            'account': chase.name
+        }
+
+        request = factory.post(self.ENDPOINT, payload)
+        force_authenticate(request, user=user)
+        response = self.VIEW.as_view()(request)
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue('test description' in response.data.values())
+        transaction = Transaction.objects.get(pk=1)
 
     def test_modify_transaction(self):
         chase = Account.objects.create(
@@ -342,7 +366,6 @@ class UploadTransactionsViewTest(TestCase):
         request = factory.post(self.ENDPOINT, payload, format='json')
         force_authenticate(request, user=user)
         response = self.VIEW.as_view()(request)
-        print(response.data)
         self.assertEqual(response.status_code, 201)
         transaction = Transaction.objects.get(category='transfer')
         self.assertEqual(transaction.account, account)
