@@ -93,6 +93,7 @@ class CSVProfile(models.Model):
     amount = models.CharField(max_length=200)
     description = models.CharField(max_length=200)
     category = models.CharField(max_length=200)
+    account = models.CharField(max_length=200, blank=True)
 
     def __str__(self):
         return self.name
