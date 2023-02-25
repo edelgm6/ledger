@@ -7,7 +7,7 @@ from api.models import Transaction, Account, JournalEntry, JournalEntryItem, CSV
 class CSVProfileOutputSerializer(serializers.ModelSerializer):
     class Meta:
         model = CSVProfile
-        fields = ['name','date','amount','description','category','accounts']
+        fields = ['name','date','amount','description','category','accounts','account']
         depth = 1
 
 class AccountBalanceOutputSerializer(serializers.Serializer):
