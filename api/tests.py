@@ -353,6 +353,11 @@ class UploadTransactionsViewTest(TestCase):
             transaction_type='payment'
         )
 
+        auto_tag_no_account = AutoTag.objects.create(
+            search_string='dividend',
+            transaction_type='transfer'
+        )
+
         factory = APIRequestFactory()
         payload = [
             {
@@ -361,6 +366,12 @@ class UploadTransactionsViewTest(TestCase):
                 'amount': -11.50,
                 'category': 'transfer',
                 'description': 'uber ride'
+            },
+            {
+                'account': account.name,
+                'date': '2023-01-01',
+                'amount': -20.50,
+                'description': 'dividend'
             }
         ]
         request = factory.post(self.ENDPOINT, payload, format='json')
@@ -372,3 +383,5 @@ class UploadTransactionsViewTest(TestCase):
         self.assertEqual(transaction.description, 'uber ride')
         self.assertEqual(transaction.suggested_account, account)
         self.assertEqual(transaction.suggested_type,'payment')
+        transaction = Transaction.objects.get(description='dividend')
+        self.assertEqual(transaction.suggested_type, 'transfer')
