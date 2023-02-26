@@ -110,7 +110,7 @@ class TransactionOutputSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
         fields = '__all__'
-        depth = 1
+        depth = 2
 
 class TransactionInputSerializer(serializers.ModelSerializer):
     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name',required=False)
