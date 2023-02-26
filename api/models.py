@@ -81,7 +81,7 @@ class JournalEntryItem(models.Model):
 
 class AutoTag(models.Model):
     search_string = models.CharField(max_length=20)
-    account = models.ForeignKey('Account',on_delete=models.CASCADE)
+    account = models.ForeignKey('Account',on_delete=models.CASCADE,null=True,blank=True)
     transaction_type = models.CharField(max_length=25,choices=Transaction.TransactionType.choices,blank=True)
 
     def __str__(self):
