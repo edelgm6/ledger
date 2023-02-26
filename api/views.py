@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.http import Http404
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -83,6 +84,8 @@ class TransactionView(generics.ListAPIView):
         exclude_types = self.request.query_params.getlist('exclude_type')
         has_linked_transaction = self.request.query_params.get('has_linked_transaction')
         accounts = self.request.query_params.getlist('account')
+        amount = self.request.query_params.get('amount')
+
         if is_closed:
             queryset = queryset.filter(is_closed=is_closed)
         if include_types:
@@ -94,6 +97,8 @@ class TransactionView(generics.ListAPIView):
             queryset = queryset.filter(linked_transaction__isnull=null_filter)
         if accounts:
             queryset = queryset.filter(account__name__in=accounts)
+        if amount:
+            queryset = queryset.filter(amount__in=[Decimal(amount), -Decimal(amount)])
 
         queryset = queryset.order_by('date','account','description')
         return queryset

@@ -1,8 +1,6 @@
 from django.contrib import admin
 from api.models import Account, Transaction, JournalEntry, JournalEntryItem, AutoTag, CSVProfile
 
-
-
 class AccountAdmin(admin.ModelAdmin):
     list_display = ('name','type', 'sub_type', 'csv_profile')
 
@@ -36,9 +34,8 @@ class JournalEntryAdmin(admin.ModelAdmin):
     ]
 
 class TransactionAdmin(admin.ModelAdmin):
-    list_display = ('date', 'account', 'amount', 'description', 'category', 'is_closed')
-
-
+    list_display = ('date', 'account', 'amount', 'description', 'category', 'is_closed','linked_transaction')
+    list_filter = ('account__name','date','is_closed')
 
 admin.site.register(Account, AccountAdmin)
 admin.site.register(AutoTag, AutoTagAdmin)
