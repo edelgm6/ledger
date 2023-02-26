@@ -317,7 +317,8 @@ class TransactionViewTest(TestCase):
         payload = {
             'include_type': ['payment','transfer'],
             'is_closed': False,
-            'account': chase.name
+            'account': chase.name,
+            'amount': 100.23
         }
 
         request = factory.get(self.ENDPOINT, payload)
