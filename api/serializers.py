@@ -168,6 +168,7 @@ class TransactionInputSerializer(serializers.ModelSerializer):
 
         if validated_data.get('linked_transaction'):
             validated_data.get('linked_transaction').close(date.today())
+            instance.suggested_account = validated_data.get('linked_transaction').account
 
         instance.save()
 
