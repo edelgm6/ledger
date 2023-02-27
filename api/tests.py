@@ -93,6 +93,47 @@ class JournalEntryViewTest(TestCase):
         response = self.VIEW.as_view()(request)
         self.assertEqual(response.status_code, 400)
 
+    def test_create_journal_entry_with_nulls(self):
+        user = User.objects.create(username='admin')
+        chase = Account.objects.create(
+            name='1200-Chase',
+            type='liability',
+            sub_type='credit_card'
+        )
+        groceries = Account.objects.create(
+            name='5000-Groceries',
+            type='expense',
+            sub_type='purchase'
+        )
+
+        payload = {
+            'date': '2023-01-01',
+            'transaction': None,
+            'transaction_type': None,
+            'journal_entry_items': [
+                {
+                    'type': 'debit',
+                    'amount': 100.23,
+                    'account': '1200-Chase'
+                },
+                {
+                    'type': 'credit',
+                    'amount': 100.23,
+                    'account': '5000-Groceries'
+                }
+            ]
+        }
+        factory = APIRequestFactory()
+        request = factory.post(self.ENDPOINT, payload, format='json')
+        force_authenticate(request, user=user)
+        response = self.VIEW.as_view()(request)
+        print(response.data)
+        self.assertEqual(response.status_code, 201)
+        journal_entry = JournalEntry.objects.get(pk=1)
+        journal_entry_items = JournalEntryItem.objects.all()
+        self.assertEqual(journal_entry.date, datetime.date(2023, 1, 1))
+        self.assertEqual(journal_entry_items.count(), 2)
+
     def test_create_journal_entry(self):
         user = User.objects.create(username='admin')
         chase = Account.objects.create(
