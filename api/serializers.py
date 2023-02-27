@@ -29,6 +29,7 @@ class JournalEntryItemOutputSerializer(serializers.ModelSerializer):
         fields = ['id','type','amount','account']
 
 class JournalEntryInputSerializer(serializers.ModelSerializer):
+    transaction = serializers.PrimaryKeyRelatedField(required=False,queryset=Transaction.objects.all())
     journal_entry_items = JournalEntryItemInputSerializer(many=True)
     transaction_type = serializers.CharField(required=False)
 
