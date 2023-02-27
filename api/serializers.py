@@ -29,9 +29,9 @@ class JournalEntryItemOutputSerializer(serializers.ModelSerializer):
         fields = ['id','type','amount','account']
 
 class JournalEntryInputSerializer(serializers.ModelSerializer):
-    transaction = serializers.PrimaryKeyRelatedField(required=False,queryset=Transaction.objects.all())
+    transaction = serializers.PrimaryKeyRelatedField(allow_null=True,required=False,queryset=Transaction.objects.all())
     journal_entry_items = JournalEntryItemInputSerializer(many=True)
-    transaction_type = serializers.CharField(required=False)
+    transaction_type = serializers.CharField(allow_null=True,required=False)
 
     class Meta:
         model = JournalEntry
@@ -39,7 +39,7 @@ class JournalEntryInputSerializer(serializers.ModelSerializer):
 
     def validate_transaction_type(self, value):
         transaction_types = Transaction.TransactionType.values
-        if value not in transaction_types:
+        if value and value not in transaction_types:
             raise serializers.ValidationError('Transaction Type not valid')
 
         return value
@@ -75,7 +75,7 @@ class JournalEntryInputSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         journal_entry_items_data = validated_data.pop('journal_entry_items')
-        transaction_type = validated_data.pop('transaction_type')
+        transaction_type = validated_data.pop('transaction_type', None)
         journal_entry = JournalEntry.objects.create(**validated_data)
 
         if journal_entry.transaction:
