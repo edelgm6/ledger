@@ -14,7 +14,13 @@ class AccountBalanceViewTest(TestCase):
     def test_returns_csv_profiles(self):
         user = User.objects.create(username='admin')
         factory = APIRequestFactory()
-        request = factory.get(self.ENDPOINT)
+
+        payload = {
+            'start_date': '2022-12-31',
+            'end_date': '2023-01-31'
+        }
+
+        request = factory.get(self.ENDPOINT, payload)
         force_authenticate(request, user=user)
         response = self.VIEW.as_view()(request)
         self.assertEqual(response.status_code, 200)
