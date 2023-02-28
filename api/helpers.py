@@ -48,6 +48,6 @@ def get_account_balances(start_date, end_date):
         else:
             balance = value['credits'] - value['debits']
 
-        account_balance_list.append({'account': key, 'balance': balance})
+        account_balance_list.append({'account': key, 'balance': balance, 'type': value['type']})
 
     return account_balance_list
