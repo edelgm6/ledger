@@ -4,7 +4,20 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIRequestFactory, force_authenticate
 from api.models import Account, Transaction, JournalEntry, JournalEntryItem, CSVProfile, AutoTag
-from api.views import AccountView, UploadTransactionsView, TransactionView, JournalEntryView, TransactionTypeView, CSVProfileView
+from api.views import AccountView, UploadTransactionsView, TransactionView, JournalEntryView, TransactionTypeView, CSVProfileView, AccountBalanceView
+
+class AccountBalanceViewTest(TestCase):
+    def setUp(self):
+        self.ENDPOINT = '/account-balances/'
+        self.VIEW = AccountBalanceView
+
+    def test_returns_csv_profiles(self):
+        user = User.objects.create(username='admin')
+        factory = APIRequestFactory()
+        request = factory.get(self.ENDPOINT)
+        force_authenticate(request, user=user)
+        response = self.VIEW.as_view()(request)
+        self.assertEqual(response.status_code, 200)
 
 class CSVProfileViewTest(TestCase):
     def setUp(self):
