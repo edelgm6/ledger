@@ -15,7 +15,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from api.views import JournalEntryView, TransactionView, AccountView, UploadTransactionsView, AccountBalanceView, TransactionTypeView, CSVProfileView
+from api.views import JournalEntryView, TransactionView, AccountView, UploadTransactionsView, AccountBalanceView, TransactionTypeView, CSVProfileView, GenerateReconciliationsView, ReconciliationView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -27,4 +27,6 @@ urlpatterns = [
     path('account-balances/', AccountBalanceView.as_view(), name='account-balances'),
     path('accounts/', AccountView.as_view(), name='accounts'),
     path('csv-profiles/', CSVProfileView.as_view(), name='csv-profiles'),
+    path('reconciliations/generate/', GenerateReconciliationsView.as_view(), name='generate-reconciliations'),
+    path('reconciliations/', ReconciliationView.as_view(), name='reconciliations'),
 ]
