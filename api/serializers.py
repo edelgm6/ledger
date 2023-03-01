@@ -36,7 +36,6 @@ class ReconciliationOutputSerializer(serializers.ModelSerializer):
         balance = helpers.get_balance_sheet_account_balance(date, account)
         return balance
 
-
 class CSVProfileOutputSerializer(serializers.ModelSerializer):
     class Meta:
         model = CSVProfile
