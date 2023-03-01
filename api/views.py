@@ -5,9 +5,33 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, generics
-from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer
-from api.models import Transaction, Account, CSVProfile
+from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer
+from api.models import Transaction, Account, CSVProfile, Reconciliation
 from api import helpers
+
+class ReconciliationView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        dates = self.request.query_params.getlist('date')
+
+        reconciliations = Reconciliation.objects.filter(date__in=dates)
+        reconciliation_output_serializer = ReconciliationOutputSerializer(reconciliations, many=True)
+        return Response(reconciliation_output_serializer.data)
+
+class GenerateReconciliationsView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        reconciliations_create_serializer = ReconciliationsCreateSerializer(data=request.data)
+        if reconciliations_create_serializer.is_valid():
+            reconciliations = reconciliations_create_serializer.save()
+            reconciliation_output_serializer = ReconciliationOutputSerializer(reconciliations, many=True)
+            return Response(reconciliation_output_serializer.data)
+
+        return Response(reconciliations_create_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class CSVProfileView(APIView):
     authentication_classes = [TokenAuthentication]
