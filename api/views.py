@@ -37,8 +37,9 @@ class AccountBalanceView(APIView):
     def get(self, request, *args, **kwargs):
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
+        account_types = self.request.query_params.getlist('account_type')
 
-        account_balance_list = helpers.get_account_balances(start_date,end_date)
+        account_balance_list = helpers.get_account_balances(start_date,end_date,account_types)
         account_balance_output_serializer = AccountBalanceOutputSerializer(account_balance_list, many=True)
         return Response(account_balance_output_serializer.data)
 

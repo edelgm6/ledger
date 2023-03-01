@@ -1,7 +1,7 @@
 from django.db.models import Sum
 from api.models import JournalEntryItem
 
-def get_account_balances(start_date, end_date):
+def get_account_balances(start_date, end_date, account_types=['income','expense','asset','liability','equity']):
     INCOME_STATEMENT_ACCOUNT_TYPES = ['income','expense']
     BALANCE_SHEET_ACCOUNT_TYPES = ['asset','liability','equity']
     income_statement_aggregates = JournalEntryItem.objects.filter(
@@ -43,11 +43,13 @@ def get_account_balances(start_date, end_date):
     account_balance_list = []
     for key, value in account_summaries.items():
         balance = 0
-        if value['type'] in ('asset','expense'):
-            balance = value['debits'] - value['credits']
-        else:
-            balance = value['credits'] - value['debits']
+        account_type = value['type']
+        if account_type in account_types:
+            if account_type in ('asset','expense'):
+                balance = value['debits'] - value['credits']
+            else:
+                balance = value['credits'] - value['debits']
 
-        account_balance_list.append({'account': key, 'balance': balance, 'type': value['type']})
+            account_balance_list.append({'account': key, 'balance': balance, 'type': value['type']})
 
     return account_balance_list
