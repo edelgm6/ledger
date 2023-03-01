@@ -6,6 +6,12 @@ from api import helpers
 class ReconciliationsCreateSerializer(serializers.Serializer):
     date = serializers.DateField()
 
+    def validate_date(self, value):
+
+        if not helpers.is_last_day_of_month(value):
+            raise serializers.ValidationError('Must be last day of month')
+        return value
+
     def create(self, validated_data):
         date = validated_data['date']
 
