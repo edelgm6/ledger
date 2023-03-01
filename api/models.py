@@ -1,6 +1,11 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+class Reconciliation(models.Model):
+    account = models.ForeignKey('Account',on_delete=models.CASCADE)
+    date = models.DateField()
+    amount = models.DecimalField(decimal_places=2,max_digits=12,null=True,blank=True)
+
 class Transaction(models.Model):
 
     class TransactionType(models.TextChoices):

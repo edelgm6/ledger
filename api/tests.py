@@ -3,8 +3,53 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIRequestFactory, force_authenticate
-from api.models import Account, Transaction, JournalEntry, JournalEntryItem, CSVProfile, AutoTag
-from api.views import AccountView, UploadTransactionsView, TransactionView, JournalEntryView, TransactionTypeView, CSVProfileView, AccountBalanceView
+from api.models import Account, Transaction, JournalEntry, JournalEntryItem, CSVProfile, AutoTag, Reconciliation
+from api.views import AccountView, UploadTransactionsView, TransactionView, JournalEntryView, TransactionTypeView, CSVProfileView, AccountBalanceView, ReconciliationView
+
+class ReconciliationsViewTest(TestCase):
+    def setUp(self):
+        self.ENDPOINT = '/reconciliations/'
+        self.VIEW = ReconciliationView
+
+    def test_returns_200(self):
+        user = User.objects.create(username='admin')
+        factory = APIRequestFactory()
+
+        chase = Account.objects.create(
+            name='1200-Chase',
+            type='liability',
+            sub_type='credit_card'
+        )
+        groceries = Account.objects.create(
+            name='5000-Groceries',
+            type='expense',
+            sub_type='purchase'
+        )
+
+        journal_entry = JournalEntry.objects.create(date='2023-01-01')
+        journal_entry_debit = JournalEntryItem.objects.create(
+            type='debit',
+            amount=100,
+            account=groceries,
+            journal_entry=journal_entry
+        )
+        journal_entry_credit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100,
+            account=chase,
+            journal_entry=journal_entry
+        )
+
+        reconciliation = Reconciliation.objects.create(
+            date='2023-01-31',
+            account=chase
+        )
+
+        request = factory.get(self.ENDPOINT,{'date': ['2023-01-31']})
+        force_authenticate(request, user=user)
+        response = self.VIEW.as_view()(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data[0]['current_balance'], 100)
 
 class AccountBalanceViewTest(TestCase):
     def setUp(self):
