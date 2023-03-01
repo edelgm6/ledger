@@ -11,7 +11,49 @@ class AccountBalanceViewTest(TestCase):
         self.ENDPOINT = '/account-balances/'
         self.VIEW = AccountBalanceView
 
-    def test_returns_csv_profiles(self):
+    def test_returns_balance(self):
+        user = User.objects.create(username='admin')
+        factory = APIRequestFactory()
+
+        chase = Account.objects.create(
+            name='1200-Chase',
+            type='liability',
+            sub_type='credit_card'
+        )
+        groceries = Account.objects.create(
+            name='5000-Groceries',
+            type='expense',
+            sub_type='purchase'
+        )
+
+        journal_entry = JournalEntry.objects.create(date='2023-01-01')
+        journal_entry_debit = JournalEntryItem.objects.create(
+            type='debit',
+            amount=100,
+            account=groceries,
+            journal_entry=journal_entry
+        )
+        journal_entry_credit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100,
+            account=chase,
+            journal_entry=journal_entry
+        )
+
+        payload = {
+            'start_date': '2022-12-31',
+            'end_date': '2023-01-31',
+            'account_type': 'liability'
+        }
+
+        request = factory.get(self.ENDPOINT, payload)
+        force_authenticate(request, user=user)
+        response = self.VIEW.as_view()(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data[0]['account'], chase.name)
+        self.assertEqual(len(response.data), 1)
+
+    def test_returns_200(self):
         user = User.objects.create(username='admin')
         factory = APIRequestFactory()
 
@@ -146,7 +188,6 @@ class JournalEntryViewTest(TestCase):
         request = factory.post(self.ENDPOINT, payload, format='json')
         force_authenticate(request, user=user)
         response = self.VIEW.as_view()(request)
-        print(response.data)
         self.assertEqual(response.status_code, 201)
         journal_entry = JournalEntry.objects.get(pk=1)
         journal_entry_items = JournalEntryItem.objects.all()
