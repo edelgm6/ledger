@@ -1,8 +1,41 @@
-import csv
-import io
-from datetime import datetime, date
+from datetime import date, timedelta
 from rest_framework import serializers
-from api.models import Transaction, Account, JournalEntry, JournalEntryItem, CSVProfile, AutoTag
+from api.models import Transaction, Account, JournalEntry, JournalEntryItem, CSVProfile, AutoTag, Reconciliation
+from api import helpers
+
+class ReconciliationsCreateSerializer(serializers.Serializer):
+    date = serializers.DateField()
+
+    def create(self, validated_data):
+        date = validated_data['date']
+
+        balance_sheet_accounts = Account.objects.filter(type__in=[Account.AccountType.ASSET,Account.AccountType.LIABILITY])
+        reconciliation_list = []
+        for account in balance_sheet_accounts:
+            reconciliation_list.append(
+                Reconciliation(
+                    account=account,
+                    date=date
+                )
+            )
+
+        reconciliations = Reconciliation.objects.bulk_create(reconciliation_list)
+        return reconciliations
+
+class ReconciliationOutputSerializer(serializers.ModelSerializer):
+    current_balance = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Reconciliation
+        fields = '__all__'
+        depth = 1
+
+    def get_current_balance(self, reconciliation):
+        account = reconciliation.account
+        date = reconciliation.date
+        balance = helpers.get_balance_sheet_account_balance(date, account)
+        return balance
+
 
 class CSVProfileOutputSerializer(serializers.ModelSerializer):
     class Meta:
