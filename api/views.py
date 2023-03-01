@@ -14,7 +14,9 @@ class ReconciliationView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        reconciliations = Reconciliation.objects.all()
+        dates = self.request.query_params.getlist('date')
+
+        reconciliations = Reconciliation.objects.filter(date__in=dates)
         reconciliation_output_serializer = ReconciliationOutputSerializer(reconciliations, many=True)
         return Response(reconciliation_output_serializer.data)
 

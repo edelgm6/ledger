@@ -45,7 +45,7 @@ class ReconciliationsViewTest(TestCase):
             account=chase
         )
 
-        request = factory.get(self.ENDPOINT)
+        request = factory.get(self.ENDPOINT,{'date': ['2023-01-31']})
         force_authenticate(request, user=user)
         response = self.VIEW.as_view()(request)
         self.assertEqual(response.status_code, 200)
