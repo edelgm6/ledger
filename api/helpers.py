@@ -52,4 +52,6 @@ def get_account_balances(start_date, end_date, account_types=['income','expense'
 
             account_balance_list.append({'account': key, 'balance': balance, 'type': value['type']})
 
-    return account_balance_list
+
+    sorted_list = sorted(account_balance_list, key=lambda k: k['account'])
+    return sorted_list
