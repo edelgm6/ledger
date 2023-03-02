@@ -17,7 +17,7 @@ class Reconciliation(models.Model):
     def plug_investment_change(self):
         GAIN_LOSS_ACCOUNT = '4050-Investment Gains or Losses'
 
-        delta = self.amount - self.account.get_balance(self.date)['balance']
+        delta = self.amount - self.account.get_balance(self.date)
 
         journal_entry = JournalEntry.objects.create(
             date=self.date,
@@ -172,8 +172,7 @@ class Account(models.Model):
         if not start_date:
             start_date = end_date - datetime.timedelta(days=1)
         account_balances = self.get_account_balances(start_date, end_date)
-        balance = [balance for balance in account_balances if account_balances['name' == self.name]][0]
-
+        balance = [balance for balance in account_balances if balance['account'] == self.name][0]['balance']
         return balance
 
 class JournalEntry(models.Model):
