@@ -22,7 +22,7 @@ class ReconciliationView(APIView):
         return Response(reconciliation_output_serializer.data)
 
     def put(self, request, format=None):
-        reconciliation_input_serializer = ReconciliationInputSerializer(Reconciliation.objects.all(), data=request.data, many=True, partial=True)
+        reconciliation_input_serializer = ReconciliationInputSerializer(Reconciliation.objects.all().order_by('account__name'), data=request.data, many=True, partial=True)
         if reconciliation_input_serializer.is_valid():
             reconciliations = reconciliation_input_serializer.save()
             reconciliation_output_serializer = ReconciliationOutputSerializer(reconciliations, many=True)
