@@ -28,6 +28,31 @@ class ReconciliationsCreateSerializer(serializers.Serializer):
         reconciliations = Reconciliation.objects.bulk_create(reconciliation_list)
         return reconciliations
 
+# Following guide here: https://www.django-rest-framework.org/api-guide/serializers/#customizing-multiple-update
+class ReconciliationListSerializer(serializers.ListSerializer):
+
+    def update(self, instance, validated_data):
+        # Maps for id->instance and id->data item.
+        reconciliation_mapping = {reconciliation.id: reconciliation for reconciliation in instance}
+        data_mapping = {item['id']: item for item in validated_data}
+
+        # Perform creations and updates.
+        reconciliations_list = []
+        for reconciliation_id, data in data_mapping.items():
+            reconciliation = reconciliation_mapping.get(reconciliation_id, None)
+            reconciliations_list.append(self.child.update(reconciliation, data))
+
+        return reconciliations_list
+
+class ReconciliationInputSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField()
+
+    class Meta:
+        model = Reconciliation
+        fields = '__all__'
+        depth = 1
+        list_serializer_class = ReconciliationListSerializer
+
 class ReconciliationOutputSerializer(serializers.ModelSerializer):
     current_balance = serializers.SerializerMethodField()
 

@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, generics
 from rest_framework.exceptions import ValidationError
-from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer
+from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer
 from api.models import Transaction, Account, CSVProfile, Reconciliation
 from api import helpers
 
@@ -20,6 +20,14 @@ class ReconciliationView(APIView):
         reconciliations = Reconciliation.objects.filter(date__in=dates)
         reconciliation_output_serializer = ReconciliationOutputSerializer(reconciliations, many=True)
         return Response(reconciliation_output_serializer.data)
+
+    def put(self, request, format=None):
+        reconciliation_input_serializer = ReconciliationInputSerializer(Reconciliation.objects.all(), data=request.data, many=True, partial=True)
+        if reconciliation_input_serializer.is_valid():
+            reconciliations = reconciliation_input_serializer.save()
+            reconciliation_output_serializer = ReconciliationOutputSerializer(reconciliations, many=True)
+            return Response(reconciliation_output_serializer.data)
+        return Response(reconciliation_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class GenerateReconciliationsView(APIView):
     authentication_classes = [TokenAuthentication]
