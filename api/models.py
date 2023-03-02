@@ -86,15 +86,16 @@ class Account(models.Model):
         EQUITY = 'equity', _('Equity')
 
     class AccountSubType(models.TextChoices):
-        CREDIT_CARD = 'credit_card', _('Credit Card')
-        LOAN = 'loan', _('Loan')
+        SHORT_TERM_DEBT = 'short_term_debt', _('Short-term Debt')
+        LONG_TERM_DEBT = 'long_term_debt', _('Long-term Debt')
         CASH = 'cash', _('Cash')
         REAL_ESTATE = 'real_estate', _('Real Estate')
-        SECURITIES = 'securities', _('Securities')
+        SECURITIES_RETIREMENT = 'securities_retirement', _('Securities-Retirement')
+        SECURITIES_UNRESTRICTED = 'securities_unrestricted', _('Securities-Unrestricted')
         RETAINED_EARNINGS = 'retained_earnings', _('Retained Earnings')
         INVESTMENT_GAINS = 'investment_gains', _('Investment Gains')
         INCOME = 'income', _('Income')
-        PURCHASES = 'purchases', _('Purchases')
+        EXPENSE = 'expense', _('Expense')
 
     name = models.CharField(max_length=200,unique=True)
     type = models.CharField(max_length=9,choices=AccountType.choices)
@@ -112,7 +113,7 @@ class Account(models.Model):
                 account__type__in=INCOME_STATEMENT_ACCOUNT_TYPES,
                 journal_entry__date__gte=start_date,
                 journal_entry__date__lte=end_date
-                ).values('account__name','account__type').annotate(
+                ).values('account__name','account__type','account__sub_type').annotate(
                     debit_total=Sum(
                         Case(
                             When(type='debit', then='amount'),
@@ -131,7 +132,7 @@ class Account(models.Model):
         balance_sheet_aggregates = JournalEntryItem.objects.filter(
             account__type__in=BALANCE_SHEET_ACCOUNT_TYPES,
             journal_entry__date__lte=end_date
-            ).values('account__name','account__type').annotate(
+            ).values('account__name','account__type','account__sub_type').annotate(
                 debit_total=Sum(
                     Case(
                         When(type='debit', then='amount'),
@@ -162,7 +163,12 @@ class Account(models.Model):
                     balance = credits - debits
 
                 account_balance_list.append(
-                    {'account': account_summary['account__name'], 'balance': balance, 'type': account_type}
+                    {
+                        'account': account_summary['account__name'],
+                        'balance': balance,
+                        'type': account_type,
+                        'sub_type': account_summary['account__sub_type']
+                    }
                 )
 
         sorted_list = sorted(account_balance_list, key=lambda k: k['account'])
