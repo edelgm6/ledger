@@ -1,5 +1,10 @@
+import datetime
 from django.db.models import Sum, Case, When, Value, DecimalField
 from api.models import JournalEntryItem
+
+def is_last_day_of_month(date):
+    last_day_of_month = (date.replace(day=1) + datetime.timedelta(days=32)).replace(day=1) - datetime.timedelta(days=1)
+    return date == last_day_of_month
 
 def get_balance_sheet_account_balance(end_date, account):
     account_aggregate = JournalEntryItem.objects.filter(
