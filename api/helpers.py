@@ -6,38 +6,6 @@ def is_last_day_of_month(date):
     last_day_of_month = (date.replace(day=1) + datetime.timedelta(days=32)).replace(day=1) - datetime.timedelta(days=1)
     return date == last_day_of_month
 
-def get_balance_sheet_account_balance(end_date, account):
-    account_aggregate = JournalEntryItem.objects.filter(
-        account=account,
-        journal_entry__date__lte=end_date
-    ).values('account').annotate(
-        debit_total=Sum(
-            Case(
-                When(type='debit', then='amount'),
-                output_field=DecimalField(),
-                default=Value(0)
-            )
-        ),
-        credit_total=Sum(
-            Case(
-                When(type='credit', then='amount'),
-                output_field=DecimalField(),
-                default=Value(0)
-            )
-        )
-    )[0]
-
-    balance = 0
-    debits = account_aggregate['debit_total']
-    credits = account_aggregate['credit_total']
-
-    if account.type in ['asset','expense']:
-        balance = debits - credits
-    else:
-        balance = credits - debits
-
-    return balance
-
 def get_account_balances(start_date, end_date, account_types=['income','expense','asset','liability','equity']):
     INCOME_STATEMENT_ACCOUNT_TYPES = ['income','expense']
     BALANCE_SHEET_ACCOUNT_TYPES = ['asset','liability','equity']
