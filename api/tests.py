@@ -270,7 +270,6 @@ class AccountBalanceViewTest(TestCase):
         response = self.VIEW.as_view()(request)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data[0]['account'], chase.name)
-        print(response.data)
         self.assertEqual(len(response.data), 1)
 
     def test_returns_200(self):
