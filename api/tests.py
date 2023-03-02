@@ -84,6 +84,55 @@ class ReconciliationsViewTest(TestCase):
         self.ENDPOINT = '/reconciliations/'
         self.VIEW = ReconciliationView
 
+    def test_put_updates_objects(self):
+        user = User.objects.create(username='admin')
+        factory = APIRequestFactory()
+
+        chase = Account.objects.create(
+            name='1200-Chase',
+            type='liability',
+            sub_type='credit_card'
+        )
+        groceries = Account.objects.create(
+            name='5000-Groceries',
+            type='expense',
+            sub_type='purchase'
+        )
+
+        journal_entry = JournalEntry.objects.create(date='2023-01-01')
+        journal_entry_debit = JournalEntryItem.objects.create(
+            type='debit',
+            amount=100,
+            account=groceries,
+            journal_entry=journal_entry
+        )
+        journal_entry_credit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100,
+            account=chase,
+            journal_entry=journal_entry
+        )
+
+        reconciliation = Reconciliation.objects.create(
+            date='2023-01-31',
+            account=chase
+        )
+
+        payload = [
+            {
+                'id': reconciliation.id,
+                'amount': 500
+            }
+
+        ]
+
+        request = factory.put(self.ENDPOINT,payload, format='json')
+        force_authenticate(request, user=user)
+        response = self.VIEW.as_view()(request)
+        self.assertEqual(response.status_code, 200)
+        reconciliation = Reconciliation.objects.get(account=chase)
+        self.assertEqual(reconciliation.amount, 500)
+
     def test_returns_200(self):
         user = User.objects.create(username='admin')
         factory = APIRequestFactory()
