@@ -10,6 +10,22 @@ from api.serializers import TransactionOutputSerializer, JournalEntryInputSerial
 from api.models import Transaction, Account, CSVProfile, Reconciliation
 from api import helpers
 
+class PlugReconciliationView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_reconciliation(self, pk):
+        try:
+            return Reconciliation.objects.get(pk=pk)
+        except Reconciliation.DoesNotExist:
+            raise Http404
+
+    def put(self, request, pk, format=None):
+        reconciliation = self.get_transaction(pk)
+        journal_entry = reconciliation.plug_investment_change()
+        journal_entry_output_serializer = JournalEntryOutputSerializer(journal_entry)
+        return Response(journal_entry_output_serializer.data)
+
 class ReconciliationView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
