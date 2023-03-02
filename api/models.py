@@ -9,6 +9,9 @@ class Reconciliation(models.Model):
     class Meta:
         unique_together = [['account','date']]
 
+    def __str__(self):
+        return str(self.date) + ' ' + self.account.name
+
 class Transaction(models.Model):
 
     class TransactionType(models.TextChoices):
