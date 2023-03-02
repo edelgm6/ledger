@@ -62,7 +62,8 @@ class ReconciliationOutputSerializer(serializers.ModelSerializer):
         depth = 1
 
     def get_current_balance(self, reconciliation):
-        balance = reconciliation.account.get_balance(reconciliation.date)['balance']
+        balance = reconciliation.account.get_balance(reconciliation.date)
+        print(reconciliation.account.get_balance(reconciliation.date))
         return balance
 
 class CSVProfileOutputSerializer(serializers.ModelSerializer):
