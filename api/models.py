@@ -6,6 +6,9 @@ class Reconciliation(models.Model):
     date = models.DateField()
     amount = models.DecimalField(decimal_places=2,max_digits=12,null=True,blank=True)
 
+    class Meta:
+        unique_together = [['account','date']]
+
 class Transaction(models.Model):
 
     class TransactionType(models.TextChoices):
