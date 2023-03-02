@@ -1,5 +1,9 @@
 from decimal import Decimal
 from django.http import Http404
+from django.views import View
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -9,6 +13,41 @@ from rest_framework.exceptions import ValidationError
 from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer
 from api.models import Transaction, Account, CSVProfile, Reconciliation
 from api import helpers
+
+@method_decorator(login_required, name='dispatch')
+class IndexView(View):
+    template = 'api/index.html'
+
+    def get(self, request, **kwargs):
+        start_date = request.GET['start_date']
+        end_date = request.GET['end_date']
+        account_balances_list = Account.get_account_balances(start_date,end_date)
+
+        organized_balances_list = {}
+        for account_balance in account_balances_list:
+            type = account_balance['type']
+            if not organized_balances_list.get(type):
+                organized_balances_list[type] = {
+                    'name': Account.AccountType(type).label,
+                    'sub_types': {},
+                    'total': 0
+                }
+
+            sub_type = account_balance['sub_type']
+            if not organized_balances_list[type].get(sub_type):
+                organized_balances_list[type]['sub_types'][sub_type] = {
+                    'name': Account.AccountSubType(sub_type).label,
+                    'accounts': [],
+                    'total': 0
+                }
+
+            organized_balances_list[type]['sub_types'][sub_type]['accounts'].append(account_balance)
+            organized_balances_list[type]['sub_types'][sub_type]['total'] += account_balance['balance']
+            organized_balances_list[type]['total'] += account_balance['balance']
+
+        print(organized_balances_list)
+
+        return render(request, self.template, {'balances': organized_balances_list})
 
 class PlugReconciliationView(APIView):
     authentication_classes = [TokenAuthentication]
