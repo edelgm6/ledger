@@ -4,46 +4,59 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIRequestFactory, force_authenticate
 from api.models import Account, Transaction, JournalEntry, JournalEntryItem, CSVProfile, AutoTag, Reconciliation
-from api.views import AccountView, UploadTransactionsView, TransactionView, JournalEntryView, TransactionTypeView, CSVProfileView, AccountBalanceView, ReconciliationView, GenerateReconciliationsView
+from api.views import AccountView, UploadTransactionsView, TransactionView, JournalEntryView, TransactionTypeView, CSVProfileView, AccountBalanceView, ReconciliationView, GenerateReconciliationsView, PlugReconciliationView
 
 class PlugReconciliationViewTest(TestCase):
     def setUp(self):
-        # self.ENDPOINT = '/reconciliations/generate/'
-        self.VIEW = GenerateReconciliationsView
+        self.ENDPOINT = '/reconciliations/'
+        self.VIEW = PlugReconciliationView
 
     def test_returns_200(self):
         user = User.objects.create(username='admin')
         factory = APIRequestFactory()
 
-        # chase = Account.objects.create(
-        #     name='1200-Chase',
-        #     type='liability',
-        #     sub_type='credit_card'
-        # )
-        # groceries = Account.objects.create(
-        #     name='5000-Groceries',
-        #     type='expense',
-        #     sub_type='purchase'
-        # )
+        chase = Account.objects.create(
+            name='1200-Chase',
+            type='liability',
+            sub_type='credit_card'
+        )
+        groceries = Account.objects.create(
+            name='5000-Groceries',
+            type='expense',
+            sub_type='purchase'
+        )
+        gain_loss_account = Account.objects.create(
+            name='4050-Investment Gains or Losses',
+            type='expense',
+            sub_type='purchase'
+        )
 
-        # journal_entry = JournalEntry.objects.create(date='2023-01-01')
-        # journal_entry_debit = JournalEntryItem.objects.create(
-        #     type='debit',
-        #     amount=100,
-        #     account=groceries,
-        #     journal_entry=journal_entry
-        # )
-        # journal_entry_credit = JournalEntryItem.objects.create(
-        #     type='credit',
-        #     amount=100,
-        #     account=chase,
-        #     journal_entry=journal_entry
-        # )
+        journal_entry = JournalEntry.objects.create(date='2023-01-01')
+        journal_entry_debit = JournalEntryItem.objects.create(
+            type='debit',
+            amount=100,
+            account=groceries,
+            journal_entry=journal_entry
+        )
+        journal_entry_credit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100,
+            account=chase,
+            journal_entry=journal_entry
+        )
 
-        # request = factory.post(self.ENDPOINT,{'date': '2023-01-31'})
-        # force_authenticate(request, user=user)
-        # response = self.VIEW.as_view()(request)
-        # self.assertEqual(response.status_code, 200)
+        reconciliation = Reconciliation.objects.create(
+            account=chase,
+            date='2023-01-31',
+            amount=500
+        )
+
+        request = factory.put(self.ENDPOINT + str(reconciliation.pk) + '/plug/')
+        force_authenticate(request, user=user)
+        response = self.VIEW.as_view()(request,pk=reconciliation.pk)
+        self.assertEqual(response.status_code, 200)
+        plug_items = JournalEntryItem.objects.filter(amount=400)
+        self.assertEqual(plug_items.count(),2)
 
 class ReconciliationsCreateViewTest(TestCase):
     def setUp(self):
