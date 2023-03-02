@@ -6,57 +6,63 @@ def is_last_day_of_month(date):
     last_day_of_month = (date.replace(day=1) + datetime.timedelta(days=32)).replace(day=1) - datetime.timedelta(days=1)
     return date == last_day_of_month
 
-def get_account_balances(start_date, end_date, account_types=['income','expense','asset','liability','equity']):
+def get_account_balances(start_date, end_date):
     INCOME_STATEMENT_ACCOUNT_TYPES = ['income','expense']
     BALANCE_SHEET_ACCOUNT_TYPES = ['asset','liability','equity']
     income_statement_aggregates = JournalEntryItem.objects.filter(
             account__type__in=INCOME_STATEMENT_ACCOUNT_TYPES,
             journal_entry__date__gte=start_date,
             journal_entry__date__lte=end_date
-            ).values(
-                'account__name',
-                'account__type',
-                'type'
-            ).annotate(total=Sum('amount'))
+            ).values('account__name','account__type').annotate(
+                debit_total=Sum(
+                    Case(
+                        When(type='debit', then='amount'),
+                        output_field=DecimalField(),
+                        default=Value(0)
+                    )
+                ),
+                credit_total=Sum(
+                    Case(
+                        When(type='credit', then='amount'),
+                        output_field=DecimalField(),
+                        default=Value(0)
+                    )
+                )
+            )
     balance_sheet_aggregates = JournalEntryItem.objects.filter(
         account__type__in=BALANCE_SHEET_ACCOUNT_TYPES,
         journal_entry__date__lte=end_date
-        ).values(
-            'account__name',
-            'account__type',
-            'type'
-        ).annotate(total=Sum('amount'))
-
-    account_summaries = {}
-    aggregate_groups = [income_statement_aggregates,balance_sheet_aggregates]
-    for aggregate_group in aggregate_groups:
-        for entry in aggregate_group:
-            account_name = entry['account__name']
-            account_type = entry['account__type']
-            journal_entry_type = entry['type']
-            if not account_summaries.get(account_name):
-                account_summaries[account_name] = {
-                    'type': account_type,
-                    'debits': 0,
-                    'credits': 0
-                }
-            if journal_entry_type == 'credit':
-                account_summaries[account_name]['credits'] = entry['total']
-            elif journal_entry_type == 'debit':
-                account_summaries[account_name]['debits'] = entry['total']
+        ).values('account__name','account__type').annotate(
+            debit_total=Sum(
+                Case(
+                    When(type='debit', then='amount'),
+                    output_field=DecimalField(),
+                    default=Value(0)
+                )
+            ),
+            credit_total=Sum(
+                Case(
+                    When(type='credit', then='amount'),
+                    output_field=DecimalField(),
+                    default=Value(0)
+                )
+            )
+        )
 
     account_balance_list = []
-    for key, value in account_summaries.items():
-        balance = 0
-        account_type = value['type']
-        if account_type in account_types:
-            if account_type in ('asset','expense'):
-                balance = value['debits'] - value['credits']
+    aggregate_groups = [income_statement_aggregates,balance_sheet_aggregates]
+    for group in aggregate_groups:
+        for account_summary in group:
+            account_type = account_summary['account__type']
+            debits = account_summary['debit_total']
+            credits = account_summary['credit_total']
+
+            if account_type in ['asset','expense']:
+                balance = debits - credits
             else:
-                balance = value['credits'] - value['debits']
+                balance = credits - debits
 
-            account_balance_list.append({'account': key, 'balance': balance, 'type': value['type']})
-
+            account_balance_list.append({'account': account_summary['account__name'], 'balance': balance, 'type': account_type})
 
     sorted_list = sorted(account_balance_list, key=lambda k: k['account'])
     return sorted_list
