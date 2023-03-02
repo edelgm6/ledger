@@ -62,7 +62,9 @@ def get_account_balances(start_date, end_date):
             else:
                 balance = credits - debits
 
-            account_balance_list.append({'account': account_summary['account__name'], 'balance': balance, 'type': account_type})
+            account_balance_list.append(
+                {'account': account_summary['account__name'], 'balance': balance, 'type': account_type}
+            )
 
     sorted_list = sorted(account_balance_list, key=lambda k: k['account'])
     return sorted_list
