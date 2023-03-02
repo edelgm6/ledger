@@ -21,7 +21,7 @@ class PlugReconciliationView(APIView):
             raise Http404
 
     def put(self, request, pk, format=None):
-        reconciliation = self.get_transaction(pk)
+        reconciliation = self.get_reconciliation(pk)
         journal_entry = reconciliation.plug_investment_change()
         journal_entry_output_serializer = JournalEntryOutputSerializer(journal_entry)
         return Response(journal_entry_output_serializer.data)

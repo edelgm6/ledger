@@ -1,6 +1,6 @@
 from django.db import models
+from django.db.models import Sum, Case, When, Value, DecimalField
 from django.utils.translation import gettext_lazy as _
-from api import helpers
 
 class Reconciliation(models.Model):
     account = models.ForeignKey('Account',on_delete=models.CASCADE)
@@ -13,10 +13,42 @@ class Reconciliation(models.Model):
     def __str__(self):
         return str(self.date) + ' ' + self.account.name
 
+    def get_balance_sheet_account_balance(self, end_date, account):
+        account_aggregate = JournalEntryItem.objects.filter(
+            account=account,
+            journal_entry__date__lte=end_date
+        ).values('account').annotate(
+            debit_total=Sum(
+                Case(
+                    When(type='debit', then='amount'),
+                    output_field=DecimalField(),
+                    default=Value(0)
+                )
+            ),
+            credit_total=Sum(
+                Case(
+                    When(type='credit', then='amount'),
+                    output_field=DecimalField(),
+                    default=Value(0)
+                )
+            )
+        )[0]
+
+        balance = 0
+        debits = account_aggregate['debit_total']
+        credits = account_aggregate['credit_total']
+
+        if account.type in ['asset','expense']:
+            balance = debits - credits
+        else:
+            balance = credits - debits
+
+        return balance
+
     def get_current_balance(self):
         account = self.account
         date = self.date
-        balance = helpers.get_balance_sheet_account_balance(date, account)
+        balance = self.get_balance_sheet_account_balance(date, account)
         return balance
 
     def plug_investment_change(self):
