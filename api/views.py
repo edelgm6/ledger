@@ -34,7 +34,7 @@ class IndexView(View):
                 }
 
             sub_type = account_balance['sub_type']
-            if not organized_balances_list[type].get(sub_type):
+            if not organized_balances_list[type]['sub_types'].get(sub_type):
                 organized_balances_list[type]['sub_types'][sub_type] = {
                     'name': Account.AccountSubType(sub_type).label,
                     'accounts': [],
