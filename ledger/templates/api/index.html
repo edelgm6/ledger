@@ -27,12 +27,21 @@
                 </div>
                 {% endfor %}
                 <hr>
-                <div class="text-start">Sub-total</div>
-                <div class="text-end">${{ sub_values.total|floatformat:2|intcomma }}</div>
+                <div class="row">
+                    <div class="col d-flex justify-content-between">
+                        <div class="text-start">Sub-total</div>
+                        <div class="text-end">${{ sub_values.total|floatformat:2|intcomma }}</div>
+                    </div>
+                </div>
             {% endfor %}
             <hr>
-            <div class="text-start">Total</div>
-            <div class="text-end">${{ type_values.total|floatformat:2|intcomma }}</div>
+            <div class="row">
+                <div class="col d-flex justify-content-between">
+                    <div class="text-start">Total</div>
+                    <div class="text-end">${{ type_values.total|floatformat:2|intcomma }}</div>
+                </div>
+            </div>
+            <br>
         {% endfor %}
     </div>
     <div class="col-md-6"></div>
