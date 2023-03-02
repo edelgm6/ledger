@@ -17,7 +17,7 @@ class ReconciliationView(APIView):
     def get(self, request, *args, **kwargs):
         dates = self.request.query_params.getlist('date')
 
-        reconciliations = Reconciliation.objects.filter(date__in=dates)
+        reconciliations = Reconciliation.objects.filter(date__in=dates).order_by('account__name')
         reconciliation_output_serializer = ReconciliationOutputSerializer(reconciliations, many=True)
         return Response(reconciliation_output_serializer.data)
 
