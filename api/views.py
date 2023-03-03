@@ -45,6 +45,14 @@ class IndexView(View):
             organized_balances_list[type]['sub_types'][sub_type]['total'] += account_balance['balance']
             organized_balances_list[type]['total'] += account_balance['balance']
 
+        retained_earnings = organized_balances_list[Account.AccountType.INCOME.label]['total'] - organized_balances_list[Account.AccountType.EXPENSE.label]['total']
+        organized_balances_list[Account.AccountType.EQUITY.label]['sub_types'][Account.AccountSubType.RETAINED_EARNINGS.label]['accounts'].append(
+            {
+                'account': '3010-Retained Earnings',
+                'balance': retained_earnings
+            }
+        )
+
         return render(request, self.template, {'balances': organized_balances_list})
 
 class PlugReconciliationView(APIView):
