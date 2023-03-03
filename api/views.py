@@ -45,8 +45,6 @@ class IndexView(View):
             organized_balances_list[type]['sub_types'][sub_type]['total'] += account_balance['balance']
             organized_balances_list[type]['total'] += account_balance['balance']
 
-        print(organized_balances_list)
-
         return render(request, self.template, {'balances': organized_balances_list})
 
 class PlugReconciliationView(APIView):
