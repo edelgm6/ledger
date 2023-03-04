@@ -104,9 +104,10 @@ class Account(models.Model):
     def __str__(self):
         return self.name
 
-    def _get_balance_from_debit_and_credit(self, debits, credits):
+    @staticmethod
+    def get_balance_from_debit_and_credit(account_type, debits, credits):
         DEBITS_INCREASE_ACCOUNTS = [Account.AccountType.ASSET, Account.AccountType.EXPENSE]
-        if self.type in DEBITS_INCREASE_ACCOUNTS:
+        if account_type in DEBITS_INCREASE_ACCOUNTS:
             return debits - credits
         else:
             return credits - debits
@@ -133,7 +134,7 @@ class Account(models.Model):
             else:
                 credits += amount
 
-        return self._get_balance_from_debit_and_credit(debits=debits,credits=credits)
+        return Account.get_balance_from_debit_and_credit(account_type=self.type,debits=debits,credits=credits)
 
 
 
