@@ -80,14 +80,22 @@ class IncomeStatement(Statement):
         })
         self.metrics = self.get_metrics()
 
+    def get_summaries(self):
+
+        summary_metrics = {}
+        for balance in self.balances:
+            sub_type = balance['sub_type']
+            if not summaries.get(sub_type):
+                summaries[sub_type] = 0
+
+            summaries[sub_type] += balance['balance']
+
+        summaries = [{'name': metric.key, 'value': metric.value} for metric in summary_metrics]
+
+        return summaries
+
     def get_metrics(self):
         metrics = []
-        metrics.append(
-            {
-                'name': 'Net Income',
-                'value': self.get_net_income()
-            }
-        )
         return metrics
 
     def get_net_income(self):
@@ -105,18 +113,50 @@ class BalanceSheet(Statement):
     def __init__(self, end_date):
         super().__init__(end_date)
         self.balances = self.get_balances()
+        total_retained_earnings, investment_gains_losses, net_retained_earnings = self.get_retained_earnings_values()
+        self.balances += [
+            {
+                'account': '9000-Net Retained Earnings',
+                'balance': net_retained_earnings,
+                'type': Account.AccountType.EQUITY,
+                'sub_type': Account.AccountSubType.RETAINED_EARNINGS
+            },
+            {
+                'account': '9100-Investment Gains/Losses',
+                'balance': investment_gains_losses,
+                'type': Account.AccountType.EQUITY,
+                'sub_type': Account.AccountSubType.RETAINED_EARNINGS
+            }
+        ]
         self.metrics = self.get_metrics()
+        self.summaries = self.get_summaries()
+        self.summaries.append({'name': 'Total Retained Earnings', 'value': total_retained_earnings})
+
+    def get_retained_earnings_values(self):
+        income_statement = IncomeStatement(end_date=self.end_date,start_date='1970-01-01')
+        retained_earnings = income_statement.get_net_income()
+
+        investment_gains_losses_account_name = Account.objects.get(sub_type=Account.AccountSubType.INVESTMENT_GAINS)
+        investment_gains_losses = sum([balance['balance'] for balance in income_statement.balances if balance['account'] == investment_gains_losses_account_name])
+        net_retained_earnings = retained_earnings - investment_gains_losses
+
+        return retained_earnings, investment_gains_losses, net_retained_earnings
 
     def get_balance(self, account):
         balance = [balance['balance'] for balance in self.balances if balance['account'] == account.name][0]
         return balance
 
-    def get_metrics(self):
-        metrics = []
-        metrics.append(
+    def get_summaries(self):
+        summaries = []
+        summaries.append(
             {
                 'name': 'Total Cash',
                 'value': sum([balance['balance'] for balance in self.balances if balance['sub_type'] == Account.AccountSubType.CASH])
             }
         )
+
+        return summaries
+
+    def get_metrics(self):
+        metrics = []
         return metrics
