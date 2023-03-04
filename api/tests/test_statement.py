@@ -79,7 +79,6 @@ class BalanceSheetTest(TestCase):
 
     def test_returns_cash_balance(self):
         balance_sheet = BalanceSheet('2023-01-31')
-        print(balance_sheet.metrics)
         total_cash = [metric['value'] for metric in balance_sheet.metrics if metric['name'] == 'Total Cash'][0]
         self.assertEqual(total_cash, 100)
 
