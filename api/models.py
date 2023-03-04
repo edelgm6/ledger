@@ -1,6 +1,5 @@
 import datetime
 from django.db import models
-from django.db.models import Sum, Case, When, Value, DecimalField
 from django.utils.translation import gettext_lazy as _
 
 class Reconciliation(models.Model):
@@ -105,114 +104,38 @@ class Account(models.Model):
     def __str__(self):
         return self.name
 
-    @staticmethod
-    def get_balance_from_aggregates(aggregates):
-        account_balance_list = []
-        for aggregate in aggregates:
-            account_type = aggregate['account__type']
-            debits = aggregate['debit_total']
-            credits = aggregate['credit_total']
-
-            if account_type in ['asset','expense']:
-                balance = debits - credits
-            else:
-                balance = credits - debits
-
-            account_balance_list.append(
-                {
-                    'account': aggregate['account__name'],
-                    'balance': balance,
-                    'type': account_type,
-                    'sub_type': aggregate['account__sub_type']
-                }
-            )
-
-        sorted_list = sorted(account_balance_list, key=lambda k: k['account'])
-        return sorted_list
-
-    @staticmethod
-    def get_balance_sheet_balances(end_date):
-        BALANCE_SHEET_ACCOUNT_TYPES = ['asset','liability','equity']
-        balance_sheet_aggregates = JournalEntryItem.objects.filter(
-            account__type__in=BALANCE_SHEET_ACCOUNT_TYPES,
-            journal_entry__date__lte=end_date
-            ).values('account__name','account__type','account__sub_type').annotate(
-                debit_total=Sum(
-                    Case(
-                        When(type='debit', then='amount'),
-                        output_field=DecimalField(),
-                        default=Value(0)
-                    )
-                ),
-                credit_total=Sum(
-                    Case(
-                        When(type='credit', then='amount'),
-                        output_field=DecimalField(),
-                        default=Value(0)
-                    )
-                )
-            )
-
-        balances = Account.get_balance_from_aggregates(balance_sheet_aggregates)
-        return balances
-
-    @staticmethod
-    def get_income_statement_balances(start_date, end_date):
-        INCOME_STATEMENT_ACCOUNT_TYPES = ['income','expense']
-        income_statement_aggregates = JournalEntryItem.objects.filter(
-                account__type__in=INCOME_STATEMENT_ACCOUNT_TYPES,
-                journal_entry__date__gte=start_date,
-                journal_entry__date__lte=end_date
-                ).values('account__name','account__type','account__sub_type').annotate(
-                    debit_total=Sum(
-                        Case(
-                            When(type='debit', then='amount'),
-                            output_field=DecimalField(),
-                            default=Value(0)
-                        )
-                    ),
-                    credit_total=Sum(
-                        Case(
-                            When(type='credit', then='amount'),
-                            output_field=DecimalField(),
-                            default=Value(0)
-                        )
-                    )
-                )
-        balances = Account.get_balance_from_aggregates(income_statement_aggregates)
-
-        net_income = 0
-        for balance in balances:
-            if balance['type'] == Account.AccountType.INCOME:
-                net_income += balance['balance']
-            else:
-                net_income -= balance['balance']
-
-        NET_INCOME_ACCOUNT_NAME = '3010-Net Income'
-        balances.append(
-            {
-                'account': NET_INCOME_ACCOUNT_NAME,
-                'balance': net_income,
-                'type': Account.AccountType.EQUITY,
-                'sub_type': Account.AccountSubType.RETAINED_EARNINGS
-            }
-        )
-
-        return balances
-
-    @staticmethod
-    def get_account_balances(start_date, end_date):
-        income_statement_balances = Account.get_income_statement_balances(start_date, end_date)
-        balance_sheet_balances = Account.get_balance_sheet_balances(end_date)
-
-        return balance_sheet_balances + income_statement_balances
+    def _get_balance_from_debit_and_credit(self, debits, credits):
+        DEBITS_INCREASE_ACCOUNTS = [Account.AccountType.ASSET, Account.AccountType.EXPENSE]
+        if self.type in DEBITS_INCREASE_ACCOUNTS:
+            return debits - credits
+        else:
+            return credits - debits
 
     def get_balance(self, end_date, start_date=None):
-        if not start_date:
-            start_date = end_date - datetime.timedelta(days=1)
-        account_balances = self.get_account_balances(start_date, end_date)
-        balance = [balance for balance in account_balances if balance['account'] == self.name][0]['balance']
-        return balance
+        INCOME_STATEMENT_ACCOUNT_TYPES = ['income','expense']
+
+        journal_entry_items = JournalEntryItem.objects.filter(
+            journal_entry__date__lte=end_date,
+            account=self
+        )
+
+        if self.type in INCOME_STATEMENT_ACCOUNT_TYPES:
+            journal_entry_items = journal_entry_items.filter(
+                journal_entry__date__gte=start_date,
+            )
+
+        debits = 0
+        credits = 0
+        for journal_entry_item in journal_entry_items:
+            amount = journal_entry_item.amount
+            if journal_entry_item.type == JournalEntryItem.JournalEntryType.DEBIT:
+                debits += amount
+            else:
+                credits += amount
+
+        return self._get_balance_from_debit_and_credit(debits=debits,credits=credits)
+
+
 
 class JournalEntry(models.Model):
     date = models.DateField()
