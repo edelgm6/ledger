@@ -2,6 +2,7 @@ from datetime import date, timedelta
 from rest_framework import serializers
 from api.models import Transaction, Account, JournalEntry, JournalEntryItem, CSVProfile, AutoTag, Reconciliation
 from api import helpers
+from api.statement import BalanceSheet, IncomeStatement
 
 class ReconciliationsCreateSerializer(serializers.Serializer):
     date = serializers.DateField()
@@ -62,7 +63,8 @@ class ReconciliationOutputSerializer(serializers.ModelSerializer):
         depth = 1
 
     def get_current_balance(self, reconciliation):
-        balance = reconciliation.account.get_balance(reconciliation.date)
+        balance_sheet = BalanceSheet(reconciliation.date)
+        balance = balance_sheet.get_balance(reconciliation.account)
         return balance
 
 class CSVProfileOutputSerializer(serializers.ModelSerializer):
