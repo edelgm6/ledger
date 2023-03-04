@@ -135,7 +135,7 @@ class IncomeStatementTest(TestCase):
 
     def test_creates_balances(self):
         income_statement = IncomeStatement('2023-01-31','2023-01-01')
-        self.assertEqual(len(income_statement.balances), 2)
+        self.assertEqual(len(income_statement.balances), 3)
 
     def test_returns_net_income(self):
         income_statement = IncomeStatement('2023-01-31','2023-01-01')
