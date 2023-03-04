@@ -14,7 +14,7 @@ class BalanceSheetTest(TestCase):
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
         groceries = Account.objects.create(
             name='5000-Groceries',
@@ -80,13 +80,12 @@ class BalanceSheetTest(TestCase):
     def test_creates_balances(self):
         balance_sheet = BalanceSheet('2023-01-31')
         chase_balance = [balance['balance'] for balance in balance_sheet.balances if balance['account'] == '1200-Chase'][0]
-        print(balance_sheet.balances)
         self.assertEqual(len(balance_sheet.balances), 4)
         self.assertEqual(chase_balance, 300)
 
     def test_returns_cash_balance(self):
         balance_sheet = BalanceSheet('2023-01-31')
-        total_cash = [summary['value'] for summary in balance_sheet.summaries if summary['name'] == 'Total Cash'][0]
+        total_cash = [summary['value'] for summary in balance_sheet.summaries if summary['name'] == 'Cash'][0]
         self.assertEqual(total_cash, 100)
 
 
@@ -96,7 +95,7 @@ class IncomeStatementTest(TestCase):
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
         groceries = Account.objects.create(
             name='5000-Groceries',
