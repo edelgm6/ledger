@@ -12,7 +12,7 @@ from rest_framework import status, generics
 from rest_framework.exceptions import ValidationError
 from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer
 from api.models import Transaction, Account, CSVProfile, Reconciliation
-from api import helpers
+from api.statement import BalanceSheet, IncomeStatement
 
 @method_decorator(login_required, name='dispatch')
 class IndexView(View):
@@ -133,10 +133,18 @@ class AccountBalanceView(APIView):
         end_date = self.request.query_params.get('end_date')
         account_types = self.request.query_params.getlist('account_type')
 
-        account_balances_list = Account.get_account_balances(start_date,end_date)
+        income_statement = IncomeStatement(end_date=end_date,start_date=start_date)
+        balance_sheet = BalanceSheet(end_date=end_date)
+        account_balances_list = income_statement.balances + balance_sheet.balances
+        metrics = income_statement.metrics + balance_sheet.metrics
+
         filtered_list = [account_balance for account_balance in account_balances_list if account_balance['type'] in account_types]
 
-        account_balance_output_serializer = AccountBalanceOutputSerializer(filtered_list, many=True)
+        balances_data = {
+            'balances': filtered_list,
+            'metrics': metrics
+        }
+        account_balance_output_serializer = AccountBalanceOutputSerializer(balances_data)
         return Response(account_balance_output_serializer.data)
 
 class AccountView(APIView):
