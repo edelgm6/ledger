@@ -135,6 +135,11 @@ class ReconciliationsViewTest(TestCase):
     def setUp(self):
         self.ENDPOINT = '/reconciliations/'
         self.VIEW = ReconciliationView
+        gains_losses_account = Account.objects.create(
+            name='8000-Gains',
+            type=Account.AccountType.EQUITY,
+            sub_type=Account.AccountSubType.INVESTMENT_GAINS
+        )
 
     def test_put_updates_objects(self):
         user = User.objects.create(username='admin')
