@@ -2,6 +2,7 @@ from datetime import date, timedelta
 from rest_framework import serializers
 from api.models import Transaction, Account, JournalEntry, JournalEntryItem, CSVProfile, AutoTag, Reconciliation
 from api import helpers
+from api.statement import BalanceSheet, IncomeStatement
 
 class ReconciliationsCreateSerializer(serializers.Serializer):
     date = serializers.DateField()
@@ -62,7 +63,8 @@ class ReconciliationOutputSerializer(serializers.ModelSerializer):
         depth = 1
 
     def get_current_balance(self, reconciliation):
-        balance = reconciliation.account.get_balance(reconciliation.date)
+        balance_sheet = BalanceSheet(reconciliation.date)
+        balance = balance_sheet.get_balance(reconciliation.account)
         return balance
 
 class CSVProfileOutputSerializer(serializers.ModelSerializer):
@@ -71,10 +73,18 @@ class CSVProfileOutputSerializer(serializers.ModelSerializer):
         fields = ['name','date','amount','description','category','accounts','account']
         depth = 1
 
-class AccountBalanceOutputSerializer(serializers.Serializer):
+class BalancesOutputSerializer(serializers.Serializer):
     account = serializers.CharField(max_length=200)
     balance = serializers.DecimalField(max_digits=12,decimal_places=2)
     type = serializers.CharField(max_length=200)
+
+class MetricsOutputSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=200)
+    value = serializers.DecimalField(max_digits=12,decimal_places=2)
+
+class AccountBalanceOutputSerializer(serializers.Serializer):
+    balances = BalancesOutputSerializer(many=True, read_only=True)
+    metrics = MetricsOutputSerializer(many=True, read_only=True)
 
 class JournalEntryItemInputSerializer(serializers.ModelSerializer):
     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
