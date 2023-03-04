@@ -79,19 +79,11 @@ class IncomeStatement(Statement):
             'sub_type': Account.AccountSubType.RETAINED_EARNINGS,
         })
         self.metrics = self.get_metrics()
+        self.summaries = self.get_summaries()
 
     def get_summaries(self):
 
-        summary_metrics = {}
-        for balance in self.balances:
-            sub_type = balance['sub_type']
-            if not summaries.get(sub_type):
-                summaries[sub_type] = 0
-
-            summaries[sub_type] += balance['balance']
-
-        summaries = [{'name': metric.key, 'value': metric.value} for metric in summary_metrics]
-
+        summaries = []
         return summaries
 
     def get_metrics(self):
@@ -147,13 +139,15 @@ class BalanceSheet(Statement):
         return balance
 
     def get_summaries(self):
-        summaries = []
-        summaries.append(
-            {
-                'name': 'Total Cash',
-                'value': sum([balance['balance'] for balance in self.balances if balance['sub_type'] == Account.AccountSubType.CASH])
-            }
-        )
+        summary_metrics = {}
+        for balance in self.balances:
+            sub_type = Account.AccountSubType(balance['sub_type']).label
+            if not summary_metrics.get(sub_type):
+                summary_metrics[sub_type] = 0
+
+            summary_metrics[sub_type] += balance['balance']
+
+        summaries = [{'name': key, 'value': value} for key, value in summary_metrics.items()]
 
         return summaries
 

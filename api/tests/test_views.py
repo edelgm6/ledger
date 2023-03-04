@@ -18,7 +18,7 @@ class PlugReconciliationViewTest(TestCase):
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
         groceries = Account.objects.create(
             name='5000-Groceries',
@@ -62,6 +62,11 @@ class ReconciliationsCreateViewTest(TestCase):
     def setUp(self):
         self.ENDPOINT = '/reconciliations/generate/'
         self.VIEW = GenerateReconciliationsView
+        gains_losses_account = Account.objects.create(
+            name='8000-Gains',
+            type=Account.AccountType.EQUITY,
+            sub_type=Account.AccountSubType.INVESTMENT_GAINS
+        )
 
     def test_bad_date_returns_404(self):
         user = User.objects.create(username='admin')
@@ -70,7 +75,7 @@ class ReconciliationsCreateViewTest(TestCase):
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
         groceries = Account.objects.create(
             name='5000-Groceries',
@@ -104,7 +109,7 @@ class ReconciliationsCreateViewTest(TestCase):
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
         groceries = Account.objects.create(
             name='5000-Groceries',
@@ -148,7 +153,7 @@ class ReconciliationsViewTest(TestCase):
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
         groceries = Account.objects.create(
             name='5000-Groceries',
@@ -197,7 +202,7 @@ class ReconciliationsViewTest(TestCase):
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
         groceries = Account.objects.create(
             name='5000-Groceries',
@@ -234,6 +239,11 @@ class AccountBalanceViewTest(TestCase):
     def setUp(self):
         self.ENDPOINT = '/account-balances/'
         self.VIEW = AccountBalanceView
+        gains_losses_account = Account.objects.create(
+            name='8000-Gains',
+            type=Account.AccountType.EQUITY,
+            sub_type=Account.AccountSubType.INVESTMENT_GAINS
+        )
 
     def test_returns_balance(self):
         user = User.objects.create(username='admin')
@@ -242,7 +252,7 @@ class AccountBalanceViewTest(TestCase):
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
         groceries = Account.objects.create(
             name='5000-Groceries',
@@ -275,7 +285,6 @@ class AccountBalanceViewTest(TestCase):
         response = self.VIEW.as_view()(request)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['balances'][0]['account'], chase.name)
-        self.assertEqual(response.data['metrics'][0]['name'], 'Net Income')
         self.assertEqual(len(response.data), 2)
 
     def test_returns_200(self):
@@ -309,7 +318,7 @@ class CSVProfileViewTest(TestCase):
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card',
+            sub_type='short_term_debt',
             csv_profile=profile
         )
 
@@ -350,7 +359,7 @@ class JournalEntryViewTest(TestCase):
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
         groceries = Account.objects.create(
             name='5000-Groceries',
@@ -384,7 +393,7 @@ class JournalEntryViewTest(TestCase):
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
         groceries = Account.objects.create(
             name='5000-Groceries',
@@ -424,7 +433,7 @@ class JournalEntryViewTest(TestCase):
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
         groceries = Account.objects.create(
             name='5000-Groceries',
@@ -487,7 +496,7 @@ class AccountViewTest(TestCase):
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
         groceries = Account.objects.create(
             name='5000-Groceries',
@@ -518,7 +527,7 @@ class TransactionViewTest(TestCase):
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
 
         user = User.objects.create(username='admin')
@@ -543,7 +552,7 @@ class TransactionViewTest(TestCase):
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
 
         transaction = Transaction.objects.create(
@@ -576,7 +585,7 @@ class TransactionViewTest(TestCase):
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
 
         transaction = Transaction.objects.create(
@@ -617,7 +626,7 @@ class TransactionViewTest(TestCase):
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
 
         transaction = Transaction.objects.create(
@@ -673,7 +682,7 @@ class UploadTransactionsViewTest(TestCase):
         account = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
         auto_tag = AutoTag.objects.create(
             search_string='uber',
