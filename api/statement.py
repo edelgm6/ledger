@@ -14,10 +14,7 @@ class Statement:
             debits = aggregate['debit_total']
             credits = aggregate['credit_total']
 
-            if account_type in ['asset','expense']:
-                balance = debits - credits
-            else:
-                balance = credits - debits
+            balance = Account.get_balance_from_debit_and_credit(account_type,debits=debits,credits=credits)
 
             account_balance_list.append(
                 {
