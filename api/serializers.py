@@ -73,10 +73,18 @@ class CSVProfileOutputSerializer(serializers.ModelSerializer):
         fields = ['name','date','amount','description','category','accounts','account']
         depth = 1
 
-class AccountBalanceOutputSerializer(serializers.Serializer):
+class BalancesOutputSerializer(serializers.Serializer):
     account = serializers.CharField(max_length=200)
     balance = serializers.DecimalField(max_digits=12,decimal_places=2)
     type = serializers.CharField(max_length=200)
+
+class MetricsOutputSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=200)
+    value = serializers.DecimalField(max_digits=12,decimal_places=2)
+
+class AccountBalanceOutputSerializer(serializers.Serializer):
+    balances = BalancesOutputSerializer(many=True, read_only=True)
+    metrics = MetricsOutputSerializer(many=True, read_only=True)
 
 class JournalEntryItemInputSerializer(serializers.ModelSerializer):
     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')

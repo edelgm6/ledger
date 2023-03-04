@@ -269,8 +269,9 @@ class AccountBalanceViewTest(TestCase):
         force_authenticate(request, user=user)
         response = self.VIEW.as_view()(request)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data[0]['account'], chase.name)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data['balances'][0]['account'], chase.name)
+        self.assertEqual(response.data['metrics'][0]['name'], 'Net Income')
+        self.assertEqual(len(response.data), 2)
 
     def test_returns_200(self):
         user = User.objects.create(username='admin')
