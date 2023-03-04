@@ -72,6 +72,12 @@ class IncomeStatement(Statement):
         super().__init__(end_date)
         self.start_date = start_date
         self.balances = self.get_balances()
+        self.balances.append({
+            'account': 'Net Income',
+            'balance': self.get_net_income(),
+            'type': Account.AccountType.EQUITY,
+            'sub_type': Account.AccountSubType.RETAINED_EARNINGS,
+        })
         self.metrics = self.get_metrics()
 
     def get_metrics(self):
@@ -89,7 +95,7 @@ class IncomeStatement(Statement):
         for balance in self.balances:
             if balance['type'] == Account.AccountType.INCOME:
                 net_income += balance['balance']
-            else:
+            elif balance['type'] == Account.AccountType.EXPENSE:
                 net_income -= balance['balance']
 
         return net_income
