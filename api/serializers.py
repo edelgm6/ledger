@@ -82,10 +82,14 @@ class MetricsOutputSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200)
     value = serializers.DecimalField(max_digits=12,decimal_places=2)
 
-class AccountBalanceOutputSerializer(serializers.Serializer):
+class StatementOutputSerializer(serializers.Serializer):
     balances = BalancesOutputSerializer(many=True, read_only=True)
     metrics = MetricsOutputSerializer(many=True, read_only=True)
     summaries = MetricsOutputSerializer(many=True, read_only=True)
+
+class AccountBalanceOutputSerializer(serializers.Serializer):
+    balance_sheet = StatementOutputSerializer()
+    income_statement = StatementOutputSerializer()
 
 class JournalEntryItemInputSerializer(serializers.ModelSerializer):
     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
