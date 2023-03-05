@@ -19,12 +19,12 @@ class BalanceSheetTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
         insurance = Account.objects.create(
             name='6000-Insurance',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
 
         journal_entry = JournalEntry.objects.create(date='2023-01-01')
@@ -100,12 +100,12 @@ class IncomeStatementTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
         insurance = Account.objects.create(
             name='6000-Insurance',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
 
         journal_entry = JournalEntry.objects.create(date='2023-01-01')
