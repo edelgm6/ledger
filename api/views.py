@@ -131,22 +131,15 @@ class AccountBalanceView(APIView):
     def get(self, request, *args, **kwargs):
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
-        account_types = self.request.query_params.getlist('account_type')
 
         income_statement = IncomeStatement(end_date=end_date,start_date=start_date)
         balance_sheet = BalanceSheet(end_date=end_date)
-        account_balances_list = income_statement.balances + balance_sheet.balances
-        metrics = income_statement.metrics + balance_sheet.metrics
-        summaries = income_statement.summaries + balance_sheet.summaries
-
-        filtered_list = [account_balance for account_balance in account_balances_list if account_balance['type'] in account_types]
-
-        balances_data = {
-            'balances': filtered_list,
-            'metrics': metrics,
-            'summaries': summaries
+        statements = {
+            'income_statement': income_statement,
+            'balance_sheet': balance_sheet
         }
-        account_balance_output_serializer = AccountBalanceOutputSerializer(balances_data)
+
+        account_balance_output_serializer = AccountBalanceOutputSerializer(statements)
         return Response(account_balance_output_serializer.data)
 
 class AccountView(APIView):
