@@ -23,12 +23,12 @@ class PlugReconciliationViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
         gain_loss_account = Account.objects.create(
             name='4050-Investment Gains or Losses',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
 
         journal_entry = JournalEntry.objects.create(date='2023-01-01')
@@ -80,7 +80,7 @@ class ReconciliationsCreateViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
 
         journal_entry = JournalEntry.objects.create(date='2023-01-01')
@@ -114,7 +114,7 @@ class ReconciliationsCreateViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
 
         journal_entry = JournalEntry.objects.create(date='2023-01-01')
@@ -158,7 +158,7 @@ class ReconciliationsViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
 
         journal_entry = JournalEntry.objects.create(date='2023-01-01')
@@ -207,7 +207,7 @@ class ReconciliationsViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
 
         journal_entry = JournalEntry.objects.create(date='2023-01-01')
@@ -257,7 +257,7 @@ class AccountBalanceViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
 
         journal_entry = JournalEntry.objects.create(date='2023-01-01')
@@ -364,7 +364,7 @@ class JournalEntryViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
 
         payload = {
@@ -398,7 +398,7 @@ class JournalEntryViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
 
         payload = {
@@ -438,7 +438,7 @@ class JournalEntryViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
         transaction = Transaction.objects.create(
             date='2023-01-01',
@@ -501,7 +501,7 @@ class AccountViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
         factory = APIRequestFactory()
         request = factory.get(self.ENDPOINT)

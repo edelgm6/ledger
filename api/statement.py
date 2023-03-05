@@ -66,6 +66,19 @@ class Statement:
 
         return balances
 
+    def get_base_summaries(self):
+        summary_metrics = {}
+        for balance in self.balances:
+            sub_type = Account.AccountSubType(balance['sub_type']).label
+            if not summary_metrics.get(sub_type):
+                summary_metrics[sub_type] = 0
+
+            summary_metrics[sub_type] += balance['balance']
+
+        summaries = [{'name': key, 'value': value} for key, value in summary_metrics.items()]
+
+        return summaries
+
 class IncomeStatement(Statement):
 
     def __init__(self, end_date, start_date):
@@ -79,12 +92,7 @@ class IncomeStatement(Statement):
             'sub_type': Account.AccountSubType.RETAINED_EARNINGS,
         })
         self.metrics = self.get_metrics()
-        self.summaries = self.get_summaries()
-
-    def get_summaries(self):
-
-        summaries = []
-        return summaries
+        self.summaries = self.get_base_summaries()
 
     def get_metrics(self):
         metrics = []
@@ -121,7 +129,7 @@ class BalanceSheet(Statement):
             }
         ]
         self.metrics = self.get_metrics()
-        self.summaries = self.get_summaries()
+        self.summaries = self.get_base_summaries()
         self.summaries.append({'name': 'Total Retained Earnings', 'value': total_retained_earnings})
 
     def get_retained_earnings_values(self):
@@ -137,19 +145,6 @@ class BalanceSheet(Statement):
     def get_balance(self, account):
         balance = [balance['balance'] for balance in self.balances if balance['account'] == account.name][0]
         return balance
-
-    def get_summaries(self):
-        summary_metrics = {}
-        for balance in self.balances:
-            sub_type = Account.AccountSubType(balance['sub_type']).label
-            if not summary_metrics.get(sub_type):
-                summary_metrics[sub_type] = 0
-
-            summary_metrics[sub_type] += balance['balance']
-
-        summaries = [{'name': key, 'value': value} for key, value in summary_metrics.items()]
-
-        return summaries
 
     def get_metrics(self):
         metrics = []
