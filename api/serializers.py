@@ -85,6 +85,7 @@ class MetricsOutputSerializer(serializers.Serializer):
 class AccountBalanceOutputSerializer(serializers.Serializer):
     balances = BalancesOutputSerializer(many=True, read_only=True)
     metrics = MetricsOutputSerializer(many=True, read_only=True)
+    summaries = MetricsOutputSerializer(many=True, read_only=True)
 
 class JournalEntryItemInputSerializer(serializers.ModelSerializer):
     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
