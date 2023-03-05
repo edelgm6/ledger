@@ -137,12 +137,14 @@ class AccountBalanceView(APIView):
         balance_sheet = BalanceSheet(end_date=end_date)
         account_balances_list = income_statement.balances + balance_sheet.balances
         metrics = income_statement.metrics + balance_sheet.metrics
+        summaries = income_statement.summaries + balance_sheet.summaries
 
         filtered_list = [account_balance for account_balance in account_balances_list if account_balance['type'] in account_types]
 
         balances_data = {
             'balances': filtered_list,
-            'metrics': metrics
+            'metrics': metrics,
+            'summaries': summaries
         }
         account_balance_output_serializer = AccountBalanceOutputSerializer(balances_data)
         return Response(account_balance_output_serializer.data)
