@@ -95,6 +95,7 @@ class Account(models.Model):
         INVESTMENT_GAINS = 'investment_gains', _('Investment Gains')
         INCOME = 'income', _('Income')
         EXPENSE = 'expense', _('Expense')
+        TAX = 'tax', _('Tax')
 
     name = models.CharField(max_length=200,unique=True)
     type = models.CharField(max_length=9,choices=AccountType.choices)
