@@ -93,7 +93,9 @@ class Account(models.Model):
         SECURITIES_UNRESTRICTED = 'securities_unrestricted', _('Securities-Unrestricted')
         RETAINED_EARNINGS = 'retained_earnings', _('Retained Earnings')
         INVESTMENT_GAINS = 'investment_gains', _('Investment Gains')
-        INCOME = 'income', _('Income')
+        SALARY = 'salary', _('Salary')
+        DIVIDENDS_AND_INTEREST = 'dividends_and_interest', _('Dividends & Interest')
+        OTHER_INCOME = 'other_income', _('Other Income')
         EXPENSE = 'expense', _('Expense')
         TAX = 'tax', _('Tax')
 
