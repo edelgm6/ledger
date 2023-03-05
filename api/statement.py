@@ -105,6 +105,10 @@ class IncomeStatement(Statement):
             {
                 'name': 'Non-Gains Net Income',
                 'value': self.get_non_investment_gains_net_income()
+            },
+            {
+                'name': 'Tax Rate',
+                'value': self.get_tax_rate()
             }
         ]
         return metrics
@@ -120,8 +124,15 @@ class IncomeStatement(Statement):
         return net_income
 
     def get_non_investment_gains_net_income(self):
-        investment_gains = sum([balance['balance'] for balance in self.balances if balance['type'] == Account.AccountSubType.INVESTMENT_GAINS])
+        investment_gains = sum([balance['balance'] for balance in self.balances if balance['sub_type'] == Account.AccountSubType.INVESTMENT_GAINS])
         return self.net_income - investment_gains
+
+    def get_tax_rate(self):
+        taxable_income = sum([balance['balance'] for balance in self.balances if balance['sub_type'] in [Account.AccountSubType.SALARY, Account.AccountSubType.DIVIDENDS_AND_INTEREST]])
+        taxes = sum([balance['amount'] for balance in self.balances if balance['sub_type'] == Account.AccountSubType.TAX])
+        if taxable_income == 0:
+            return None
+        return taxes / taxable_income
 
 
 class BalanceSheet(Statement):
