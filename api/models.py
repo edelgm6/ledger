@@ -85,18 +85,23 @@ class Account(models.Model):
         EQUITY = 'equity', _('Equity')
 
     class AccountSubType(models.TextChoices):
+        # Liability types
         SHORT_TERM_DEBT = 'short_term_debt', _('Short-term Debt')
         LONG_TERM_DEBT = 'long_term_debt', _('Long-term Debt')
+        # Asset types
         CASH = 'cash', _('Cash')
         REAL_ESTATE = 'real_estate', _('Real Estate')
         SECURITIES_RETIREMENT = 'securities_retirement', _('Securities-Retirement')
         SECURITIES_UNRESTRICTED = 'securities_unrestricted', _('Securities-Unrestricted')
+        # Equity types
         RETAINED_EARNINGS = 'retained_earnings', _('Retained Earnings')
+        # Income types
         INVESTMENT_GAINS = 'investment_gains', _('Investment Gains')
         SALARY = 'salary', _('Salary')
         DIVIDENDS_AND_INTEREST = 'dividends_and_interest', _('Dividends & Interest')
         OTHER_INCOME = 'other_income', _('Other Income')
-        EXPENSE = 'expense', _('Expense')
+        # Expense Types
+        PURCHASES = 'purchases', _('Purchases')
         TAX = 'tax', _('Tax')
 
     name = models.CharField(max_length=200,unique=True)

@@ -104,7 +104,7 @@ class IncomeStatement(Statement):
         metrics = [
             {
                 'name': 'Non-Gains Net Income',
-                'value': self.get_non_investment_gains_net_income
+                'value': self.get_non_investment_gains_net_income()
             }
         ]
         return metrics
