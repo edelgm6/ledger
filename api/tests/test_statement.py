@@ -19,12 +19,12 @@ class BalanceSheetTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='expense'
+            sub_type='purchases'
         )
         insurance = Account.objects.create(
             name='6000-Insurance',
             type='expense',
-            sub_type='expense'
+            sub_type='purchases'
         )
 
         journal_entry = JournalEntry.objects.create(date='2023-01-01')
@@ -73,6 +73,24 @@ class BalanceSheetTest(TestCase):
             account=chase,
             journal_entry=journal_entry
         )
+        income = Account.objects.create(
+            name='8000-Income',
+            type=Account.AccountType.INCOME,
+            sub_type=Account.AccountSubType.SALARY
+        )
+        journal_entry = JournalEntry.objects.create(date='2023-01-28')
+        journal_entry_debit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100,
+            account=income,
+            journal_entry=journal_entry
+        )
+        journal_entry_credit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100,
+            account=chase,
+            journal_entry=journal_entry
+        )
 
     def test_create_balance_sheet(self):
         balance_sheet = BalanceSheet('2023-01-31')
@@ -81,7 +99,7 @@ class BalanceSheetTest(TestCase):
         balance_sheet = BalanceSheet('2023-01-31')
         chase_balance = [balance['balance'] for balance in balance_sheet.balances if balance['account'] == '1200-Chase'][0]
         self.assertEqual(len(balance_sheet.balances), 4)
-        self.assertEqual(chase_balance, 300)
+        self.assertEqual(chase_balance, 400)
 
     def test_returns_cash_balance(self):
         balance_sheet = BalanceSheet('2023-01-31')
@@ -100,12 +118,22 @@ class IncomeStatementTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='expense'
+            sub_type='purchases'
         )
         insurance = Account.objects.create(
             name='6000-Insurance',
             type='expense',
-            sub_type='expense'
+            sub_type='purchases'
+        )
+        vanguard = Account.objects.create(
+            name='7000-Vanguard',
+            type=Account.AccountType.INCOME,
+            sub_type=Account.AccountSubType.INVESTMENT_GAINS
+        )
+        income = Account.objects.create(
+            name='8000-Income',
+            type=Account.AccountType.INCOME,
+            sub_type=Account.AccountSubType.SALARY
         )
 
         journal_entry = JournalEntry.objects.create(date='2023-01-01')
@@ -136,11 +164,61 @@ class IncomeStatementTest(TestCase):
             journal_entry=journal_entry
         )
 
+        journal_entry = JournalEntry.objects.create(date='2023-01-28')
+        journal_entry_debit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100,
+            account=vanguard,
+            journal_entry=journal_entry
+        )
+        journal_entry_credit = JournalEntryItem.objects.create(
+            type='debit',
+            amount=100,
+            account=chase,
+            journal_entry=journal_entry
+        )
+
+        journal_entry = JournalEntry.objects.create(date='2023-01-28')
+        journal_entry_debit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100,
+            account=vanguard,
+            journal_entry=journal_entry
+        )
+        journal_entry_credit = JournalEntryItem.objects.create(
+            type='debit',
+            amount=100,
+            account=chase,
+            journal_entry=journal_entry
+        )
+        journal_entry = JournalEntry.objects.create(date='2023-01-28')
+        journal_entry_debit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100,
+            account=income,
+            journal_entry=journal_entry
+        )
+        journal_entry_credit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100,
+            account=chase,
+            journal_entry=journal_entry
+        )
+
     def test_create_income_statement(self):
         income_statement = IncomeStatement('2023-01-31','2023-01-01')
 
     def test_creates_balances(self):
         income_statement = IncomeStatement('2023-01-31','2023-01-01')
         net_income = [balance['balance'] for balance in income_statement.balances if balance['account'] == 'Net Income'][0]
-        self.assertEqual(len(income_statement.balances), 3)
-        self.assertEqual(net_income, -200)
+        self.assertEqual(len(income_statement.balances), 5)
+        self.assertEqual(net_income, 100)
+
+    def test_net_income(self):
+        income_statement = IncomeStatement('2023-01-31','2023-01-01')
+        net_income = [balance['balance'] for balance in income_statement.balances if balance['account'] == 'Net Income'][0]
+        self.assertEqual(len(income_statement.balances), 5)
+        self.assertEqual(net_income, 100)
+        self.assertEqual(income_statement.net_income, 100)
+        print(income_statement.metrics)
+        print(income_statement.summaries)

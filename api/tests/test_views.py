@@ -23,12 +23,12 @@ class PlugReconciliationViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='expense'
+            sub_type='purchases'
         )
         gain_loss_account = Account.objects.create(
             name='4050-Investment Gains or Losses',
             type='expense',
-            sub_type='expense'
+            sub_type='purchases'
         )
 
         journal_entry = JournalEntry.objects.create(date='2023-01-01')
@@ -67,6 +67,24 @@ class ReconciliationsCreateViewTest(TestCase):
             type=Account.AccountType.EQUITY,
             sub_type=Account.AccountSubType.INVESTMENT_GAINS
         )
+        income = Account.objects.create(
+            name='8000-Income',
+            type=Account.AccountType.INCOME,
+            sub_type=Account.AccountSubType.SALARY
+        )
+        journal_entry = JournalEntry.objects.create(date='2023-01-28')
+        journal_entry_debit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100,
+            account=income,
+            journal_entry=journal_entry
+        )
+        journal_entry_credit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100,
+            account=gains_losses_account,
+            journal_entry=journal_entry
+        )
 
     def test_bad_date_returns_404(self):
         user = User.objects.create(username='admin')
@@ -80,7 +98,7 @@ class ReconciliationsCreateViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='expense'
+            sub_type='purchases'
         )
 
         journal_entry = JournalEntry.objects.create(date='2023-01-01')
@@ -114,7 +132,7 @@ class ReconciliationsCreateViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='expense'
+            sub_type='purchases'
         )
 
         journal_entry = JournalEntry.objects.create(date='2023-01-01')
@@ -146,6 +164,25 @@ class ReconciliationsViewTest(TestCase):
             sub_type=Account.AccountSubType.INVESTMENT_GAINS
         )
 
+        income = Account.objects.create(
+            name='8000-Income',
+            type=Account.AccountType.INCOME,
+            sub_type=Account.AccountSubType.SALARY
+        )
+        journal_entry = JournalEntry.objects.create(date='2023-01-28')
+        journal_entry_debit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100,
+            account=income,
+            journal_entry=journal_entry
+        )
+        journal_entry_credit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100,
+            account=gains_losses_account,
+            journal_entry=journal_entry
+        )
+
     def test_put_updates_objects(self):
         user = User.objects.create(username='admin')
         factory = APIRequestFactory()
@@ -158,7 +195,7 @@ class ReconciliationsViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='expense'
+            sub_type='purchases'
         )
 
         journal_entry = JournalEntry.objects.create(date='2023-01-01')
@@ -207,7 +244,7 @@ class ReconciliationsViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='expense'
+            sub_type='purchases'
         )
 
         journal_entry = JournalEntry.objects.create(date='2023-01-01')
@@ -244,6 +281,24 @@ class AccountBalanceViewTest(TestCase):
             type=Account.AccountType.EQUITY,
             sub_type=Account.AccountSubType.INVESTMENT_GAINS
         )
+        income = Account.objects.create(
+            name='8000-Income',
+            type=Account.AccountType.INCOME,
+            sub_type=Account.AccountSubType.SALARY
+        )
+        journal_entry = JournalEntry.objects.create(date='2023-01-28')
+        journal_entry_debit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100,
+            account=income,
+            journal_entry=journal_entry
+        )
+        journal_entry_credit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100,
+            account=gains_losses_account,
+            journal_entry=journal_entry
+        )
 
     def test_returns_balance(self):
         user = User.objects.create(username='admin')
@@ -257,7 +312,7 @@ class AccountBalanceViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='expense'
+            sub_type='purchases'
         )
 
         journal_entry = JournalEntry.objects.create(date='2023-01-01')
@@ -363,7 +418,7 @@ class JournalEntryViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='expense'
+            sub_type='purchases'
         )
 
         payload = {
@@ -397,7 +452,7 @@ class JournalEntryViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='expense'
+            sub_type='purchases'
         )
 
         payload = {
@@ -437,7 +492,7 @@ class JournalEntryViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='expense'
+            sub_type='purchases'
         )
         transaction = Transaction.objects.create(
             date='2023-01-01',
@@ -500,7 +555,7 @@ class AccountViewTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='expense'
+            sub_type='purchases'
         )
         factory = APIRequestFactory()
         request = factory.get(self.ENDPOINT)
