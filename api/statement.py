@@ -90,10 +90,10 @@ class IncomeStatement(Statement):
         self.start_date = start_date
         self.balances = self.get_balances()
 
-        self.net_income = self.get_net_income
+        self.net_income = self.get_net_income()
         self.balances.append({
             'account': 'Net Income',
-            'balance': self.net_income(),
+            'balance': self.net_income,
             'type': Account.AccountType.EQUITY,
             'sub_type': Account.AccountSubType.RETAINED_EARNINGS,
         })
