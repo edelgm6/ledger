@@ -5,20 +5,26 @@ from api.models import Account, JournalEntryItem, JournalEntry
 
 class BalanceSheetTest(TestCase):
     def setUp(self):
+        gains_losses = Account.objects.create(
+            name='8000-gains losses',
+            type=Account.AccountType.EQUITY,
+            sub_type=Account.AccountSubType.INVESTMENT_GAINS
+        )
+
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
         insurance = Account.objects.create(
             name='6000-Insurance',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
 
         journal_entry = JournalEntry.objects.create(date='2023-01-01')
@@ -74,12 +80,12 @@ class BalanceSheetTest(TestCase):
     def test_creates_balances(self):
         balance_sheet = BalanceSheet('2023-01-31')
         chase_balance = [balance['balance'] for balance in balance_sheet.balances if balance['account'] == '1200-Chase'][0]
-        self.assertEqual(len(balance_sheet.balances), 2)
+        self.assertEqual(len(balance_sheet.balances), 4)
         self.assertEqual(chase_balance, 300)
 
     def test_returns_cash_balance(self):
         balance_sheet = BalanceSheet('2023-01-31')
-        total_cash = [metric['value'] for metric in balance_sheet.metrics if metric['name'] == 'Total Cash'][0]
+        total_cash = [summary['value'] for summary in balance_sheet.summaries if summary['name'] == 'Cash'][0]
         self.assertEqual(total_cash, 100)
 
 
@@ -89,17 +95,17 @@ class IncomeStatementTest(TestCase):
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='credit_card'
+            sub_type='short_term_debt'
         )
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
         insurance = Account.objects.create(
             name='6000-Insurance',
             type='expense',
-            sub_type='purchase'
+            sub_type='expense'
         )
 
         journal_entry = JournalEntry.objects.create(date='2023-01-01')
@@ -135,9 +141,6 @@ class IncomeStatementTest(TestCase):
 
     def test_creates_balances(self):
         income_statement = IncomeStatement('2023-01-31','2023-01-01')
-        self.assertEqual(len(income_statement.balances), 2)
-
-    def test_returns_net_income(self):
-        income_statement = IncomeStatement('2023-01-31','2023-01-01')
-        net_income = [metric['value'] for metric in income_statement.metrics if metric['name'] == 'Net Income'][0]
+        net_income = [balance['balance'] for balance in income_statement.balances if balance['account'] == 'Net Income'][0]
+        self.assertEqual(len(income_statement.balances), 3)
         self.assertEqual(net_income, -200)
