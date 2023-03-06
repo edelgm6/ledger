@@ -75,8 +75,9 @@ class CSVProfileOutputSerializer(serializers.ModelSerializer):
 
 class BalancesOutputSerializer(serializers.Serializer):
     account = serializers.CharField(max_length=200)
-    balance = serializers.DecimalField(max_digits=12,decimal_places=2)
+    amount = serializers.DecimalField(max_digits=12,decimal_places=2)
     type = serializers.CharField(max_length=200)
+    sub_type = serializers.CharField(max_length=200)
 
 class MetricsOutputSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200)

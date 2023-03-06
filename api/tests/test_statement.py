@@ -97,13 +97,13 @@ class BalanceSheetTest(TestCase):
 
     def test_creates_balances(self):
         balance_sheet = BalanceSheet('2023-01-31')
-        chase_balance = [balance['balance'] for balance in balance_sheet.balances if balance['account'] == '1200-Chase'][0]
+        chase_balance = [balance.amount for balance in balance_sheet.balances if balance.account == '1200-Chase'][0]
         self.assertEqual(len(balance_sheet.balances), 4)
         self.assertEqual(chase_balance, 400)
 
     def test_returns_cash_balance(self):
         balance_sheet = BalanceSheet('2023-01-31')
-        total_cash = [summary['value'] for summary in balance_sheet.summaries if summary['name'] == 'Cash'][0]
+        total_cash = [summary.value for summary in balance_sheet.summaries if summary.name == 'Cash'][0]
         self.assertEqual(total_cash, 100)
 
 
@@ -210,15 +210,13 @@ class IncomeStatementTest(TestCase):
 
     def test_creates_balances(self):
         income_statement = IncomeStatement('2023-01-31','2023-01-01')
-        net_income = [balance['balance'] for balance in income_statement.balances if balance['account'] == 'Net Income'][0]
+        net_income = [balance.amount for balance in income_statement.balances if balance.account == 'Net Income'][0]
         self.assertEqual(len(income_statement.balances), 5)
         self.assertEqual(net_income, 100)
 
     def test_net_income(self):
         income_statement = IncomeStatement('2023-01-31','2023-01-01')
-        net_income = [balance['balance'] for balance in income_statement.balances if balance['account'] == 'Net Income'][0]
+        net_income = [balance.amount for balance in income_statement.balances if balance.account == 'Net Income'][0]
         self.assertEqual(len(income_statement.balances), 5)
         self.assertEqual(net_income, 100)
         self.assertEqual(income_statement.net_income, 100)
-        print(income_statement.metrics)
-        print(income_statement.summaries)
