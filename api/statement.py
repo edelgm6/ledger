@@ -150,8 +150,8 @@ class BalanceSheet(Statement):
             Balance('9100-Investment Gains/Losses', investment_gains_losses, Account.AccountType.EQUITY, Account.AccountSubType.RETAINED_EARNINGS)
 
         ]
-        self.metrics = self.get_metrics()
         self.summaries = self.get_summaries()
+        self.metrics = self.get_metrics()
 
     def get_retained_earnings_values(self):
         income_statement = IncomeStatement(end_date=self.end_date,start_date='1970-01-01')
@@ -167,5 +167,40 @@ class BalanceSheet(Statement):
         return balance
 
     def get_metrics(self):
-        metrics = []
+        metrics = [
+            Metric('Cash % Assets', self.get_cash_percent_assets()),
+            Metric('Debt to Equity', self.get_debt_to_equity()),
+            Metric('Liquid Assets', self.get_liquid_assets()),
+            Metric('Liquid Assets %', self.get_liquid_assets_percent())
+        ]
         return metrics
+
+    def get_cash_percent_assets(self):
+        cash = sum([summary.value for summary in self.summaries if summary.name == Account.AccountSubType.CASH.label])
+        assets = sum([summary.value for summary in self.summaries if summary.name == Account.AccountType.ASSET.label])
+        if assets == 0:
+            return None
+
+        return cash / assets
+
+    def get_debt_to_equity(self):
+        liabilities = sum([summary.value for summary in self.summaries if summary.name == Account.AccountType.LIABILITY.label])
+        equity = sum([summary.value for summary in self.summaries if summary.name == Account.AccountType.EQUITY.label])
+        if equity == 0:
+            return None
+
+        return liabilities / equity
+
+    def get_liquid_assets(self):
+        cash = sum([summary.value for summary in self.summaries if summary.name == Account.AccountSubType.CASH.label])
+        brokerage = sum([summary.value for summary in self.summaries if summary.name == Account.AccountSubType.SECURITIES_UNRESTRICTED.label])
+
+        return cash + brokerage
+
+    def get_liquid_assets_percent(self):
+        liquid_assets = self.get_liquid_assets()
+        assets = sum([summary.value for summary in self.summaries if summary.name == Account.AccountType.ASSET.label])
+
+        if assets == 0:
+            return None
+        return liquid_assets / assets
