@@ -1,3 +1,4 @@
+import datetime
 from decimal import Decimal
 from django.http import Http404
 from django.views import View
@@ -11,8 +12,8 @@ from rest_framework.views import APIView
 from rest_framework import status, generics
 from rest_framework.exceptions import ValidationError
 from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer
-from api.models import Transaction, Account, CSVProfile, Reconciliation
-from api.statement import BalanceSheet, IncomeStatement
+from api.models import Transaction, Account, CSVProfile, Reconciliation, JournalEntry
+from api.statement import BalanceSheet, IncomeStatement, CashFlowStatement
 
 @method_decorator(login_required, name='dispatch')
 class IndexView(View):
@@ -134,9 +135,14 @@ class AccountBalanceView(APIView):
 
         income_statement = IncomeStatement(end_date=end_date,start_date=start_date)
         balance_sheet = BalanceSheet(end_date=end_date)
+
+        balance_sheet_start_date = datetime.date.fromisoformat(start_date) - datetime.timedelta(days=1)
+        balance_sheet_start = BalanceSheet(end_date=balance_sheet_start_date)
+        cash_flow_statement = CashFlowStatement(income_statement,balance_sheet_start,balance_sheet)
         statements = {
             'income_statement': income_statement,
-            'balance_sheet': balance_sheet
+            'balance_sheet': balance_sheet,
+            'cash_flow_statement': cash_flow_statement
         }
 
         account_balance_output_serializer = AccountBalanceOutputSerializer(statements)
@@ -234,3 +240,8 @@ class JournalEntryView(APIView):
             return Response(journal_entry_output_serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(journal_entry_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get(self, request, *args, **kwargs):
+        journal_entries = JournalEntry.objects.all().order_by('date')
+        journal_entry_output_serializer = JournalEntryOutputSerializer(journal_entries, many=True)
+        return Response(journal_entry_output_serializer.data)
