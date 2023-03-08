@@ -90,6 +90,100 @@ class Statement:
 
         return summaries
 
+    def get_summary_value(self, search):
+        value = sum([summary.value for summary in self.summaries if summary.name in search])
+        return value
+
+class CashFlowStatement(Statement):
+
+    def __init__(self, income_statement, start_balance_sheet, end_balance_sheet):
+        self.income_statement = income_statement
+        self.start_balance_sheet = start_balance_sheet
+        self.end_balance_sheet = end_balance_sheet
+        self.balance_sheet_deltas = self.get_balance_sheet_account_deltas()
+
+        self.balances = self.get_balance_sheet_account_deltas()
+        self.summaries = [
+            Metric('Starting Cash', self.get_cash_balance(self.start_balance_sheet)),
+            Metric('Ending Cash', self.get_cash_balance(self.end_balance_sheet)),
+            Metric('Cash Flow From Operations', self.get_cash_from_operations()),
+            Metric('Cash Flow From Investing', self.get_cash_from_investing()),
+            Metric('Cash Flow From Financing', self.get_cash_from_financing()),
+            Metric('Net Cash Flow', self.get_cash_from_operations() + self.get_cash_from_investing() + self.get_cash_from_financing())
+        ]
+        self.metrics = [
+            Metric('Net Income', self.income_statement.net_income),
+            Metric('Taxes Payable Change', self.get_taxes_payable_change()),
+            Metric('Short Term Debt Change', self.get_short_term_debt_change()),
+            Metric('Real Estate Change', self.get_real_estate_change()),
+            Metric('Securities Change', self.get_securities_change())
+        ]
+
+    @staticmethod
+    def get_cash_balance(balance_sheet):
+        cash = sum([summary.value for summary in balance_sheet.summaries if summary.name == 'Cash'])
+        return cash
+
+    def get_balance_sheet_account_deltas(self):
+        accounts = Account.objects.filter(type__in=[Account.AccountType.ASSET,Account.AccountType.LIABILITY,Account.AccountType.EQUITY])
+        account_deltas = []
+        for account in accounts:
+            starting_balance = sum([balance.amount for balance in self.start_balance_sheet.balances if balance.account == account.name])
+            ending_balance = sum([balance.amount for balance in self.end_balance_sheet.balances if balance.account == account.name])
+            account_deltas.append(Balance(account.name,ending_balance - starting_balance,account.type,account.sub_type))
+
+        return account_deltas
+
+    # def get_account_gains_losses_impact_per_account(self):
+    #     for balance in self.income_statement.balances:
+    #         investment_gains_journal_entry_items = JournalEntryItem.objects.filter(
+    #             account__sub_type=Account.AccountSubType.INVESTMENT_GAINS,
+    #             journal_entry__date__gte=self.income_statement.start_date,
+    #             journal_entry__date__lte=self.income_statement.end_date
+    #         )
+
+    def get_cash_from_operations(self):
+        # Want to back out securities gains/losses from all metrics
+        net_income = self.income_statement.get_non_investment_gains_net_income()
+        taxes_payable_change = self.get_taxes_payable_change()
+        short_term_debt_change = self.get_short_term_debt_change()
+
+        return net_income + taxes_payable_change + short_term_debt_change
+
+    def get_taxes_payable_change(self):
+        taxes_payable_start = self.start_balance_sheet.get_summary_value([Account.AccountSubType.TAXES_PAYABLE.label])
+        taxes_payable_end = self.end_balance_sheet.get_summary_value([Account.AccountSubType.TAXES_PAYABLE.label])
+        return taxes_payable_end - taxes_payable_start
+
+    def get_short_term_debt_change(self):
+        short_term_debt_start = self.start_balance_sheet.get_summary_value([Account.AccountSubType.SHORT_TERM_DEBT.label])
+        short_term_debt_end = self.end_balance_sheet.get_summary_value([Account.AccountSubType.SHORT_TERM_DEBT.label])
+        return short_term_debt_end - short_term_debt_start
+
+    def get_cash_from_investing(self):
+        real_estate_change = self.get_real_estate_change()
+        securities_change = self.get_securities_change()
+        return real_estate_change + securities_change
+
+    def get_securities_change(self):
+        securities_start = self.start_balance_sheet.get_summary_value([Account.AccountSubType.SECURITIES_RETIREMENT.label, Account.AccountSubType.SECURITIES_UNRESTRICTED.label])
+        securities_end = self.end_balance_sheet.get_summary_value([Account.AccountSubType.SECURITIES_RETIREMENT.label, Account.AccountSubType.SECURITIES_UNRESTRICTED.label])
+
+        return securities_start - securities_end + self.income_statement.get_investment_gains_and_losses()
+
+    def get_real_estate_change(self):
+        real_estate_start = self.start_balance_sheet.get_summary_value([Account.AccountSubType.REAL_ESTATE.label])
+        real_estate_end = self.end_balance_sheet.get_summary_value([Account.AccountSubType.REAL_ESTATE.label])
+        return real_estate_start - real_estate_end
+
+    def get_cash_from_financing(self):
+
+        long_term_debt_start = self.start_balance_sheet.get_summary_value([Account.AccountSubType.LONG_TERM_DEBT.label])
+        long_term_debt_end = self.end_balance_sheet.get_summary_value([Account.AccountSubType.LONG_TERM_DEBT.label])
+        long_term_debt_change = long_term_debt_end - long_term_debt_start
+
+        return long_term_debt_change
+
 class IncomeStatement(Statement):
 
     def __init__(self, end_date, start_date):
@@ -98,6 +192,7 @@ class IncomeStatement(Statement):
         self.balances = self.get_balances()
 
         self.net_income = self.get_net_income()
+        self.investment_gains = self.get_investment_gains_and_losses()
         self.balances.append(Balance('Net Income', self.net_income, Account.AccountType.EQUITY, Account.AccountSubType.RETAINED_EARNINGS))
         self.metrics = self.get_metrics()
         self.summaries = self.get_summaries()
@@ -120,9 +215,11 @@ class IncomeStatement(Statement):
 
         return net_income
 
+    def get_investment_gains_and_losses(self):
+        return sum([balance.amount for balance in self.balances if balance.sub_type == Account.AccountSubType.INVESTMENT_GAINS])
+
     def get_non_investment_gains_net_income(self):
-        investment_gains = sum([balance.amount for balance in self.balances if balance.sub_type == Account.AccountSubType.INVESTMENT_GAINS])
-        return self.net_income - investment_gains
+        return self.net_income - self.investment_gains
 
     def get_tax_rate(self):
         taxable_income = sum([balance.amount for balance in self.balances if balance.sub_type in [Account.AccountSubType.SALARY, Account.AccountSubType.DIVIDENDS_AND_INTEREST]])
@@ -148,7 +245,6 @@ class BalanceSheet(Statement):
         self.balances += [
             Balance('9000-Net Retained Earnings', net_retained_earnings, Account.AccountType.EQUITY, Account.AccountSubType.RETAINED_EARNINGS),
             Balance('9100-Investment Gains/Losses', investment_gains_losses, Account.AccountType.EQUITY, Account.AccountSubType.RETAINED_EARNINGS)
-
         ]
         self.summaries = self.get_summaries()
         self.metrics = self.get_metrics()

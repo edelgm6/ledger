@@ -91,6 +91,7 @@ class StatementOutputSerializer(serializers.Serializer):
 class AccountBalanceOutputSerializer(serializers.Serializer):
     balance_sheet = StatementOutputSerializer()
     income_statement = StatementOutputSerializer()
+    cash_flow_statement = StatementOutputSerializer()
 
 class JournalEntryItemInputSerializer(serializers.ModelSerializer):
     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
