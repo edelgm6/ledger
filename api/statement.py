@@ -116,7 +116,8 @@ class CashFlowStatement(Statement):
             Metric('Taxes Payable Change', self.get_taxes_payable_change()),
             Metric('Short Term Debt Change', self.get_short_term_debt_change()),
             Metric('Real Estate Change', self.get_real_estate_change()),
-            Metric('Securities Change', self.get_securities_change())
+            Metric('Securities Change', self.get_securities_change()),
+            Metric('Free cash flow', self.get_cash_from_operations() + self.get_cash_from_financing())
         ]
 
     @staticmethod
