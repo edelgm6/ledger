@@ -18,9 +18,16 @@ class Reconciliation(models.Model):
 
         delta = self.amount - self.account.get_balance(self.date)
 
+        transaction = Transaction.objects.create(
+            date=self.date,
+            amount=delta,
+            account=self.account,
+            description=str(self.date) + ' Plug gain/loss for ' + self.account.name
+        )
         journal_entry = JournalEntry.objects.create(
             date=self.date,
-            description=str(self.date) + ' Plug gain/loss for ' + self.account.name
+            description=transaction.description,
+            transaction=transaction
         )
 
         if delta > 0:
@@ -65,7 +72,7 @@ class Transaction(models.Model):
     suggested_account = models.ForeignKey('Account',related_name='suggested_account',on_delete=models.CASCADE,null=True,blank=True)
     type = models.CharField(max_length=25,choices=TransactionType.choices,blank=True)
     suggested_type = models.CharField(max_length=25,choices=TransactionType.choices,blank=True)
-    linked_transaction = models.OneToOneField('Transaction',on_delete=models.PROTECT,null=True,blank=True)
+    linked_transaction = models.OneToOneField('Transaction',on_delete=models.SET_NULL,null=True,blank=True)
 
     def __str__(self):
         return str(self.date) + ' ' + self.account.name + ' ' + self.description + ' $' + str(self.amount)
@@ -88,6 +95,7 @@ class Account(models.Model):
         # Liability types
         SHORT_TERM_DEBT = 'short_term_debt', _('Short-term Debt')
         LONG_TERM_DEBT = 'long_term_debt', _('Long-term Debt')
+        TAXES_PAYABLE = 'taxes_payable', _('Taxes Payable')
         # Asset types
         CASH = 'cash', _('Cash')
         REAL_ESTATE = 'real_estate', _('Real Estate')
@@ -108,6 +116,9 @@ class Account(models.Model):
     type = models.CharField(max_length=9,choices=AccountType.choices)
     sub_type = models.CharField(max_length=30,choices=AccountSubType.choices)
     csv_profile = models.ForeignKey('CSVProfile',related_name='accounts',on_delete=models.PROTECT,null=True,blank=True)
+
+    class Meta:
+        ordering = ('name',)
 
     def __str__(self):
         return self.name
@@ -149,7 +160,7 @@ class Account(models.Model):
 class JournalEntry(models.Model):
     date = models.DateField()
     description = models.CharField(max_length=200,blank=True)
-    transaction = models.OneToOneField('Transaction',on_delete=models.CASCADE,null=True,blank=True)
+    transaction = models.OneToOneField('Transaction',on_delete=models.CASCADE)
 
     def __str__(self):
         return str(self.pk) + ': ' + str(self.date) + ' ' + self.description

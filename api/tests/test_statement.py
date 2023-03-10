@@ -1,7 +1,7 @@
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory
-from api.statement import BalanceSheet, IncomeStatement
-from api.models import Account, JournalEntryItem, JournalEntry
+from api.statement import BalanceSheet, IncomeStatement, CashFlowStatement
+from api.models import Account, JournalEntryItem, JournalEntry, Transaction
 
 class BalanceSheetTest(TestCase):
     def setUp(self):
@@ -27,7 +27,13 @@ class BalanceSheetTest(TestCase):
             sub_type='purchases'
         )
 
-        journal_entry = JournalEntry.objects.create(date='2023-01-01')
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=groceries
+        )
+
+        journal_entry = JournalEntry.objects.create(date='2023-01-28',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='debit',
             amount=100,
@@ -41,7 +47,13 @@ class BalanceSheetTest(TestCase):
             journal_entry=journal_entry
         )
 
-        journal_entry = JournalEntry.objects.create(date='2023-01-28')
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=groceries
+        )
+
+        journal_entry = JournalEntry.objects.create(date='2023-01-28',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='debit',
             amount=100,
@@ -60,7 +72,13 @@ class BalanceSheetTest(TestCase):
             type='asset',
             sub_type='cash'
         )
-        journal_entry = JournalEntry.objects.create(date='2023-01-28')
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=groceries
+        )
+
+        journal_entry = JournalEntry.objects.create(date='2023-01-28',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='debit',
             amount=100,
@@ -78,7 +96,13 @@ class BalanceSheetTest(TestCase):
             type=Account.AccountType.INCOME,
             sub_type=Account.AccountSubType.SALARY
         )
-        journal_entry = JournalEntry.objects.create(date='2023-01-28')
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=groceries
+        )
+
+        journal_entry = JournalEntry.objects.create(date='2023-01-28',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='credit',
             amount=100,
@@ -110,6 +134,12 @@ class BalanceSheetTest(TestCase):
 class IncomeStatementTest(TestCase):
 
     def setUp(self):
+
+        cash = Account.objects.create(
+            name='900-Ally',
+            type='asset',
+            sub_type='cash'
+        )
         chase = Account.objects.create(
             name='1200-Chase',
             type='liability',
@@ -135,8 +165,12 @@ class IncomeStatementTest(TestCase):
             type=Account.AccountType.INCOME,
             sub_type=Account.AccountSubType.SALARY
         )
-
-        journal_entry = JournalEntry.objects.create(date='2023-01-01')
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=income
+        )
+        journal_entry = JournalEntry.objects.create(date='2023-01-28',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='debit',
             amount=100,
@@ -149,8 +183,13 @@ class IncomeStatementTest(TestCase):
             account=chase,
             journal_entry=journal_entry
         )
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=income
+        )
 
-        journal_entry = JournalEntry.objects.create(date='2023-01-28')
+        journal_entry = JournalEntry.objects.create(date='2023-01-28',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='debit',
             amount=100,
@@ -163,8 +202,21 @@ class IncomeStatementTest(TestCase):
             account=chase,
             journal_entry=journal_entry
         )
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=income
+        )
 
-        journal_entry = JournalEntry.objects.create(date='2023-01-28')
+        journal_entry = JournalEntry.objects.create(date='2023-01-28',transaction=transaction)
+
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=income
+        )
+
+        journal_entry = JournalEntry.objects.create(date='2023-01-28',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='credit',
             amount=100,
@@ -178,7 +230,13 @@ class IncomeStatementTest(TestCase):
             journal_entry=journal_entry
         )
 
-        journal_entry = JournalEntry.objects.create(date='2023-01-28')
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=income
+        )
+
+        journal_entry = JournalEntry.objects.create(date='2023-01-28',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='credit',
             amount=100,
@@ -191,7 +249,13 @@ class IncomeStatementTest(TestCase):
             account=chase,
             journal_entry=journal_entry
         )
-        journal_entry = JournalEntry.objects.create(date='2023-01-28')
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=income
+        )
+
+        journal_entry = JournalEntry.objects.create(date='2023-01-28',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='credit',
             amount=100,
@@ -205,6 +269,26 @@ class IncomeStatementTest(TestCase):
             journal_entry=journal_entry
         )
 
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=income
+        )
+
+        journal_entry = JournalEntry.objects.create(date='2023-01-28',transaction=transaction)
+        journal_entry_debit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100,
+            account=income,
+            journal_entry=journal_entry
+        )
+        journal_entry_credit = JournalEntryItem.objects.create(
+            type='debit',
+            amount=100,
+            account=cash,
+            journal_entry=journal_entry
+        )
+
     def test_create_income_statement(self):
         income_statement = IncomeStatement('2023-01-31','2023-01-01')
 
@@ -212,11 +296,20 @@ class IncomeStatementTest(TestCase):
         income_statement = IncomeStatement('2023-01-31','2023-01-01')
         net_income = [balance.amount for balance in income_statement.balances if balance.account == 'Net Income'][0]
         self.assertEqual(len(income_statement.balances), 5)
-        self.assertEqual(net_income, 100)
+        self.assertEqual(net_income, 200)
 
     def test_net_income(self):
         income_statement = IncomeStatement('2023-01-31','2023-01-01')
         net_income = [balance.amount for balance in income_statement.balances if balance.account == 'Net Income'][0]
         self.assertEqual(len(income_statement.balances), 5)
-        self.assertEqual(net_income, 100)
-        self.assertEqual(income_statement.net_income, 100)
+        self.assertEqual(net_income, 200)
+        self.assertEqual(income_statement.net_income, 200)
+
+    def test_create_cash_flow_statement(self):
+        income_statement = IncomeStatement('2023-01-31','2023-01-01')
+        balance_sheet = BalanceSheet('2023-01-31')
+        balance_sheet_start = BalanceSheet('2022-12-31')
+        cash_flow_statement = CashFlowStatement(income_statement,balance_sheet_start,balance_sheet)
+        print(cash_flow_statement.get_cash_balance(balance_sheet))
+        print(cash_flow_statement.get_cash_balance(balance_sheet_start))
+

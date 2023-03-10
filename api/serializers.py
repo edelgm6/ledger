@@ -91,6 +91,7 @@ class StatementOutputSerializer(serializers.Serializer):
 class AccountBalanceOutputSerializer(serializers.Serializer):
     balance_sheet = StatementOutputSerializer()
     income_statement = StatementOutputSerializer()
+    cash_flow_statement = StatementOutputSerializer()
 
 class JournalEntryItemInputSerializer(serializers.ModelSerializer):
     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
@@ -173,6 +174,7 @@ class JournalEntryOutputSerializer(serializers.ModelSerializer):
     class Meta:
         model = JournalEntry
         fields = ['id','date','description','transaction','journal_entry_items']
+        depth = 1
 
 class AccountOutputSerializer(serializers.ModelSerializer):
     class Meta:
@@ -252,3 +254,11 @@ class TransactionInputSerializer(serializers.ModelSerializer):
         instance.save()
 
         return instance
+
+class JournalEntryItemOutputWithTransactionSerializer(serializers.ModelSerializer):
+    account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
+    journal_entry = JournalEntryOutputSerializer(read_only=True)
+
+    class Meta:
+        model = JournalEntryItem
+        fields = ['id','type','amount','account','journal_entry']
