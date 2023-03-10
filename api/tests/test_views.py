@@ -30,8 +30,13 @@ class PlugReconciliationViewTest(TestCase):
             type='expense',
             sub_type='purchases'
         )
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=groceries
+        )
 
-        journal_entry = JournalEntry.objects.create(date='2023-01-01')
+        journal_entry = JournalEntry.objects.create(date='2023-01-01',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='debit',
             amount=100,
@@ -72,7 +77,13 @@ class ReconciliationsCreateViewTest(TestCase):
             type=Account.AccountType.INCOME,
             sub_type=Account.AccountSubType.SALARY
         )
-        journal_entry = JournalEntry.objects.create(date='2023-01-28')
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=income
+        )
+
+        journal_entry = JournalEntry.objects.create(date='2023-01-28',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='credit',
             amount=100,
@@ -100,8 +111,13 @@ class ReconciliationsCreateViewTest(TestCase):
             type='expense',
             sub_type='purchases'
         )
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=groceries
+        )
 
-        journal_entry = JournalEntry.objects.create(date='2023-01-01')
+        journal_entry = JournalEntry.objects.create(date='2023-01-01',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='debit',
             amount=100,
@@ -134,8 +150,13 @@ class ReconciliationsCreateViewTest(TestCase):
             type='expense',
             sub_type='purchases'
         )
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=groceries
+        )
 
-        journal_entry = JournalEntry.objects.create(date='2023-01-01')
+        journal_entry = JournalEntry.objects.create(date='2023-01-01',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='debit',
             amount=100,
@@ -169,7 +190,13 @@ class ReconciliationsViewTest(TestCase):
             type=Account.AccountType.INCOME,
             sub_type=Account.AccountSubType.SALARY
         )
-        journal_entry = JournalEntry.objects.create(date='2023-01-28')
+
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=income
+        )
+        journal_entry = JournalEntry.objects.create(date='2023-01-28',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='credit',
             amount=100,
@@ -197,8 +224,13 @@ class ReconciliationsViewTest(TestCase):
             type='expense',
             sub_type='purchases'
         )
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=groceries
+        )
 
-        journal_entry = JournalEntry.objects.create(date='2023-01-01')
+        journal_entry = JournalEntry.objects.create(date='2023-01-01',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='debit',
             amount=100,
@@ -246,8 +278,13 @@ class ReconciliationsViewTest(TestCase):
             type='expense',
             sub_type='purchases'
         )
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=groceries
+        )
 
-        journal_entry = JournalEntry.objects.create(date='2023-01-01')
+        journal_entry = JournalEntry.objects.create(date='2023-01-01',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='debit',
             amount=100,
@@ -286,7 +323,12 @@ class AccountBalanceViewTest(TestCase):
             type=Account.AccountType.INCOME,
             sub_type=Account.AccountSubType.SALARY
         )
-        journal_entry = JournalEntry.objects.create(date='2023-01-28')
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100.,
+            account=income
+        )
+        journal_entry = JournalEntry.objects.create(date='2023-01-28',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='credit',
             amount=100,
@@ -315,7 +357,12 @@ class AccountBalanceViewTest(TestCase):
             sub_type='purchases'
         )
 
-        journal_entry = JournalEntry.objects.create(date='2023-01-01')
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=groceries
+        )
+        journal_entry = JournalEntry.objects.create(date='2023-01-28',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='debit',
             amount=100,
@@ -339,7 +386,7 @@ class AccountBalanceViewTest(TestCase):
         response = self.VIEW.as_view()(request)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['balance_sheet']['balances'][0]['account'], chase.name)
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response.data), 3)
 
     def test_returns_200(self):
         user = User.objects.create(username='admin')
@@ -408,6 +455,48 @@ class JournalEntryViewTest(TestCase):
         response = self.VIEW.as_view()(request)
         self.assertEqual(response.status_code, 401)
 
+    def test_get_journal_entries(self):
+        user = User.objects.create(username='admin')
+        chase = Account.objects.create(
+            name='1200-Chase',
+            type='liability',
+            sub_type='short_term_debt'
+        )
+        groceries = Account.objects.create(
+            name='5000-Groceries',
+            type='expense',
+            sub_type='purchases'
+        )
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100,
+            account=groceries
+        )
+        journal_entry = JournalEntry.objects.create(date='2023-01-28',transaction=transaction)
+        journal_entry_debit = JournalEntryItem.objects.create(
+            type='debit',
+            amount=100,
+            account=groceries,
+            journal_entry=journal_entry
+        )
+        journal_entry_credit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100,
+            account=chase,
+            journal_entry=journal_entry
+        )
+
+        payload = {
+            'sub_type': 'purchases'
+        }
+
+        factory = APIRequestFactory()
+        request = factory.get(self.ENDPOINT, payload, format='json')
+        force_authenticate(request, user=user)
+        response = self.VIEW.as_view()(request)
+        self.assertEqual(response.status_code, 200)
+        print(response.data)
+
     def test_fails_if_debit_credit_imbalance(self):
         user = User.objects.create(username='admin')
         chase = Account.objects.create(
@@ -454,10 +543,15 @@ class JournalEntryViewTest(TestCase):
             type='expense',
             sub_type='purchases'
         )
+        transaction = Transaction.objects.create(
+            date='2023-01-28',
+            amount=100.23,
+            account=groceries
+        )
 
         payload = {
             'date': '2023-01-01',
-            'transaction': None,
+            'transaction': transaction.pk,
             'transaction_type': None,
             'journal_entry_items': [
                 {
@@ -641,6 +735,11 @@ class TransactionViewTest(TestCase):
             type='liability',
             sub_type='short_term_debt'
         )
+        groceries = Account.objects.create(
+            name='5000-Groceries',
+            type='expense',
+            sub_type='purchases'
+        )
 
         transaction = Transaction.objects.create(
             date='2023-01-01',
@@ -660,13 +759,27 @@ class TransactionViewTest(TestCase):
             type=Transaction.TransactionType.PURCHASE,
             linked_transaction=transaction
         )
+        journal_entry = JournalEntry.objects.create(date='2023-01-01',transaction=transaction)
+        journal_entry_debit = JournalEntryItem.objects.create(
+            type='debit',
+            amount=100.23,
+            account=groceries,
+            journal_entry=journal_entry
+        )
+        journal_entry_credit = JournalEntryItem.objects.create(
+            type='credit',
+            amount=100.23,
+            account=chase,
+            journal_entry=journal_entry
+        )
 
         user = User.objects.create(username='admin')
         factory = APIRequestFactory()
         payload = {
             'exclude_type': ['payment','transfer'],
             'is_closed': False,
-            'has_linked_transaction': True
+            'has_linked_transaction': True,
+            'journal_entry_item_account_sub_type': 'short_term_debt'
         }
 
         request = factory.get(self.ENDPOINT, payload)
