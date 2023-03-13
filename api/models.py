@@ -51,6 +51,8 @@ class Reconciliation(models.Model):
             account=self.account
         )
 
+        transaction.close(datetime.date.today())
+
         return journal_entry
 
 
