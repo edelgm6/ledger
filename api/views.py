@@ -15,47 +15,6 @@ from api.serializers import TransactionOutputSerializer, JournalEntryInputSerial
 from api.models import Transaction, Account, CSVProfile, Reconciliation, JournalEntry, JournalEntryItem
 from api.statement import BalanceSheet, IncomeStatement, CashFlowStatement
 
-@method_decorator(login_required, name='dispatch')
-class IndexView(View):
-    template = 'api/index.html'
-
-    def get(self, request, **kwargs):
-        start_date = request.GET['start_date']
-        end_date = request.GET['end_date']
-        account_balances_list = Account.get_account_balances(start_date,end_date)
-
-        organized_balances_list = {}
-        for account_balance in account_balances_list:
-            type = account_balance['type']
-            if not organized_balances_list.get(type):
-                organized_balances_list[type] = {
-                    'name': Account.AccountType(type).label,
-                    'sub_types': {},
-                    'total': 0
-                }
-
-            sub_type = account_balance['sub_type']
-            if not organized_balances_list[type]['sub_types'].get(sub_type):
-                organized_balances_list[type]['sub_types'][sub_type] = {
-                    'name': Account.AccountSubType(sub_type).label,
-                    'accounts': [],
-                    'total': 0
-                }
-
-            organized_balances_list[type]['sub_types'][sub_type]['accounts'].append(account_balance)
-            organized_balances_list[type]['sub_types'][sub_type]['total'] += account_balance['balance']
-            organized_balances_list[type]['total'] += account_balance['balance']
-
-        retained_earnings = organized_balances_list[Account.AccountType.INCOME.label]['total'] - organized_balances_list[Account.AccountType.EXPENSE.label]['total']
-        organized_balances_list[Account.AccountType.EQUITY.label]['sub_types'][Account.AccountSubType.RETAINED_EARNINGS.label]['accounts'].append(
-            {
-                'account': '3010-Retained Earnings',
-                'balance': retained_earnings
-            }
-        )
-
-        return render(request, self.template, {'balances': organized_balances_list})
-
 class PlugReconciliationView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -154,6 +113,11 @@ class AccountView(APIView):
 
     def get(self, request, *args, **kwargs):
         accounts = Account.objects.all().order_by('name')
+
+        csv_only = self.request.query_params.get('csv_only')
+        if csv_only:
+            accounts = accounts.exclude(csv_profile__isnull=bool(csv_only))
+
         account_output_serializer = AccountOutputSerializer(accounts,many=True)
         return Response(account_output_serializer.data)
 
