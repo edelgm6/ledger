@@ -40,14 +40,14 @@ class Reconciliation(models.Model):
         gain_loss_entry = JournalEntryItem.objects.create(
             journal_entry=journal_entry,
             type=gain_loss_entry_type,
-            amount=delta,
+            amount=abs(delta),
             account=Account.objects.get(name=GAIN_LOSS_ACCOUNT)
         )
 
         account_entry = JournalEntryItem.objects.create(
             journal_entry=journal_entry,
             type=account_entry_type,
-            amount=delta,
+            amount=abs(delta),
             account=self.account
         )
 
@@ -154,8 +154,6 @@ class Account(models.Model):
                 credits += amount
 
         return Account.get_balance_from_debit_and_credit(account_type=self.type,debits=debits,credits=credits)
-
-
 
 class JournalEntry(models.Model):
     date = models.DateField()
