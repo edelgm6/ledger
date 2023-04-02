@@ -14,7 +14,7 @@ class Reconciliation(models.Model):
         return str(self.date) + ' ' + self.account.name
 
     def plug_investment_change(self):
-        GAIN_LOSS_ACCOUNT = '4050-Investment Gains or Losses'
+        GAIN_LOSS_ACCOUNT = '4060-Investment Gains or Losses'
 
         delta = self.amount - self.account.get_balance(self.date)
 
