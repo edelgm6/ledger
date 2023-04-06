@@ -113,6 +113,7 @@ class Account(models.Model):
         # Expense Types
         PURCHASES = 'purchases', _('Purchases')
         TAX = 'tax', _('Tax')
+        INTEREST = 'interest', _('Interest Expense')
 
     name = models.CharField(max_length=200,unique=True)
     type = models.CharField(max_length=9,choices=AccountType.choices)
