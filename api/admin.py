@@ -7,7 +7,6 @@ class AccountAdmin(admin.ModelAdmin):
 class AutoTagAdmin(admin.ModelAdmin):
     list_display = ('account','search_string','transaction_type')
 
-
 class CSVProfileAdmin(admin.ModelAdmin):
     list_display = ('name','date','amount','description','category')
 
@@ -26,6 +25,7 @@ def journal_entries(journal_entry):
 
 class JournalEntryItemInline(admin.TabularInline):
     model = JournalEntryItem
+    extra = 1
 
 class JournalEntryAdmin(admin.ModelAdmin):
     list_display = ('pk', 'date', 'description', 'transaction', journal_entries)
@@ -33,9 +33,19 @@ class JournalEntryAdmin(admin.ModelAdmin):
         JournalEntryItemInline,
     ]
 
+class JournalEntryInline(admin.StackedInline):
+    model = JournalEntry
+    extra = 1
+    inlines = [
+        JournalEntryItemInline,
+    ]
+
 class TransactionAdmin(admin.ModelAdmin):
     list_display = ('date', 'account', 'amount', 'description', 'category', 'is_closed','linked_transaction')
     list_filter = ('account__name','date','is_closed')
+    inlines = [
+        JournalEntryInline,
+    ]
 
 admin.site.register(Account, AccountAdmin)
 admin.site.register(AutoTag, AutoTagAdmin)
