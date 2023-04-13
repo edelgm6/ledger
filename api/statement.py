@@ -253,7 +253,6 @@ class IncomeStatement(Statement):
             return None
         return non_gains_net_income / non_gains_income
 
-
 class BalanceSheet(Statement):
 
     def __init__(self, end_date):
