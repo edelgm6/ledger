@@ -159,6 +159,7 @@ class TransactionView(generics.ListAPIView):
         journal_entry_item_account_sub_types = self.request.query_params.getlist('journal_entry_item_account_sub_type')
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
+        is_tax_charge = self.request.query_params.get('is_tax_charge')
 
         if is_closed:
             queryset = queryset.filter(is_closed=is_closed)
@@ -182,6 +183,8 @@ class TransactionView(generics.ListAPIView):
             queryset = queryset.filter(date__gte=start_date)
         if end_date:
             queryset = queryset.filter(date__lte=end_date)
+        if is_tax_charge:
+            queryset = queryset.filter(tax_charge=is_tax_charge)
 
         queryset = queryset.order_by('date','account','description')
         return queryset
