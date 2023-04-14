@@ -75,6 +75,7 @@ class Transaction(models.Model):
     type = models.CharField(max_length=25,choices=TransactionType.choices,blank=True)
     suggested_type = models.CharField(max_length=25,choices=TransactionType.choices,blank=True)
     linked_transaction = models.OneToOneField('Transaction',on_delete=models.SET_NULL,null=True,blank=True)
+    tax_charge = models.BooleanField(default=False)
 
     def __str__(self):
         return str(self.date) + ' ' + self.account.name + ' ' + self.description + ' $' + str(self.amount)
