@@ -200,6 +200,8 @@ class TransactionInputSerializer(serializers.ModelSerializer):
     is_closed = serializers.BooleanField(required=False)
     suggested_account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name',required=False)
     suggested_type = serializers.CharField(max_length=25,required=False)
+    journal_entry = JournalEntryInputSerializer(required=False)
+    journal_entry_items = JournalEntryItemInputSerializer(required=False)
 
     class Meta:
         model = Transaction
@@ -213,7 +215,9 @@ class TransactionInputSerializer(serializers.ModelSerializer):
             'linked_transaction',
             'is_closed',
             'suggested_account',
-            'suggested_type'
+            'suggested_type',
+            'journal_entry',
+            'journal_entry_items'
         ]
 
     def create(self, validated_data):
