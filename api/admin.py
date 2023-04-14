@@ -1,5 +1,5 @@
 from django.contrib import admin
-from api.models import Account, Transaction, JournalEntry, JournalEntryItem, AutoTag, CSVProfile, Reconciliation
+from api.models import TaxCharge, Account, Transaction, JournalEntry, JournalEntryItem, AutoTag, CSVProfile, Reconciliation
 
 class AccountAdmin(admin.ModelAdmin):
     list_display = ('name','type', 'sub_type', 'csv_profile')
@@ -47,6 +47,9 @@ class TransactionAdmin(admin.ModelAdmin):
         JournalEntryInline,
     ]
 
+# class TaxChargeAdmin(admin.ModelAdmin):
+#     list_display = ('date','transaction','amount','type')
+
 admin.site.register(Account, AccountAdmin)
 admin.site.register(AutoTag, AutoTagAdmin)
 admin.site.register(CSVProfile, CSVProfileAdmin)
@@ -54,3 +57,4 @@ admin.site.register(Transaction, TransactionAdmin)
 admin.site.register(JournalEntry, JournalEntryAdmin)
 admin.site.register(JournalEntryItem, JournalEntryItemAdmin)
 admin.site.register(Reconciliation)
+admin.site.register(TaxCharge)

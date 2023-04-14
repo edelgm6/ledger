@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 from rest_framework import serializers
-from api.models import Transaction, Account, JournalEntry, JournalEntryItem, CSVProfile, AutoTag, Reconciliation
+from api.models import Transaction, Account, JournalEntry, JournalEntryItem, CSVProfile, AutoTag, Reconciliation, TaxCharge
 from api import helpers
 from api.statement import BalanceSheet, IncomeStatement
 
@@ -200,8 +200,6 @@ class TransactionInputSerializer(serializers.ModelSerializer):
     is_closed = serializers.BooleanField(required=False)
     suggested_account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name',required=False)
     suggested_type = serializers.CharField(max_length=25,required=False)
-    journal_entry = JournalEntryInputSerializer(required=False)
-    journal_entry_items = JournalEntryItemInputSerializer(required=False)
 
     class Meta:
         model = Transaction
@@ -215,9 +213,7 @@ class TransactionInputSerializer(serializers.ModelSerializer):
             'linked_transaction',
             'is_closed',
             'suggested_account',
-            'suggested_type',
-            'journal_entry',
-            'journal_entry_items'
+            'suggested_type'
         ]
 
     def create(self, validated_data):
@@ -258,6 +254,18 @@ class TransactionInputSerializer(serializers.ModelSerializer):
         instance.save()
 
         return instance
+
+class TaxChargeInputSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = TaxCharge
+        fields = '__all__'
+
+class TaxChargeOutputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TaxCharge
+        fields = '__all__'
+        depth = 1
 
 class JournalEntryItemOutputWithTransactionSerializer(serializers.ModelSerializer):
     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
