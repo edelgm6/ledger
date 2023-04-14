@@ -55,7 +55,6 @@ class Reconciliation(models.Model):
 
         return journal_entry
 
-
 class Transaction(models.Model):
 
     class TransactionType(models.TextChoices):
@@ -75,7 +74,6 @@ class Transaction(models.Model):
     type = models.CharField(max_length=25,choices=TransactionType.choices,blank=True)
     suggested_type = models.CharField(max_length=25,choices=TransactionType.choices,blank=True)
     linked_transaction = models.OneToOneField('Transaction',on_delete=models.SET_NULL,null=True,blank=True)
-    tax_charge = models.BooleanField(default=False)
 
     def __str__(self):
         return str(self.date) + ' ' + self.account.name + ' ' + self.description + ' $' + str(self.amount)
@@ -84,6 +82,17 @@ class Transaction(models.Model):
         self.is_closed = True
         self.date_closed = date
         self.save()
+
+class TaxCharge(models.Model):
+    class Type(models.TextChoices):
+        PROPERTY = 'property', _('Property')
+        FEDERAL = 'federal', _('Federal')
+        STATE = 'state', _('State')
+
+    tax_type = models.CharField(max_length=25,choices=Type.choices)
+    transaction = models.OneToOneField('Transaction',on_delete=models.CASCADE)
+    date = models.DateField()
+    amount = models.DecimalField(decimal_places=2,max_digits=12)
 
 class Account(models.Model):
 
