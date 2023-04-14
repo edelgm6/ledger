@@ -89,10 +89,13 @@ class TaxCharge(models.Model):
         FEDERAL = 'federal', _('Federal')
         STATE = 'state', _('State')
 
-    tax_type = models.CharField(max_length=25,choices=Type.choices)
+    type = models.CharField(max_length=25,choices=Type.choices)
     transaction = models.OneToOneField('Transaction',on_delete=models.CASCADE)
     date = models.DateField()
     amount = models.DecimalField(decimal_places=2,max_digits=12)
+
+    class Meta:
+        unique_together = [['type','date']]
 
 class Account(models.Model):
 
