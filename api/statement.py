@@ -219,7 +219,8 @@ class IncomeStatement(Statement):
         metrics = [
             Metric('Non-Gains Net Income', self.get_non_investment_gains_net_income()),
             Metric('Tax Rate', self.get_tax_rate()),
-            Metric('Savings Rate', self.get_savings_rate())
+            Metric('Savings Rate', self.get_savings_rate()),
+            Metric('Taxable Income', self.get_taxable_income())
         ]
         return metrics
 
@@ -232,6 +233,9 @@ class IncomeStatement(Statement):
                 net_income -= balance.amount
 
         return net_income
+
+    def get_taxable_income(self):
+        return sum([balance.amount for balance in self.balances if balance.type == Account.AccountType.INCOME and balance.sub_type not in [Account.AccountSubType.INVESTMENT_GAINS,Account.AccountSubType.OTHER_INCOME]])
 
     def get_investment_gains_and_losses(self):
         return sum([balance.amount for balance in self.balances if balance.sub_type == Account.AccountSubType.INVESTMENT_GAINS])

@@ -30,7 +30,7 @@ class ReconciliationsCreateSerializer(serializers.Serializer):
         return reconciliations
 
 # Following guide here: https://www.django-rest-framework.org/api-guide/serializers/#customizing-multiple-update
-class ReconciliationListSerializer(serializers.ListSerializer):
+class TaxChargeListSerializer(serializers.ListSerializer):
 
     def update(self, instance, validated_data):
         # Maps for id->instance and id->data item.
@@ -52,7 +52,7 @@ class ReconciliationInputSerializer(serializers.ModelSerializer):
         model = Reconciliation
         fields = '__all__'
         depth = 1
-        list_serializer_class = ReconciliationListSerializer
+        list_serializer_class = TaxChargeListSerializer
 
 class ReconciliationOutputSerializer(serializers.ModelSerializer):
     current_balance = serializers.SerializerMethodField()
@@ -256,16 +256,28 @@ class TransactionInputSerializer(serializers.ModelSerializer):
         return instance
 
 class TaxChargeInputSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField()
 
-    class Meta:
-        model = TaxCharge
-        fields = '__all__'
-
-class TaxChargeOutputSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaxCharge
         fields = '__all__'
         depth = 1
+        list_serializer_class = TaxChargeListSerializer
+
+class TaxChargeOutputSerializer(serializers.ModelSerializer):
+    taxable_income = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TaxCharge
+        fields = ['id','type','transaction','date','amount','taxable_income']
+        # fields = ['id','transaction','date','amount','taxable_income']
+        depth = 1
+
+    def get_taxable_income(self, tax_charge):
+        start_date = tax_charge.date.replace(day=1)
+        income_statement = IncomeStatement(end_date=tax_charge.date,start_date=start_date)
+
+        return income_statement.get_taxable_income()
 
 class JournalEntryItemOutputWithTransactionSerializer(serializers.ModelSerializer):
     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')

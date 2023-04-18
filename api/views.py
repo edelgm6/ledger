@@ -140,6 +140,12 @@ class TaxChargeView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
+    def get_tax_charge(self, pk):
+        try:
+            return TaxCharge.objects.get(pk=pk)
+        except TaxCharge.DoesNotExist:
+            raise Http404
+
     def get(self, request, *args, **kwargs):
         tax_charges = TaxCharge.objects.all().order_by('date')
 
@@ -152,6 +158,23 @@ class TaxChargeView(APIView):
 
         tax_charge_output_serializer = TaxChargeOutputSerializer(tax_charges,many=True)
         return Response(tax_charge_output_serializer.data)
+
+    def put(self, request, format=None):
+        tax_charge_input_serializer = TaxChargeInputSerializer(TaxCharge.objects.all().order_by('date'), data=request.data, many=True, partial=True)
+        if tax_charge_input_serializer.is_valid():
+            tax_charges = tax_charge_input_serializer.save()
+            tax_charge_output_serializer = TaxChargeOutputSerializer(tax_charges, many=True)
+            return Response(tax_charge_output_serializer.data)
+        return Response(tax_charge_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+        # tax_charge = self.get_tax_charge(pk)
+        # tax_charge_input_serializer = TaxChargeInputSerializer(tax_charge, data=request.data, partial=True)
+        # if tax_charge_input_serializer.is_valid():
+        #     tax_charge = tax_charge_input_serializer.save()
+        #     tax_charge_output_serializer = TaxChargeOutputSerializer(tax_charge)
+        #     return Response(tax_charge_output_serializer.data)
+        # return Response(tax_charge_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request):
         tax_charge_input_serializer = TaxChargeInputSerializer(data=request.data)
