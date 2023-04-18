@@ -31,5 +31,6 @@ urlpatterns = [
     path('reconciliations/<int:pk>/plug/', PlugReconciliationView.as_view(), name='plug-reconciliation'),
     path('reconciliations/generate/', GenerateReconciliationsView.as_view(), name='generate-reconciliations'),
     path('reconciliations/', ReconciliationView.as_view(), name='reconciliations'),
+    path('tax-charges/<int:pk>', TaxChargeView.as_view(), name='update-tax-charge'),
     path('tax-charges/', TaxChargeView.as_view(), name='tax-charges'),
 ]

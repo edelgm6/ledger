@@ -94,8 +94,67 @@ class TaxCharge(models.Model):
     date = models.DateField()
     amount = models.DecimalField(decimal_places=2,max_digits=12)
 
-    class Meta:
-        unique_together = [['type','date']]
+    def save(self, *args, **kwargs):
+
+        tax_accounts = {
+            self.Type.STATE: {
+                'expense': Account.objects.get(name='5910-Income Taxes, State'),
+                'liability': Account.objects.get(name='2610-Income Taxes Payable, State')
+            }
+        }
+
+        accounts = tax_accounts[self.type]
+
+        if not self.transaction:
+            transaction = Transaction.objects.create(
+                date=self.date,
+                account=accounts['expense'],
+                amount=self.amount,
+                description=str(self.date) + ' ' + self.Type.PROPERTY + ' tax charge',
+                is_closed=True,
+                date_closed=datetime.date.today(),
+                type=Transaction.TransactionType.PURCHASE
+            )
+            transaction.save()
+            self.transaction = transaction
+            super().save(*args, **kwargs)
+        else:
+            self.transaction.amount = self.amount
+            self.transaction.save()
+
+        if not self.transaction.journalentry:
+            journal_entry = JournalEntry.objects.create(
+                date=self.date,
+                transaction=self.transaction
+            )
+            journal_entry.save()
+
+        journal_entry = self.transaction.journalentry
+
+        journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry)
+        journal_entry_items.delete()
+
+        debit = JournalEntryItem.objects.create(
+            journal_entry=journal_entry,
+            type=JournalEntryItem.JournalEntryType.DEBIT,
+            amount=self.transaction.amount,
+            account=accounts['expense']
+        )
+        debit.save()
+        credit = JournalEntryItem.objects.create(
+            journal_entry=journal_entry,
+            type=JournalEntryItem.JournalEntryType.CREDIT,
+            amount=self.transaction.amount,
+            account=accounts['liability']
+        )
+        credit.save()
+        # print(wtf)
+
+
+
+    # Note: Can't use unique_together due to bulk update hack
+    # class Meta:
+    #     unique_together = [['type','date']]
 
 class Account(models.Model):
 
