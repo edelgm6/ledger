@@ -151,10 +151,13 @@ class TaxChargeView(APIView):
 
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
+        type = self.request.query_params.get('type')
         if start_date:
             tax_charges = tax_charges.filter(date__gte=start_date)
         if end_date:
             tax_charges = tax_charges.filter(date__lte=end_date)
+        if type:
+            tax_charges = tax_charges.filter(type=type)
 
         tax_charge_output_serializer = TaxChargeOutputSerializer(tax_charges,many=True)
         return Response(tax_charge_output_serializer.data)
@@ -166,15 +169,6 @@ class TaxChargeView(APIView):
             tax_charge_output_serializer = TaxChargeOutputSerializer(tax_charges, many=True)
             return Response(tax_charge_output_serializer.data)
         return Response(tax_charge_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-        # tax_charge = self.get_tax_charge(pk)
-        # tax_charge_input_serializer = TaxChargeInputSerializer(tax_charge, data=request.data, partial=True)
-        # if tax_charge_input_serializer.is_valid():
-        #     tax_charge = tax_charge_input_serializer.save()
-        #     tax_charge_output_serializer = TaxChargeOutputSerializer(tax_charge)
-        #     return Response(tax_charge_output_serializer.data)
-        # return Response(tax_charge_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request):
         tax_charge_input_serializer = TaxChargeInputSerializer(data=request.data)

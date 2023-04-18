@@ -94,12 +94,23 @@ class TaxCharge(models.Model):
     date = models.DateField()
     amount = models.DecimalField(decimal_places=2,max_digits=12)
 
+    def __str__(self):
+        return str(self.date) + ' ' + self.type
+
     def save(self, *args, **kwargs):
 
         tax_accounts = {
             self.Type.STATE: {
                 'expense': Account.objects.get(name='5910-Income Taxes, State'),
                 'liability': Account.objects.get(name='2610-Income Taxes Payable, State')
+            },
+            self.Type.FEDERAL: {
+                'expense': Account.objects.get(name='5900-Income Taxes, Federal'),
+                'liability': Account.objects.get(name='2620-Income Taxes Payable, Federal')
+            },
+            self.Type.PROPERTY: {
+                'expense': Account.objects.get(name='5930-Property Taxes'),
+                'liability': Account.objects.get(name='2600-Property Taxes Payable')
             }
         }
 
@@ -117,10 +128,10 @@ class TaxCharge(models.Model):
             )
             transaction.save()
             self.transaction = transaction
-            super().save(*args, **kwargs)
         else:
             self.transaction.amount = self.amount
             self.transaction.save()
+        super().save(*args, **kwargs)
 
         if not self.transaction.journalentry:
             journal_entry = JournalEntry.objects.create(
