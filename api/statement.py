@@ -170,7 +170,7 @@ class CashFlowStatement(Statement):
         start_date = self.income_statement.start_date
         end_date = self.income_statement.end_date
         account_sub_types = [Account.AccountSubType.SECURITIES_RETIREMENT,Account.AccountSubType.SECURITIES_UNRESTRICTED]
-        exclude_journal_entries_with_sub_types = [Account.AccountSubType.INVESTMENT_GAINS]
+        exclude_journal_entries_with_sub_types = [Account.AccountSubType.UNREALIZED_INVESTMENT_GAINS]
 
         journal_entries = JournalEntry.objects.all()
         journal_entries = journal_entries.filter(date__gte=start_date, date__lte=end_date)
@@ -210,7 +210,7 @@ class IncomeStatement(Statement):
         self.balances = self.get_balances()
 
         self.net_income = self.get_net_income()
-        self.investment_gains = self.get_investment_gains_and_losses()
+        self.investment_gains = self.get_unrealized_gains_and_losses()
         self.balances.append(Balance('Net Income', self.net_income, Account.AccountType.EQUITY, Account.AccountSubType.RETAINED_EARNINGS))
         self.metrics = self.get_metrics()
         self.summaries = self.get_summaries()
@@ -235,10 +235,10 @@ class IncomeStatement(Statement):
         return net_income
 
     def get_taxable_income(self):
-        return sum([balance.amount for balance in self.balances if balance.type == Account.AccountType.INCOME and balance.sub_type not in [Account.AccountSubType.INVESTMENT_GAINS,Account.AccountSubType.OTHER_INCOME]])
+        return sum([balance.amount for balance in self.balances if balance.type == Account.AccountType.INCOME and balance.sub_type not in [Account.AccountSubType.UNREALIZED_INVESTMENT_GAINS,Account.AccountSubType.OTHER_INCOME]])
 
-    def get_investment_gains_and_losses(self):
-        return sum([balance.amount for balance in self.balances if balance.sub_type == Account.AccountSubType.INVESTMENT_GAINS])
+    def get_unrealized_gains_and_losses(self):
+        return sum([balance.amount for balance in self.balances if balance.sub_type == Account.AccountSubType.UNREALIZED_INVESTMENT_GAINS])
 
     def get_non_investment_gains_net_income(self):
         return self.net_income - self.investment_gains
@@ -252,7 +252,7 @@ class IncomeStatement(Statement):
 
     def get_savings_rate(self):
         non_gains_net_income = self.get_non_investment_gains_net_income()
-        non_gains_income = sum([balance.amount for balance in self.balances if balance.sub_type != Account.AccountSubType.INVESTMENT_GAINS and balance.type == Account.AccountType.INCOME])
+        non_gains_income = sum([balance.amount for balance in self.balances if balance.sub_type != Account.AccountSubType.UNREALIZED_INVESTMENT_GAINS and balance.type == Account.AccountType.INCOME])
         if non_gains_income == 0:
             return None
         return non_gains_net_income / non_gains_income
@@ -274,7 +274,7 @@ class BalanceSheet(Statement):
         income_statement = IncomeStatement(end_date=self.end_date,start_date='1970-01-01')
         retained_earnings = income_statement.get_net_income()
 
-        investment_gains_losses = sum([balance.amount for balance in income_statement.balances if balance.sub_type == Account.AccountSubType.INVESTMENT_GAINS])
+        investment_gains_losses = sum([balance.amount for balance in income_statement.balances if balance.sub_type == Account.AccountSubType.UNREALIZED_INVESTMENT_GAINS])
         net_retained_earnings = retained_earnings - investment_gains_losses
 
         return investment_gains_losses, net_retained_earnings
