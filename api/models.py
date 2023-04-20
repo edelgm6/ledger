@@ -14,7 +14,7 @@ class Reconciliation(models.Model):
         return str(self.date) + ' ' + self.account.name
 
     def plug_investment_change(self):
-        GAIN_LOSS_ACCOUNT = '4060-Investment Gains or Losses'
+        GAIN_LOSS_ACCOUNT = '4060-Unrealized Gains or Losses'
 
         delta = self.amount - self.account.get_balance(self.date)
 
@@ -159,9 +159,6 @@ class TaxCharge(models.Model):
             account=accounts['liability']
         )
         credit.save()
-        # print(wtf)
-
-
 
     # Note: Can't use unique_together due to bulk update hack
     # class Meta:
@@ -189,7 +186,8 @@ class Account(models.Model):
         # Equity types
         RETAINED_EARNINGS = 'retained_earnings', _('Retained Earnings')
         # Income types
-        INVESTMENT_GAINS = 'investment_gains', _('Investment Gains')
+        UNREALIZED_INVESTMENT_GAINS = 'unrealized_investment_gains', _('Unrealized Investment Gains')
+        REALIZED_INVESTMENT_GAINS = 'realized_investment_gains', _('Realized Investment Gains')
         SALARY = 'salary', _('Salary')
         DIVIDENDS_AND_INTEREST = 'dividends_and_interest', _('Dividends & Interest')
         OTHER_INCOME = 'other_income', _('Other Income')
