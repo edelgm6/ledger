@@ -11,8 +11,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, generics
 from rest_framework.exceptions import ValidationError
-from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer, JournalEntryItemOutputWithTransactionSerializer
-from api.models import Transaction, Account, CSVProfile, Reconciliation, JournalEntry, JournalEntryItem
+from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer, JournalEntryItemOutputWithTransactionSerializer, TaxChargeInputSerializer, TaxChargeOutputSerializer
+from api.models import TaxCharge, Transaction, Account, CSVProfile, Reconciliation, JournalEntry, JournalEntryItem
 from api.statement import BalanceSheet, IncomeStatement, CashFlowStatement
 
 class PlugReconciliationView(APIView):
@@ -136,6 +136,49 @@ class UploadTransactionsView(APIView):
 
         return Response(transaction_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class TaxChargeView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_tax_charge(self, pk):
+        try:
+            return TaxCharge.objects.get(pk=pk)
+        except TaxCharge.DoesNotExist:
+            raise Http404
+
+    def get(self, request, *args, **kwargs):
+        tax_charges = TaxCharge.objects.all().order_by('date')
+
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        type = self.request.query_params.get('type')
+        if start_date:
+            tax_charges = tax_charges.filter(date__gte=start_date)
+        if end_date:
+            tax_charges = tax_charges.filter(date__lte=end_date)
+        if type:
+            tax_charges = tax_charges.filter(type=type)
+
+        tax_charge_output_serializer = TaxChargeOutputSerializer(tax_charges,many=True)
+        return Response(tax_charge_output_serializer.data)
+
+    def put(self, request, format=None):
+        tax_charge_input_serializer = TaxChargeInputSerializer(TaxCharge.objects.all().order_by('date'), data=request.data, many=True, partial=True)
+        if tax_charge_input_serializer.is_valid():
+            tax_charges = tax_charge_input_serializer.save()
+            tax_charge_output_serializer = TaxChargeOutputSerializer(tax_charges, many=True)
+            return Response(tax_charge_output_serializer.data)
+        return Response(tax_charge_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def post(self, request):
+        tax_charge_input_serializer = TaxChargeInputSerializer(data=request.data)
+        if tax_charge_input_serializer.is_valid():
+            tax_charge = tax_charge_input_serializer.save()
+            tax_charge_output_serializer = TaxChargeOutputSerializer(tax_charge)
+            return Response(tax_charge_output_serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(tax_charge_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 class TransactionView(generics.ListAPIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -159,6 +202,7 @@ class TransactionView(generics.ListAPIView):
         journal_entry_item_account_sub_types = self.request.query_params.getlist('journal_entry_item_account_sub_type')
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
+        is_tax_charge = self.request.query_params.get('is_tax_charge')
 
         if is_closed:
             queryset = queryset.filter(is_closed=is_closed)
@@ -182,6 +226,8 @@ class TransactionView(generics.ListAPIView):
             queryset = queryset.filter(date__gte=start_date)
         if end_date:
             queryset = queryset.filter(date__lte=end_date)
+        if is_tax_charge:
+            queryset = queryset.filter(tax_charge=is_tax_charge)
 
         queryset = queryset.order_by('date','account','description')
         return queryset
