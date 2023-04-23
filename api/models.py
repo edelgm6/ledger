@@ -14,7 +14,7 @@ class Reconciliation(models.Model):
         return str(self.date) + ' ' + self.account.name
 
     def plug_investment_change(self):
-        GAIN_LOSS_ACCOUNT = '4060-Investment Gains or Losses'
+        GAIN_LOSS_ACCOUNT = '4060-Unrealized Gains or Losses'
 
         delta = self.amount - self.account.get_balance(self.date)
 
@@ -55,7 +55,6 @@ class Reconciliation(models.Model):
 
         return journal_entry
 
-
 class Transaction(models.Model):
 
     class TransactionType(models.TextChoices):
@@ -84,6 +83,87 @@ class Transaction(models.Model):
         self.date_closed = date
         self.save()
 
+class TaxCharge(models.Model):
+    class Type(models.TextChoices):
+        PROPERTY = 'property', _('Property')
+        FEDERAL = 'federal', _('Federal')
+        STATE = 'state', _('State')
+
+    type = models.CharField(max_length=25,choices=Type.choices)
+    transaction = models.OneToOneField('Transaction',on_delete=models.CASCADE)
+    date = models.DateField()
+    amount = models.DecimalField(decimal_places=2,max_digits=12)
+
+    def __str__(self):
+        return str(self.date) + ' ' + self.type
+
+    def save(self, *args, **kwargs):
+
+        tax_accounts = {
+            self.Type.STATE: {
+                'expense': Account.objects.get(name='5910-Income Taxes, State'),
+                'liability': Account.objects.get(name='2610-Income Taxes Payable, State')
+            },
+            self.Type.FEDERAL: {
+                'expense': Account.objects.get(name='5900-Income Taxes, Federal'),
+                'liability': Account.objects.get(name='2620-Income Taxes Payable, Federal')
+            },
+            self.Type.PROPERTY: {
+                'expense': Account.objects.get(name='5930-Property Taxes'),
+                'liability': Account.objects.get(name='2600-Property Taxes Payable')
+            }
+        }
+
+        accounts = tax_accounts[self.type]
+
+        if not self.transaction:
+            transaction = Transaction.objects.create(
+                date=self.date,
+                account=accounts['expense'],
+                amount=self.amount,
+                description=str(self.date) + ' ' + self.Type.PROPERTY + ' tax charge',
+                is_closed=True,
+                date_closed=datetime.date.today(),
+                type=Transaction.TransactionType.PURCHASE
+            )
+            transaction.save()
+            self.transaction = transaction
+        else:
+            self.transaction.amount = self.amount
+            self.transaction.save()
+        super().save(*args, **kwargs)
+
+        if not self.transaction.journalentry:
+            journal_entry = JournalEntry.objects.create(
+                date=self.date,
+                transaction=self.transaction
+            )
+            journal_entry.save()
+
+        journal_entry = self.transaction.journalentry
+
+        journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry)
+        journal_entry_items.delete()
+
+        debit = JournalEntryItem.objects.create(
+            journal_entry=journal_entry,
+            type=JournalEntryItem.JournalEntryType.DEBIT,
+            amount=self.transaction.amount,
+            account=accounts['expense']
+        )
+        debit.save()
+        credit = JournalEntryItem.objects.create(
+            journal_entry=journal_entry,
+            type=JournalEntryItem.JournalEntryType.CREDIT,
+            amount=self.transaction.amount,
+            account=accounts['liability']
+        )
+        credit.save()
+
+    # Note: Can't use unique_together due to bulk update hack
+    # class Meta:
+    #     unique_together = [['type','date']]
+
 class Account(models.Model):
 
     class AccountType(models.TextChoices):
@@ -106,7 +186,8 @@ class Account(models.Model):
         # Equity types
         RETAINED_EARNINGS = 'retained_earnings', _('Retained Earnings')
         # Income types
-        INVESTMENT_GAINS = 'investment_gains', _('Investment Gains')
+        UNREALIZED_INVESTMENT_GAINS = 'unrealized_investment_gains', _('Unrealized Investment Gains')
+        REALIZED_INVESTMENT_GAINS = 'realized_investment_gains', _('Realized Investment Gains')
         SALARY = 'salary', _('Salary')
         DIVIDENDS_AND_INTEREST = 'dividends_and_interest', _('Dividends & Interest')
         OTHER_INCOME = 'other_income', _('Other Income')
