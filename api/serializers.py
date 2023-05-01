@@ -199,7 +199,6 @@ class TransactionInputSerializer(serializers.ModelSerializer):
     linked_transaction = serializers.PrimaryKeyRelatedField(required=False,queryset=Transaction.objects.all())
     is_closed = serializers.BooleanField(required=False)
     suggested_account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name',required=False)
-    suggested_type = serializers.CharField(max_length=25,required=False)
 
     class Meta:
         model = Transaction
@@ -212,8 +211,7 @@ class TransactionInputSerializer(serializers.ModelSerializer):
             'type',
             'linked_transaction',
             'is_closed',
-            'suggested_account',
-            'suggested_type'
+            'suggested_account'
         ]
 
     def create(self, validated_data):
@@ -229,7 +227,7 @@ class TransactionInputSerializer(serializers.ModelSerializer):
                 break
 
         validated_data['suggested_account'] = suggested_account
-        validated_data['suggested_type'] = suggested_type
+        validated_data['type'] = suggested_type
         transaction = Transaction.objects.create(**validated_data)
 
         return transaction
