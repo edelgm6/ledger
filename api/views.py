@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, generics
 from rest_framework.exceptions import ValidationError
-from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer, JournalEntryItemOutputWithTransactionSerializer, TaxChargeInputSerializer, TaxChargeOutputSerializer
+from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer, JournalEntryItemOutputWithTransactionSerializer, TaxChargeInputSerializer, TaxChargeOutputSerializer, CreateTaxChargeInputSerializer
 from api.models import TaxCharge, Transaction, Account, CSVProfile, Reconciliation, JournalEntry, JournalEntryItem
 from api.statement import BalanceSheet, IncomeStatement, CashFlowStatement
 
@@ -171,7 +171,7 @@ class TaxChargeView(APIView):
         return Response(tax_charge_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request):
-        tax_charge_input_serializer = TaxChargeInputSerializer(data=request.data)
+        tax_charge_input_serializer = CreateTaxChargeInputSerializer(data=request.data)
         if tax_charge_input_serializer.is_valid():
             tax_charge = tax_charge_input_serializer.save()
             tax_charge_output_serializer = TaxChargeOutputSerializer(tax_charge)

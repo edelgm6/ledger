@@ -97,7 +97,6 @@ class TaxCharge(models.Model):
         return str(self.date) + ' ' + self.type
 
     def save(self, *args, **kwargs):
-
         tax_accounts = {
             self.Type.STATE: {
                 'expense': Account.objects.get(name='5910-Income Taxes, State'),
@@ -115,7 +114,11 @@ class TaxCharge(models.Model):
 
         accounts = tax_accounts[self.type]
 
-        if not self.transaction:
+        try:
+            transaction = self.transaction
+            transaction.amount = self.amount
+            transaction.save()
+        except Transaction.DoesNotExist:
             transaction = Transaction.objects.create(
                 date=self.date,
                 account=accounts['expense'],
@@ -127,19 +130,17 @@ class TaxCharge(models.Model):
             )
             transaction.save()
             self.transaction = transaction
-        else:
-            self.transaction.amount = self.amount
-            self.transaction.save()
+
         super().save(*args, **kwargs)
 
-        if not self.transaction.journalentry:
+        try:
+            journal_entry = self.transaction.journalentry
+        except JournalEntry.DoesNotExist:
             journal_entry = JournalEntry.objects.create(
                 date=self.date,
                 transaction=self.transaction
             )
-            journal_entry.save()
-
-        journal_entry = self.transaction.journalentry
+        journal_entry.save()
 
         journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry)
         journal_entry_items.delete()
