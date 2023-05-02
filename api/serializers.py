@@ -253,6 +253,12 @@ class TransactionInputSerializer(serializers.ModelSerializer):
 
         return instance
 
+class CreateTaxChargeInputSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = TaxCharge
+        fields = ['type', 'amount', 'date']
+
 class TaxChargeInputSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField()
 
