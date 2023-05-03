@@ -100,15 +100,19 @@ class TaxCharge(models.Model):
         tax_accounts = {
             self.Type.STATE: {
                 'expense': Account.objects.get(name='5910-Income Taxes, State'),
-                'liability': Account.objects.get(name='2610-Income Taxes Payable, State')
+                'liability': Account.objects.get(name='2610-Income Taxes Payable, State'),
+                'description': 'State Income Tax'
             },
             self.Type.FEDERAL: {
                 'expense': Account.objects.get(name='5900-Income Taxes, Federal'),
-                'liability': Account.objects.get(name='2620-Income Taxes Payable, Federal')
+                'liability': Account.objects.get(name='2620-Income Taxes Payable, Federal'),
+                'description': 'Federal Income Tax'
+
             },
             self.Type.PROPERTY: {
                 'expense': Account.objects.get(name='5930-Property Taxes'),
-                'liability': Account.objects.get(name='2600-Property Taxes Payable')
+                'liability': Account.objects.get(name='2600-Property Taxes Payable'),
+                'description': 'Property Tax'
             }
         }
 
@@ -123,7 +127,7 @@ class TaxCharge(models.Model):
                 date=self.date,
                 account=accounts['expense'],
                 amount=self.amount,
-                description=str(self.date) + ' ' + self.Type.PROPERTY + ' tax charge',
+                description=str(self.date) + ' ' + accounts['description'],
                 is_closed=True,
                 date_closed=datetime.date.today(),
                 type=Transaction.TransactionType.PURCHASE
