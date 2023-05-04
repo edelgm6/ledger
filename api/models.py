@@ -6,6 +6,7 @@ class Reconciliation(models.Model):
     account = models.ForeignKey('Account',on_delete=models.CASCADE)
     date = models.DateField()
     amount = models.DecimalField(decimal_places=2,max_digits=12,null=True,blank=True)
+    transaction = models.OneToOneField('Transaction',on_delete=models.CASCADE,null=True,blank=True)
 
     class Meta:
         unique_together = [['account','date']]
@@ -16,19 +17,30 @@ class Reconciliation(models.Model):
     def plug_investment_change(self):
         GAIN_LOSS_ACCOUNT = '4060-Unrealized Gains or Losses'
 
-        delta = self.amount - self.account.get_balance(self.date)
+        delta = self.amount - self.account.get_balance(self.date) - (self.transaction.amount if self.transaction is not None else 0)
 
-        transaction = Transaction.objects.create(
-            date=self.date,
-            amount=delta,
-            account=self.account,
-            description=str(self.date) + ' Plug gain/loss for ' + self.account.name
-        )
-        journal_entry = JournalEntry.objects.create(
-            date=self.date,
-            description=transaction.description,
-            transaction=transaction
-        )
+        if self.transaction:
+            transaction = self.transaction
+            transaction.amount = delta
+            transaction.save()
+        else:
+            transaction = Transaction.objects.create(
+                date=self.date,
+                amount=delta,
+                account=self.account,
+                description=str(self.date) + ' Plug gain/loss for ' + self.account.name
+            )
+            self.transaction = transaction
+            self.save()
+
+        try:
+            journal_entry = transaction.journalentry
+        except JournalEntry.DoesNotExist:
+            journal_entry = JournalEntry.objects.create(
+                date=self.date,
+                description=transaction.description,
+                transaction=transaction
+            )
 
         if delta > 0:
             gain_loss_entry_type = JournalEntryItem.JournalEntryType.CREDIT
@@ -36,6 +48,9 @@ class Reconciliation(models.Model):
         else:
             gain_loss_entry_type = JournalEntryItem.JournalEntryType.DEBIT
             account_entry_type = JournalEntryItem.JournalEntryType.CREDIT
+
+        journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry)
+        journal_entry_items.delete()
 
         gain_loss_entry = JournalEntryItem.objects.create(
             journal_entry=journal_entry,
@@ -132,7 +147,6 @@ class TaxCharge(models.Model):
                 date_closed=datetime.date.today(),
                 type=Transaction.TransactionType.PURCHASE
             )
-            transaction.save()
             self.transaction = transaction
 
         super().save(*args, **kwargs)
@@ -144,7 +158,6 @@ class TaxCharge(models.Model):
                 date=self.date,
                 transaction=self.transaction
             )
-        journal_entry.save()
 
         journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry)
         journal_entry_items.delete()
@@ -155,14 +168,13 @@ class TaxCharge(models.Model):
             amount=self.transaction.amount,
             account=accounts['expense']
         )
-        debit.save()
+
         credit = JournalEntryItem.objects.create(
             journal_entry=journal_entry,
             type=JournalEntryItem.JournalEntryType.CREDIT,
             amount=self.transaction.amount,
             account=accounts['liability']
         )
-        credit.save()
 
     # Note: Can't use unique_together due to bulk update hack
     # class Meta:
