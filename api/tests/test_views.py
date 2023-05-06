@@ -69,13 +69,13 @@ class ReconciliationsCreateViewTest(TestCase):
         self.VIEW = GenerateReconciliationsView
         gains_losses_account = Account.objects.create(
             name='8000-Gains',
-            type=Account.AccountType.EQUITY,
-            sub_type=Account.AccountSubType.INVESTMENT_GAINS
+            type=Account.Type.EQUITY,
+            sub_type=Account.SubType.INVESTMENT_GAINS
         )
         income = Account.objects.create(
             name='8000-Income',
-            type=Account.AccountType.INCOME,
-            sub_type=Account.AccountSubType.SALARY
+            type=Account.Type.INCOME,
+            sub_type=Account.SubType.SALARY
         )
         transaction = Transaction.objects.create(
             date='2023-01-28',
@@ -181,14 +181,14 @@ class ReconciliationsViewTest(TestCase):
         self.VIEW = ReconciliationView
         gains_losses_account = Account.objects.create(
             name='8000-Gains',
-            type=Account.AccountType.EQUITY,
-            sub_type=Account.AccountSubType.INVESTMENT_GAINS
+            type=Account.Type.EQUITY,
+            sub_type=Account.SubType.INVESTMENT_GAINS
         )
 
         income = Account.objects.create(
             name='8000-Income',
-            type=Account.AccountType.INCOME,
-            sub_type=Account.AccountSubType.SALARY
+            type=Account.Type.INCOME,
+            sub_type=Account.SubType.SALARY
         )
 
         transaction = Transaction.objects.create(
@@ -315,13 +315,13 @@ class AccountBalanceViewTest(TestCase):
         self.VIEW = AccountBalanceView
         gains_losses_account = Account.objects.create(
             name='8000-Gains',
-            type=Account.AccountType.EQUITY,
-            sub_type=Account.AccountSubType.INVESTMENT_GAINS
+            type=Account.Type.EQUITY,
+            sub_type=Account.SubType.INVESTMENT_GAINS
         )
         income = Account.objects.create(
             name='8000-Income',
-            type=Account.AccountType.INCOME,
-            sub_type=Account.AccountSubType.SALARY
+            type=Account.Type.INCOME,
+            sub_type=Account.SubType.SALARY
         )
         transaction = Transaction.objects.create(
             date='2023-01-28',
