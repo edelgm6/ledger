@@ -16,7 +16,7 @@ class ReconciliationsCreateSerializer(serializers.Serializer):
     def create(self, validated_data):
         date = validated_data['date']
 
-        balance_sheet_accounts = Account.objects.filter(type__in=[Account.AccountType.ASSET,Account.AccountType.LIABILITY])
+        balance_sheet_accounts = Account.objects.filter(type__in=[Account.Type.ASSET,Account.Type.LIABILITY])
         reconciliation_list = []
         for account in balance_sheet_accounts:
             reconciliation_list.append(
@@ -274,7 +274,6 @@ class TaxChargeOutputSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaxCharge
         fields = ['id','type','transaction','date','amount','taxable_income']
-        # fields = ['id','transaction','date','amount','taxable_income']
         depth = 1
 
     def get_taxable_income(self, tax_charge):
