@@ -7,8 +7,8 @@ class BalanceSheetTest(TestCase):
     def setUp(self):
         gains_losses = Account.objects.create(
             name='8000-gains losses',
-            type=Account.AccountType.EQUITY,
-            sub_type=Account.AccountSubType.INVESTMENT_GAINS
+            type=Account.Type.EQUITY,
+            sub_type=Account.SubType.INVESTMENT_GAINS
         )
 
         chase = Account.objects.create(
@@ -93,8 +93,8 @@ class BalanceSheetTest(TestCase):
         )
         income = Account.objects.create(
             name='8000-Income',
-            type=Account.AccountType.INCOME,
-            sub_type=Account.AccountSubType.SALARY
+            type=Account.Type.INCOME,
+            sub_type=Account.SubType.SALARY
         )
         transaction = Transaction.objects.create(
             date='2023-01-28',
@@ -157,13 +157,13 @@ class IncomeStatementTest(TestCase):
         )
         vanguard = Account.objects.create(
             name='7000-Vanguard',
-            type=Account.AccountType.INCOME,
-            sub_type=Account.AccountSubType.INVESTMENT_GAINS
+            type=Account.Type.INCOME,
+            sub_type=Account.SubType.INVESTMENT_GAINS
         )
         income = Account.objects.create(
             name='8000-Income',
-            type=Account.AccountType.INCOME,
-            sub_type=Account.AccountSubType.SALARY
+            type=Account.Type.INCOME,
+            sub_type=Account.SubType.SALARY
         )
         transaction = Transaction.objects.create(
             date='2023-01-28',
