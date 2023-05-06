@@ -182,14 +182,14 @@ class TaxCharge(models.Model):
 
 class Account(models.Model):
 
-    class AccountType(models.TextChoices):
+    class Type(models.TextChoices):
         ASSET = 'asset', _('Asset')
         LIABILITY = 'liability', _('Liability')
         INCOME = 'income', _('Income')
         EXPENSE = 'expense', _('Expense')
         EQUITY = 'equity', _('Equity')
 
-    class AccountSubType(models.TextChoices):
+    class SubType(models.TextChoices):
         # Liability types
         SHORT_TERM_DEBT = 'short_term_debt', _('Short-term Debt')
         LONG_TERM_DEBT = 'long_term_debt', _('Long-term Debt')
@@ -213,8 +213,8 @@ class Account(models.Model):
         INTEREST = 'interest', _('Interest Expense')
 
     name = models.CharField(max_length=200,unique=True)
-    type = models.CharField(max_length=9,choices=AccountType.choices)
-    sub_type = models.CharField(max_length=30,choices=AccountSubType.choices)
+    type = models.CharField(max_length=9,choices=Type.choices)
+    sub_type = models.CharField(max_length=30,choices=SubType.choices)
     csv_profile = models.ForeignKey('CSVProfile',related_name='accounts',on_delete=models.PROTECT,null=True,blank=True)
 
     class Meta:
@@ -225,7 +225,7 @@ class Account(models.Model):
 
     @staticmethod
     def get_balance_from_debit_and_credit(account_type, debits, credits):
-        DEBITS_INCREASE_ACCOUNTS = [Account.AccountType.ASSET, Account.AccountType.EXPENSE]
+        DEBITS_INCREASE_ACCOUNTS = [Account.Type.ASSET, Account.Type.EXPENSE]
         if account_type in DEBITS_INCREASE_ACCOUNTS:
             return debits - credits
         else:
