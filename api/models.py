@@ -15,7 +15,7 @@ class Reconciliation(models.Model):
         return str(self.date) + ' ' + self.account.name
 
     def plug_investment_change(self):
-        GAIN_LOSS_ACCOUNT = '4060-Unrealized Gains or Losses'
+        GAIN_LOSS_ACCOUNT = Account.objects.get(special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES)
 
         delta = self.amount - self.account.get_balance(self.date) - (self.transaction.amount if self.transaction is not None else 0)
 
@@ -56,7 +56,7 @@ class Reconciliation(models.Model):
             journal_entry=journal_entry,
             type=gain_loss_entry_type,
             amount=abs(delta),
-            account=Account.objects.get(name=GAIN_LOSS_ACCOUNT)
+            account=GAIN_LOSS_ACCOUNT
         )
 
         account_entry = JournalEntryItem.objects.create(
@@ -114,19 +114,19 @@ class TaxCharge(models.Model):
     def save(self, *args, **kwargs):
         tax_accounts = {
             self.Type.STATE: {
-                'expense': Account.objects.get(name='5910-Income Taxes, State'),
-                'liability': Account.objects.get(name='2610-Income Taxes Payable, State'),
+                'expense': Account.objects.get(special_type=Account.SpecialType.STATE_TAXES),
+                'liability': Account.objects.get(special_type=Account.SpecialType.STATE_TAXES_PAYABLE),
                 'description': 'State Income Tax'
             },
             self.Type.FEDERAL: {
-                'expense': Account.objects.get(name='5900-Income Taxes, Federal'),
-                'liability': Account.objects.get(name='2620-Income Taxes Payable, Federal'),
+                'expense': Account.objects.get(special_type=Account.SpecialType.FEDERAL_TAXES),
+                'liability': Account.objects.get(special_type=Account.SpecialType.FEDERAL_TAXES_PAYABLE),
                 'description': 'Federal Income Tax'
 
             },
             self.Type.PROPERTY: {
-                'expense': Account.objects.get(name='5930-Property Taxes'),
-                'liability': Account.objects.get(name='2600-Property Taxes Payable'),
+                'expense': Account.objects.get(special_type=Account.SpecialType.PROPERTY_TAXES_PAYABLE),
+                'liability': Account.objects.get(special_type=Account.SpecialType.PROPERTY_TAXES),
                 'description': 'Property Tax'
             }
         }
@@ -182,6 +182,15 @@ class TaxCharge(models.Model):
 
 class Account(models.Model):
 
+    class SpecialType(models.TextChoices):
+        UNREALIZED_GAINS_AND_LOSSES = 'unrealized_gains_and_losses', _('Unrealized Gains and Losses')
+        STATE_TAXES_PAYABLE = 'state_taxes_payable', _('State Taxes Payable')
+        FEDERAL_TAXES_PAYABLE = 'federal_taxes_payable', _('Federal Taxes Payable')
+        PROPERTY_TAXES_PAYABLE = 'property_taxes_payable', _('Property Taxes Payable')
+        STATE_TAXES = 'state_taxes', _('State Taxes')
+        FEDERAL_TAXES = 'federal_taxes', _('Federal Taxes')
+        PROPERTY_TAXES = 'property_taxes', _('Property Taxes')
+
     class Type(models.TextChoices):
         ASSET = 'asset', _('Asset')
         LIABILITY = 'liability', _('Liability')
@@ -216,6 +225,7 @@ class Account(models.Model):
     type = models.CharField(max_length=9,choices=Type.choices)
     sub_type = models.CharField(max_length=30,choices=SubType.choices)
     csv_profile = models.ForeignKey('CSVProfile',related_name='accounts',on_delete=models.PROTECT,null=True,blank=True)
+    special_type = models.CharField(max_length=30,choices=SpecialType.choices, null=True, blank=True, unique=True)
 
     class Meta:
         ordering = ('name',)

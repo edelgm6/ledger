@@ -274,7 +274,6 @@ class TaxChargeOutputSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaxCharge
         fields = ['id','type','transaction','date','amount','taxable_income']
-        # fields = ['id','transaction','date','amount','taxable_income']
         depth = 1
 
     def get_taxable_income(self, tax_charge):
