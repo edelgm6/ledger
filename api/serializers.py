@@ -82,6 +82,7 @@ class BalancesOutputSerializer(serializers.Serializer):
 class MetricsOutputSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200)
     value = serializers.DecimalField(max_digits=12,decimal_places=2)
+    metric_type = serializers.CharField(max_length=200)
 
 class StatementOutputSerializer(serializers.Serializer):
     balances = BalancesOutputSerializer(many=True, read_only=True)
