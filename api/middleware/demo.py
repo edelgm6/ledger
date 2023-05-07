@@ -1,6 +1,5 @@
 import json
 import decimal
-import sys
 
 class MultiplyNumbersMiddleware:
     def __init__(self, get_response):
