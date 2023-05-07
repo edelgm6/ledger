@@ -1,4 +1,5 @@
 import json
+import decimal
 
 class MultiplyNumbersMiddleware:
     def __init__(self, get_response):
@@ -19,12 +20,14 @@ class MultiplyNumbersMiddleware:
     def _multiply_numbers(self, data):
         if isinstance(data, dict):
             for key, value in data.items():
-                if isinstance(value, (int, float)):
-                    data[key] = value * 0.13
-                elif isinstance(value, dict):
-                    self._multiply_numbers(value)
-                elif isinstance(value, list):
-                    self._multiply_numbers(value)
+                try:
+                    decimal_value = decimal.Decimal(value)
+                    data[key] = str(round(decimal_value * decimal.Decimal(.13),2))
+                except:
+                    if isinstance(value, dict):
+                        self._multiply_numbers(value)
+                    elif isinstance(value, list):
+                        self._multiply_numbers(value)
         elif isinstance(data, list):
             for item in data:
                 self._multiply_numbers(item)
