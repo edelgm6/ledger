@@ -11,9 +11,10 @@ class Balance:
 
 class Metric:
 
-    def __init__(self, name, value):
+    def __init__(self, name, value, metric_type='total'):
         self.name = name
         self.value = value
+        self.metric_type = metric_type
 
 class Statement:
 
@@ -218,8 +219,8 @@ class IncomeStatement(Statement):
     def get_metrics(self):
         metrics = [
             Metric('Non-Gains Net Income', self.get_non_investment_gains_net_income()),
-            Metric('Tax Rate', self.get_tax_rate()),
-            Metric('Savings Rate', self.get_savings_rate()),
+            Metric('Tax Rate', self.get_tax_rate(), 'ratio'),
+            Metric('Savings Rate', self.get_savings_rate(), 'ratio'),
             Metric('Taxable Income', self.get_taxable_income())
         ]
         return metrics
@@ -285,10 +286,10 @@ class BalanceSheet(Statement):
 
     def get_metrics(self):
         metrics = [
-            Metric('Cash % Assets', self.get_cash_percent_assets()),
-            Metric('Debt to Equity', self.get_debt_to_equity()),
+            Metric('Cash % Assets', self.get_cash_percent_assets(), 'ratio'),
+            Metric('Debt to Equity', self.get_debt_to_equity(), 'ratio'),
             Metric('Liquid Assets', self.get_liquid_assets()),
-            Metric('Liquid Assets %', self.get_liquid_assets_percent())
+            Metric('Liquid Assets %', self.get_liquid_assets_percent(), 'ratio')
         ]
         return metrics
 
