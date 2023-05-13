@@ -176,9 +176,12 @@ class TaxCharge(models.Model):
             account=accounts['liability']
         )
 
-    # Note: Can't use unique_together due to bulk update hack
-    # class Meta:
-    #     unique_together = [['type','date']]
+        # Update the Reconciliation per the new tax amount
+        liability_account = accounts['liability']
+        liability_balance = liability_account.get_balance(self.date)
+        reconciliation = Reconciliation.objects.get(date=self.date, account=accounts['liability'])
+        reconciliation.amount = liability_balance
+        reconciliation.save()
 
 class Account(models.Model):
 
