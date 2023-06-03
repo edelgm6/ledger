@@ -19,6 +19,7 @@ from api.views import TaxChargeView, JournalEntryView, TransactionView, AccountV
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('journal-entries/<int:pk>', JournalEntryView.as_view(), name='update-journal-entry'),
     path('journal-entries/', JournalEntryView.as_view(), name='journal-entries'),
     # path('journal-entry-items/', JournalEntryItemView.as_view(), name='journal-entry-items'),
     path('transactions/<int:pk>', TransactionView.as_view(), name='update-transaction'),
