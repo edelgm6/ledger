@@ -158,16 +158,35 @@ class JournalEntryInputSerializer(serializers.ModelSerializer):
         transaction_type = validated_data.pop('transaction_type', None)
         journal_entry = JournalEntry.objects.create(**validated_data)
 
-        if journal_entry.transaction:
-            journal_entry.transaction.close(date.today())
-            if transaction_type:
-                journal_entry.transaction.type = transaction_type
-                journal_entry.transaction.save()
+        journal_entry.transaction.close(date.today())
+        if transaction_type:
+            journal_entry.transaction.type = transaction_type
+            journal_entry.transaction.save()
 
         for journal_entry_item_data in journal_entry_items_data:
             JournalEntryItem.objects.create(journal_entry=journal_entry, **journal_entry_item_data)
 
         return journal_entry
+
+    def update(self, instance, validated_data):
+        journal_entry_items_data = validated_data.pop('journal_entry_items')
+        transaction_type = validated_data.pop('transaction_type', None)
+
+        if transaction_type:
+            instance.transaction.type = transaction_type
+            instance.transaction.save()
+
+        instance.date = validated_data.get('date', instance.date)
+        instance.description = validated_data.get('description', instance.description)
+        instance.save()
+
+        existing_journal_entry_items = JournalEntryItem.objects.filter(journal_entry=instance)
+        existing_journal_entry_items.delete()
+
+        for journal_entry_item_data in journal_entry_items_data:
+            JournalEntryItem.objects.create(journal_entry=instance, **journal_entry_item_data)
+
+        return instance
 
 class JournalEntryOutputSerializer(serializers.ModelSerializer):
     journal_entry_items = JournalEntryItemOutputSerializer(many=True, read_only=True)

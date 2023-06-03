@@ -229,7 +229,7 @@ class TransactionView(generics.ListAPIView):
         if is_tax_charge:
             queryset = queryset.filter(tax_charge=is_tax_charge)
         if related_accounts:
-            queryset = queryset.filter(journalentry__journal_entry_items__account__name__in=related_accounts)
+            queryset = queryset.filter(journal_entry__journal_entry_items__account__name__in=related_accounts)
 
         queryset = queryset.order_by('date','account','description')
         return queryset
@@ -255,6 +255,12 @@ class JournalEntryView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
+    def get_journal_entry(self, pk):
+        try:
+            return JournalEntry.objects.get(pk=pk)
+        except JournalEntry.DoesNotExist:
+            raise Http404
+
     def post(self, request, *args, **kwargs):
 
         journal_entry_input_serializer = JournalEntryInputSerializer(data=request.data)
@@ -262,7 +268,7 @@ class JournalEntryView(APIView):
         if journal_entry_input_serializer.is_valid():
             journal_entry = journal_entry_input_serializer.save()
             journal_entry_output_serializer = JournalEntryOutputSerializer(journal_entry)
-            return Response(journal_entry_output_serializer.data, status=status.HTTP_201_CREATED)
+            return Response(journal_entry_output_serializer.data)
 
         return Response(journal_entry_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -274,6 +280,15 @@ class JournalEntryView(APIView):
             journal_entries.filter(journal_entry_items__account__sub_type__in=sub_types)
         journal_entry_output_serializer = JournalEntryOutputSerializer(journal_entries, many=True)
         return Response(journal_entry_output_serializer.data)
+
+    def put(self, request, pk, format=None):
+        journal_entry = self.get_journal_entry(pk)
+        journal_entry_input_serializer = JournalEntryInputSerializer(journal_entry, data=request.data, partial=True)
+
+        if journal_entry_input_serializer.is_valid():
+            journal_entry = journal_entry_input_serializer.save()
+            journal_entry_output_serializer = JournalEntryOutputSerializer(journal_entry)
+            return Response(journal_entry_output_serializer.data, status=status.HTTP_201_CREATED)
 
 # class JournalEntryItemView(APIView):
 #     authentication_classes = [TokenAuthentication]
