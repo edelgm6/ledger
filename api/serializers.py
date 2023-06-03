@@ -188,11 +188,12 @@ class TransactionTypeOutputSerializer(serializers.Serializer):
     label = serializers.CharField(max_length=200)
 
 class TransactionOutputSerializer(serializers.ModelSerializer):
+    journal_entries = JournalEntryOutputSerializer()
 
     class Meta:
         model = Transaction
-        fields = '__all__'
-        depth = 2
+        fields = ['date','account','amount','description','category','is_closed','date_closed','suggested_account','type','linked_transaction','journal_entries']
+        depth = 3
 
 class TransactionInputSerializer(serializers.ModelSerializer):
     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name',required=False)
