@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 from rest_framework import serializers
 from api.models import Transaction, Account, JournalEntry, JournalEntryItem, CSVProfile, AutoTag, Reconciliation, TaxCharge
 from api import helpers
@@ -158,23 +158,42 @@ class JournalEntryInputSerializer(serializers.ModelSerializer):
         transaction_type = validated_data.pop('transaction_type', None)
         journal_entry = JournalEntry.objects.create(**validated_data)
 
-        if journal_entry.transaction:
-            journal_entry.transaction.close(date.today())
-            if transaction_type:
-                journal_entry.transaction.type = transaction_type
-                journal_entry.transaction.save()
+        journal_entry.transaction.close(date.today())
+        if transaction_type:
+            journal_entry.transaction.type = transaction_type
+            journal_entry.transaction.save()
 
         for journal_entry_item_data in journal_entry_items_data:
             JournalEntryItem.objects.create(journal_entry=journal_entry, **journal_entry_item_data)
 
         return journal_entry
 
+    def update(self, instance, validated_data):
+        journal_entry_items_data = validated_data.pop('journal_entry_items')
+        transaction_type = validated_data.pop('transaction_type', None)
+
+        if transaction_type:
+            instance.transaction.type = transaction_type
+            instance.transaction.save()
+
+        instance.date = validated_data.get('date', instance.date)
+        instance.description = validated_data.get('description', instance.description)
+        instance.save()
+
+        existing_journal_entry_items = JournalEntryItem.objects.filter(journal_entry=instance)
+        existing_journal_entry_items.delete()
+
+        for journal_entry_item_data in journal_entry_items_data:
+            JournalEntryItem.objects.create(journal_entry=instance, **journal_entry_item_data)
+
+        return instance
+
 class JournalEntryOutputSerializer(serializers.ModelSerializer):
     journal_entry_items = JournalEntryItemOutputSerializer(many=True, read_only=True)
 
     class Meta:
         model = JournalEntry
-        fields = ['id','date','description','transaction','journal_entry_items']
+        fields = ['id','date','description','journal_entry_items']
         depth = 1
 
 class AccountOutputSerializer(serializers.ModelSerializer):
@@ -188,11 +207,12 @@ class TransactionTypeOutputSerializer(serializers.Serializer):
     label = serializers.CharField(max_length=200)
 
 class TransactionOutputSerializer(serializers.ModelSerializer):
+    journal_entry = JournalEntryOutputSerializer()
 
     class Meta:
         model = Transaction
-        fields = '__all__'
-        depth = 2
+        fields = ['date','account','amount','description','category','is_closed','date_closed','suggested_account','type','linked_transaction','journal_entry']
+        depth = 3
 
 class TransactionInputSerializer(serializers.ModelSerializer):
     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name',required=False)
@@ -283,10 +303,10 @@ class TaxChargeOutputSerializer(serializers.ModelSerializer):
 
         return income_statement.get_taxable_income()
 
-class JournalEntryItemOutputWithTransactionSerializer(serializers.ModelSerializer):
-    account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
-    journal_entry = JournalEntryOutputSerializer(read_only=True)
+# class JournalEntryItemOutputWithTransactionSerializer(serializers.ModelSerializer):
+#     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
+#     journal_entry = JournalEntryOutputSerializer(read_only=True)
 
-    class Meta:
-        model = JournalEntryItem
-        fields = ['id','type','amount','account','journal_entry']
+#     class Meta:
+#         model = JournalEntryItem
+#         fields = ['id','type','amount','account','journal_entry']
