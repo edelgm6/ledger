@@ -271,7 +271,7 @@ class Account(models.Model):
 class JournalEntry(models.Model):
     date = models.DateField()
     description = models.CharField(max_length=200,blank=True)
-    transaction = models.OneToOneField('Transaction',related_name='journal_entries',on_delete=models.CASCADE)
+    transaction = models.OneToOneField('Transaction',related_name='journal_entry',on_delete=models.CASCADE)
 
     def __str__(self):
         return str(self.pk) + ': ' + str(self.date) + ' ' + self.description
