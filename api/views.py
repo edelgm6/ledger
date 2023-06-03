@@ -11,8 +11,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, generics
 from rest_framework.exceptions import ValidationError
-from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer, JournalEntryItemOutputWithTransactionSerializer, TaxChargeInputSerializer, TaxChargeOutputSerializer, CreateTaxChargeInputSerializer
-from api.models import TaxCharge, Transaction, Account, CSVProfile, Reconciliation, JournalEntry, JournalEntryItem
+from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer, TaxChargeInputSerializer, TaxChargeOutputSerializer, CreateTaxChargeInputSerializer
+from api.models import TaxCharge, Transaction, Account, CSVProfile, Reconciliation, JournalEntry
 from api.statement import BalanceSheet, IncomeStatement, CashFlowStatement
 
 class PlugReconciliationView(APIView):
@@ -221,7 +221,6 @@ class TransactionView(generics.ListAPIView):
         if account_sub_types:
             queryset = queryset.filter(account__sub_type__in=account_sub_types)
         if journal_entry_item_account_sub_types:
-            print(journal_entry_item_account_sub_types)
             queryset = queryset.filter(journalentry__journal_entry_items__account__sub_type__in=journal_entry_item_account_sub_types)
         if start_date:
             queryset = queryset.filter(date__gte=start_date)
@@ -276,29 +275,29 @@ class JournalEntryView(APIView):
         journal_entry_output_serializer = JournalEntryOutputSerializer(journal_entries, many=True)
         return Response(journal_entry_output_serializer.data)
 
-class JournalEntryItemView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+# class JournalEntryItemView(APIView):
+#     authentication_classes = [TokenAuthentication]
+#     permission_classes = [IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
-        start_date = self.request.query_params.get('start_date')
-        end_date = self.request.query_params.get('end_date')
-        account_sub_types = self.request.query_params.getlist('account_sub_type')
-        exclude_journal_entries_with_sub_types = self.request.query_params.getlist('exclude_journal_entries_with_sub_type')
+#     def get(self, request, *args, **kwargs):
+#         start_date = self.request.query_params.get('start_date')
+#         end_date = self.request.query_params.get('end_date')
+#         account_sub_types = self.request.query_params.getlist('account_sub_type')
+#         exclude_journal_entries_with_sub_types = self.request.query_params.getlist('exclude_journal_entries_with_sub_type')
 
-        journal_entries = JournalEntry.objects.all()
-        if start_date:
-            journal_entries = journal_entries.filter(date__gte=start_date)
-        if end_date:
-            journal_entries = journal_entries.filter(date__lte=end_date)
-        if exclude_journal_entries_with_sub_types:
-            journal_entries = journal_entries.exclude(journal_entry_items__account__sub_type__in=exclude_journal_entries_with_sub_types)
+#         journal_entries = JournalEntry.objects.all()
+#         if start_date:
+#             journal_entries = journal_entries.filter(date__gte=start_date)
+#         if end_date:
+#             journal_entries = journal_entries.filter(date__lte=end_date)
+#         if exclude_journal_entries_with_sub_types:
+#             journal_entries = journal_entries.exclude(journal_entry_items__account__sub_type__in=exclude_journal_entries_with_sub_types)
 
-        journal_entry_items = JournalEntryItem.objects.filter(journal_entry__in=journal_entries)
-        if account_sub_types:
-            journal_entry_items = journal_entry_items.filter(account__sub_type__in=account_sub_types)
+#         journal_entry_items = JournalEntryItem.objects.filter(journal_entry__in=journal_entries)
+#         if account_sub_types:
+#             journal_entry_items = journal_entry_items.filter(account__sub_type__in=account_sub_types)
 
-        journal_entry_items = journal_entry_items.order_by('account__name','journal_entry__date')
+#         journal_entry_items = journal_entry_items.order_by('account__name','journal_entry__date')
 
-        journal_entry_item_output_serializer = JournalEntryItemOutputWithTransactionSerializer(journal_entry_items, many=True)
-        return Response(journal_entry_item_output_serializer.data)
+#         journal_entry_item_output_serializer = JournalEntryItemOutputWithTransactionSerializer(journal_entry_items, many=True)
+#         return Response(journal_entry_item_output_serializer.data)
