@@ -211,7 +211,7 @@ class TransactionOutputSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Transaction
-        fields = ['date','account','amount','description','category','is_closed','date_closed','suggested_account','type','linked_transaction','journal_entry']
+        fields = ['id','date','account','amount','description','category','is_closed','date_closed','suggested_account','type','linked_transaction','journal_entry']
         depth = 3
 
 class TransactionInputSerializer(serializers.ModelSerializer):
