@@ -221,7 +221,7 @@ class TransactionView(generics.ListAPIView):
         if account_sub_types:
             queryset = queryset.filter(account__sub_type__in=account_sub_types)
         if journal_entry_item_account_sub_types:
-            queryset = queryset.filter(journalentry__journal_entry_items__account__sub_type__in=journal_entry_item_account_sub_types)
+            queryset = queryset.filter(journal_entry__journal_entry_items__account__sub_type__in=journal_entry_item_account_sub_types)
         if start_date:
             queryset = queryset.filter(date__gte=start_date)
         if end_date:
@@ -289,6 +289,8 @@ class JournalEntryView(APIView):
             journal_entry = journal_entry_input_serializer.save()
             journal_entry_output_serializer = JournalEntryOutputSerializer(journal_entry)
             return Response(journal_entry_output_serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(journal_entry_input_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # class JournalEntryItemView(APIView):
 #     authentication_classes = [TokenAuthentication]

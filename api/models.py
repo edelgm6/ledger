@@ -34,7 +34,7 @@ class Reconciliation(models.Model):
             self.save()
 
         try:
-            journal_entry = transaction.journalentry
+            journal_entry = transaction.journal_entry
         except JournalEntry.DoesNotExist:
             journal_entry = JournalEntry.objects.create(
                 date=self.date,
@@ -125,8 +125,8 @@ class TaxCharge(models.Model):
 
             },
             self.Type.PROPERTY: {
-                'expense': Account.objects.get(special_type=Account.SpecialType.PROPERTY_TAXES_PAYABLE),
-                'liability': Account.objects.get(special_type=Account.SpecialType.PROPERTY_TAXES),
+                'expense': Account.objects.get(special_type=Account.SpecialType.PROPERTY_TAXES),
+                'liability': Account.objects.get(special_type=Account.SpecialType.PROPERTY_TAXES_PAYABLE),
                 'description': 'Property Tax'
             }
         }
@@ -152,7 +152,7 @@ class TaxCharge(models.Model):
         super().save(*args, **kwargs)
 
         try:
-            journal_entry = self.transaction.journalentry
+            journal_entry = self.transaction.journal_entry
         except JournalEntry.DoesNotExist:
             journal_entry = JournalEntry.objects.create(
                 date=self.date,
@@ -178,6 +178,7 @@ class TaxCharge(models.Model):
 
         # Update the Reconciliation per the new tax amount
         liability_account = accounts['liability']
+        print(liability_account)
         liability_balance = liability_account.get_balance(self.date)
         reconciliation = Reconciliation.objects.get(date=self.date, account=accounts['liability'])
         reconciliation.amount = liability_balance
@@ -252,6 +253,7 @@ class Account(models.Model):
             account=self
         )
 
+        print(self.type)
         if self.type in INCOME_STATEMENT_ACCOUNT_TYPES:
             journal_entry_items = journal_entry_items.filter(
                 journal_entry__date__gte=start_date,
