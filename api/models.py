@@ -17,7 +17,7 @@ class Reconciliation(models.Model):
     def plug_investment_change(self):
         GAIN_LOSS_ACCOUNT = Account.objects.get(special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES)
 
-        delta = self.amount - self.account.get_balance(self.date) - (self.transaction.amount if self.transaction is not None else 0)
+        delta = self.amount - (self.account.get_balance(self.date) - (self.transaction.amount if self.transaction is not None else 0))
 
         if self.transaction:
             transaction = self.transaction
@@ -178,7 +178,6 @@ class TaxCharge(models.Model):
 
         # Update the Reconciliation per the new tax amount
         liability_account = accounts['liability']
-        print(liability_account)
         liability_balance = liability_account.get_balance(self.date)
         reconciliation = Reconciliation.objects.get(date=self.date, account=accounts['liability'])
         reconciliation.amount = liability_balance
@@ -253,7 +252,6 @@ class Account(models.Model):
             account=self
         )
 
-        print(self.type)
         if self.type in INCOME_STATEMENT_ACCOUNT_TYPES:
             journal_entry_items = journal_entry_items.filter(
                 journal_entry__date__gte=start_date,
