@@ -179,9 +179,12 @@ class TaxCharge(models.Model):
         # Update the Reconciliation per the new tax amount
         liability_account = accounts['liability']
         liability_balance = liability_account.get_balance(self.date)
-        reconciliation = Reconciliation.objects.get(date=self.date, account=accounts['liability'])
-        reconciliation.amount = liability_balance
-        reconciliation.save()
+        try:
+            reconciliation = Reconciliation.objects.get(date=self.date, account=accounts['liability'])
+            reconciliation.amount = liability_balance
+            reconciliation.save()
+        except Reconciliation.DoesNotExist:
+            pass
 
 class Account(models.Model):
 
