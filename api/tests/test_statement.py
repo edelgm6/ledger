@@ -8,7 +8,7 @@ class BalanceSheetTest(TestCase):
         gains_losses = Account.objects.create(
             name='8000-gains losses',
             type=Account.Type.EQUITY,
-            sub_type=Account.SubType.INVESTMENT_GAINS
+            sub_type=Account.SubType.UNREALIZED_INVESTMENT_GAINS
         )
 
         chase = Account.objects.create(
@@ -158,7 +158,7 @@ class IncomeStatementTest(TestCase):
         vanguard = Account.objects.create(
             name='7000-Vanguard',
             type=Account.Type.INCOME,
-            sub_type=Account.SubType.INVESTMENT_GAINS
+            sub_type=Account.SubType.UNREALIZED_INVESTMENT_GAINS
         )
         income = Account.objects.create(
             name='8000-Income',
