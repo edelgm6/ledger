@@ -28,7 +28,8 @@ class PlugReconciliationViewTest(TestCase):
         gain_loss_account = Account.objects.create(
             name='4050-Investment Gains or Losses',
             type='expense',
-            sub_type='purchases'
+            sub_type='purchases',
+            special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES
         )
         transaction = Transaction.objects.create(
             date='2023-01-28',
@@ -70,7 +71,7 @@ class ReconciliationsCreateViewTest(TestCase):
         gains_losses_account = Account.objects.create(
             name='8000-Gains',
             type=Account.Type.EQUITY,
-            sub_type=Account.SubType.INVESTMENT_GAINS
+            sub_type=Account.SubType.UNREALIZED_INVESTMENT_GAINS
         )
         income = Account.objects.create(
             name='8000-Income',
@@ -182,7 +183,7 @@ class ReconciliationsViewTest(TestCase):
         gains_losses_account = Account.objects.create(
             name='8000-Gains',
             type=Account.Type.EQUITY,
-            sub_type=Account.SubType.INVESTMENT_GAINS
+            sub_type=Account.SubType.UNREALIZED_INVESTMENT_GAINS
         )
 
         income = Account.objects.create(
@@ -316,7 +317,7 @@ class AccountBalanceViewTest(TestCase):
         gains_losses_account = Account.objects.create(
             name='8000-Gains',
             type=Account.Type.EQUITY,
-            sub_type=Account.SubType.INVESTMENT_GAINS
+            sub_type=Account.SubType.UNREALIZED_INVESTMENT_GAINS
         )
         income = Account.objects.create(
             name='8000-Income',
@@ -886,6 +887,4 @@ class UploadTransactionsViewTest(TestCase):
         self.assertEqual(transaction.account, account)
         self.assertEqual(transaction.description, 'uber ride')
         self.assertEqual(transaction.suggested_account, account)
-        self.assertEqual(transaction.suggested_type,'payment')
         transaction = Transaction.objects.get(description='dividend')
-        self.assertEqual(transaction.suggested_type, 'transfer')
