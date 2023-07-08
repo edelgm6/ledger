@@ -226,6 +226,7 @@ class Account(models.Model):
         PURCHASES = 'purchases', _('Purchases')
         TAX = 'tax', _('Tax')
         INTEREST = 'interest', _('Interest Expense')
+        ACCOUNTS_RECEIVABLE = 'accounts_receivable', _('Accounts Receivable')
 
     name = models.CharField(max_length=200,unique=True)
     type = models.CharField(max_length=9,choices=Type.choices)
