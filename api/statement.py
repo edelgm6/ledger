@@ -124,7 +124,8 @@ class CashFlowStatement(Statement):
             Metric('Net Cash Flow', self.net_cash_flow)
         ]
         self.metrics = [
-            Metric('Levered post-tax Free Cash Flow', self.get_levered_after_tax_cash_flow())
+            Metric('Levered post-tax Free Cash Flow', self.get_levered_after_tax_cash_flow()),
+            Metric('Levered post-tax post-retirement Free Cash Flow', self.get_levered_after_tax_after_retirement_cash_flow())
         ]
 
     @staticmethod
@@ -139,6 +140,12 @@ class CashFlowStatement(Statement):
 
     def get_levered_after_tax_cash_flow(self):
         return self.net_income_less_gains_and_losses + sum([summary.value for summary in self.summaries if summary.name == 'Cash Flow From Financing'])
+
+    def get_levered_after_tax_after_retirement_cash_flow(self):
+        levered_after_tax_cash_flow = self.get_levered_after_tax_cash_flow()
+        cash_from_investing_balances = self.get_cash_from_investing_balances()
+        retirement_cash_flow = sum([balance.amount for balance in cash_from_investing_balances if balance.sub_type == Account.SubType.SECURITIES_RETIREMENT])
+        return levered_after_tax_cash_flow + retirement_cash_flow
 
     def get_balance_sheet_account_deltas(self):
         accounts = Account.objects.filter(type__in=[Account.Type.ASSET,Account.Type.LIABILITY,Account.Type.EQUITY])
