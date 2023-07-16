@@ -303,10 +303,6 @@ class TaxChargeOutputSerializer(serializers.ModelSerializer):
 
         return income_statement.get_taxable_income()
 
-# class JournalEntryItemOutputWithTransactionSerializer(serializers.ModelSerializer):
-#     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
-#     journal_entry = JournalEntryOutputSerializer(read_only=True)
-
-#     class Meta:
-#         model = JournalEntryItem
-#         fields = ['id','type','amount','account','journal_entry']
+class TrendOutputSerializer(serializers.Serializer):
+    date = serializers.DateField()
+    balances = BalancesOutputSerializer(many=True)

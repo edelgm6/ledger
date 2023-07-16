@@ -1,5 +1,53 @@
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+from collections import namedtuple
 from django.db.models import Sum, Case, When, Value, DecimalField
 from api.models import JournalEntryItem, Account, JournalEntry, JournalEntryItem
+
+class Trend:
+
+    def __init__(self, type, start_date, end_date):
+        # self.type = type
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+        self.trend = self._get_balance_trends(start_date, end_date)
+
+    def _get_month_ranges(self, start_date, end_date):
+        current_date = start_date
+
+        MonthRange = namedtuple('MonthRange', ['start', 'end'])
+        ranges = []
+        while current_date <= end_date:
+            start_of_month = current_date
+            end_of_month = current_date + relativedelta(day=31)
+            end_of_month = min(end_of_month, end_date)  # Ensure end of month is not greater than end date
+            month_range = MonthRange(start=start_of_month, end=end_of_month)
+            ranges.append(month_range)
+            current_date += relativedelta(months=1)
+
+        return ranges
+
+    def _get_statements(self, ranges):
+
+        statements = []
+        for range in ranges:
+            statements.append(IncomeStatement(end_date=range.end,start_date=range.start))
+
+        return statements
+
+    def _get_balance_trends(self, start_date, end_date):
+
+        month_ranges = self._get_month_ranges(start_date, end_date)
+        statements = self._get_statements(month_ranges)
+
+        balance_trends = []
+        for statement in statements:
+            balance_trend = {}
+            balance_trend['date'] = statement.end_date.strftime('%Y-%m-%d')
+            balance_trend['balances'] = statement.get_balances()
+            balance_trends.append(balance_trend)
+
+        return balance_trends
 
 class Balance:
 
