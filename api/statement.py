@@ -1,13 +1,59 @@
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
+from collections import namedtuple
 from django.db.models import Sum, Case, When, Value, DecimalField
 from api.models import JournalEntryItem, Account, JournalEntry, JournalEntryItem
 
+class Trend:
+
+    def __init__(self, start_date, end_date):
+        # self.type = type
+        self.start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        self.end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+    def _get_month_ranges(self):
+        current_date = self.start_date
+
+        MonthRange = namedtuple('MonthRange', ['start', 'end'])
+        ranges = []
+        while current_date <= self.end_date:
+            start_of_month = current_date
+            end_of_month = current_date + relativedelta(day=31)
+            end_of_month = min(end_of_month, self.end_date)  # Ensure end of month is not greater than end date
+            month_range = MonthRange(start=start_of_month, end=end_of_month)
+            ranges.append(month_range)
+            current_date += relativedelta(months=1)
+
+        return ranges
+
+    def get_balances(self):
+
+        ranges = self._get_month_ranges()
+
+        balances = []
+        for range in ranges:
+            income_statement = IncomeStatement(end_date=range.end,start_date=range.start)
+            balance_sheet = BalanceSheet(end_date=range.end)
+
+            balance_sheet_start_date = range.start - timedelta(days=1)
+            balance_sheet_start = BalanceSheet(end_date=balance_sheet_start_date)
+            cash_flow_statement = CashFlowStatement(income_statement,balance_sheet_start,balance_sheet)
+
+            balances += income_statement.get_balances()
+            balances += balance_sheet.get_balances()
+            balances += cash_flow_statement.get_balances()
+
+        return balances
+
 class Balance:
 
-    def __init__(self, account, amount, type, sub_type):
+    def __init__(self, account, amount, account_type, account_sub_type, date=None, type='flow'):
         self.account = account
         self.amount = amount
+        self.account_type = account_type
+        self.account_sub_type = account_sub_type
+        self.date = date
         self.type = type
-        self.sub_type = sub_type
 
 class Metric:
 
@@ -21,8 +67,9 @@ class Statement:
     def __init__(self, end_date):
         self.end_date = end_date
 
+    # TODO: Is there a reason this is a staticmethod?
     @staticmethod
-    def _get_balance_from_aggregates(aggregates):
+    def _get_balance_from_aggregates(aggregates, end_date=None, balance_type=None):
         account_balance_list = []
         for aggregate in aggregates:
             account_type = aggregate['account__type']
@@ -30,8 +77,7 @@ class Statement:
             credits = aggregate['credit_total']
 
             balance = Account.get_balance_from_debit_and_credit(account_type,debits=debits,credits=credits)
-
-            account_balance_list.append(Balance(aggregate['account__name'],balance,account_type,aggregate['account__sub_type']))
+            account_balance_list.append(Balance(aggregate['account__name'],balance,account_type,aggregate['account__sub_type'],end_date,balance_type))
 
         sorted_list = sorted(account_balance_list, key=lambda k: k.account)
         return sorted_list
@@ -70,18 +116,22 @@ class Statement:
                     )
                 )
             )
-        balances = self._get_balance_from_aggregates(aggregates)
+        balance_type = 'flow'
+        if type(self) == BalanceSheet:
+            balance_type = 'stock'
+
+        balances = self._get_balance_from_aggregates(aggregates,self.end_date,balance_type)
 
         return balances
 
     def get_summaries(self):
         summary_metrics = {}
         for balance in self.balances:
-            account_type = Account.Type(balance.type).label
+            account_type = Account.Type(balance.account_type).label
             if not summary_metrics.get(account_type):
                 summary_metrics[account_type] = 0
 
-            sub_type = Account.SubType(balance.sub_type).label
+            sub_type = Account.SubType(balance.account_sub_type).label
             if not summary_metrics.get(sub_type):
                 summary_metrics[sub_type] = 0
             summary_metrics[account_type] += balance.amount
@@ -138,13 +188,16 @@ class CashFlowStatement(Statement):
         cash_flow = sum([balance.amount for balance in balances_list])
         return cash_flow
 
+    def get_balances(self):
+        return self.balances
+
     def get_levered_after_tax_cash_flow(self):
         return self.net_income_less_gains_and_losses + sum([summary.value for summary in self.summaries if summary.name == 'Cash Flow From Financing'])
 
     def get_levered_after_tax_after_retirement_cash_flow(self):
         levered_after_tax_cash_flow = self.get_levered_after_tax_cash_flow()
         cash_from_investing_balances = self.get_cash_from_investing_balances()
-        retirement_cash_flow = sum([balance.amount for balance in cash_from_investing_balances if balance.sub_type == Account.SubType.SECURITIES_RETIREMENT])
+        retirement_cash_flow = sum([balance.amount for balance in cash_from_investing_balances if balance.account_sub_type == Account.SubType.SECURITIES_RETIREMENT])
         return levered_after_tax_cash_flow + retirement_cash_flow
 
     def get_balance_sheet_account_deltas(self):
@@ -153,7 +206,10 @@ class CashFlowStatement(Statement):
         for account in accounts:
             starting_balance = sum([balance.amount for balance in self.start_balance_sheet.balances if balance.account == account.name])
             ending_balance = sum([balance.amount for balance in self.end_balance_sheet.balances if balance.account == account.name])
-            account_deltas.append(Balance(account.name,ending_balance - starting_balance,account.type,account.sub_type))
+            delta = ending_balance - starting_balance
+            if account.type == Account.Type.ASSET:
+                delta = delta * -1
+            account_deltas.append(Balance(account.name,delta,account.type,account.sub_type,self.end_balance_sheet.end_date))
 
         return account_deltas
 
@@ -162,16 +218,17 @@ class CashFlowStatement(Statement):
             Balance(
                 'Net Income less Gains/Losses',
                 self.net_income_less_gains_and_losses,
-                Account.Type.EQUITY,Account.
-                SubType.RETAINED_EARNINGS
+                Account.Type.EQUITY,Account.SubType.RETAINED_EARNINGS,
+                self.end_balance_sheet.end_date
             )
         ]
-        short_term_debt_accounts = [balance for balance in self.balance_sheet_deltas if balance.sub_type == Account.SubType.SHORT_TERM_DEBT]
-        taxes_payable_accounts = [balance for balance in self.balance_sheet_deltas if balance.sub_type == Account.SubType.TAXES_PAYABLE]
-        return net_income_less_gains_and_losses + short_term_debt_accounts + taxes_payable_accounts
+        accounts_receivable_accounts = [balance for balance in self.balance_sheet_deltas if balance.account_sub_type == Account.SubType.ACCOUNTS_RECEIVABLE]
+        short_term_debt_accounts = [balance for balance in self.balance_sheet_deltas if balance.account_sub_type == Account.SubType.SHORT_TERM_DEBT]
+        taxes_payable_accounts = [balance for balance in self.balance_sheet_deltas if balance.account_sub_type == Account.SubType.TAXES_PAYABLE]
+        return net_income_less_gains_and_losses + accounts_receivable_accounts + short_term_debt_accounts + taxes_payable_accounts
 
     def get_cash_from_financing_balances(self):
-        long_term_debt = [balance for balance in self.balance_sheet_deltas if balance.sub_type == Account.SubType.LONG_TERM_DEBT]
+        long_term_debt = [balance for balance in self.balance_sheet_deltas if balance.account_sub_type == Account.SubType.LONG_TERM_DEBT]
         return long_term_debt
 
     def get_cash_from_investing_balances(self):
@@ -205,7 +262,7 @@ class CashFlowStatement(Statement):
 
         balances = []
         for key, value in account_adjustments.items():
-            balances.append(Balance(key.name,value,key.type,key.sub_type))
+            balances.append(Balance(key.name,value,key.type,key.sub_type,self.end_balance_sheet.end_date))
         sorted_balances = sorted(balances, key=lambda k: k.account)
 
         return sorted_balances
@@ -219,7 +276,7 @@ class IncomeStatement(Statement):
 
         self.net_income = self.get_net_income()
         self.investment_gains = self.get_unrealized_gains_and_losses()
-        self.balances.append(Balance('Net Income', self.net_income, Account.Type.EQUITY, Account.SubType.RETAINED_EARNINGS))
+        self.balances.append(Balance('Net Income', self.net_income, Account.Type.EQUITY, Account.SubType.RETAINED_EARNINGS,self.end_date))
         self.metrics = self.get_metrics()
         self.summaries = self.get_summaries()
 
@@ -235,32 +292,32 @@ class IncomeStatement(Statement):
     def get_net_income(self):
         net_income = 0
         for balance in self.balances:
-            if balance.type == Account.Type.INCOME:
+            if balance.account_type == Account.Type.INCOME:
                 net_income += balance.amount
-            elif balance.type == Account.Type.EXPENSE:
+            elif balance.account_type == Account.Type.EXPENSE:
                 net_income -= balance.amount
 
         return net_income
 
     def get_taxable_income(self):
-        return sum([balance.amount for balance in self.balances if balance.type == Account.Type.INCOME and balance.sub_type not in [Account.SubType.UNREALIZED_INVESTMENT_GAINS,Account.SubType.OTHER_INCOME]])
+        return sum([balance.amount for balance in self.balances if balance.account_type == Account.Type.INCOME and balance.account_sub_type not in [Account.SubType.UNREALIZED_INVESTMENT_GAINS,Account.SubType.OTHER_INCOME]])
 
     def get_unrealized_gains_and_losses(self):
-        return sum([balance.amount for balance in self.balances if balance.sub_type == Account.SubType.UNREALIZED_INVESTMENT_GAINS])
+        return sum([balance.amount for balance in self.balances if balance.account_sub_type == Account.SubType.UNREALIZED_INVESTMENT_GAINS])
 
     def get_non_investment_gains_net_income(self):
         return self.net_income - self.investment_gains
 
     def get_tax_rate(self):
-        taxable_income = sum([balance.amount for balance in self.balances if balance.sub_type in [Account.SubType.SALARY, Account.SubType.DIVIDENDS_AND_INTEREST]])
-        taxes = sum([balance.amount for balance in self.balances if balance.sub_type == Account.SubType.TAX])
+        taxable_income = sum([balance.amount for balance in self.balances if balance.account_sub_type in [Account.SubType.SALARY, Account.SubType.DIVIDENDS_AND_INTEREST]])
+        taxes = sum([balance.amount for balance in self.balances if balance.account_sub_type == Account.SubType.TAX])
         if taxable_income == 0:
             return None
         return taxes / taxable_income
 
     def get_savings_rate(self):
         non_gains_net_income = self.get_non_investment_gains_net_income()
-        non_gains_income = sum([balance.amount for balance in self.balances if balance.sub_type != Account.SubType.UNREALIZED_INVESTMENT_GAINS and balance.type == Account.Type.INCOME])
+        non_gains_income = sum([balance.amount for balance in self.balances if balance.account_sub_type != Account.SubType.UNREALIZED_INVESTMENT_GAINS and balance.account_type == Account.Type.INCOME])
         if non_gains_income == 0:
             return None
         return non_gains_net_income / non_gains_income
@@ -272,8 +329,8 @@ class BalanceSheet(Statement):
         self.balances = self.get_balances()
         investment_gains_losses, net_retained_earnings = self.get_retained_earnings_values()
         self.balances += [
-            Balance('9000-Net Retained Earnings', net_retained_earnings, Account.Type.EQUITY, Account.SubType.RETAINED_EARNINGS),
-            Balance('9100-Investment Gains/Losses', investment_gains_losses, Account.Type.EQUITY, Account.SubType.RETAINED_EARNINGS)
+            Balance('9000-Net Retained Earnings', net_retained_earnings, Account.Type.EQUITY, Account.SubType.RETAINED_EARNINGS,self.end_date),
+            Balance('9100-Investment Gains/Losses', investment_gains_losses, Account.Type.EQUITY, Account.SubType.RETAINED_EARNINGS,self.end_date)
         ]
         self.summaries = self.get_summaries()
         self.metrics = self.get_metrics()
@@ -282,7 +339,7 @@ class BalanceSheet(Statement):
         income_statement = IncomeStatement(end_date=self.end_date,start_date='1970-01-01')
         retained_earnings = income_statement.get_net_income()
 
-        investment_gains_losses = sum([balance.amount for balance in income_statement.balances if balance.sub_type == Account.SubType.UNREALIZED_INVESTMENT_GAINS])
+        investment_gains_losses = sum([balance.amount for balance in income_statement.balances if balance.account_sub_type == Account.SubType.UNREALIZED_INVESTMENT_GAINS])
         net_retained_earnings = retained_earnings - investment_gains_losses
 
         return investment_gains_losses, net_retained_earnings
