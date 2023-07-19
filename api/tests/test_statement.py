@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 from api.statement import BalanceSheet, IncomeStatement, CashFlowStatement, Trend
@@ -118,31 +118,22 @@ class TrendTest(TestCase):
         )
 
     def test_create_trend(self):
-        trend = Trend('income_statement','2023-01-01','2023-06-30')
-        self.assertEqual(trend.type, 'income_statement')
+        trend = Trend('2023-01-01','2023-06-30')
+        self.assertTrue(trend.start_date)
 
     def test_month_ranges(self):
-        trend = Trend('income_statement','2023-01-01','2023-06-30')
+        trend = Trend('2023-01-01','2023-06-30')
         ranges = trend._get_month_ranges()
         self.assertEqual(len(ranges),6)
-        self.assertEqual(ranges[0].start,datetime(2023, 1, 1, 0, 0))
-        self.assertEqual(ranges[-1].start,datetime(2023, 6, 1, 0, 0))
-        self.assertEqual(ranges[-1].end,datetime(2023, 6, 30, 0, 0))
-
-    def test_income_statements(self):
-        trend = Trend('income_statement','2023-01-01','2023-06-30')
-        ranges = trend._get_month_ranges()
-        income_statements = trend._get_statements(ranges)
-        self.assertEqual(len(income_statements),6)
+        self.assertEqual(ranges[0].start,date(2023, 1, 1))
+        self.assertEqual(ranges[-1].start,date(2023, 6, 1))
+        self.assertEqual(ranges[-1].end,date(2023, 6, 30))
 
     def test_balance_trends(self):
-        trend = Trend('income_statement','2023-01-01','2023-06-30')
+        trend = Trend('2023-01-01','2023-06-30')
         ranges = trend._get_month_ranges()
-        income_statements = trend._get_statements(ranges)
-        trends = trend._get_balance_trends(income_statements)
-        self.assertEqual(len(trends),6)
-
-
+        balances = trend.get_balances()
+        self.assertTrue(balances)
 
 class BalanceSheetTest(TestCase):
     def setUp(self):
