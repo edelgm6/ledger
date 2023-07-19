@@ -73,11 +73,13 @@ class CSVProfileOutputSerializer(serializers.ModelSerializer):
         fields = ['name','date','amount','description','category','accounts','account']
         depth = 1
 
-class BalancesOutputSerializer(serializers.Serializer):
+class BalanceOutputSerializer(serializers.Serializer):
     account = serializers.CharField(max_length=200)
     amount = serializers.DecimalField(max_digits=12,decimal_places=2)
-    type = serializers.CharField(max_length=200)
-    sub_type = serializers.CharField(max_length=200)
+    account_type = serializers.CharField(max_length=200)
+    account_sub_type = serializers.CharField(max_length=200)
+    date = serializers.DateField()
+    type = serializers.CharField(max_length=5)
 
 class MetricsOutputSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200)
@@ -85,7 +87,7 @@ class MetricsOutputSerializer(serializers.Serializer):
     metric_type = serializers.CharField(max_length=200)
 
 class StatementOutputSerializer(serializers.Serializer):
-    balances = BalancesOutputSerializer(many=True, read_only=True)
+    balances = BalanceOutputSerializer(many=True, read_only=True)
     metrics = MetricsOutputSerializer(many=True, read_only=True)
     summaries = MetricsOutputSerializer(many=True, read_only=True)
 
@@ -302,11 +304,3 @@ class TaxChargeOutputSerializer(serializers.ModelSerializer):
         income_statement = IncomeStatement(end_date=tax_charge.date,start_date=start_date)
 
         return income_statement.get_taxable_income()
-
-# class JournalEntryItemOutputWithTransactionSerializer(serializers.ModelSerializer):
-#     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name')
-#     journal_entry = JournalEntryOutputSerializer(read_only=True)
-
-#     class Meta:
-#         model = JournalEntryItem
-#         fields = ['id','type','amount','account','journal_entry']

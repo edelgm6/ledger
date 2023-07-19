@@ -11,9 +11,22 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, generics
 from rest_framework.exceptions import ValidationError
-from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer, TaxChargeInputSerializer, TaxChargeOutputSerializer, CreateTaxChargeInputSerializer
+from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer, TaxChargeInputSerializer, TaxChargeOutputSerializer, CreateTaxChargeInputSerializer, BalanceOutputSerializer
 from api.models import TaxCharge, Transaction, Account, CSVProfile, Reconciliation, JournalEntry
-from api.statement import BalanceSheet, IncomeStatement, CashFlowStatement
+from api.statement import BalanceSheet, IncomeStatement, CashFlowStatement, Trend
+
+class TrendView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+
+        trend = Trend(start_date,end_date)
+
+        balances_output_serializer = BalanceOutputSerializer(trend.get_balances(), many=True)
+        return Response(balances_output_serializer.data)
 
 class PlugReconciliationView(APIView):
     authentication_classes = [TokenAuthentication]

@@ -496,7 +496,6 @@ class JournalEntryViewTest(TestCase):
         force_authenticate(request, user=user)
         response = self.VIEW.as_view()(request)
         self.assertEqual(response.status_code, 200)
-        print(response.data)
 
     def test_fails_if_debit_credit_imbalance(self):
         user = User.objects.create(username='admin')
