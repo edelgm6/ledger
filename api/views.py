@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, generics
 from rest_framework.exceptions import ValidationError
-from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer, TaxChargeInputSerializer, TaxChargeOutputSerializer, CreateTaxChargeInputSerializer, BalanceOutputSerializer
+from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer, TaxChargeInputSerializer, TaxChargeOutputSerializer, CreateTaxChargeInputSerializer, BalanceOutputSerializer, TransactionBulkUploadSerializer
 from api.models import TaxCharge, Transaction, Account, CSVProfile, Reconciliation, JournalEntry
 from api.statement import BalanceSheet, IncomeStatement, CashFlowStatement, Trend
 
@@ -141,9 +141,12 @@ class UploadTransactionsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        transaction_input_serializer = TransactionInputSerializer(data=request.data, many=True)
+        transaction_input_serializer = TransactionBulkUploadSerializer(data=request.data)
         if transaction_input_serializer.is_valid():
-            transactions = transaction_input_serializer.save()
+            print(transaction_input_serializer.data['account'])
+            account = Account.objects.get(name=transaction_input_serializer.data['account'])
+            csv_profile = account.csv_profile
+            transactions = csv_profile.create_transactions_from_csv(transaction_input_serializer.data['blob'], account)
             transaction_output_serializer = TransactionOutputSerializer(transactions,many=True)
             return Response(transaction_output_serializer.data, status=status.HTTP_201_CREATED)
 
