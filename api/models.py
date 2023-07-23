@@ -92,6 +92,22 @@ class Transaction(models.Model):
     def __str__(self):
         return str(self.date) + ' ' + self.account.name + ' ' + self.description + ' $' + str(self.amount)
 
+    def save(self, *args, **kwargs):
+        suggested_account = None
+        suggested_type = Transaction.TransactionType.PURCHASE
+        auto_tags = AutoTag.objects.all()
+
+        for tag in auto_tags:
+            if tag.search_string in self.description.lower():
+                suggested_account = tag.account
+                if tag.transaction_type:
+                    suggested_type = tag.transaction_type
+                break
+
+        self.suggested_account = suggested_account
+        self.type = suggested_type
+        super().save(*args, **kwargs)
+
     def close(self, date):
         self.is_closed = True
         self.date_closed = date
@@ -302,6 +318,10 @@ class AutoTag(models.Model):
     def __str__(self):
         return '"' + self.search_string +  '": ' + str(self.account)
 
+class CSVColumnValuePair(models.Model):
+    column = models.CharField(max_length=200)
+    value = models.CharField(max_length=200)
+
 class CSVProfile(models.Model):
     name = models.CharField(max_length=200)
     date = models.CharField(max_length=200)
@@ -309,6 +329,70 @@ class CSVProfile(models.Model):
     description = models.CharField(max_length=200)
     category = models.CharField(max_length=200)
     account = models.CharField(max_length=200, blank=True)
+    clear_prepended_until_value = models.CharField(max_length=200, blank=True)
+    clear_values_column_pairs = models.ManyToManyField(CSVColumnValuePair, null=True, blank=True)
+    inflow = models.CharField(max_length=200)
+    outflow = models.CharField(max_length=200)
 
     def __str__(self):
         return self.name
+
+    def create_transactions_from_csv(self, csv, account):
+        rows_cleaned_csv = self._clear_prepended_rows(csv)
+        dict_based_csv = self._list_of_lists_to_list_of_dicts(rows_cleaned_csv)
+        cleared_rows_csv = self._clear_extraneous_rows(dict_based_csv)
+        print(cleared_rows_csv)
+
+        transactions_list = []
+        for row in cleared_rows_csv:
+            transactions_list.append(
+                Transaction.objects.create(
+                    date=row[self.date],
+                    account=account,
+                    amount=self._get_coalesced_amount(row),
+                    description=row[self.description],
+                    category=row[self.category]
+                )
+            )
+
+        return transactions_list
+
+    def _get_coalesced_amount(self, row):
+        if row[self.inflow] != 0:
+            return row[self.inflow]
+        else:
+            return row[self.outflow]
+
+    def _clear_prepended_rows(self, csv_data):
+
+        target_row_index = None
+        for i, row in enumerate(csv_data):
+            if self.clear_prepended_until_value in row:
+                target_row_index = i
+                break
+
+        if target_row_index is not None:
+            del csv_data[:target_row_index]
+
+        return csv_data
+
+    def _list_of_lists_to_list_of_dicts(self, list_of_lists):
+        column_headings = list_of_lists[0]
+        list_of_dicts = [dict(zip(column_headings, row)) for row in list_of_lists[1:]]
+        return list_of_dicts
+
+    def _clear_extraneous_rows(self, rows_list):
+
+        cleaned_rows = []
+        for row in rows_list:
+            for key_clear_pair in self.clear_values_column_pairs.all():
+                column_name = key_clear_pair.column
+                clear_out_value = key_clear_pair.value
+                try:
+                    if row[column_name] == clear_out_value:
+                        continue
+                except KeyError:
+                    continue
+            cleaned_rows.append(row)
+
+        return cleaned_rows
