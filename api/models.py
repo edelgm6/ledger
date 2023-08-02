@@ -325,14 +325,13 @@ class CSVColumnValuePair(models.Model):
 class CSVProfile(models.Model):
     name = models.CharField(max_length=200)
     date = models.CharField(max_length=200)
-    amount = models.CharField(max_length=200)
     description = models.CharField(max_length=200)
     category = models.CharField(max_length=200)
-    account = models.CharField(max_length=200, blank=True)
     clear_prepended_until_value = models.CharField(max_length=200, blank=True)
     clear_values_column_pairs = models.ManyToManyField(CSVColumnValuePair, null=True, blank=True)
     inflow = models.CharField(max_length=200)
     outflow = models.CharField(max_length=200)
+    date_format = models.CharField(max_length=200, default='%Y-%m-%d')
 
     def __str__(self):
         return self.name
@@ -341,13 +340,13 @@ class CSVProfile(models.Model):
         rows_cleaned_csv = self._clear_prepended_rows(csv)
         dict_based_csv = self._list_of_lists_to_list_of_dicts(rows_cleaned_csv)
         cleared_rows_csv = self._clear_extraneous_rows(dict_based_csv)
-        print(cleared_rows_csv)
 
         transactions_list = []
         for row in cleared_rows_csv:
+            print(row)
             transactions_list.append(
                 Transaction.objects.create(
-                    date=row[self.date],
+                    date=self._get_formatted_date(row[self.date]),
                     account=account,
                     amount=self._get_coalesced_amount(row),
                     description=row[self.description],
@@ -357,13 +356,25 @@ class CSVProfile(models.Model):
 
         return transactions_list
 
+    def _get_formatted_date(self, date_string):
+        # Parse the original date using the input format
+        original_date = datetime.datetime.strptime(date_string, self.date_format)
+
+        # Format the date to the desired output format
+        formatted_date = original_date.strftime('%Y-%m-%d')
+
+        return formatted_date
+
     def _get_coalesced_amount(self, row):
-        if row[self.inflow] != 0:
+        if row[self.inflow]:
             return row[self.inflow]
         else:
             return row[self.outflow]
 
     def _clear_prepended_rows(self, csv_data):
+
+        if not self.clear_prepended_until_value:
+            return csv_data
 
         target_row_index = None
         for i, row in enumerate(csv_data):
@@ -378,11 +389,12 @@ class CSVProfile(models.Model):
 
     def _list_of_lists_to_list_of_dicts(self, list_of_lists):
         column_headings = list_of_lists[0]
-        list_of_dicts = [dict(zip(column_headings, row)) for row in list_of_lists[1:]]
+        trimmed_headings = [heading.strip() for heading in column_headings]
+        list_of_dicts = [dict(zip(trimmed_headings, row)) for row in list_of_lists[1:]]
         return list_of_dicts
 
+    # TODO: Instead of this being a seprate function, just skip creating transactions?
     def _clear_extraneous_rows(self, rows_list):
-
         cleaned_rows = []
         for row in rows_list:
             for key_clear_pair in self.clear_values_column_pairs.all():

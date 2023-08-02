@@ -8,7 +8,7 @@ class AutoTagAdmin(admin.ModelAdmin):
     list_display = ('account','search_string','transaction_type')
 
 class CSVProfileAdmin(admin.ModelAdmin):
-    list_display = ('name','date','amount','description','category')
+    list_display = ('name','date','description','category')
 
 class JournalEntryItemAdmin(admin.ModelAdmin):
     list_display = ('journal_entry','type','amount','account')
