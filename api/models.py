@@ -343,7 +343,6 @@ class CSVProfile(models.Model):
 
         transactions_list = []
         for row in cleared_rows_csv:
-            print(row)
             transactions_list.append(
                 Transaction.objects.create(
                     date=self._get_formatted_date(row[self.date]),
@@ -393,7 +392,6 @@ class CSVProfile(models.Model):
         list_of_dicts = [dict(zip(trimmed_headings, row)) for row in list_of_lists[1:]]
         return list_of_dicts
 
-    # TODO: Instead of this being a seprate function, just skip creating transactions?
     def _clear_extraneous_rows(self, rows_list):
         cleaned_rows = []
         for row in rows_list:
