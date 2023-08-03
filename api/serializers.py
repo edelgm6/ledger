@@ -216,6 +216,13 @@ class TransactionOutputSerializer(serializers.ModelSerializer):
         fields = ['id','date','account','amount','description','category','is_closed','date_closed','suggested_account','type','linked_transaction','journal_entry']
         depth = 3
 
+class TransactionBulkUploadSerializer(serializers.Serializer):
+    account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name',required=False)
+    blob = serializers.JSONField()
+
+    def create(self, validated_data):
+        upload_profile = validated_data['account'].csv_profile
+
 class TransactionInputSerializer(serializers.ModelSerializer):
     account = serializers.SlugRelatedField(queryset=Account.objects.all(),slug_field='name',required=False)
     type = serializers.CharField(max_length=25,required=False)
@@ -237,24 +244,6 @@ class TransactionInputSerializer(serializers.ModelSerializer):
             'suggested_account'
         ]
 
-    def create(self, validated_data):
-        suggested_account = None
-        suggested_type = Transaction.TransactionType.PURCHASE
-        auto_tags = AutoTag.objects.all()
-
-        for tag in auto_tags:
-            if tag.search_string in validated_data['description'].lower():
-                suggested_account = tag.account
-                if tag.transaction_type:
-                    suggested_type = tag.transaction_type
-                break
-
-        validated_data['suggested_account'] = suggested_account
-        validated_data['type'] = suggested_type
-        transaction = Transaction.objects.create(**validated_data)
-
-        return transaction
-
     def update(self, instance, validated_data):
         instance.linked_transaction = validated_data.get('linked_transaction', instance.linked_transaction)
         instance.date = validated_data.get('date', instance.date)
@@ -273,7 +262,6 @@ class TransactionInputSerializer(serializers.ModelSerializer):
             instance.suggested_account = validated_data.get('linked_transaction').account
 
         instance.save()
-
         return instance
 
 class CreateTaxChargeInputSerializer(serializers.ModelSerializer):
