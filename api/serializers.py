@@ -70,7 +70,7 @@ class ReconciliationOutputSerializer(serializers.ModelSerializer):
 class CSVProfileOutputSerializer(serializers.ModelSerializer):
     class Meta:
         model = CSVProfile
-        fields = ['name','date','amount','description','category','accounts','account']
+        fields = ['name','date','description','category','accounts']
         depth = 1
 
 class BalanceOutputSerializer(serializers.Serializer):

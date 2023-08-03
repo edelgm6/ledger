@@ -413,7 +413,6 @@ class CSVProfileViewTest(TestCase):
         profile = CSVProfile.objects.create(
             name='name',
             date='date',
-            amount='amount',
             description='description',
             category='category'
         )
@@ -846,11 +845,22 @@ class UploadTransactionsViewTest(TestCase):
     def test_upload_transactions(self):
         user = User.objects.create(username='admin')
 
+        csv_profile = CSVProfile.objects.create(
+            name='chase',
+            date='date',
+            description='description',
+            category='type',
+            inflow='amount',
+            outflow='amount'
+        )
+
         account = Account.objects.create(
             name='1200-Chase',
             type='liability',
-            sub_type='short_term_debt'
+            sub_type='short_term_debt',
+            csv_profile=csv_profile
         )
+
         auto_tag = AutoTag.objects.create(
             search_string='uber',
             account=account,
@@ -863,25 +873,37 @@ class UploadTransactionsViewTest(TestCase):
         )
 
         factory = APIRequestFactory()
-        payload = [
-            {
-                'account': account.name,
-                'date': '2023-01-01',
-                'amount': -11.50,
-                'category': 'transfer',
-                'description': 'uber ride'
-            },
-            {
-                'account': account.name,
-                'date': '2023-01-01',
-                'amount': -20.50,
-                'description': 'dividend'
-            }
-        ]
+        payload = {
+            'account': account.name,
+            'blob': [
+                [
+                    'account',
+                    'date',
+                    'amount',
+                    'type',
+                    'description'
+                ],
+                [
+                    account.name,
+                    '2023-01-01',
+                    -11.50,
+                    'transfer',
+                    'uber ride'
+                ],
+                [
+                    account.name,
+                    '2023-01-01',
+                    -20.50,
+                    '',
+                    'dividend'
+                ]
+            ]
+        }
         request = factory.post(self.ENDPOINT, payload, format='json')
         force_authenticate(request, user=user)
         response = self.VIEW.as_view()(request)
         self.assertEqual(response.status_code, 201)
+
         transaction = Transaction.objects.get(category='transfer')
         self.assertEqual(transaction.account, account)
         self.assertEqual(transaction.description, 'uber ride')

@@ -105,7 +105,7 @@ class Transaction(models.Model):
                 break
 
         self.suggested_account = suggested_account
-        self.type = suggested_type
+        self.type = self.type or suggested_type
         super().save(*args, **kwargs)
 
     def close(self, date):
