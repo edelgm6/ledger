@@ -395,14 +395,17 @@ class CSVProfile(models.Model):
     def _clear_extraneous_rows(self, rows_list):
         cleaned_rows = []
         for row in rows_list:
+            include_row = True
             for key_clear_pair in self.clear_values_column_pairs.all():
                 column_name = key_clear_pair.column
                 clear_out_value = key_clear_pair.value
                 try:
                     if row[column_name] == clear_out_value:
-                        continue
+                        include_row = False
+                        break
                 except KeyError:
                     continue
-            cleaned_rows.append(row)
+            if include_row:
+                cleaned_rows.append(row)
 
         return cleaned_rows
