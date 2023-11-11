@@ -212,6 +212,7 @@ class Account(models.Model):
         STATE_TAXES = 'state_taxes', _('State Taxes')
         FEDERAL_TAXES = 'federal_taxes', _('Federal Taxes')
         PROPERTY_TAXES = 'property_taxes', _('Property Taxes')
+        WALLET = 'wallet', _('Wallet')
 
     class Type(models.TextChoices):
         ASSET = 'asset', _('Asset')

@@ -15,13 +15,13 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from api.views import TaxChargeView, JournalEntryView, TransactionView, AccountView, UploadTransactionsView, AccountBalanceView, TransactionTypeView, CSVProfileView, GenerateReconciliationsView, ReconciliationView, PlugReconciliationView, TrendView
+from django.contrib.auth.views import LoginView
+from api.views import IndexView, TaxChargeView, JournalEntryView, TransactionView, AccountView, UploadTransactionsView, AccountBalanceView, TransactionTypeView, CSVProfileView, GenerateReconciliationsView, ReconciliationView, PlugReconciliationView, TrendView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('journal-entries/<int:pk>', JournalEntryView.as_view(), name='update-journal-entry'),
     path('journal-entries/', JournalEntryView.as_view(), name='journal-entries'),
-    # path('journal-entry-items/', JournalEntryItemView.as_view(), name='journal-entry-items'),
     path('transactions/<int:pk>', TransactionView.as_view(), name='update-transaction'),
     path('transactions/', TransactionView.as_view(), name='transactions'),
     path('transaction-types/', TransactionTypeView.as_view(), name='transaction-types'),
@@ -35,4 +35,6 @@ urlpatterns = [
     path('tax-charges/<int:pk>', TaxChargeView.as_view(), name='update-tax-charge'),
     path('tax-charges/', TaxChargeView.as_view(), name='tax-charges'),
     path('trend/', TrendView.as_view(), name='trend'),
+    path('', IndexView.as_view(), name='index'),
+    path('login/', LoginView.as_view(template_name='api/login.html'), name='login'),
 ]
