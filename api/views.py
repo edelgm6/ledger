@@ -34,8 +34,7 @@ class IndexView(LoginRequiredMixin, View):
         if form.is_valid():
             transaction = form.save()
             success = render_to_string(self.success_template, {'transaction': transaction})
-            html = render_to_string(self.template, {'form': self.form_class, 'today': timezone.localdate(), 'success': success})
-            return HttpResponse(html)
+            return HttpResponse(success)
 
         return render(request, self.template_name, {'form': form})
 
