@@ -13,7 +13,7 @@
 
         <h2>Wallet transactions</h2>
 
-        <form method="post" hx-post="/" class="form-group">
+        <form method="post" hx-post="/" hx-swap="innerHTML" hx-target="#transaction-result" class="form-group">
             {% csrf_token %}
 
             <!-- Date Field -->
