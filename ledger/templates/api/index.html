@@ -10,7 +10,8 @@
 
 <body>
     <div class="container mt-5">
-        {% load tz %} <!-- Load the timezone template tags -->
+
+        <h2>Wallet transactions</h2>
 
         <form method="post" hx-post="/" class="form-group">
             {% csrf_token %}
