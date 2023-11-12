@@ -4,6 +4,11 @@ from api.models import Transaction, Account
 
 
 class TransactionForm(forms.ModelForm):
+
+    suggested_account = forms.ModelChoiceField(
+        queryset=Account.objects.exclude(special_type=Account.SpecialType.WALLET)
+    )
+
     class Meta:
         model = Transaction
         fields = ['date','amount','description','suggested_account']
@@ -11,12 +16,10 @@ class TransactionForm(forms.ModelForm):
             'date': forms.DateInput(attrs={'type': 'date'}),
             'amount': forms.NumberInput(attrs={'step': '1'})
         }
-        suggested_account = forms.ModelChoiceField(
-            queryset=Account.objects.all()
-        )
 
     def __init__(self, *args, **kwargs):
         super(TransactionForm, self).__init__(*args, **kwargs)
+        print(Account.objects.exclude(special_type=Account.SpecialType.WALLET))
         self.fields['date'].initial = timezone.localdate()  # Set today's date as initial value
 
     def save(self, *args, **kwargs):
@@ -25,7 +28,5 @@ class TransactionForm(forms.ModelForm):
 
         instance.account = wallet
         instance.amount = instance.amount * -1
-        print(instance.suggested_account)
         instance.save()
-        print(instance.suggested_account)
         return instance
