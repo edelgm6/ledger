@@ -31,10 +31,8 @@ class IndexView(LoginRequiredMixin, View):
 
     def post(self, request, *args, **kwargs):
         form = self.form_class(request.POST)
-        print(request.POST)
         if form.is_valid():
             transaction = form.save()
-            print(transaction.suggested_account)
             success = render_to_string(self.success_template, {'transaction': transaction})
             return HttpResponse(success)
 
