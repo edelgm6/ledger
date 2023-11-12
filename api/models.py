@@ -93,19 +93,21 @@ class Transaction(models.Model):
         return str(self.date) + ' ' + self.account.name + ' ' + self.description + ' $' + str(self.amount)
 
     def save(self, *args, **kwargs):
-        suggested_account = None
-        suggested_type = Transaction.TransactionType.PURCHASE
-        auto_tags = AutoTag.objects.all()
+        if not self.suggested_account:
+            suggested_account = None
+            suggested_type = Transaction.TransactionType.PURCHASE
+            auto_tags = AutoTag.objects.all()
 
-        for tag in auto_tags:
-            if tag.search_string in self.description.lower():
-                suggested_account = tag.account
-                if tag.transaction_type:
-                    suggested_type = tag.transaction_type
-                break
+            for tag in auto_tags:
+                if tag.search_string in self.description.lower():
+                    suggested_account = tag.account
+                    if tag.transaction_type:
+                        suggested_type = tag.transaction_type
+                    break
 
-        self.suggested_account = suggested_account
-        self.type = self.type or suggested_type
+            self.suggested_account = suggested_account
+            self.type = self.type or suggested_type
+
         super().save(*args, **kwargs)
 
     def close(self, date):
