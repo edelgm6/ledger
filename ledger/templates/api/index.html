@@ -1,52 +1,135 @@
-{% load static %}
-{% load humanize %}
-
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
+
+<head>
+    <!-- Responsive viewport meta tag -->
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Ledger</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
-  </head>
-  <body>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <script src="https://unpkg.com/htmx.org"></script>
+
+    <!-- Select2 CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+    <!-- Include jQuery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <!-- Select2 JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+    <!-- Initialize Select2 elements -->
+    <script>
+        $(document).ready(function() {
+            $('.select2').select2({
+                placeholder: 'Select an account',
+                allowClear: true
+            });
+        });
+    </script>
+
+    <style>
+        .form-control, .select2-container--default .select2-selection--single {
+            width: 100%; /* Ensure full-width for all form controls */
+        }
+
+        .select2-container--default .select2-selection--single {
+        border: 1px solid #ced4da; /* Match Bootstrap's border color */
+        border-radius: 0.25rem; /* Match Bootstrap's border radius */
+        height: calc(1.5em + 0.75rem + 2px); /* Match Bootstrap's height */
+        padding: 0.375rem 0.75rem; /* Match Bootstrap's padding */
+        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 1.5; /* Match Bootstrap's line height */
+        padding-left: 0; /* Remove padding-left */
+        padding-right: 0; /* Remove padding-right */
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: calc(1.5em + 0.75rem + 2px); /* Match Bootstrap's height */
+        }
+    </style>
+
+</head>
+
+
+<body>
     <div class="container">
-        <br><br>
-    <div class="col-md-6">
-        {% for type, type_values in balances.items %}
-            <h3>{{ type_values.name }}</h3>
-            {% for sub_type, sub_values in type_values.sub_types.items %}
-                <h5>{{ sub_values.name }}</h5>
-                {% for account in sub_values.accounts %}
-                <div class="row">
-                    <div class="col d-flex justify-content-between">
-                        <div class="text-start">{{ account.account }}</div>
-                        <div class="text-end text-monospace">${{ account.balance|floatformat:2|intcomma }}</div>
+
+        <div class="row">
+            <div class="col">
+                <h2>Wallet transactions</h2>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <form method="post" hx-post="/" hx-swap="innerHTML" hx-target="#transaction-result" class="form-group">
+                    {% csrf_token %}
+
+                    <!-- Date Field -->
+                    <div class="form-group">
+                        <input type="date" name="{{ form.date.html_name }}" id="{{ form.date.id_for_label }}"
+                            class="form-control"
+                            value="{{ form.date.value|default_if_none:today|date:'Y-m-d' }}"
+                            placeholder="{{ form.date.label }}">
+                        {% for error in form.date.errors %}
+                            <div class="alert alert-danger">{{ error }}</div>
+                        {% endfor %}
                     </div>
-                </div>
-                {% endfor %}
-                <hr>
-                <div class="row">
-                    <div class="col d-flex justify-content-between">
-                        <div class="text-start">Sub-total</div>
-                        <div class="text-end text-monospace">${{ sub_values.total|floatformat:2|intcomma }}</div>
+
+                    <!-- Amount Field -->
+                    <div class="form-group">
+                        <div class="input-group">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">$</span>
+                            </div>
+                            <input type="text" name="{{ form.amount.html_name }}" id="{{ form.amount.id_for_label }}"
+                                class="form-control"
+                                value="{{ form.amount.value|default_if_none:'' }}"
+                                placeholder="{{ form.amount.label }}">
+                        </div>
+                        {% for error in form.amount.errors %}
+                            <div class="alert alert-danger">{{ error }}</div>
+                        {% endfor %}
                     </div>
-                </div>
-                <br>
-            {% endfor %}
-            <hr>
-            <div class="row">
-                <div class="col d-flex justify-content-between">
-                    <div class="text-start">Total</div>
-                    <div class="text-end">${{ type_values.total|floatformat:2|intcomma }}</div>
+
+                    <!-- Description Field -->
+                    <div class="form-group">
+                        <input type="text" name="{{ form.description.html_name }}" id="{{ form.description.id_for_label }}"
+                            class="form-control"
+                            value="{{ form.description.value|default_if_none:'' }}"
+                            placeholder="{{ form.description.label }}">
+                        {% for error in form.description.errors %}
+                            <div class="alert alert-danger">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Suggested Account Field -->
+                    <div class="form-group">
+                        <!-- <label for="id_suggested_account">Suggested account</label> -->
+                        <select name="suggested_account" id="id_suggested_account" class="form-control select2">
+                            <option value="" selected="selected">---------</option>
+                            {% for account in form.suggested_account.field.queryset %}
+                                <option value="{{ account.pk }}">{{ account }}</option>
+                            {% endfor %}
+                        </select>
+                        {% for error in form.suggested_account.errors %}
+                            <div class="alert alert-danger">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </form>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <div id="transaction-result">
+                    {{ success }}
                 </div>
             </div>
-            <br>
-        {% endfor %}
+        </div>
     </div>
-    <div class="col-md-6"></div>
 
-    </div>
-  </body>
-</html>
+    <!-- Script for CSRF Token with htmx -->
+    <script>
+        document.body.addEventListener('htmx:configRequest', (event) => {
+            event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+        });
+    </script>
+</body>
