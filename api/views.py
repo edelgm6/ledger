@@ -1,10 +1,13 @@
 import datetime
 from decimal import Decimal
-from django.http import Http404
+from django.http import Http404, HttpResponse
+from django.template.loader import render_to_string
 from django.views import View
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.decorators import method_decorator
+from django.utils import timezone
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -14,6 +17,26 @@ from rest_framework.exceptions import ValidationError
 from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer, TaxChargeInputSerializer, TaxChargeOutputSerializer, CreateTaxChargeInputSerializer, BalanceOutputSerializer, TransactionBulkUploadSerializer
 from api.models import TaxCharge, Transaction, Account, CSVProfile, Reconciliation, JournalEntry
 from api.statement import BalanceSheet, IncomeStatement, CashFlowStatement, Trend
+from api.forms import TransactionForm
+
+class IndexView(LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
+    template = 'api/index.html'
+    success_template = 'api/wallet-success.html'
+    form_class = TransactionForm
+
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template, {'form': self.form_class,'today': timezone.localdate()})
+
+    def post(self, request, *args, **kwargs):
+        form = self.form_class(request.POST)
+        if form.is_valid():
+            transaction = form.save()
+            success = render_to_string(self.success_template, {'transaction': transaction})
+            return HttpResponse(success)
+
+        return render(request, self.template_name, {'form': form})
 
 class TrendView(APIView):
     authentication_classes = [TokenAuthentication]
