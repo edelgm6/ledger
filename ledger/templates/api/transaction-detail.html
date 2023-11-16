@@ -1,0 +1,9 @@
+<div id="transaction-detail">
+    {% if transaction %}<h3>Transaction Details</h3>{% endif %}
+    <p>{{ transaction.date }}</p>
+    <p>{{ transaction.account }}</p>
+    <p>{{ transaction.amount }}</td>
+    <p>{{ transaction.description }}</p>
+    <p>{{ transaction.category }}</p>
+    <p>{{ transaction.get_type_display }}</p>
+</div>

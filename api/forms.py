@@ -2,6 +2,28 @@ from django import forms
 from django.utils import timezone
 from api.models import Transaction, Account
 
+class TransactionFilterForm(forms.Form):
+    date_from = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'placeholder': 'Start Date', 'class': 'form-control'})
+    )
+    date_to = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'placeholder': 'End Date', 'class': 'form-control'})
+    )
+    is_closed = forms.BooleanField(required=False)
+    account = forms.ModelMultipleChoiceField(
+        queryset=Account.objects.all(),
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-control select2'})
+    )
+    transaction_type = forms.MultipleChoiceField(
+        choices=Transaction.TransactionType.choices,
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-control select2'})
+    )
+
+
 
 class TransactionForm(forms.ModelForm):
 
