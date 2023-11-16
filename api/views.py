@@ -3,7 +3,8 @@ from decimal import Decimal
 from django.http import Http404, HttpResponse
 from django.template.loader import render_to_string
 from django.views import View
-from django.shortcuts import render
+from django.views.generic import ListView
+from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.decorators import method_decorator
@@ -17,7 +18,55 @@ from rest_framework.exceptions import ValidationError
 from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer, TaxChargeInputSerializer, TaxChargeOutputSerializer, CreateTaxChargeInputSerializer, BalanceOutputSerializer, TransactionBulkUploadSerializer
 from api.models import TaxCharge, Transaction, Account, CSVProfile, Reconciliation, JournalEntry
 from api.statement import BalanceSheet, IncomeStatement, CashFlowStatement, Trend
-from api.forms import TransactionForm
+from api.forms import TransactionForm, TransactionFilterForm
+
+class TransactionDetailView(View):
+    template = 'api/transaction-detail.html'
+
+    def get(self, request, *args, **kwargs):
+        transaction_id = kwargs.get('pk')  # Assuming the URL pattern uses 'pk' for transaction ID
+        transaction = get_object_or_404(Transaction, pk=transaction_id)
+        return render(request, self.template, {'transaction': transaction})
+
+class TransactionQueryMixin:
+    def get_filtered_queryset(self, request):
+        queryset = Transaction.objects.all()
+        form = TransactionFilterForm(request.GET)
+
+        if form.is_valid():
+            if form.cleaned_data.get('date_from'):
+                queryset = queryset.filter(date__gte=form.cleaned_data['date_from'])
+            if form.cleaned_data.get('date_to'):
+                queryset = queryset.filter(date__lte=form.cleaned_data['date_to'])
+            if form.cleaned_data.get('is_closed') is not None:
+                queryset = queryset.filter(is_closed=form.cleaned_data['is_closed'])
+            if form.cleaned_data['account']:
+                queryset = queryset.filter(account__in=form.cleaned_data['account'])
+            if form.cleaned_data['transaction_type']:
+                queryset = queryset.filter(type__in=form.cleaned_data['transaction_type'])
+
+        return queryset
+
+class TransactionsTableView(TransactionQueryMixin, View):
+    template = 'api/transactions-table.html'
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_filtered_queryset(request)
+        return render(request, self.template, {'transactions': queryset})
+
+
+class TransactionsListView(TransactionQueryMixin, View):
+    template = 'api/transactions-list.html'
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_filtered_queryset(request)
+        filter_form = TransactionFilterForm(request.GET or None)
+        context = {
+            'transactions': queryset,
+            'filter_form': filter_form,
+        }
+        return render(request, self.template, context)
+
 
 class IndexView(LoginRequiredMixin, View):
     login_url = '/login/'

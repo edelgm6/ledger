@@ -16,7 +16,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from django.contrib.auth.views import LoginView
-from api.views import IndexView, TaxChargeView, JournalEntryView, TransactionView, AccountView, UploadTransactionsView, AccountBalanceView, TransactionTypeView, CSVProfileView, GenerateReconciliationsView, ReconciliationView, PlugReconciliationView, TrendView
+from api.views import TransactionDetailView, TransactionsTableView, TransactionsListView, IndexView, TaxChargeView, JournalEntryView, TransactionView, AccountView, UploadTransactionsView, AccountBalanceView, TransactionTypeView, CSVProfileView, GenerateReconciliationsView, ReconciliationView, PlugReconciliationView, TrendView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -35,6 +35,10 @@ urlpatterns = [
     path('tax-charges/<int:pk>', TaxChargeView.as_view(), name='update-tax-charge'),
     path('tax-charges/', TaxChargeView.as_view(), name='tax-charges'),
     path('trend/', TrendView.as_view(), name='trend'),
+
     path('', IndexView.as_view(), name='index'),
     path('login/', LoginView.as_view(template_name='api/login.html'), name='login'),
+    path('transactions-list/', TransactionsListView.as_view(), name='transactions-list'),
+    path('transactions-table/', TransactionsTableView.as_view(), name='transactions-table'),
+    path('transactions/detail/<int:pk>/', TransactionDetailView.as_view(), name='transaction-detail'),
 ]
