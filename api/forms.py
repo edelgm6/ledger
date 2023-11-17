@@ -1,6 +1,11 @@
 from django import forms
 from django.utils import timezone
-from api.models import Transaction, Account
+from api.models import Transaction, Account, JournalEntryItem
+
+class JournalEntryItemForm(forms.ModelForm):
+    class Meta:
+        model = JournalEntryItem
+        fields = ('account', 'amount')
 
 class TransactionFilterForm(forms.Form):
     date_from = forms.DateField(
@@ -22,8 +27,6 @@ class TransactionFilterForm(forms.Form):
         required=False,
         widget=forms.SelectMultiple(attrs={'class': 'form-control select2'})
     )
-
-
 
 class TransactionForm(forms.ModelForm):
 
