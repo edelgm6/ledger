@@ -102,19 +102,18 @@ class TransactionsTableView(TransactionQueryMixin, View):
         queryset = self.get_filtered_queryset(request)
         return render(request, self.template, {'transactions': queryset})
 
-class JournalEntryFormView(View):
-    template = 'api/journal-entry-item-form.html'
-
-    def get(self, request, *args, **kwargs):
+class JournalEntryFormMixin:
+    def get_journal_entry_form(self, request, *args, **kwargs):
         transaction_id = self.kwargs.get('transaction_id')
-        transaction = Transaction.objects.get(pk=transaction_id)
+
         try:
+            transaction = Transaction.objects.get(pk=transaction_id)
             journal_entry = transaction.journal_entry
             journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry)
             journal_entry_debits = journal_entry_items.filter(type=JournalEntryItem.JournalEntryType.DEBIT)
             journal_entry_credits = journal_entry_items.filter(type=JournalEntryItem.JournalEntryType.CREDIT)
-            journal_entry_items_count = len(journal_entry_items)
-        except ObjectDoesNotExist:
+            journal_entry_items_count = journal_entry_items.count()
+        except (Transaction.DoesNotExist, JournalEntry.DoesNotExist):
             journal_entry_items_count = 0
             journal_entry_debits = JournalEntryItem.objects.none()
             journal_entry_credits = JournalEntryItem.objects.none()
@@ -122,27 +121,33 @@ class JournalEntryFormView(View):
         debit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, extra=8-journal_entry_items_count)
         credit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, extra=8-journal_entry_items_count)
 
+        return debit_formset(queryset=journal_entry_debits, prefix='debits'), credit_formset(queryset=journal_entry_credits, prefix='credits')
+
+class JournalEntryFormView(JournalEntryFormMixin, View):
+    template = 'api/journal-entry-item-form.html'
+
+    def get(self, request, *args, **kwargs):
+        debit_formset, credit_formset = self.get_journal_entry_form(request)
+
         context = {
-            'debit_formset': debit_formset(queryset=journal_entry_debits, prefix='debits'),
-            'credit_formset': credit_formset(queryset=journal_entry_credits, prefix='credits')
+            'debit_formset': debit_formset,
+            'credit_formset': credit_formset
         }
         return render(request, self.template, context)
 
-
-class TransactionsListView(TransactionQueryMixin, View):
+class TransactionsListView(TransactionQueryMixin, JournalEntryFormMixin, View):
     template = 'api/transactions-list.html'
 
     def get(self, request, *args, **kwargs):
         queryset = self.get_filtered_queryset(request)
         filter_form = TransactionFilterForm(request.GET or None)
-        debit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, extra=8)
-        credit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, extra=8)
+        debit_formset, credit_formset = self.get_journal_entry_form(request)
 
         context = {
             'transactions': queryset,
             'filter_form': filter_form,
-            'debit_formset': debit_formset(queryset=JournalEntryItem.objects.none(), prefix='debits'),
-            'credit_formset': credit_formset(queryset=JournalEntryItem.objects.none(), prefix='credits')
+            'debit_formset': debit_formset,
+            'credit_formset': credit_formset
         }
         return render(request, self.template, context)
 

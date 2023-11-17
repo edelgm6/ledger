@@ -1,11 +1,30 @@
 from django import forms
 from django.utils import timezone
+from django.core.validators import RegexValidator
 from api.models import Transaction, Account, JournalEntryItem
 
 class JournalEntryItemForm(forms.ModelForm):
+    amount = forms.DecimalField(
+        initial=0.00,
+        decimal_places=2,
+        max_digits=12,
+        validators=[
+            RegexValidator(
+                regex=r'^\d{1,10}(\.\d{1,2})?$',
+                message="Enter a valid amount in dollars and cents format."
+            )
+        ],
+        widget=forms.NumberInput(attrs={'step': '0.01'})
+    )
+
     class Meta:
         model = JournalEntryItem
         fields = ('account', 'amount')
+
+    def __init__(self, *args, **kwargs):
+        super(JournalEntryItemForm, self).__init__(*args, **kwargs)
+        self.fields['amount'].localize = True
+        self.fields['amount'].widget.is_localized = True
 
 class TransactionFilterForm(forms.Form):
     date_from = forms.DateField(

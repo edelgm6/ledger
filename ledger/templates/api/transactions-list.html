@@ -1,4 +1,27 @@
 {% extends "api/base.html" %} <!-- If you have a base template -->
+
+{% block extra_head %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+
+<script>
+function initializeSelect2() {
+    $('.select2').select2({
+        placeholder: "Select an account",
+        allowClear: true
+    });
+}
+
+// Run initializeSelect2 on document ready
+$(document).ready(initializeSelect2);
+
+// Re-run initializeSelect2 after any htmx DOM swaps
+$(document).ready(function() {
+    document.body.addEventListener('htmx:afterSettle', initializeSelect2);
+});
+
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <h2>Transactions List</h2>
@@ -40,3 +63,4 @@
         background-color: #f5f5f5; /* Light grey */
     }
 </style>
+

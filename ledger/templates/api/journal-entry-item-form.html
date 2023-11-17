@@ -1,26 +1,56 @@
-<form method="post">
+<form method="post" class="form-horizontal">
     {% csrf_token %}
     <div class="row">
+        <!-- Debit Formset Column -->
         <div class="col-md-6">
-            <!-- Render Debit Formset -->
+            <h3>Debits</h3>
             {{ debit_formset.management_form }}
             {% for form in debit_formset %}
-                <div class="form-row">
-                    {{ form.account }}
-                    {{ form.amount }}
+            <div class="row">
+                <div class="col-md-6">
+                    {{ form.id }}
+                    <!-- <label class="form-label" for="{{ form.account.auto_id }}">Account:</label> -->
+                    <select class="form-control select2" name="{{ form.account.html_name }}" id="{{ form.account.auto_id }}">
+                        {% for option in form.account %}
+                            {{ option }}
+                        {% endfor %}
+                    </select>
                 </div>
+                <div class="col-md-6">
+                    <!-- <label class="form-label" for="{{ form.amount.auto_id }}">Amount:</label> -->
+                    <input type="text" class="form-control" name="{{ form.amount.html_name }}" id="{{ form.amount.auto_id }}" value="{{ form.amount.value }}" />
+                </div>
+            </div>
             {% endfor %}
         </div>
+
+
+        <!-- Credit Formset Column -->
         <div class="col-md-6">
-            <!-- Render Credit Formset -->
+            <h3>Credits</h3>
             {{ credit_formset.management_form }}
             {% for form in credit_formset %}
-                <div class="form-row">
-                    {{ form.account }}
-                    {{ form.amount }}
+            <div class="row">
+                <div class="col-md-6">
+                    {{ form.id }}
+                    <!-- <label class="form-label" for="{{ form.account.auto_id }}">Account:</label> -->
+                    <select class="form-control select2" name="{{ form.account.html_name }}" id="{{ form.account.auto_id }}">
+                        {% for option in form.account %}
+                            {{ option }}
+                        {% endfor %}
+                    </select>
                 </div>
+                <div class="col-md-6">
+                    <!-- <label class="form-label" for="{{ form.amount.auto_id }}">Amount:</label> -->
+                    <input type="text" class="form-control" name="{{ form.amount.html_name }}" id="{{ form.amount.auto_id }}" value="{{ form.amount.value }}" />
+                </div>
+            </div>
             {% endfor %}
         </div>
     </div>
-    <input type="submit" value="Submit" />
+    <div class="row">
+        <div class="col-12">
+            <input type="submit" value="Submit" class="btn btn-primary mt-3" />
+        </div>
+    </div>
 </form>
