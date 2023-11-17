@@ -5,9 +5,17 @@
 
     {% include "api/transactions-filter-form.html" %}
 
+    <div id="transactions-table" class="table-responsive" style="max-height: 400px; overflow-y: auto;">
     {% include "api/transactions-table.html" %}
+    </div>
 
+    <div id="transaction-detail">
     {% include "api/transaction-detail.html" %}
+    </div>
+
+    <div id="journal-entry-item-form">
+    {% include "api/journal-entry-item-form.html" %}
+    </div>
 
 </div>
 {% endblock %}

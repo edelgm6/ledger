@@ -1,0 +1,26 @@
+<form method="post">
+    {% csrf_token %}
+    <div class="row">
+        <div class="col-md-6">
+            <!-- Render Debit Formset -->
+            {{ debit_formset.management_form }}
+            {% for form in debit_formset %}
+                <div class="form-row">
+                    {{ form.account }}
+                    {{ form.amount }}
+                </div>
+            {% endfor %}
+        </div>
+        <div class="col-md-6">
+            <!-- Render Credit Formset -->
+            {{ credit_formset.management_form }}
+            {% for form in credit_formset %}
+                <div class="form-row">
+                    {{ form.account }}
+                    {{ form.amount }}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    <input type="submit" value="Submit" />
+</form>

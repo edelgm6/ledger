@@ -9,6 +9,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.decorators import method_decorator
 from django.utils import timezone
+from django.core.exceptions import ObjectDoesNotExist
+from django.forms import modelformset_factory
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -16,9 +18,55 @@ from rest_framework.views import APIView
 from rest_framework import status, generics
 from rest_framework.exceptions import ValidationError
 from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer, TaxChargeInputSerializer, TaxChargeOutputSerializer, CreateTaxChargeInputSerializer, BalanceOutputSerializer, TransactionBulkUploadSerializer
-from api.models import TaxCharge, Transaction, Account, CSVProfile, Reconciliation, JournalEntry
+from api.models import TaxCharge, Transaction, Account, CSVProfile, Reconciliation, JournalEntry, JournalEntryItem
 from api.statement import BalanceSheet, IncomeStatement, CashFlowStatement, Trend
-from api.forms import TransactionForm, TransactionFilterForm
+from api.forms import TransactionForm, TransactionFilterForm, JournalEntryItemForm
+
+# class JournalEntryFormView(View):
+#     template_name = 'your_template_name.html'
+
+#     def setup(self, *args, **kwargs):
+#         super().setup(*args, **kwargs)
+#         journal_entry_id = self.kwargs.get('journal_entry_id')
+#         self.journal_entry = get_object_or_404(JournalEntry, id=journal_entry_id)
+#         self.existing_debits = self.journal_entry.journal_entry_items.filter(type='debit')
+#         self.existing_credits = self.journal_entry.journal_entry_items.filter(type='credit')
+
+#         DebitFormSet = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, extra=8-len(self.existing_debits))
+#         CreditFormSet = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, extra=8-len(self.existing_credits))
+
+#         self.debit_formset = DebitFormSet(
+#             queryset=self.existing_debits,
+#             prefix='debits'
+#         )
+#         self.credit_formset = CreditFormSet(
+#             queryset=self.existing_credits,
+#             prefix='credits'
+#         )
+
+#     def get(self, request, *args, **kwargs):
+#         return render(request, self.template_name, {
+#             'debit_formset': self.debit_formset,
+#             'credit_formset': self.credit_formset,
+#         })
+
+#     def post(self, request, *args, **kwargs):
+#         debit_formset = DebitFormSet(request.POST, request.FILES, prefix='debits')
+#         credit_formset = CreditFormSet(request.POST, request.FILES, prefix='credits')
+
+#         if debit_formset.is_valid() and credit_formset.is_valid():
+#             instances = debit_formset.save(commit=False) + credit_formset.save(commit=False)
+#             for instance in instances:
+#                 instance.journal_entry = self.journal_entry
+#                 instance.save()
+#             return redirect('some_success_url')  # Redirect to a success page
+
+#         # If forms are not valid, re-render the page with the form errors
+#         return render(request, self.template_name, {
+#             'debit_formset': debit_formset,
+#             'credit_formset': credit_formset,
+#         })
+
 
 class TransactionDetailView(View):
     template = 'api/transaction-detail.html'
@@ -54,6 +102,32 @@ class TransactionsTableView(TransactionQueryMixin, View):
         queryset = self.get_filtered_queryset(request)
         return render(request, self.template, {'transactions': queryset})
 
+class JournalEntryFormView(View):
+    template = 'api/journal-entry-item-form.html'
+
+    def get(self, request, *args, **kwargs):
+        transaction_id = self.kwargs.get('transaction_id')
+        transaction = Transaction.objects.get(pk=transaction_id)
+        try:
+            journal_entry = transaction.journal_entry
+            journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry)
+            journal_entry_debits = journal_entry_items.filter(type=JournalEntryItem.JournalEntryType.DEBIT)
+            journal_entry_credits = journal_entry_items.filter(type=JournalEntryItem.JournalEntryType.CREDIT)
+            journal_entry_items_count = len(journal_entry_items)
+        except ObjectDoesNotExist:
+            journal_entry_items_count = 0
+            journal_entry_debits = JournalEntryItem.objects.none()
+            journal_entry_credits = JournalEntryItem.objects.none()
+
+        debit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, extra=8-journal_entry_items_count)
+        credit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, extra=8-journal_entry_items_count)
+
+        context = {
+            'debit_formset': debit_formset(queryset=journal_entry_debits, prefix='debits'),
+            'credit_formset': credit_formset(queryset=journal_entry_credits, prefix='credits')
+        }
+        return render(request, self.template, context)
+
 
 class TransactionsListView(TransactionQueryMixin, View):
     template = 'api/transactions-list.html'
@@ -61,9 +135,14 @@ class TransactionsListView(TransactionQueryMixin, View):
     def get(self, request, *args, **kwargs):
         queryset = self.get_filtered_queryset(request)
         filter_form = TransactionFilterForm(request.GET or None)
+        debit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, extra=8)
+        credit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, extra=8)
+
         context = {
             'transactions': queryset,
             'filter_form': filter_form,
+            'debit_formset': debit_formset(queryset=JournalEntryItem.objects.none(), prefix='debits'),
+            'credit_formset': credit_formset(queryset=JournalEntryItem.objects.none(), prefix='credits')
         }
         return render(request, self.template, context)
 
