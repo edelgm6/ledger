@@ -25,6 +25,8 @@ class JournalEntryItemForm(forms.ModelForm):
         super(JournalEntryItemForm, self).__init__(*args, **kwargs)
         self.fields['amount'].localize = True
         self.fields['amount'].widget.is_localized = True
+        # self.fields['amount'].required = False
+        # self.fields['account'].required = False
 
 class TransactionFilterForm(forms.Form):
     date_from = forms.DateField(
@@ -35,7 +37,6 @@ class TransactionFilterForm(forms.Form):
         required=False,
         widget=forms.DateInput(attrs={'type': 'date', 'placeholder': 'End Date', 'class': 'form-control'})
     )
-    is_closed = forms.BooleanField(required=False)
     account = forms.ModelMultipleChoiceField(
         queryset=Account.objects.all(),
         required=False,
@@ -46,6 +47,21 @@ class TransactionFilterForm(forms.Form):
         required=False,
         widget=forms.SelectMultiple(attrs={'class': 'form-control select2'})
     )
+    IS_CLOSED_CHOICES = (
+        (None, '---------'),  # Display text for None value
+        (True, 'True'),
+        (False, 'False'),
+    )
+    is_closed = forms.ChoiceField(
+        required=False,
+        choices=IS_CLOSED_CHOICES
+    )
+
+    def clean_is_closed(self):
+        is_closed = self.cleaned_data.get('is_closed', None)
+        if is_closed == '':
+            return None
+        return is_closed
 
 class TransactionForm(forms.ModelForm):
 

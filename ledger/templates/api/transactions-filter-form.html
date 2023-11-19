@@ -23,9 +23,9 @@
             <div class="form-group">
                 <label for="id_is_closed">Is Closed</label>
                 <select name="is_closed" id="id_is_closed" class="form-control">
-                    <option value="">---------</option>
-                    <option value="true" {% if filter_form.is_closed.value == 'true' %}selected{% endif %}>True</option>
-                    <option value="false" {% if filter_form.is_closed.value == 'false' %}selected{% endif %}>False</option>
+                    {% for option in filter_form.is_closed %}
+                        {{ option }}
+                    {% endfor %}
                 </select>
             </div>
         </div>
