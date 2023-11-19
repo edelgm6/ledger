@@ -110,7 +110,7 @@ class Transaction(models.Model):
 
         super().save(*args, **kwargs)
 
-    def close(self, date):
+    def close(self, date=datetime.date.today()):
         self.is_closed = True
         self.date_closed = date
         self.save()

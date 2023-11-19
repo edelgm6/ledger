@@ -1,5 +1,6 @@
-<form method="post" class="form-horizontal">
+<form method="post" class="form-horizontal" hx-post="{% url 'journal-entry-form' transaction_id %}" hx-target="#container">
     {% csrf_token %}
+
     <div class="row">
         <div class="col-12">
             <input type="submit" value="Submit" class="btn btn-primary mt-3" />
