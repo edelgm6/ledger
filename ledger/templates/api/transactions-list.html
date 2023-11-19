@@ -18,7 +18,6 @@ $(document).ready(initializeSelect2);
 $(document).ready(function() {
     document.body.addEventListener('htmx:afterSettle', initializeSelect2);
 });
-
 </script>
 
 <style>
@@ -44,26 +43,18 @@ $(document).ready(function() {
 {% endblock %}
 
 {% block content %}
+
 <div class="container mt-4">
     <h2>Transactions List</h2>
 
     {% include "api/transactions-filter-form.html" %}
 
-    <div id="transactions-table" class="table-responsive" style="max-height: 200px; overflow-y: auto;">
-    {% include "api/transactions-table.html" %}
-    </div>
-
-    <div id="transaction-detail">
-    {% include "api/transaction-detail.html" %}
-    </div>
-
-    <div id="journal-entry-item-form">
-    {% include "api/journal-entry-item-form.html" %}
+    <div id="table-and-form">
+        {% include "api/transactions-content.html" %}
     </div>
 
 </div>
 {% endblock %}
-
 
 <script>
     // JavaScript to make table rows clickable

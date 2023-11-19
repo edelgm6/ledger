@@ -22,14 +22,6 @@ from api.models import TaxCharge, Transaction, Account, CSVProfile, Reconciliati
 from api.statement import BalanceSheet, IncomeStatement, CashFlowStatement, Trend
 from api.forms import TransactionForm, TransactionFilterForm, JournalEntryItemForm
 
-class TransactionDetailView(View):
-    template = 'api/transaction-detail.html'
-
-    def get(self, request, *args, **kwargs):
-        transaction_id = kwargs.get('pk')  # Assuming the URL pattern uses 'pk' for transaction ID
-        transaction = get_object_or_404(Transaction, pk=transaction_id)
-        return render(request, self.template, {'transaction': transaction})
-
 class TransactionQueryMixin:
     def get_filtered_queryset(self, request):
         queryset = Transaction.objects.all()
@@ -48,13 +40,6 @@ class TransactionQueryMixin:
                 queryset = queryset.filter(type__in=form.cleaned_data['transaction_type'])
 
         return queryset.order_by('date','account')
-
-class TransactionsTableView(TransactionQueryMixin, View):
-    template = 'api/transactions-table.html'
-
-    def get(self, request, *args, **kwargs):
-        queryset = self.get_filtered_queryset(request)
-        return render(request, self.template, {'transactions': queryset})
 
 class JournalEntryFormMixin:
     def get_journal_entry_form(self, transaction_id):
@@ -75,8 +60,27 @@ class JournalEntryFormMixin:
 
         return debit_formset(queryset=journal_entry_debits, prefix='debits'), credit_formset(queryset=journal_entry_credits, prefix='credits')
 
+# Called by transactions filter form
+class TransactionsTableView(TransactionQueryMixin, JournalEntryFormMixin, View):
+    template = 'api/transactions-content.html'
+
+    def get(self, request, *args, **kwargs):
+        transactions = self.get_filtered_queryset(request)
+        transaction_id = transactions[0].id
+        debit_formset, credit_formset = self.get_journal_entry_form(transaction_id=transaction_id)
+
+        context = {
+            'transactions': transactions,
+            'transaction_id': transaction_id,
+            'debit_formset': debit_formset,
+            'credit_formset': credit_formset
+        }
+
+        return render(request, self.template, context)
+
+# Called every time a table row is clicked
 class JournalEntryFormView(JournalEntryFormMixin, View):
-    template = 'api/journal-entry-item-form.html'
+    item_form_template = 'api/journal-entry-item-form.html'
 
     def get(self, request, *args, **kwargs):
         transaction_id = self.kwargs.get('transaction_id')
@@ -87,12 +91,13 @@ class JournalEntryFormView(JournalEntryFormMixin, View):
             'debit_formset': debit_formset,
             'credit_formset': credit_formset
         }
-        return render(request, self.template, context)
+        return render(request, self.item_form_template, context)
+
+# Called every time Submit is clicked. Should update table + form
+class CreateJournalEntryItemsView(JournalEntryFormMixin, TransactionQueryMixin, View):
+    template = 'api/transactions-content.html'
 
     def post(self, request, *args, **kwargs):
-        transaction_id = self.kwargs.get('transaction_id')
-        debit_formset, credit_formset = self.get_journal_entry_form(transaction_id)
-
         # Bind form data to the formset instances
         JournalEntryItemFormset = modelformset_factory(JournalEntryItem, form = JournalEntryItemForm)
         debit_formset = JournalEntryItemFormset(request.POST, request.FILES, prefix='debits')
@@ -109,37 +114,53 @@ class JournalEntryFormView(JournalEntryFormMixin, View):
             except JournalEntry.DoesNotExist:
                 journal_entry = JournalEntry.objects.create(
                     date=transaction.date,
-                    description='test',
                     transaction=transaction
                 )
 
-            instances = debit_formset.save(commit=False) + credit_formset.save(commit=False)
+            instances = debit_formset.save(commit=False)
             for instance in instances:
                 instance.journal_entry = journal_entry
+                instance.type = JournalEntryItem.JournalEntryType.DEBIT
+                instance.save()
+            instances = credit_formset.save(commit=False)
+            for instance in instances:
+                instance.journal_entry = journal_entry
+                instance.type = JournalEntryItem.JournalEntryType.DEBIT
                 instance.save()
 
             transaction.close()
 
-            return redirect('transactions-list')
+            transactions = self.get_filtered_queryset(request)
+            transaction_id = transactions[0].id
+            debit_formset, credit_formset = self.get_journal_entry_form(transaction_id=transaction_id)
 
+            context = {
+                'transactions': transactions,
+                'transaction_id': transaction_id,
+                'debit_formset': debit_formset,
+                'credit_formset': credit_formset
+            }
+
+            return render(request, self.template, context)
+
+# Loads full page
 class TransactionsListView(TransactionQueryMixin, JournalEntryFormMixin, View):
     template = 'api/transactions-list.html'
 
     def get(self, request, *args, **kwargs):
-        queryset = self.get_filtered_queryset(request)
         filter_form = TransactionFilterForm(request.GET or None)
-        transaction_id = queryset[0].id
+        transactions = self.get_filtered_queryset(request)
+        transaction_id = transactions[0].id
         debit_formset, credit_formset = self.get_journal_entry_form(transaction_id=transaction_id)
 
         context = {
-            'transactions': queryset,
             'filter_form': filter_form,
+            'transactions': transactions,
+            'transaction_id': transaction_id,
             'debit_formset': debit_formset,
-            'credit_formset': credit_formset,
-            'transaction_id': transaction_id
+            'credit_formset': credit_formset
         }
         return render(request, self.template, context)
-
 
 class IndexView(LoginRequiredMixin, View):
     login_url = '/login/'
