@@ -5,13 +5,20 @@ from django.core.validators import RegexValidator
 from api.models import Transaction, Account, JournalEntryItem, JournalEntry
 
 class BaseJournalEntryItemFormset(BaseModelFormSet):
+
+    def get_entry_total(self):
+        total = 0
+        for form in self.forms:
+            amount = form.cleaned_data.get('amount')
+            total += (amount if amount is not None else 0)
+
+        return total
+
     def save(self, transaction_id, type, commit=True):
         instances = []
 
         for form in self.forms:
-            # Make sure the form is valid and has changes
             if form.is_valid() and form.has_changed():
-                # Pass the custom argument to the form's save method
                 instance = form.save(transaction_id, type, commit=False)
                 instances.append(instance)
 

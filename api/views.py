@@ -133,6 +133,12 @@ class CreateJournalEntryItemsView(JournalEntryFormMixin, TransactionQueryMixin, 
             transaction = Transaction.objects.get(pk=transaction_id)
             journal_entry = self._get_or_create_journal_entry(transaction)
 
+            debit_total = debit_formset.get_entry_total()
+            credit_total = credit_formset.get_entry_total()
+
+            if debit_total != credit_total:
+                raise ValidationError('debits and credits must match')
+
             debit_formset.save(journal_entry, JournalEntryItem.JournalEntryType.DEBIT)
             credit_formset.save(journal_entry, JournalEntryItem.JournalEntryType.CREDIT)
 
