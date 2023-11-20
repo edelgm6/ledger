@@ -51,13 +51,16 @@ class JournalEntryFormMixin:
             journal_entry_debits = journal_entry_items.filter(type=JournalEntryItem.JournalEntryType.DEBIT)
             journal_entry_credits = journal_entry_items.filter(type=JournalEntryItem.JournalEntryType.CREDIT)
             journal_entry_items_count = journal_entry_items.count()
+            debits_count = journal_entry_debits.count()
+            credits_count = journal_entry_credits.count()
         except (JournalEntry.DoesNotExist):
-            journal_entry_items_count = 0
+            debits_count = 0
+            credits_count = 0
             journal_entry_debits = JournalEntryItem.objects.none()
             journal_entry_credits = JournalEntryItem.objects.none()
 
-        debit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=8-journal_entry_items_count)
-        credit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=8-journal_entry_items_count)
+        debit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=8-debits_count)
+        credit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=8-credits_count)
 
         DEBITS_DECREASE_ACCOUNT_TYPES = [Account.Type.LIABILITY, Account.Type.EQUITY]
         debits_initial_data = []
