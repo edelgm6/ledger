@@ -299,6 +299,10 @@ class JournalEntry(models.Model):
     def __str__(self):
         return str(self.pk) + ': ' + str(self.date) + ' ' + self.description
 
+    def delete_journal_entry_items(self):
+        journal_entry_items = JournalEntryItem.objects.filter(journal_entry=self)
+        journal_entry_items.delete()
+
 class JournalEntryItem(models.Model):
 
     class JournalEntryType(models.TextChoices):

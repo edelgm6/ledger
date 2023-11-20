@@ -1,7 +1,24 @@
 from django import forms
+from django.forms import BaseModelFormSet
 from django.utils import timezone
 from django.core.validators import RegexValidator
-from api.models import Transaction, Account, JournalEntryItem
+from api.models import Transaction, Account, JournalEntryItem, JournalEntry
+
+class BaseJournalEntryItemFormset(BaseModelFormSet):
+    def save(self, transaction_id, type, commit=True):
+        instances = []
+
+        for form in self.forms:
+            # Make sure the form is valid and has changes
+            if form.is_valid() and form.has_changed():
+                # Pass the custom argument to the form's save method
+                instance = form.save(transaction_id, type, commit=False)
+                instances.append(instance)
+
+                if commit:
+                    instance.save()
+
+        return instances
 
 class JournalEntryItemForm(forms.ModelForm):
     amount = forms.DecimalField(
@@ -25,6 +42,15 @@ class JournalEntryItemForm(forms.ModelForm):
         super(JournalEntryItemForm, self).__init__(*args, **kwargs)
         self.fields['amount'].localize = True
         self.fields['amount'].widget.is_localized = True
+
+    def save(self, journal_entry, type, commit=True):
+        instance = super(JournalEntryItemForm, self).save(commit=False)
+
+        instance.journal_entry = journal_entry
+        instance.type = type
+        instance.save()
+
+        return instance
 
 class TransactionFilterForm(forms.Form):
     date_from = forms.DateField(
