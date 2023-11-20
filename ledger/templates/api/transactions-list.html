@@ -20,6 +20,21 @@ $(document).ready(function() {
 });
 </script>
 
+<script>
+$(document).ready(function(){
+    $('.clickable-row').click(function() {
+        // Check if the clicked row is already highlighted
+        if (!$(this).hasClass('table-active')) {
+            // Remove the highlighted class from all other rows
+            $('.clickable-row').removeClass('table-active');
+
+            // Add the highlighted class to this row
+            $(this).addClass('table-active');
+        }
+    });
+});
+</script>
+
 <style>
     .form-sm .form-control {
         padding: .3rem; /* smaller padding */
@@ -92,23 +107,5 @@ $(document).ready(function() {
 </div>
 {% endblock %}
 
-<script>
-    // JavaScript to make table rows clickable
-    document.addEventListener('DOMContentLoaded', () => {
-        const rows = document.querySelectorAll('.clickable-row');
-        rows.forEach(row => {
-            row.addEventListener('click', () => {
-                window.location.href = row.dataset.href;
-            });
-        });
-    });
-</script>
 
-<style>
-    /* Optional: Add some style to make the clickable rows stand out */
-    .clickable-row:hover {
-        cursor: pointer;
-        background-color: #f5f5f5; /* Light grey */
-    }
-</style>
 

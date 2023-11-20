@@ -25,8 +25,6 @@ class JournalEntryItemForm(forms.ModelForm):
         super(JournalEntryItemForm, self).__init__(*args, **kwargs)
         self.fields['amount'].localize = True
         self.fields['amount'].widget.is_localized = True
-        # self.fields['amount'].required = False
-        # self.fields['account'].required = False
 
 class TransactionFilterForm(forms.Form):
     date_from = forms.DateField(

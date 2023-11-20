@@ -19,7 +19,7 @@
     </thead>
     <tbody>
         {% for transaction in transactions %}
-        <tr class="clickable-row" hx-get="{% url 'journal-entry-form' transaction.id %}" hx-target="#journal-entry-item-form">
+        <tr class="clickable-row{% if forloop.first %} table-active{% endif %}" hx-get="{% url 'journal-entry-form' transaction.id %}" hx-target="#journal-entry-item-form">
             <td>{{ transaction.date }}</td>
             <td>{{ transaction.account }}</td>
             <td>{{ transaction.amount }}</td>
