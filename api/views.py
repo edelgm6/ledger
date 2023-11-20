@@ -72,7 +72,6 @@ class JournalEntryFormMixin:
             debits_initial_data.append({'account': primary_account, 'amount': abs(transaction.amount)})
             credits_initial_data.append({'account': secondary_account, 'amount': abs(transaction.amount)})
 
-
         return debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits'), credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
 
 # Called by transactions filter form
