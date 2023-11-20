@@ -25,7 +25,8 @@ from api.forms import TransactionForm, TransactionFilterForm, JournalEntryItemFo
 class TransactionQueryMixin:
     def get_filtered_queryset(self, request):
         queryset = Transaction.objects.all()
-        form = TransactionFilterForm(request.GET)
+        data = request.GET if request.GET else request.POST
+        form = TransactionFilterForm(data)
 
         if form.is_valid():
             if form.cleaned_data.get('date_from'):
@@ -43,14 +44,14 @@ class TransactionQueryMixin:
 
 class JournalEntryFormMixin:
     def get_journal_entry_form(self, transaction_id):
+        transaction = Transaction.objects.get(pk=transaction_id)
         try:
-            transaction = Transaction.objects.get(pk=transaction_id)
             journal_entry = transaction.journal_entry
             journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry)
             journal_entry_debits = journal_entry_items.filter(type=JournalEntryItem.JournalEntryType.DEBIT)
             journal_entry_credits = journal_entry_items.filter(type=JournalEntryItem.JournalEntryType.CREDIT)
             journal_entry_items_count = journal_entry_items.count()
-        except (Transaction.DoesNotExist, JournalEntry.DoesNotExist):
+        except (JournalEntry.DoesNotExist):
             journal_entry_items_count = 0
             journal_entry_debits = JournalEntryItem.objects.none()
             journal_entry_credits = JournalEntryItem.objects.none()
@@ -58,7 +59,21 @@ class JournalEntryFormMixin:
         debit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, extra=8-journal_entry_items_count)
         credit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, extra=8-journal_entry_items_count)
 
-        return debit_formset(queryset=journal_entry_debits, prefix='debits'), credit_formset(queryset=journal_entry_credits, prefix='credits')
+        DEBITS_DECREASE_ACCOUNT_TYPES = [Account.Type.LIABILITY, Account.Type.EQUITY]
+        debits_initial_data = []
+        credits_initial_data = []
+        if journal_entry_items_count == 0:
+            is_debit = (transaction.amount < 0 and transaction.account.type in DEBITS_DECREASE_ACCOUNT_TYPES) or \
+                    (transaction.amount >= 0 and transaction.account.type not in DEBITS_DECREASE_ACCOUNT_TYPES)
+
+            primary_account, secondary_account = (transaction.account, transaction.suggested_account) \
+                if is_debit else (transaction.suggested_account, transaction.account)
+
+            debits_initial_data.append({'account': primary_account, 'amount': abs(transaction.amount)})
+            credits_initial_data.append({'account': secondary_account, 'amount': abs(transaction.amount)})
+
+
+        return debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits'), credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
 
 # Called by transactions filter form
 class TransactionsTableView(TransactionQueryMixin, JournalEntryFormMixin, View):
@@ -125,7 +140,7 @@ class CreateJournalEntryItemsView(JournalEntryFormMixin, TransactionQueryMixin, 
             instances = credit_formset.save(commit=False)
             for instance in instances:
                 instance.journal_entry = journal_entry
-                instance.type = JournalEntryItem.JournalEntryType.DEBIT
+                instance.type = JournalEntryItem.JournalEntryType.CREDIT
                 instance.save()
 
             transaction.close()
