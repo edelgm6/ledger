@@ -1,4 +1,13 @@
-<form id="journal-entry-form" method="post" class="form-horizontal" hx-post="{% url 'create-journal-entry-items' transaction_id %}" #hx-target="#table-and-form">
+<form
+    id="journal-entry-form"
+    method="post"
+    class="form-horizontal"
+    hx-post="{% url 'create-journal-entry-items' transaction_id %}"
+    hx-target="#table-and-form"
+    hx-trigger="submit"
+    hx-include="#transactions-filter-form"
+>
+
     {% csrf_token %}
 
     <div class="row">
