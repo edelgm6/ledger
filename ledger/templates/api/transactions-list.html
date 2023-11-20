@@ -20,21 +20,6 @@ $(document).ready(function() {
 });
 </script>
 
-<script>
-$(document).ready(function(){
-    $('.clickable-row').click(function() {
-        // Check if the clicked row is already highlighted
-        if (!$(this).hasClass('table-active')) {
-            // Remove the highlighted class from all other rows
-            $('.clickable-row').removeClass('table-active');
-
-            // Add the highlighted class to this row
-            $(this).addClass('table-active');
-        }
-    });
-});
-</script>
-
 <style>
     .form-sm .form-control {
         padding: .3rem; /* smaller padding */

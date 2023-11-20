@@ -20,7 +20,7 @@ from rest_framework.exceptions import ValidationError
 from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer, TaxChargeInputSerializer, TaxChargeOutputSerializer, CreateTaxChargeInputSerializer, BalanceOutputSerializer, TransactionBulkUploadSerializer
 from api.models import TaxCharge, Transaction, Account, CSVProfile, Reconciliation, JournalEntry, JournalEntryItem
 from api.statement import BalanceSheet, IncomeStatement, CashFlowStatement, Trend
-from api.forms import TransactionForm, TransactionFilterForm, JournalEntryItemForm
+from api.forms import TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
 
 class TransactionQueryMixin:
     def get_filtered_queryset(self, request):
@@ -56,8 +56,8 @@ class JournalEntryFormMixin:
             journal_entry_debits = JournalEntryItem.objects.none()
             journal_entry_credits = JournalEntryItem.objects.none()
 
-        debit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, extra=8-journal_entry_items_count)
-        credit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, extra=8-journal_entry_items_count)
+        debit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=8-journal_entry_items_count)
+        credit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=8-journal_entry_items_count)
 
         DEBITS_DECREASE_ACCOUNT_TYPES = [Account.Type.LIABILITY, Account.Type.EQUITY]
         debits_initial_data = []
@@ -111,36 +111,30 @@ class JournalEntryFormView(JournalEntryFormMixin, View):
 class CreateJournalEntryItemsView(JournalEntryFormMixin, TransactionQueryMixin, View):
     template = 'api/transactions-content.html'
 
+    def _get_or_create_journal_entry(self, transaction):
+        try:
+            journal_entry = transaction.journal_entry
+            # journal_entry.delete_journal_entry_items()
+        except JournalEntry.DoesNotExist:
+            journal_entry = JournalEntry.objects.create(
+                date=transaction.date,
+                transaction=transaction
+            )
+
+        return journal_entry
+
     def post(self, request, *args, **kwargs):
-        # Bind form data to the formset instances
-        JournalEntryItemFormset = modelformset_factory(JournalEntryItem, form = JournalEntryItemForm)
+        JournalEntryItemFormset = modelformset_factory(JournalEntryItem, formset=BaseJournalEntryItemFormset, form=JournalEntryItemForm)
         debit_formset = JournalEntryItemFormset(request.POST, request.FILES, prefix='debits')
         credit_formset = JournalEntryItemFormset(request.POST, request.FILES, prefix='credits')
 
         if debit_formset.is_valid() and credit_formset.is_valid():
             transaction_id = self.kwargs.get('transaction_id')
             transaction = Transaction.objects.get(pk=transaction_id)
+            journal_entry = self._get_or_create_journal_entry(transaction)
 
-            try:
-                journal_entry = transaction.journal_entry
-                journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry)
-                journal_entry_items.delete()
-            except JournalEntry.DoesNotExist:
-                journal_entry = JournalEntry.objects.create(
-                    date=transaction.date,
-                    transaction=transaction
-                )
-
-            instances = debit_formset.save(commit=False)
-            for instance in instances:
-                instance.journal_entry = journal_entry
-                instance.type = JournalEntryItem.JournalEntryType.DEBIT
-                instance.save()
-            instances = credit_formset.save(commit=False)
-            for instance in instances:
-                instance.journal_entry = journal_entry
-                instance.type = JournalEntryItem.JournalEntryType.CREDIT
-                instance.save()
+            debit_formset.save(journal_entry, JournalEntryItem.JournalEntryType.DEBIT)
+            credit_formset.save(journal_entry, JournalEntryItem.JournalEntryType.CREDIT)
 
             transaction.close()
 
