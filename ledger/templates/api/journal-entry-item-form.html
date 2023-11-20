@@ -1,7 +1,7 @@
 <form
     id="journal-entry-form"
     method="post"
-    class="form-horizontal"
+    class="form-horizontal form-sm"
     hx-post="{% url 'create-journal-entry-items' transaction_id %}"
     hx-target="#table-and-form"
     hx-trigger="submit"
