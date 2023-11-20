@@ -35,7 +35,13 @@
                         <div class="input-group-prepend">
                             <span class="input-group-text" id="basic-addon1">$</span>
                         </div>
-                        <input type="text" class="form-control" name="{{ form.amount.html_name }}" id="{{ form.amount.auto_id }}" value="{{ form.amount.value }}" />
+                        <input
+                            type="text"
+                            class="form-control"
+                            name="{{ form.amount.html_name }}"
+                            id="{{ form.amount.auto_id }}"
+                            value="{% if form.amount.value == None or form.amount.value == 0 %}0.00{% else %}{{ form.amount.value }}{% endif %}"
+                        />
                     </div>
                 </div>
             </div>
@@ -62,7 +68,13 @@
                         <div class="input-group-prepend">
                             <span class="input-group-text" id="basic-addon1">$</span>
                         </div>
-                        <input type="text" class="form-control" name="{{ form.amount.html_name }}" id="{{ form.amount.auto_id }}" value="{{ form.amount.value }}" />
+                        <input
+                            type="text"
+                            class="form-control"
+                            name="{{ form.amount.html_name }}"
+                            id="{{ form.amount.auto_id }}"
+                            value="{% if form.amount.value == None or form.amount.value == 0 %}0.00{% else %}{{ form.amount.value }}{% endif %}"
+                        />
                     </div>
                 </div>
             </div>
