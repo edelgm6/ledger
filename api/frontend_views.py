@@ -64,7 +64,9 @@ class JournalEntryFormMixin:
         return debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits'), credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
 
 # Called by transactions filter form
-class TransactionsTableView(TransactionQueryMixin, JournalEntryFormMixin, View):
+class TransactionsTableView(TransactionQueryMixin, JournalEntryFormMixin, LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
     template = 'api/transactions-content.html'
 
     def get(self, request, *args, **kwargs):
@@ -82,7 +84,9 @@ class TransactionsTableView(TransactionQueryMixin, JournalEntryFormMixin, View):
         return render(request, self.template, context)
 
 # Called every time a table row is clicked
-class JournalEntryFormView(JournalEntryFormMixin, View):
+class JournalEntryFormView(JournalEntryFormMixin, LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
     item_form_template = 'api/journal-entry-item-form.html'
 
     def get(self, request, *args, **kwargs):
@@ -97,7 +101,9 @@ class JournalEntryFormView(JournalEntryFormMixin, View):
         return render(request, self.item_form_template, context)
 
 # Called every time Submit is clicked. Should update table + form
-class CreateJournalEntryItemsView(JournalEntryFormMixin, TransactionQueryMixin, View):
+class CreateJournalEntryItemsView(JournalEntryFormMixin, TransactionQueryMixin, LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
     template = 'api/transactions-content.html'
 
     def _get_or_create_journal_entry(self, transaction):
@@ -147,12 +153,16 @@ class CreateJournalEntryItemsView(JournalEntryFormMixin, TransactionQueryMixin, 
             return render(request, self.template, context)
 
 # Loads full page
-class TransactionsListView(TransactionQueryMixin, JournalEntryFormMixin, View):
+class TransactionsListView(TransactionQueryMixin, JournalEntryFormMixin, LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
     template = 'api/transactions-list.html'
 
     def get(self, request, *args, **kwargs):
-        filter_form = TransactionFilterForm(request.GET or None)
+        filter_form = TransactionFilterForm()
+        filter_form['is_closed'].initial = False
         transactions = self.get_filtered_queryset(request)
+        transactions = transactions.filter(is_closed=False)
         transaction_id = transactions[0].id
         debit_formset, credit_formset = self.get_journal_entry_form(transaction_id=transaction_id)
 
