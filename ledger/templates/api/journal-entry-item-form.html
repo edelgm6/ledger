@@ -33,8 +33,14 @@
                     </select>
                 </div>
                 <div class="col-md-6">
-                    <!-- Adjust tabindex for amount -->
-                    <input type="text" class="form-control" name="{{ form.amount.html_name }}" id="{{ form.amount.auto_id }}" value="{{ form.amount.value|default_if_none:'0.00' }}" tabindex="{{ forloop.counter|multiply:4|add:2 }}">
+                    <input
+                        type="text"
+                        class="form-control"
+                        name="{{ form.amount.html_name }}"
+                        id="{{ form.amount.auto_id }}"
+                        value="{% if form.amount.value == 0 %}0.00{% else %}{{ form.amount.value }}{% endif %}"
+                        tabindex="{{ forloop.counter|multiply:4|add:2 }}"
+                    >
                 </div>
             </div>
             {% endfor %}
@@ -48,7 +54,6 @@
             <div class="row">
                 <div class="col-md-6">
                     {{ form.id }}
-                    <!-- Adjust tabindex for credit accounts -->
                     <select class="form-control select2" name="{{ form.account.html_name }}" id="{{ form.account.auto_id }}" tabindex="{{ forloop.counter|multiply:4|add:3 }}">
                         {% for option in form.account %}
                             {{ option }}
@@ -56,8 +61,14 @@
                     </select>
                 </div>
                 <div class="col-md-6">
-                    <!-- Adjust tabindex for credit amounts -->
-                    <input type="text" class="form-control" name="{{ form.amount.html_name }}" id="{{ form.amount.auto_id }}" value="{{ form.amount.value|default_if_none:'0.00' }}" tabindex="{{ forloop.counter|multiply:4|add:4 }}">
+                    <input
+                        type="text"
+                        class="form-control"
+                        name="{{ form.amount.html_name }}"
+                        id="{{ form.amount.auto_id }}"
+                        value="{% if form.amount.value == 0 %}0.00{% else %}{{ form.amount.value }}{% endif %}"
+                        tabindex="{{ forloop.counter|multiply:4|add:4 }}"
+                    >
                 </div>
             </div>
             {% endfor %}
