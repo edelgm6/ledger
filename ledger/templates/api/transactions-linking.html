@@ -1,0 +1,46 @@
+{% extends "api/base.html" %} <!-- If you have a base template -->
+
+{% block extra_head %}
+
+<style>
+    .form-sm .form-control {
+        padding: .3rem; /* smaller padding */
+        font-size: 0.75rem; /* smaller font-size */
+    }
+    .form-sm .input-group-text {
+        padding: .3rem .5rem; /* smaller padding */
+        font-size: 0.75rem; /* smaller font-size */
+    }
+    .form-sm .row {
+        margin-bottom: .5rem; /* less space between rows */
+    }
+    .form-sm h3 {
+        font-size: 1rem; /* smaller heading */
+    }
+    .form-sm .btn {
+        padding: .25rem .5rem; /* smaller button padding */
+        font-size: 0.75rem; /* smaller font-size */
+    }
+</style>
+
+{% endblock %}
+
+{% block content %}
+
+<div class="container mt-4">
+    <h2>Linking</h2>
+
+    {% include "api/components/transactions-filter-form.html" %}
+
+    <div id="table-and-form">
+        {% include "api/components/two-row-select-script.html" %}
+        {% include "api/components/transactions-table.html" %}
+        {% include "api/components/transaction-link-form.html" %}
+    </div>
+</div>
+
+</div>
+{% endblock %}
+
+
+

@@ -1,0 +1,18 @@
+<form
+    id="transaction-link-form"
+    method="post"
+    hx-post="{% url 'link-transactions'%}"
+    hx-target="#table-and-form"
+    hx-trigger="submit"
+    hx-include="#transactions-filter-form"
+>
+    {% csrf_token %}
+
+    {{ linked_transaction_form }}
+
+    <div class="row">
+        <div class="col-12">
+            <input type="submit" value="Link" class="btn btn-primary mt-3" />
+        </div>
+    </div>
+</form>

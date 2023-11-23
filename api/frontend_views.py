@@ -5,9 +5,8 @@ from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.forms import modelformset_factory
-from api.models import Transaction, Account, CSVProfile, Reconciliation, JournalEntry, JournalEntryItem
-from api.forms import TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
-
+from api.models import Transaction, Account, JournalEntry, JournalEntryItem
+from api.forms import TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
 
 class TransactionQueryMixin:
     def get_filtered_queryset(self, request):
@@ -26,6 +25,8 @@ class TransactionQueryMixin:
                 queryset = queryset.filter(account__in=form.cleaned_data['account'])
             if form.cleaned_data['transaction_type']:
                 queryset = queryset.filter(type__in=form.cleaned_data['transaction_type'])
+            if form.cleaned_data.get('has_linked_transaction') is not None:
+                queryset = queryset.exclude(linked_transaction__isnull=form.cleaned_data['has_linked_transaction'])
 
         return queryset.order_by('date','account')
 
@@ -63,11 +64,53 @@ class JournalEntryFormMixin:
 
         return debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits'), credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
 
+# Loads full page
+class LinkTransactionsView(TransactionQueryMixin, JournalEntryFormMixin, LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
+    linked_transaction_form = TransactionLinkForm
+
+    def get(self, request, *args, **kwargs):
+        filter_form = TransactionFilterForm()
+        transactions = self.get_filtered_queryset(request)
+
+        # Default set form and transactions table to not closed
+        filter_form['is_closed'].initial = False
+        transactions = transactions.filter(is_closed=False)
+
+        # Default set form and transactions table to not linked
+        filter_form['has_linked_transaction'].initial = False
+        transactions = transactions.filter(linked_transaction__isnull=True)
+
+        template = 'api/transactions-linking.html'
+        context = {
+            'filter_form': filter_form,
+            'transactions': transactions,
+            'linked_transaction_form': self.linked_transaction_form,
+            'no_highlight': True
+        }
+        return render(request, template, context)
+
+    def post(self, request, *args, **kwargs):
+        form = self.linked_transaction_form(request.POST)
+        transactions = self.get_filtered_queryset(request)
+
+        if form.is_valid():
+            form.save()
+
+            template = 'api/components/transactions-link-content.html'
+            context = {
+                'transactions': transactions,
+                'linked_transaction_form': form,
+                'no_highlight': True
+            }
+            return render(request, template, context)
+        print(form.errors)
+
 # Called by transactions filter form
 class TransactionsTableView(TransactionQueryMixin, JournalEntryFormMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
-    template = 'api/transactions-content.html'
 
     def get(self, request, *args, **kwargs):
         transactions = self.get_filtered_queryset(request)
@@ -81,7 +124,11 @@ class TransactionsTableView(TransactionQueryMixin, JournalEntryFormMixin, LoginR
             'credit_formset': credit_formset
         }
 
-        return render(request, self.template, context)
+        template = 'api/components/transactions-link-content.html'
+        if self.kwargs.get('include_jei_form'):
+            template = 'api/components/transactions-content.html'
+
+        return render(request, template, context)
 
 # Called every time a table row is clicked
 class JournalEntryFormView(JournalEntryFormMixin, LoginRequiredMixin, View):
@@ -152,7 +199,6 @@ class CreateJournalEntryItemsView(JournalEntryFormMixin, TransactionQueryMixin, 
 
             return render(request, self.template, context)
 
-# Loads full page
 class TransactionsListView(TransactionQueryMixin, JournalEntryFormMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
@@ -160,9 +206,12 @@ class TransactionsListView(TransactionQueryMixin, JournalEntryFormMixin, LoginRe
 
     def get(self, request, *args, **kwargs):
         filter_form = TransactionFilterForm()
-        filter_form['is_closed'].initial = False
         transactions = self.get_filtered_queryset(request)
+
+        # Default set form and transactions table to not closed
+        filter_form['is_closed'].initial = False
         transactions = transactions.filter(is_closed=False)
+
         transaction_id = transactions[0].id
         debit_formset, credit_formset = self.get_journal_entry_form(transaction_id=transaction_id)
 

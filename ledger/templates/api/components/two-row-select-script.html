@@ -1,0 +1,31 @@
+<script>
+$(document).ready(function(){
+    $('.clickable-row').click(function() {
+        var highlightedCount = $('.clickable-row.table-active').length;
+
+        if ($(this).hasClass('table-active')) {
+            $(this).removeClass('table-active');
+            updateFormWithSelectedRows();
+        } else {
+            if (highlightedCount < 2) {
+                $(this).addClass('table-active');
+                updateFormWithSelectedRows();
+            }
+        }
+    });
+
+    function updateFormWithSelectedRows() {
+
+        var selectedRows = $('.clickable-row.table-active');
+        var selectedIds = selectedRows.map(function() {
+            return $(this).data('transaction-id'); // Assuming each row has a data attribute for the transaction ID
+        }).get();
+
+        // Update hidden form fields
+        $('#id_first_transaction').val(selectedIds[0] || ''); // Assuming you have hidden fields with these IDs
+        $('#id_second_transaction').val(selectedIds[1] || '');
+        console.log($('#id_first_transaction').val())
+        console.log($('#id_second_transaction').val())
+    }
+});
+</script>
