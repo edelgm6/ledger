@@ -2,7 +2,43 @@ from django import forms
 from django.forms import BaseModelFormSet
 from django.utils import timezone
 from django.core.validators import RegexValidator
-from api.models import Transaction, Account, JournalEntryItem, JournalEntry
+from api.models import Transaction, Account, JournalEntryItem
+
+class TransactionLinkForm(forms.Form):
+    first_transaction = forms.ModelChoiceField(
+        queryset=Transaction.objects.all(),
+        required=True,
+        label='Base Transaction',
+        widget=forms.HiddenInput()
+    )
+    second_transaction = forms.ModelChoiceField(
+        queryset=Transaction.objects.all(),
+        required=False,
+        label='Linked Transaction',
+        widget=forms.HiddenInput()
+    )
+
+    def save(self):
+        first_transaction = self.cleaned_data.get('first_transaction')
+        second_transaction = self.cleaned_data.get('second_transaction')
+
+        if first_transaction.date < second_transaction.date:
+            hero_transaction = first_transaction
+            linked_transaction = second_transaction
+        elif second_transaction.date < first_transaction.date:
+            hero_transaction = second_transaction
+            linked_transaction = first_transaction
+        elif first_transaction.amount < 0:
+            hero_transaction = first_transaction
+            linked_transaction = second_transaction
+        else:
+            hero_transaction = second_transaction
+            linked_transaction = first_transaction
+
+        hero_transaction.linked_transaction = linked_transaction
+        hero_transaction.save()
+        linked_transaction.close()
+        return hero_transaction
 
 class BaseJournalEntryItemFormset(BaseModelFormSet):
 
@@ -79,7 +115,7 @@ class TransactionFilterForm(forms.Form):
         widget=forms.SelectMultiple(attrs={'class': 'form-control select2'})
     )
     IS_CLOSED_CHOICES = (
-        (None, '---------'),  # Display text for None value
+        (None, '---------'),
         (True, 'True'),
         (False, 'False'),
     )
@@ -87,12 +123,26 @@ class TransactionFilterForm(forms.Form):
         required=False,
         choices=IS_CLOSED_CHOICES
     )
+    LINKED_TRANSACTION_CHOICES = (
+        (None, '---------'),
+        (True, 'Linked'),
+        (False, 'Unlinked'),
+    )
+    has_linked_transaction = forms.ChoiceField(
+        required=False,
+        choices=LINKED_TRANSACTION_CHOICES
+    )
 
     def clean_is_closed(self):
         is_closed = self.cleaned_data.get('is_closed', None)
         if is_closed == '':
             return None
         return is_closed
+    def clean_has_linked_transaction(self):
+        data = self.cleaned_data['has_linked_transaction']
+        if data in ['True', 'False']:
+            return data == 'True'
+        return None
 
 class TransactionForm(forms.ModelForm):
 
