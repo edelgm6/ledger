@@ -115,6 +115,11 @@ class Transaction(models.Model):
         self.date_closed = date
         self.save()
 
+    def create_link(self, transaction):
+        self.linked_transaction = transaction
+        self.save()
+        transaction.close()
+
 class TaxCharge(models.Model):
     class Type(models.TextChoices):
         PROPERTY = 'property', _('Property')
