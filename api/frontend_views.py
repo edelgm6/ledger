@@ -124,6 +124,7 @@ class TransactionsTableView(TransactionQueryMixin, JournalEntryFormMixin, LoginR
             'credit_formset': credit_formset
         }
 
+        # THIS WILL RETURN AN ERROR ON THE TRANSACTIONS LIST PAGE
         template = 'api/components/transactions-link-content.html'
         if self.kwargs.get('include_jei_form'):
             template = 'api/components/transactions-content.html'
@@ -134,7 +135,7 @@ class TransactionsTableView(TransactionQueryMixin, JournalEntryFormMixin, LoginR
 class JournalEntryFormView(JournalEntryFormMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
-    item_form_template = 'api/journal-entry-item-form.html'
+    item_form_template = 'api/components/journal-entry-item-form.html'
 
     def get(self, request, *args, **kwargs):
         transaction_id = self.kwargs.get('transaction_id')
