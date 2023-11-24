@@ -4,7 +4,6 @@ from django.utils import timezone
 from django.core.validators import RegexValidator
 from api.models import Transaction, Account, JournalEntryItem
 
-# Transaction model should have a 'link' method that we can call here
 class TransactionLinkForm(forms.Form):
     first_transaction = forms.ModelChoiceField(
         queryset=Transaction.objects.all(),
@@ -36,9 +35,7 @@ class TransactionLinkForm(forms.Form):
             hero_transaction = second_transaction
             linked_transaction = first_transaction
 
-        hero_transaction.linked_transaction = linked_transaction
-        hero_transaction.save()
-        linked_transaction.close()
+        hero_transaction.create_link(linked_transaction)
         return hero_transaction
 
 class BaseJournalEntryItemFormset(BaseModelFormSet):
@@ -158,7 +155,7 @@ class TransactionFilterForm(forms.Form):
         if self.cleaned_data['transaction_type']:
             queryset = queryset.filter(type__in=self.cleaned_data['transaction_type'])
         if self.cleaned_data.get('has_linked_transaction') is not None:
-            queryset = queryset.exclude(linked_transaction__isnull=form.cleaned_data['has_linked_transaction'])
+            queryset = queryset.exclude(linked_transaction__isnull=self.cleaned_data['has_linked_transaction'])
 
         return queryset.order_by('date','account')
 
