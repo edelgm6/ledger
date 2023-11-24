@@ -79,7 +79,6 @@ $(document).ready(function() {
 
 {% block content %}
 
-<div class="container mt-4">
     <h2>Transactions List</h2>
 
     {{ filter_form }}
@@ -87,7 +86,6 @@ $(document).ready(function() {
     <div id="table-and-form">
         {% include "api/components/transactions-content.html" %}
     </div>
-</div>
 
 </div>
 {% endblock %}
