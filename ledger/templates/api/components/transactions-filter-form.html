@@ -1,4 +1,11 @@
-<form id="transactions-filter-form" method="get" hx-get="{% url 'transactions-table' %}" hx-target="#table-and-form" hx-trigger="submit" class="mb-3 form-sm">
+<form
+    id="transactions-filter-form"
+    method="get"
+    hx-get="{% url 'transactions-table' %}?returnForm={{form_include}}"
+    hx-target="#table-and-form"
+    hx-trigger="submit"
+    class="mb-3 form-sm"
+>
     <div class="row">
         <!-- Date From Field -->
         <div class="col-md-2">

@@ -82,7 +82,7 @@ $(document).ready(function() {
 <div class="container mt-4">
     <h2>Transactions List</h2>
 
-    {% include "api/components/transactions-filter-form.html" %}
+    {{ filter_form }}
 
     <div id="table-and-form">
         {% include "api/components/transactions-content.html" %}
