@@ -85,8 +85,26 @@ class JournalEntryFormMixin:
 
         return debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits'), credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
 
+class TaxTableMixIn:
+    def get_tax_table_html(self):
+        tax_charges = TaxCharge.objects.all()
+
+        for tax_charge in tax_charges:
+            last_day_of_month = tax_charge.date
+            first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
+            taxable_income = IncomeStatement(tax_charge.date, first_day_of_month).get_taxable_income()
+            tax_charge.taxable_income = taxable_income
+            tax_charge.tax_rate = None if taxable_income == 0 else tax_charge.amount / taxable_income
+
+        tax_charge_table_html = render_to_string(
+            'api/components/tax-table.html',
+            {'tax_charges': tax_charges}
+        )
+
+        return tax_charge_table_html
+
 # Add in the Taxes table mixin
-class TaxChargeFormView(LoginRequiredMixin, View):
+class TaxChargeFormView(TaxTableMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
     form_class = TaxChargeForm
@@ -104,6 +122,7 @@ class TaxChargeFormView(LoginRequiredMixin, View):
             'form': form,
             'tax_charge': tax_charge
         }
+
         return render(request, self.form_template, context)
 
     def post(self, request, pk=None, *args, **kwargs):
@@ -116,32 +135,23 @@ class TaxChargeFormView(LoginRequiredMixin, View):
         if form.is_valid():
             tax_charge = form.save()
 
-        context = {'form': form}
-        return render(request, self.form_template, context)
+        context = {
+            'tax_charge_table': self.get_tax_table_html(),
+            'form': render_to_string(self.form_template, {'form': form})
+        }
+        form_template = 'api/components/taxes-content.html'
+        return render(request, form_template, context)
 
 # Loads full page
-class TaxesView(LoginRequiredMixin, View):
+class TaxesView(TaxTableMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
     form_template = 'api/components/edit-tax-charge-form.html'
 
     def get(self, request, *args, **kwargs):
 
+        tax_charge_table = self.get_tax_table_html()
         template = 'api/taxes.html'
-
-        tax_charges = TaxCharge.objects.all()
-
-        for tax_charge in tax_charges:
-            last_day_of_month = tax_charge.date
-            first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
-            taxable_income = IncomeStatement(tax_charge.date, first_day_of_month).get_taxable_income()
-            tax_charge.taxable_income = taxable_income
-            tax_charge.tax_rate = None if taxable_income == 0 else tax_charge.amount / taxable_income
-
-        tax_charge_table = render_to_string(
-            'api/components/tax-table.html',
-            {'tax_charges': tax_charges}
-        )
         context = {
             'tax_charge_table': tax_charge_table,
             'form': render_to_string(self.form_template, {'form': TaxChargeForm()})

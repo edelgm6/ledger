@@ -1,16 +1,5 @@
     <h2>Taxes</h2>
 
     <div id="table-and-form">
-        <div class="row">
-            <div class="col">
-            {{ tax_charge_table }}
-            </div>
-        </div>
-        <br>
-        <div class="row">
-            <div class="col-md-3">
-            <div id="form-container">
-            {{ form }}
-            </div>
-        </div>
+        {% include "api/components/taxes-content.html" %}
     </div>
