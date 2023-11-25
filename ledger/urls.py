@@ -17,7 +17,7 @@ from django.contrib import admin
 from django.urls import path
 from django.contrib.auth.views import LoginView
 from api.views import TaxChargeView, JournalEntryView, TransactionView, AccountView, UploadTransactionsView, AccountBalanceView, TransactionTypeView, CSVProfileView, GenerateReconciliationsView, ReconciliationView, PlugReconciliationView, TrendView
-from api.frontend_views import EditTaxChargeView, TaxesView, LinkTransactionsView, JournalEntryFormView, CreateJournalEntryItemsView, TransactionsTableView, TransactionsListView, IndexView
+from api.frontend_views import TaxChargeFormView, TaxesView, LinkTransactionsView, JournalEntryFormView, CreateJournalEntryItemsView, TransactionsTableView, TransactionsListView, IndexView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -45,6 +45,6 @@ urlpatterns = [
     path('create-journal-entry-items/<int:transaction_id>/', CreateJournalEntryItemsView.as_view(), name='create-journal-entry-items'),
     path('transactions-linking/', LinkTransactionsView.as_view(), name='link-transactions'),
     path('taxes/', TaxesView.as_view(), name='taxes'),
-    path('edit-or-create-tax-charge/<int:pk>/', EditTaxChargeView.as_view(), name='edit-tax-charge'),
-    path('edit-or-create-tax-charge/', EditTaxChargeView.as_view(), name='create-tax-charge'),
+    path('edit-or-create-tax-charge/<int:pk>/', TaxChargeFormView.as_view(), name='edit-tax-charge'),
+    path('edit-or-create-tax-charge/', TaxChargeFormView.as_view(), name='create-tax-charge'),
 ]

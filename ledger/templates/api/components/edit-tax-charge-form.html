@@ -1,23 +1,15 @@
-{% if tax_charge %}
+
 <form
-    method="put"
-    hx-post="{% url 'taxes' pk=tax_charge.pk %}"
-    hx-target="#form-container"
-    hx-trigger="submit"
->
-{% else %}
-<form
+    class="form-sm"
     method="post"
-    hx-post="{% url 'taxes' %}"
-    hx-target="#form-container"
+    {% if tax_charge %}hx-post="{% url 'edit-tax-charge' pk=tax_charge.pk %}"{% else %}hx-post="{% url 'create-tax-charge' %}"{% endif %}
+    hx-target="#table-and-form"
     hx-trigger="submit"
 >
-{% endif %}
     {% csrf_token %}
 
     <!-- Render the 'type' field -->
     <div class="mb-3">
-        <label for="id_type" class="form-label">Type</label>
         <select name="type" id="id_type" class="form-control">
             {% for value, label in form.type.field.choices %}
                 <option value="{{ value }}" {% if form.type.value == value %} selected {% endif %}>
@@ -29,14 +21,18 @@
 
     <!-- Render the 'date' field -->
     <div class="mb-3">
-        <label for="id_date" class="form-label">Date</label>
-        <input type="date" name="date" id="id_date" class="form-control" value="{{ form.date.value }}">
+        <input type="date" name="date" id="id_date" class="form-control" value="{{ form.date.value|date:'Y-m-d' }}">
     </div>
 
     <!-- Render the 'amount' field -->
     <div class="mb-3">
-        <label for="id_amount" class="form-label">Amount</label>
-        <input type="text" name="amount" id="id_amount" class="form-control" value="{{ form.amount.value }}">
+        <input
+            type="text"
+            name="amount"
+            id="id_amount"
+            class="form-control"
+            value="{% if form.amount.value %}form.amount.value{% else %}0.00{% endif %}"
+        >
     </div>
 
     <button type="submit" class="btn btn-primary">Save</button>
