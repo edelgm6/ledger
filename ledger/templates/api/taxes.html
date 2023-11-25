@@ -1,13 +1,16 @@
     <h2>Taxes</h2>
 
-    <div class="row">
-        <div class="col">
-        {{ tax_charge_table }}
+    <div id="table-and-form">
+        <div class="row">
+            <div class="col">
+            {{ tax_charge_table }}
+            </div>
         </div>
-    </div>
-
-    <div class="row">
-        <div class="col">
-        <div id="form-container"></div>
+        <br>
+        <div class="row">
+            <div class="col-md-3">
+            <div id="form-container">
+            {{ form }}
+            </div>
         </div>
     </div>

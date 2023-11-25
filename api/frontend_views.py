@@ -85,27 +85,45 @@ class JournalEntryFormMixin:
 
         return debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits'), credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
 
-# Loads full page
-class EditTaxChargeView(LoginRequiredMixin, View):
+# Add in the Taxes table mixin
+class TaxChargeFormView(LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
+    form_class = TaxChargeForm
+    form_template = 'api/components/edit-tax-charge-form.html'
 
     def get(self, request, pk=None, *args, **kwargs):
-
-        template = 'api/components/edit-tax-charge-form.html'
         if pk:
             tax_charge = get_object_or_404(TaxCharge, pk=pk)
-            form = TaxChargeForm(instance=tax_charge)
+            form = self.form_class(instance=tax_charge)
         else:
-            form = TaxChargeForm()
+            tax_charge = None
+            form = self.form_class()
+
+        context = {
+            'form': form,
+            'tax_charge': tax_charge
+        }
+        return render(request, self.form_template, context)
+
+    def post(self, request, pk=None, *args, **kwargs):
+        if pk:
+            tax_charge = get_object_or_404(TaxCharge, pk=pk)
+            form = self.form_class(data=request.POST, instance=tax_charge)
+        else:
+            form = self.form_class(data=request.POST)
+
+        if form.is_valid():
+            tax_charge = form.save()
 
         context = {'form': form}
-        return render(request, template, context)
+        return render(request, self.form_template, context)
 
 # Loads full page
 class TaxesView(LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
+    form_template = 'api/components/edit-tax-charge-form.html'
 
     def get(self, request, *args, **kwargs):
 
@@ -124,7 +142,11 @@ class TaxesView(LoginRequiredMixin, View):
             'api/components/tax-table.html',
             {'tax_charges': tax_charges}
         )
-        context = {'tax_charge_table': tax_charge_table}
+        context = {
+            'tax_charge_table': tax_charge_table,
+            'form': render_to_string(self.form_template, {'form': TaxChargeForm()})
+        }
+
         return render(request, template, context)
 
 # Loads full page
