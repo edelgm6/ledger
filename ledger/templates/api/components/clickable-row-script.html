@@ -1,14 +1,16 @@
 <script>
-$(document).ready(function(){
-    $('.clickable-row').click(function() {
-        // Check if the clicked row is already highlighted
-        if (!$(this).hasClass('table-active')) {
-            // Remove the highlighted class from all other rows
-            $('.clickable-row').removeClass('table-active');
+    $(document).ready(function(){
+        // Functionality to highlight a row
+        $('.clickable-row').click(function() {
+            if (!$(this).hasClass('table-active')) {
+                $('.clickable-row').removeClass('table-active');
+                $(this).addClass('table-active');
+            }
+        });
 
-            // Add the highlighted class to this row
-            $(this).addClass('table-active');
-        }
+        // Functionality to clear the highlight from all rows
+        $('#clear-button').click(function() {
+            $('.clickable-row').removeClass('table-active');
+        });
     });
-});
 </script>
