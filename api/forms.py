@@ -2,7 +2,12 @@ from django import forms
 from django.forms import BaseModelFormSet
 from django.utils import timezone
 from django.core.validators import RegexValidator
-from api.models import Transaction, Account, JournalEntryItem
+from api.models import Transaction, Account, JournalEntryItem, TaxCharge
+
+class TaxChargeForm(forms.ModelForm):
+    class Meta:
+        model = TaxCharge
+        fields = ['type','date','amount']
 
 class TransactionLinkForm(forms.Form):
     first_transaction = forms.ModelChoiceField(

@@ -2,12 +2,12 @@ from datetime import date
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.views import View
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.forms import modelformset_factory
 from api.models import TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
-from api.forms import TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
+from api.forms import TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
 from api.statement import IncomeStatement
 
 class FilterFormMixIn:
@@ -84,6 +84,23 @@ class JournalEntryFormMixin:
             credits_initial_data.append({'account': secondary_account, 'amount': abs(transaction.amount)})
 
         return debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits'), credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
+
+# Loads full page
+class EditTaxChargeView(LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
+
+    def get(self, request, pk=None, *args, **kwargs):
+
+        template = 'api/components/edit-tax-charge-form.html'
+        if pk:
+            tax_charge = get_object_or_404(TaxCharge, pk=pk)
+            form = TaxChargeForm(instance=tax_charge)
+        else:
+            form = TaxChargeForm()
+
+        context = {'form': form}
+        return render(request, template, context)
 
 # Loads full page
 class TaxesView(LoginRequiredMixin, View):
