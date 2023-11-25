@@ -41,7 +41,7 @@
         <div class="col-md-2">
             <div class="form-group">
                 <label for="id_account">Account</label>
-                <select name="account" id="id_account" class="form-control select2" multiple="multiple">
+                <select name="account" id="id_account" class="form-control" multiple="multiple">
                     {% for account in filter_form.account.field.queryset %}
                         <option value="{{ account.pk }}" {% if account.pk|stringformat:"s" in filter_form.account.value %}selected{% endif %}>
                             {{ account }}
@@ -55,7 +55,7 @@
         <div class="col-md-2">
             <div class="form-group">
                 <label for="id_transaction_type">Type</label>
-                <select name="transaction_type" id="id_transaction_type" class="form-control select2" multiple="multiple">
+                <select name="transaction_type" id="id_transaction_type" class="form-control" multiple="multiple">
                     {% for choice in filter_form.transaction_type.field.choices %}
                         <option value="{{ choice.0 }}" {% if choice.0 in filter_form.transaction_type.value %}selected{% endif %}>
                             {{ choice.1 }}

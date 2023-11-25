@@ -1,3 +1,4 @@
+from datetime import date
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.views import View
@@ -5,14 +6,16 @@ from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.forms import modelformset_factory
-from api.models import Transaction, Account, JournalEntry, JournalEntryItem
+from api.models import TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
 from api.forms import TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
+from api.statement import IncomeStatement
 
 class FilterFormMixIn:
-    def get_filter_form_html(self, request=None, form_include=None, is_closed=None, has_linked_transaction=None):
+    def get_filter_form_html(self, request=None, form_include=None, is_closed=None, has_linked_transaction=None, transaction_type=None):
         form = TransactionFilterForm()
         form.initial['is_closed'] = is_closed
         form.initial['has_linked_transaction'] = has_linked_transaction
+        form.initial['transaction_type'] = transaction_type
         if request:
             data = request.GET if request.GET else request.POST
             form = TransactionFilterForm(data)
@@ -83,19 +86,45 @@ class JournalEntryFormMixin:
         return debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits'), credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
 
 # Loads full page
+class TaxesView(LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
+
+    def get(self, request, *args, **kwargs):
+
+        template = 'api/taxes.html'
+
+        tax_charges = TaxCharge.objects.all()
+
+        for tax_charge in tax_charges:
+            last_day_of_month = tax_charge.date
+            first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
+            taxable_income = IncomeStatement(tax_charge.date, first_day_of_month).get_taxable_income()
+            tax_charge.taxable_income = taxable_income
+            tax_charge.tax_rate = None if taxable_income == 0 else tax_charge.amount / taxable_income
+
+        tax_charge_table = render_to_string(
+            'api/components/tax-table.html',
+            {'tax_charges': tax_charges}
+        )
+        context = {'tax_charge_table': tax_charge_table}
+        return render(request, template, context)
+
+# Loads full page
 class LinkTransactionsView(FilterFormMixIn, JournalEntryFormMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
     linked_transaction_form = TransactionLinkForm
 
     def get(self, request, *args, **kwargs):
-        filter_form = self.get_filter_form_html(is_closed=False, has_linked_transaction=False, form_include='link-form')
+        filter_form = self.get_filter_form_html(is_closed=False, has_linked_transaction=False, form_include='link-form', transaction_type=Transaction.TransactionType.TRANSFER)
         transactions = Transaction.objects.all().order_by('date','account')
 
         # Default set form and transactions table to not closed
         transactions = transactions.filter(is_closed=False)
         # Default set form and transactions table to not linked
         transactions = transactions.filter(linked_transaction__isnull=True)
+        transactions = transactions.filter(type=Transaction.TransactionType.TRANSFER)
 
         template = 'api/transactions-linking.html'
         context = {
@@ -171,6 +200,7 @@ class JournalEntryFormView(JournalEntryFormMixin, LoginRequiredMixin, View):
         return render(request, self.item_form_template, context)
 
 # Called every time Submit is clicked. Should update table + form
+# Fold this into the view that loads the page
 class CreateJournalEntryItemsView(JournalEntryFormMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
