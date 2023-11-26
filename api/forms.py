@@ -1,8 +1,66 @@
+import calendar
+from datetime import datetime, timedelta, date
 from django import forms
 from django.forms import BaseModelFormSet
 from django.utils import timezone
 from django.core.validators import RegexValidator
 from api.models import Transaction, Account, JournalEntryItem, TaxCharge
+
+class TaxChargeFilterForm(forms.Form):
+
+    date_from = forms.ChoiceField(
+        required=False,
+        choices=[]
+    )
+    date_to = forms.ChoiceField(
+        required=False,
+        choices=[]
+    )
+    TAX_TYPE_CHOICES = (
+        (None, '---------'),
+        (TaxCharge.Type.FEDERAL, 'Federal'),
+        (TaxCharge.Type.STATE, 'State'),
+        (TaxCharge.Type.PROPERTY, 'Property')
+    )
+    tax_type = forms.ChoiceField(
+        required=False,
+        choices=TAX_TYPE_CHOICES
+    )
+
+    def __init__(self, *args, **kwargs):
+        super(TaxChargeFilterForm, self).__init__(*args, **kwargs)
+        # Restrict both fields to only allow last days of months
+        for field_name in ['date_from', 'date_to']:
+            field = self.fields[field_name]
+            field.choices = self._get_last_days_of_month_tuples()
+
+        current_year = datetime.now().year
+        january_31 = date(current_year, 1, 31)
+        self.fields['date_from'].initial = january_31
+
+    def get_tax_charges(self):
+        queryset = TaxCharge.objects.all()
+        if self.cleaned_data.get('date_to'):
+            queryset = queryset.filter(date__gte=self.cleaned_data['date_from'])
+        if self.cleaned_data.get('date_from'):
+            queryset = queryset.filter(date__lte=self.cleaned_data['date_to'])
+        if self.cleaned_data['tax_type']:
+            queryset = queryset.filter(type=self.cleaned_data['tax_type'])
+
+        return queryset.order_by('date')
+
+    def _get_last_days_of_month_tuples(self):
+        year_month_tuples = [(year, month) for year in range(2023, datetime.today().year + 1) for month in range(1, 13)]
+
+        final_days_of_month = []
+        for year, month in year_month_tuples:
+            next_month = month % 12 + 1
+            next_month_year = year + (month // 12)
+            last_day = date(next_month_year, next_month, 1) - timedelta(days=1)
+            final_days_of_month.append((last_day, last_day.strftime('%B %d, %Y')))
+
+        final_days_of_month.reverse()
+        return final_days_of_month
 
 class TaxChargeForm(forms.ModelForm):
     class Meta:

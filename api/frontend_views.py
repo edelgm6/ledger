@@ -7,7 +7,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.forms import modelformset_factory
 from api.models import TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
-from api.forms import TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
+from api.forms import TaxChargeFilterForm, TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
 from api.statement import IncomeStatement
 
 class FilterFormMixIn:
@@ -86,9 +86,9 @@ class JournalEntryFormMixin:
         return debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits'), credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
 
 class TaxTableMixIn:
-    def get_tax_table_html(self):
-        tax_charges = TaxCharge.objects.all()
+    def get_tax_table_html(self, tax_charges):
 
+        tax_charges = tax_charges.order_by('date','type')
         for tax_charge in tax_charges:
             last_day_of_month = tax_charge.date
             first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
@@ -102,6 +102,25 @@ class TaxTableMixIn:
         )
 
         return tax_charge_table_html
+
+class TaxChargeTableView(TaxTableMixIn, LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
+
+    def get(self, request, *args, **kwargs):
+        form = TaxChargeFilterForm(request.GET)
+        if form.is_valid():
+            tax_charges = form.get_tax_charges()
+            tax_table_charge_table_html = self.get_tax_table_html(tax_charges)
+
+            template = 'api/components/taxes-content.html'
+            form_template = 'api/components/edit-tax-charge-form.html'
+            context = {
+                'tax_charge_table': tax_table_charge_table_html,
+                'form': render_to_string(form_template, {'form': TaxChargeForm()}),
+            }
+
+            return render(request, template, context)
 
 # Add in the Taxes table mixin
 class TaxChargeFormView(TaxTableMixIn, LoginRequiredMixin, View):
@@ -134,9 +153,12 @@ class TaxChargeFormView(TaxTableMixIn, LoginRequiredMixin, View):
 
         if form.is_valid():
             tax_charge = form.save()
+            tax_charges_form = TaxChargeFilterForm(request.POST)
+            if tax_charges_form.is_valid():
+                tax_charges = tax_charges_form.get_tax_charges()
 
         context = {
-            'tax_charge_table': self.get_tax_table_html(),
+            'tax_charge_table': self.get_tax_table_html(tax_charges),
             'form': render_to_string(self.form_template, {'form': form})
         }
         form_template = 'api/components/taxes-content.html'
@@ -150,11 +172,13 @@ class TaxesView(TaxTableMixIn, LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
 
-        tax_charge_table = self.get_tax_table_html()
+        tax_charge_table = self.get_tax_table_html(TaxCharge.objects.all())
         template = 'api/taxes.html'
+        filter_template = 'api/components/tax-charge-filter-form.html'
         context = {
             'tax_charge_table': tax_charge_table,
-            'form': render_to_string(self.form_template, {'form': TaxChargeForm()})
+            'form': render_to_string(self.form_template, {'form': TaxChargeForm()}),
+            'filter_form': render_to_string(filter_template, {'filter_form': TaxChargeFilterForm()})
         }
 
         return render(request, template, context)

@@ -5,6 +5,7 @@
     {% if tax_charge %}hx-post="{% url 'edit-tax-charge' pk=tax_charge.pk %}"{% else %}hx-post="{% url 'create-tax-charge' %}"{% endif %}
     hx-target="#table-and-form"
     hx-trigger="submit"
+    hx-include="#taxes-filter-form"
 >
     {% csrf_token %}
 
