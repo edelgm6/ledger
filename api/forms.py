@@ -4,7 +4,24 @@ from django import forms
 from django.forms import BaseModelFormSet
 from django.utils import timezone
 from django.core.validators import RegexValidator
-from api.models import Transaction, Account, JournalEntryItem, TaxCharge
+from api.models import Transaction, Account, JournalEntryItem, TaxCharge, Reconciliation
+
+class ReconciliationForm(forms.ModelForm):
+    class Meta:
+        model = Reconciliation
+        fields = ['amount',]
+
+    def __init__(self, *args, **kwargs):
+        super(ReconciliationForm, self).__init__(*args, **kwargs)
+
+        # Set 'readonly' for all fields except 'amount'
+        readonly_fields = ['account', 'date', 'transaction']
+        for field_name in readonly_fields:
+            if field_name in self.fields:
+                field = self.fields[field_name]
+                field.widget.attrs['readonly'] = True
+                field.disabled = True  # This ensures the field is not processed when the form is submitted.
+
 
 class TaxChargeFilterForm(forms.Form):
 
