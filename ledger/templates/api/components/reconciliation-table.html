@@ -1,0 +1,41 @@
+<form method="POST" action="" class="form-sm">
+    {% csrf_token %}
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>Account</th>
+                <th>Amount</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{ formset.management_form }}
+            {% for reconciliation, form in zipped_reconciliations %}
+                <tr>
+                    <td>{{ reconciliation.account }}</td>
+                    <td>
+                        <div class="form-row">
+                            <div class="col">
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">$</span>
+                                    </div>
+                                    <input type="text" name="{{ form.amount.html_name }}" id="{{ form.amount.id_for_label }}" value="{{ form.amount.value|default_if_none:'' }}" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col">
+                                <small>Current: ${{ reconciliation.current_balance|floatformat:"2" }}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <button type="submit" class="btn btn-secondary">Plug</button>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <button class="btn btn-primary" type="submit" value="Submit">Update</button>
+</form>

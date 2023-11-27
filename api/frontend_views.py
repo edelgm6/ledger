@@ -6,9 +6,9 @@ from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.forms import modelformset_factory
-from api.models import TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
-from api.forms import TaxChargeFilterForm, TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
-from api.statement import IncomeStatement
+from api.models import Reconciliation, TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
+from api.forms import ReconciliationForm, TaxChargeFilterForm, TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
+from api.statement import IncomeStatement, BalanceSheet
 
 class FilterFormMixIn:
     def get_filter_form_html(self, request=None, form_include=None, is_closed=None, has_linked_transaction=None, transaction_type=None):
@@ -86,6 +86,7 @@ class JournalEntryFormMixin:
         return debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits'), credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
 
 class TaxTableMixIn:
+
     def get_tax_table_html(self, tax_charges):
 
         tax_charges = tax_charges.order_by('date','type')
@@ -102,6 +103,46 @@ class TaxTableMixIn:
         )
 
         return tax_charge_table_html
+
+class ReconciliationTableMixin:
+
+    def _get_current_balance(self, reconciliation):
+        balance_sheet = BalanceSheet(reconciliation.date)
+        balance = balance_sheet.get_balance(reconciliation.account)
+        return balance
+
+    def get_reconciliation_html(self, reconciliations):
+        for reconciliation in reconciliations:
+            reconciliation.current_balance = self._get_current_balance(reconciliation)
+
+        ReconciliationFormset = modelformset_factory(Reconciliation, ReconciliationForm, extra=0)
+        formset = ReconciliationFormset(queryset=reconciliations)
+        zipped_reconciliations = zip(reconciliations, formset)
+
+        template = 'api/components/reconciliation-table.html'
+        return render_to_string(
+            template,
+            {
+                'zipped_reconciliations': zipped_reconciliations
+            }
+        )
+
+
+# Loads full page
+class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
+
+    def get(self, request, *args, **kwargs):
+
+        template = 'api/reconciliation.html'
+        reconciliations = Reconciliation.objects.all()
+        reconciliation_table = self.get_reconciliation_html(reconciliations)
+        context = {
+            'reconciliation_table': reconciliation_table
+        }
+
+        return render(request, template, context)
 
 class TaxChargeTableView(TaxTableMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
@@ -314,7 +355,6 @@ class CreateJournalEntryItemsView(JournalEntryFormMixin, LoginRequiredMixin, Vie
             filter_form = TransactionFilterForm(request.POST)
             if filter_form.is_valid():
                 transactions = filter_form.get_transactions()
-                # transactions = self.get_filtered_queryset(request)
             transaction_id = transactions[0].id
             debit_formset, credit_formset = self.get_journal_entry_form(transaction_id=transaction_id)
 
