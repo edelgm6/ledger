@@ -123,18 +123,18 @@ class ReconciliationTableMixin:
         return render_to_string(
             template,
             {
-                'zipped_reconciliations': zipped_reconciliations
+                'zipped_reconciliations': zipped_reconciliations,
+                'formset': formset
             }
         )
-
 
 # Loads full page
 class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
 
-    def get(self, request, *args, **kwargs):
 
+    def get(self, request, *args, **kwargs):
         template = 'api/reconciliation.html'
         reconciliations = Reconciliation.objects.all()
         reconciliation_table = self.get_reconciliation_html(reconciliations)
@@ -143,6 +143,19 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
         }
 
         return render(request, template, context)
+
+    def post(self, request):
+        ReconciliationFormset = modelformset_factory(Reconciliation, ReconciliationForm, extra=0)
+        formset = ReconciliationFormset(request.POST)
+
+        if formset.is_valid():
+            reconciliations = formset.save()
+
+            reconciliations = Reconciliation.objects.all()
+            reconciliation_table = self.get_reconciliation_html(reconciliations)
+
+            return HttpResponse(reconciliation_table)
+
 
 class TaxChargeTableView(TaxTableMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
