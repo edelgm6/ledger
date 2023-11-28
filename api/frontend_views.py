@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import date, datetime
+import calendar
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.views import View
@@ -7,7 +8,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.forms import modelformset_factory
 from api.models import Reconciliation, TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
-from api.forms import ReconciliationForm, TaxChargeFilterForm, TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
+from api.forms import ReconciliationFilterForm, ReconciliationForm, TaxChargeFilterForm, TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
 from api.statement import IncomeStatement, BalanceSheet
 
 class FilterFormMixIn:
@@ -128,18 +129,43 @@ class ReconciliationTableMixin:
             }
         )
 
+# Loads reconciliation table
+class ReconciliationTableView(ReconciliationTableMixin, LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
+
+    def get(self, request, *args, **kwargs):
+        form = ReconciliationFilterForm(request.GET)
+        if form.is_valid():
+            reconciliations = form.get_reconciliations()
+            reconciliations_table = self.get_reconciliation_html(reconciliations)
+            return HttpResponse(reconciliations_table)
+
 # Loads full page
 class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
 
+    def _get_last_day_of_current_month(self):
+        current_date = datetime.now()
+        year = current_date.year
+        month = current_date.month
+
+        _, last_day = calendar.monthrange(year, month)
+        last_day_date = date(year, month, last_day)
+
+        return last_day_date
 
     def get(self, request, *args, **kwargs):
         template = 'api/reconciliation.html'
-        reconciliations = Reconciliation.objects.all()
+        reconciliations = Reconciliation.objects.filter(date=self._get_last_day_of_current_month())
         reconciliation_table = self.get_reconciliation_html(reconciliations)
         context = {
-            'reconciliation_table': reconciliation_table
+            'reconciliation_table': reconciliation_table,
+            'filter_form': render_to_string(
+                'api/components/reconciliation-filter-form.html',
+                {'filter_form': ReconciliationFilterForm()}
+            )
         }
 
         return render(request, template, context)
@@ -149,14 +175,16 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
             reconciliation = get_object_or_404(Reconciliation, pk=request.POST.get('plug'))
             reconciliation.plug_investment_change()
         else:
-
             ReconciliationFormset = modelformset_factory(Reconciliation, ReconciliationForm, extra=0)
             formset = ReconciliationFormset(request.POST)
 
             if formset.is_valid():
                 reconciliations = formset.save()
 
-        reconciliations = Reconciliation.objects.all()
+        filter_form = ReconciliationFilterForm(request.POST)
+        if filter_form.is_valid():
+            reconciliations = filter_form.get_reconciliations()
+
         reconciliation_table = self.get_reconciliation_html(reconciliations)
 
         return HttpResponse(reconciliation_table)
