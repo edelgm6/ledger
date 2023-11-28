@@ -4,6 +4,7 @@
     hx-post="{% url 'reconciliation' %}"
     hx-target="#table-and-form"
     hx-trigger="submit"
+    hx-include="#reconciliation-filter-form"
 >
     {% csrf_token %}
     <table class="table table-sm">
