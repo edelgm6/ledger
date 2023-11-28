@@ -145,16 +145,21 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
         return render(request, template, context)
 
     def post(self, request):
-        ReconciliationFormset = modelformset_factory(Reconciliation, ReconciliationForm, extra=0)
-        formset = ReconciliationFormset(request.POST)
+        if request.POST.get('plug'):
+            reconciliation = get_object_or_404(Reconciliation, pk=request.POST.get('plug'))
+            reconciliation.plug_investment_change()
+        else:
 
-        if formset.is_valid():
-            reconciliations = formset.save()
+            ReconciliationFormset = modelformset_factory(Reconciliation, ReconciliationForm, extra=0)
+            formset = ReconciliationFormset(request.POST)
 
-            reconciliations = Reconciliation.objects.all()
-            reconciliation_table = self.get_reconciliation_html(reconciliations)
+            if formset.is_valid():
+                reconciliations = formset.save()
 
-            return HttpResponse(reconciliation_table)
+        reconciliations = Reconciliation.objects.all()
+        reconciliation_table = self.get_reconciliation_html(reconciliations)
+
+        return HttpResponse(reconciliation_table)
 
 
 class TaxChargeTableView(TaxTableMixIn, LoginRequiredMixin, View):
