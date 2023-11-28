@@ -3,7 +3,6 @@ from django.test import TestCase, RequestFactory
 from django.urls import reverse
 from django.contrib.auth.models import User
 from api.models import TaxCharge, Transaction, Account
-from api.statement import IncomeStatement
 
 class TaxesViewTest(TestCase):
 

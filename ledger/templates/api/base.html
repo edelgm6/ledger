@@ -105,7 +105,12 @@
         {% block content %}{% endblock %}
     </div>
 
-    {% block extra_js %}{% endblock %}
-</body>
 
+</body>
+<script>
+    document.body.addEventListener('htmx:configRequest', (event) => {
+        event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+    });
+</script>
+{% block extra_js %}{% endblock %}
 </html>

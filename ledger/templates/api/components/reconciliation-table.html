@@ -1,4 +1,10 @@
-<form method="POST" action="" class="form-sm">
+<form
+    method="post"
+    class="form-sm"
+    hx-post="{% url 'reconciliation' %}"
+    hx-target="#table-and-form"
+    hx-trigger="submit"
+>
     {% csrf_token %}
     <table class="table table-sm">
         <thead>
@@ -11,6 +17,7 @@
         <tbody>
             {{ formset.management_form }}
             {% for reconciliation, form in zipped_reconciliations %}
+                {{ form.id }}
                 <tr>
                     <td>{{ reconciliation.account }}</td>
                     <td>
