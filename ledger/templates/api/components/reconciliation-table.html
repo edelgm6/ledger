@@ -1,4 +1,6 @@
-<form
+<div class="row">
+    <div class="col-md-6">
+    <form
     method="post"
     class="form-sm"
     hx-post="{% url 'reconciliation' %}"
@@ -6,44 +8,43 @@
     hx-trigger="submit"
     hx-include="#reconciliation-filter-form"
 >
-    {% csrf_token %}
-    <table class="table table-sm">
-        <thead>
-            <tr>
-                <th>Account</th>
-                <th>Amount</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{ formset.management_form }}
-            {% for reconciliation, form in zipped_reconciliations %}
-                {{ form.id }}
+        {% csrf_token %}
+        <table class="table table-sm">
+            <thead>
                 <tr>
-                    <td>{{ reconciliation.account }}</td>
-                    <td>
-                        <div class="form-row">
-                            <div class="col">
-                                <div class="input-group input-group-sm">
-                                    <div class="input-group-prepend">
-                                        <span class="input-group-text">$</span>
+                    <th>Account</th>
+                    <th>Current</th>
+                    <th>Amount</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ formset.management_form }}
+                {% for reconciliation, form in zipped_reconciliations %}
+                    {{ form.id }}
+                    <tr>
+                        <td>{{ reconciliation.account }}</td>
+                        <td>${{ reconciliation.current_balance|floatformat:"2" }}</td>
+                        <td>
+                            <div class="form-row">
+                                <div class="col">
+                                    <div class="input-group input-group-sm">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text">$</span>
+                                        </div>
+                                        <input type="text" name="{{ form.amount.html_name }}" id="{{ form.amount.id_for_label }}" value="{{ form.amount.value|default_if_none:'' }}" class="form-control">
                                     </div>
-                                    <input type="text" name="{{ form.amount.html_name }}" id="{{ form.amount.id_for_label }}" value="{{ form.amount.value|default_if_none:'' }}" class="form-control">
                                 </div>
                             </div>
-                        </div>
-                        <div class="row">
-                            <div class="col">
-                                <small>Current: ${{ reconciliation.current_balance|floatformat:"2" }}</small>
-                            </div>
-                        </div>
-                    </td>
-                    <td>
-                        <button type="submit" name="plug" value="{{ form.instance.id }}" class="btn btn-secondary">Plug</button>
-                    </td>
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <button class="btn btn-primary" type="submit" value="Submit">Update</button>
-</form>
+                        </td>
+                        <td>
+                            <button type="submit" name="plug" value="{{ form.instance.id }}" class="btn btn-secondary">Plug</button>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <button class="btn btn-primary" type="submit" value="Submit">Update</button>
+    </form>
+    </div>
+</div>
