@@ -135,9 +135,14 @@ class ReconciliationTableView(ReconciliationTableMixin, LoginRequiredMixin, View
     redirect_field_name = 'next'
 
     def get(self, request, *args, **kwargs):
+
         form = ReconciliationFilterForm(request.GET)
         if form.is_valid():
-            reconciliations = form.get_reconciliations()
+            if request.GET.get('generate'):
+                reconciliations = form.generate_reconciliations()
+            else:
+                reconciliations = form.get_reconciliations()
+
             reconciliations_table = self.get_reconciliation_html(reconciliations)
             return HttpResponse(reconciliations_table)
 
@@ -157,6 +162,7 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
         return last_day_date
 
     def get(self, request, *args, **kwargs):
+
         template = 'api/reconciliation.html'
         reconciliations = Reconciliation.objects.filter(date=self._get_last_day_of_current_month())
         reconciliation_table = self.get_reconciliation_html(reconciliations)
