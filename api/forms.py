@@ -41,6 +41,22 @@ class ReconciliationFilterForm(forms.Form):
     def get_reconciliations(self):
         return Reconciliation.objects.filter(date=self.cleaned_data['date'])
 
+    def generate_reconciliations(self):
+        date = self.cleaned_data['date']
+
+        balance_sheet_accounts = Account.objects.filter(type__in=[Account.Type.ASSET,Account.Type.LIABILITY])
+        reconciliation_list = []
+        for account in balance_sheet_accounts:
+            reconciliation_list.append(
+                Reconciliation(
+                    account=account,
+                    date=date
+                )
+            )
+
+        reconciliations = Reconciliation.objects.bulk_create(reconciliation_list)
+        return reconciliations
+
 class ReconciliationForm(forms.ModelForm):
     class Meta:
         model = Reconciliation
