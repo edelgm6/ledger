@@ -8,7 +8,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.forms import modelformset_factory
 from api.models import Reconciliation, TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
-from api.forms import ReconciliationFilterForm, ReconciliationForm, TaxChargeFilterForm, TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
+from api.forms import UploadTransactionsForm, ReconciliationFilterForm, ReconciliationForm, TaxChargeFilterForm, TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
 from api.statement import IncomeStatement, BalanceSheet
 
 class FilterFormMixIn:
@@ -85,6 +85,24 @@ class JournalEntryFormMixin:
             credits_initial_data.append({'account': secondary_account, 'amount': abs(transaction.amount)})
 
         return debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits'), credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
+
+class UploadTransactionsView(View):
+
+    form = UploadTransactionsForm
+    template = 'api/upload-transactions.html'
+    form_template = 'api/components/upload-form.html'
+
+    def get(self, request):
+        form_html = render_to_string(self.form_template, {'form': self.form})
+        return render(request, self.template, {'form': form_html})
+
+    def post(self, request):
+        form = self.form(request.POST, request.FILES)
+        if form.is_valid():
+            transactions = form.save()
+            form_html = render_to_string(self.form_template, {'form': form})
+            success_html = render_to_string('api/components/upload-success.html', {'count': len(transactions)})
+            return render(request, self.template, {'form': form_html, 'success': success_html})
 
 class TaxTableMixIn:
 

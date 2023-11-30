@@ -1,0 +1,30 @@
+<div class="row">
+    <div class="col-md-4">
+        <form
+            method="post"
+            enctype="multipart/form-data"
+            hx-post="{% url 'upload-transactions' %}"
+            hx-target="#container"
+            hx-trigger="submit"
+        >
+        {% csrf_token %}
+            <!-- Render the 'account' field -->
+            <div class="mb-3">
+                <label for="id_account" class="form-label">Account</label>
+                <select name="account" id="id_account" class="form-control">
+                    {% for account in form.account.field.queryset %}
+                        <option value="{{ account.pk }}">{{ account }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Render the 'transaction_csv' field -->
+            <div class="mb-3">
+                <label for="id_transaction_csv" class="form-label">Transaction CSV</label>
+                <input type="file" name="transaction_csv" id="id_transaction_csv" class="form-control-file">
+            </div>
+
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+</div>

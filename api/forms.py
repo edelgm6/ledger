@@ -1,10 +1,11 @@
+import csv
 import calendar
 from datetime import datetime, timedelta, date
 from django import forms
 from django.forms import BaseModelFormSet
 from django.utils import timezone
 from django.core.validators import RegexValidator
-from api.models import Transaction, Account, JournalEntryItem, TaxCharge, Reconciliation
+from api.models import Transaction, Account, JournalEntryItem, TaxCharge, Reconciliation, CSVProfile
 
 def _get_last_days_of_month_tuples():
     # Get the current year and month
@@ -30,6 +31,25 @@ def _get_last_days_of_month_tuples():
 
     final_days_of_month.reverse()
     return final_days_of_month
+
+class UploadTransactionsForm(forms.Form):
+    account = forms.ModelChoiceField(queryset=Account.objects.filter(csv_profile__isnull=False))
+    transaction_csv = forms.FileField()
+
+    def _csv_to_list_of_lists(self, csvfile):
+        # Open the file in text mode with the correct encoding
+        decoded_file = csvfile.read().decode('utf-8').splitlines()
+        csv_reader = csv.reader(decoded_file)
+        list_of_lists = list(csv_reader)
+        return list_of_lists
+
+    def save(self):
+        account = self.cleaned_data['account']
+        csv_profile = account.csv_profile
+        transaction_list = self._csv_to_list_of_lists(self.cleaned_data['transaction_csv'])
+        transactions = csv_profile.create_transactions_from_csv(transaction_list,account)
+        return transactions
+
 
 class ReconciliationFilterForm(forms.Form):
     date = forms.ChoiceField()
