@@ -17,7 +17,7 @@ from django.contrib import admin
 from django.urls import path
 from django.contrib.auth.views import LoginView
 # from api.views import TaxChargeView, JournalEntryView, TransactionView, AccountView, UploadTransactionsView, AccountBalanceView, TransactionTypeView, CSVProfileView, GenerateReconciliationsView, ReconciliationView, PlugReconciliationView, TrendView
-from api.frontend_views import ReconciliationTableView, ReconciliationView, TaxChargeTableView,TaxChargeFormView, TaxesView, LinkTransactionsView, JournalEntryFormView, CreateJournalEntryItemsView, TransactionsTableView, TransactionsListView, IndexView
+from api.frontend_views import UploadTransactionsView, ReconciliationTableView, ReconciliationView, TaxChargeTableView,TaxChargeFormView, TaxesView, LinkTransactionsView, JournalEntryFormView, CreateJournalEntryItemsView, TransactionsTableView, TransactionsListView, IndexView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -50,4 +50,5 @@ urlpatterns = [
     path('edit-or-create-tax-charge/', TaxChargeFormView.as_view(), name='create-tax-charge'),
     path('reconciliation/', ReconciliationView.as_view(), name='reconciliation'),
     path('reconciliation-table/', ReconciliationTableView.as_view(), name='reconciliation-table'),
+    path('upload-transactions/', UploadTransactionsView.as_view(), name='upload-transactions'),
 ]
