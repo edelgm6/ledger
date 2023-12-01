@@ -137,10 +137,12 @@ class ReconciliationTableMixin:
         return balance
 
     def get_reconciliation_html(self, reconciliations):
+        reconciliations = reconciliations.order_by('account')
         for reconciliation in reconciliations:
             reconciliation.current_balance = self._get_current_balance(reconciliation)
 
         ReconciliationFormset = modelformset_factory(Reconciliation, ReconciliationForm, extra=0)
+
         formset = ReconciliationFormset(queryset=reconciliations)
         zipped_reconciliations = zip(reconciliations, formset)
 
