@@ -1,0 +1,55 @@
+<form
+    id="taxes-filter-form"
+    method="get"
+    class="form-sm"
+    hx-get="{% url 'tax-charge-table' %}"
+    hx-target="#table-and-form"
+    hx-tigger="submit"
+>
+    <!-- CSRF token is not required for GET requests -->
+    <div class="row">
+        <!-- Date From Field -->
+        <div class="col-md-2">
+            <div class="form-group">
+                <label for="id_date_from">Date From</label>
+                <select name="date_from" id="id_date_from" class="form-control">
+                    {% for option in filter_form.date_from %}
+                        {{ option }}
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Date To Field -->
+        <div class="col-md-2">
+            <div class="form-group">
+                <label for="id_date_to">Date To</label>
+                <select name="date_to" id="id_date_to" class="form-control">
+                    {% for option in filter_form.date_to %}
+                        {{ option }}
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Type Field -->
+        <div class="col-md-2">
+            <div class="form-group">
+                <label for="id_tax_type">Type</label>
+                <select name="tax_type" id="id_tax_type" class="form-control">
+                    {% for option in filter_form.tax_type %}
+                        {{ option }}
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="col-md-2">
+            <div class="form-group">
+                <label>&nbsp;</label> <!-- Empty label for alignment -->
+                <button type="submit" class="btn btn-primary form-control">Filter</button>
+            </div>
+        </div>
+    </div>
+</form>

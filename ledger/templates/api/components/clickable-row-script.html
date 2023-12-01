@@ -1,0 +1,16 @@
+<script>
+    $(document).ready(function(){
+        // Functionality to highlight a row
+        $('.clickable-row').click(function() {
+            if (!$(this).hasClass('table-active')) {
+                $('.clickable-row').removeClass('table-active');
+                $(this).addClass('table-active');
+            }
+        });
+
+        // Functionality to clear the highlight from all rows
+        $('#clear-button').click(function() {
+            $('.clickable-row').removeClass('table-active');
+        });
+    });
+</script>
