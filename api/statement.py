@@ -345,7 +345,10 @@ class BalanceSheet(Statement):
         return investment_gains_losses, net_retained_earnings
 
     def get_balance(self, account):
-        balance = [balance.amount for balance in self.balances if balance.account == account.name][0]
+        try:
+            balance = [balance.amount for balance in self.balances if balance.account == account.name][0]
+        except IndexError: # Need this when there is no balance for a given account
+            balance = 0
         return balance
 
     def get_metrics(self):
