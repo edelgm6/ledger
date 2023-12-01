@@ -13,8 +13,16 @@ def _get_last_days_of_month_tuples():
     current_year = current_date.year
     current_month = current_date.month
 
+    # Adjust for the previous month
+    # If the current month is January, set to December of the previous year
+    if current_month == 1:
+        current_year -= 1
+        current_month = 12
+    else:
+        current_month -= 1
+
     # Create a list of year-month tuples
-    # For the current year, include months up to the current month.
+    # For the current year, include months up to the previous month.
     # For previous years, include all months.
     year_month_tuples = [(year, month) for year in range(2023, current_year + 1)
                          for month in range(1, current_month + 1 if year == current_year else 13)]

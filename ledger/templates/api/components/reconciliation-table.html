@@ -1,3 +1,4 @@
+{% load humanize %}
 <div class="row">
     <div class="col-md-6">
     <form
@@ -24,7 +25,7 @@
                     {{ form.id }}
                     <tr>
                         <td>{{ reconciliation.account }}</td>
-                        <td>${{ reconciliation.current_balance|floatformat:"2" }}</td>
+                        <td>${{ reconciliation.current_balance|floatformat:2|intcomma }}</td>
                         <td>
                             <div class="form-row">
                                 <div class="col">

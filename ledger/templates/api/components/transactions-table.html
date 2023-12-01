@@ -1,3 +1,4 @@
+{% load humanize %}
 <div id="transactions-table" class="table-responsive" style="max-height: 200px; overflow-y: auto;">
     <table class="table table-hover table-sm">
         <thead>
@@ -15,7 +16,7 @@
             <tr class="clickable-row{% if forloop.first and not no_highlight %} table-active{% endif %}" hx-get="{% url 'journal-entry-form' transaction.id %}" hx-target="#journal-entry-item-form" data-transaction-id="{{ transaction.id }}">
                 <td>{{ transaction.date }}</td>
                 <td>{{ transaction.account }}</td>
-                <td>{{ transaction.amount }}</td>
+                <td>${{ transaction.amount|floatformat:2|intcomma }}</td>
                 <td>{{ transaction.description }}</td>
                 <td>{{ transaction.category }}</td>
                 <td>{{ transaction.get_type_display }}</td>
