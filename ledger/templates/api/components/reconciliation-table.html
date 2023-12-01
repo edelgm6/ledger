@@ -23,7 +23,7 @@
                 {{ formset.management_form }}
                 {% for reconciliation, form in zipped_reconciliations %}
                     {{ form.id }}
-                    <tr>
+                    <tr class="{% if reconciliation.current_balance != form.amount.value %}highlight-yellow{% endif %}">
                         <td>{{ reconciliation.account }}</td>
                         <td>${{ reconciliation.current_balance|floatformat:2|intcomma }}</td>
                         <td>
