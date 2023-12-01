@@ -54,6 +54,9 @@ class TransactionQueryMixin:
 
 class JournalEntryFormMixin:
     def get_journal_entry_form(self, transaction_id):
+        if not transaction_id:
+            return None, None
+
         transaction = Transaction.objects.get(pk=transaction_id)
         try:
             journal_entry = transaction.journal_entry
@@ -366,11 +369,10 @@ class TransactionsTableView(JournalEntryFormMixin, LoginRequiredMixin, View):
 
             try:
                 transaction_id = transactions[0].id
-                debit_formset, credit_formset = self.get_journal_entry_form(transaction_id=transaction_id)
             except IndexError:
                 transaction_id = None
-                debit_formset = None
-                credit_formset = None
+
+            debit_formset, credit_formset = self.get_journal_entry_form(transaction_id=transaction_id)
 
             context = {
                 'transactions': transactions,
@@ -449,11 +451,10 @@ class CreateJournalEntryItemsView(JournalEntryFormMixin, LoginRequiredMixin, Vie
 
             try:
                 transaction_id = transactions[0].id
-                debit_formset, credit_formset = self.get_journal_entry_form(transaction_id=transaction_id)
             except IndexError:
                 transaction_id = None
-                debit_formset = None
-                credit_formset = None
+
+            debit_formset, credit_formset = self.get_journal_entry_form(transaction_id=transaction_id)
 
             context = {
                 'transactions': transactions,
@@ -474,7 +475,11 @@ class TransactionsListView(FilterFormMixIn, JournalEntryFormMixin, LoginRequired
         transactions = Transaction.objects.all().order_by('date','account')
         transactions = transactions.filter(is_closed=False)
 
-        transaction_id = transactions[0].id
+        try:
+            transaction_id = transactions[0].id
+        except IndexError:
+            transaction_id = None
+
         debit_formset, credit_formset = self.get_journal_entry_form(transaction_id=transaction_id)
 
         context = {
