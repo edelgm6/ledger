@@ -4,7 +4,11 @@
     id="journal-entry-form"
     method="post"
     class="form-horizontal form-sm"
-    hx-post="{% url 'create-journal-entry-items' transaction_id %}"
+    {% if transaction_id %}
+        hx-post="{% url 'create-journal-entry-items' transaction_id %}"
+    {% else %}
+        hx-post=""
+    {% endif %}
     hx-target="#table-and-form"
     hx-trigger="submit"
     hx-include="#transactions-filter-form"
