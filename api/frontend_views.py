@@ -177,11 +177,19 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
 
-    def _get_last_day_of_current_month(self):
+    def _get_last_day_of_last_month(self):
         current_date = datetime.now()
-        year = current_date.year
-        month = current_date.month
 
+        # Calculate the year and month for the previous month
+        year = current_date.year
+        month = current_date.month - 1
+
+        # If it's currently January, adjust to December of the previous year
+        if month == 0:
+            month = 12
+            year -= 1
+
+        # Get the last day of the previous month
         _, last_day = calendar.monthrange(year, month)
         last_day_date = date(year, month, last_day)
 
@@ -190,7 +198,7 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
 
         template = 'api/reconciliation.html'
-        reconciliations = Reconciliation.objects.filter(date=self._get_last_day_of_current_month())
+        reconciliations = Reconciliation.objects.filter(date=self._get_last_day_of_last_month())
         reconciliation_table = self.get_reconciliation_html(reconciliations)
         context = {
             'reconciliation_table': reconciliation_table,
@@ -356,8 +364,13 @@ class TransactionsTableView(JournalEntryFormMixin, LoginRequiredMixin, View):
         if form.is_valid():
             transactions = form.get_transactions()
 
-            transaction_id = transactions[0].id
-            debit_formset, credit_formset = self.get_journal_entry_form(transaction_id=transaction_id)
+            try:
+                transaction_id = transactions[0].id
+                debit_formset, credit_formset = self.get_journal_entry_form(transaction_id=transaction_id)
+            except IndexError:
+                transaction_id = None
+                debit_formset = None
+                credit_formset = None
 
             context = {
                 'transactions': transactions,
@@ -433,8 +446,14 @@ class CreateJournalEntryItemsView(JournalEntryFormMixin, LoginRequiredMixin, Vie
             filter_form = TransactionFilterForm(request.POST)
             if filter_form.is_valid():
                 transactions = filter_form.get_transactions()
-            transaction_id = transactions[0].id
-            debit_formset, credit_formset = self.get_journal_entry_form(transaction_id=transaction_id)
+
+            try:
+                transaction_id = transactions[0].id
+                debit_formset, credit_formset = self.get_journal_entry_form(transaction_id=transaction_id)
+            except IndexError:
+                transaction_id = None
+                debit_formset = None
+                credit_formset = None
 
             context = {
                 'transactions': transactions,
