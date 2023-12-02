@@ -25,3 +25,10 @@
         </tbody>
     </table>
 </div>
+
+<form id="filter-params">
+    {% for key, value in filter_params.items %}
+    {{key}}-{{value}}
+    <input type="hidden" name="filter_{{ key }}" value="{{ value }}" id="id_filter-{{key}}">
+    {% endfor %}
+</form>

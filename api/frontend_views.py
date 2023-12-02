@@ -323,10 +323,9 @@ class TransactionsViewMixin:
     table_template = 'api/tables/transactions-table.html'
     entry_form_template = 'api/entry_forms/journal-entry-item-form.html'
     content_template  = 'api/components/journal-entry-content.html'
-    filter_form = TransactionFilterForm
 
     def get_filter_form_html_and_objects(self, is_closed=None, has_linked_transaction=None, transaction_type=None):
-        form = self.filter_form()
+        form = TransactionFilterForm()
         form.initial['is_closed'] = is_closed
         form.initial['has_linked_transaction'] = has_linked_transaction
         form.initial['transaction_type'] = transaction_type
@@ -479,3 +478,4 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
 
                 html = render_to_string(self.content_template, context)
                 return HttpResponse(html)
+            print(filter_form.errors)
