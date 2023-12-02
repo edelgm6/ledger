@@ -17,7 +17,7 @@ from django.contrib import admin
 from django.urls import path
 from django.contrib.auth.views import LoginView
 # from api.views import TaxChargeView, JournalEntryView, TransactionView, AccountView, UploadTransactionsView, AccountBalanceView, TransactionTypeView, CSVProfileView, GenerateReconciliationsView, ReconciliationView, PlugReconciliationView, TrendView
-from api.frontend_views import UploadTransactionsView, ReconciliationTableView, ReconciliationView, TaxChargeTableView,TaxChargeFormView, TaxesView, LinkTransactionsView, JournalEntryFormView, CreateJournalEntryItemsView, TransactionsTableView, TransactionsListView, IndexView
+from api.frontend_views import JournalEntryView, UploadTransactionsView, ReconciliationTableView, ReconciliationView, TaxChargeTableView,TaxChargeFormView, TaxesView, LinkTransactionsView, JournalEntryFormView, CreateJournalEntryItemsView, TransactionsTableView, IndexView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -39,7 +39,7 @@ urlpatterns = [
 
     path('', IndexView.as_view(), name='index'),
     path('login/', LoginView.as_view(template_name='api/login.html'), name='login'),
-    path('transactions-list/', TransactionsListView.as_view(), name='transactions-list'),
+    path('transactions-list/', JournalEntryView.as_view(), name='transactions-list'),
     path('transactions-table/', TransactionsTableView.as_view(), name='transactions-table'),
     path('journal-entry-items/<int:transaction_id>/', JournalEntryFormView.as_view(), name='journal-entry-form'),
     path('create-journal-entry-items/<int:transaction_id>/', CreateJournalEntryItemsView.as_view(), name='create-journal-entry-items'),

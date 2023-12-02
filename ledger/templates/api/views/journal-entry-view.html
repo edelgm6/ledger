@@ -1,0 +1,13 @@
+    <h2>Transactions List</h2>
+
+    {{ filter_form }}
+
+    <div id="table-and-form">
+        {% include "api/components/clickable-row-script.html" %}
+        {{ table }}
+        <div id="journal-entry-item-form">
+            {{ entry_form }}
+        </div>
+    </div>
+
+
