@@ -456,42 +456,36 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
         debit_formset = JournalEntryItemFormset(request.POST, prefix='debits')
         credit_formset = JournalEntryItemFormset(request.POST, prefix='credits')
 
-        try:
-            if debit_formset.is_valid() and credit_formset.is_valid():
-                debit_total = debit_formset.get_entry_total()
-                credit_total = credit_formset.get_entry_total()
+        if debit_formset.is_valid() and credit_formset.is_valid():
+            debit_total = debit_formset.get_entry_total()
+            credit_total = credit_formset.get_entry_total()
 
-                if debit_total != credit_total:
-                    return HttpResponse('wtf')
-                    # raise ValidationError('debits and credits must match')
+            if debit_total != credit_total:
+                return HttpResponse('debits and credits must match')
 
-                transaction = Transaction.objects.get(pk=transaction_id)
-                debit_formset.save(transaction, JournalEntryItem.JournalEntryType.DEBIT)
-                credit_formset.save(transaction, JournalEntryItem.JournalEntryType.CREDIT)
-                transaction.close()
+            transaction = Transaction.objects.get(pk=transaction_id)
+            debit_formset.save(transaction, JournalEntryItem.JournalEntryType.DEBIT)
+            credit_formset.save(transaction, JournalEntryItem.JournalEntryType.CREDIT)
+            transaction.close()
 
-                filter_form = TransactionFilterForm(request.POST)
-                if filter_form.is_valid():
-                    transactions = filter_form.get_transactions()
-                    if request.POST.get('index'):
-                        index = int(request.POST.get('index', 0))  # Default to 0 if 'index' is not provided
-                        try:
-                            transaction = transactions[index]
-                            entry_form_html = self.get_entry_form_html(transaction=transaction, index=index)
-                        except IndexError:
-                            entry_form_html = None
+            filter_form = TransactionFilterForm(request.POST)
+            if filter_form.is_valid():
+                transactions = filter_form.get_transactions()
+                if request.POST.get('index'):
+                    index = int(request.POST.get('index', 0))  # Default to 0 if 'index' is not provided
+                    try:
+                        transaction = transactions[index]
+                        entry_form_html = self.get_entry_form_html(transaction=transaction, index=index)
+                    except IndexError:
+                        entry_form_html = None
 
-                    table_html = self.get_table_html(transactions=transactions, index=index)
+                table_html = self.get_table_html(transactions=transactions, index=index)
 
-                    context = {
-                        'table': table_html,
-                        'entry_form': entry_form_html
-                    }
+                context = {
+                    'table': table_html,
+                    'entry_form': entry_form_html
+                }
 
-                    html = render_to_string(self.content_template, context)
-                    return HttpResponse(html)
-                print(filter_form.errors)
-                # return HttpResponse(filter_form.errors)
-            # return HttpResponse(debit_formset.errors)
-        except Exception as e:
-            return HttpResponse(f"An error occurred: {e}")
+                html = render_to_string(self.content_template, context)
+                return HttpResponse(html)
+            print(filter_form.errors)
