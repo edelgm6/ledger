@@ -71,14 +71,28 @@ class Reconciliation(models.Model):
         return journal_entry
 
 class TransactionQuerySet(models.QuerySet):
-    def filter_for_table(self, is_closed=None, has_linked_transaction=None, transaction_type=None):
+    def filter_for_table(
+        self,
+        is_closed=None,
+        has_linked_transaction=None,
+        transaction_types=None,
+        accounts=None,
+        date_from=None,
+        date_to=None
+    ):
         queryset = self
         if is_closed is not None:
             queryset = queryset.filter(is_closed=is_closed)
         if has_linked_transaction is not None:
             queryset = queryset.exclude(linked_transaction__isnull=has_linked_transaction)
-        if transaction_type:
-            queryset = queryset.filter(type=transaction_type)
+        if transaction_types:
+            queryset = queryset.filter(type__in=transaction_types)
+        if accounts:
+            queryset = queryset.filter(account__in=accounts)
+        if date_from:
+            queryset = queryset.filter(date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(date__gte=date_to)
 
         return queryset.order_by('date', 'account')
 

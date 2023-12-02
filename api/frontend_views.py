@@ -7,6 +7,7 @@ from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.forms import modelformset_factory
+from django.core.exceptions import ValidationError
 from api.models import Reconciliation, TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
 from api.forms import UploadTransactionsForm, ReconciliationFilterForm, ReconciliationForm, TaxChargeFilterForm, TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
 from api.statement import IncomeStatement, BalanceSheet
@@ -316,116 +317,38 @@ class FilterFormMixIn:
 
         return render_to_string(template, context)
 
-# Called every time a table row is clicked
-class JournalEntryFormView(LoginRequiredMixin, View):
-    login_url = '/login/'
-    redirect_field_name = 'next'
-    item_form_template = 'api/components/journal-entry-item-form.html'
-
-    def get(self, request, *args, **kwargs):
-        transaction_id = self.kwargs.get('transaction_id')
-        debit_formset, credit_formset = self.get_journal_entry_form(transaction_id)
-
-        context = {
-            'transaction_id': transaction_id,
-            'debit_formset': debit_formset,
-            'credit_formset': credit_formset
-        }
-        return render(request, self.item_form_template, context)
-
-# Called every time Submit is clicked. Should update table + form
-# Fold this into the view that loads the page
-class CreateJournalEntryItemsView(LoginRequiredMixin, View):
-    login_url = '/login/'
-    redirect_field_name = 'next'
-    template = 'api/components/transactions-content.html'
-
-    def _get_or_create_journal_entry(self, transaction):
-        try:
-            journal_entry = transaction.journal_entry
-        except JournalEntry.DoesNotExist:
-            journal_entry = JournalEntry.objects.create(
-                date=transaction.date,
-                transaction=transaction
-            )
-
-        return journal_entry
-
-    def post(self, request, *args, **kwargs):
-        JournalEntryItemFormset = modelformset_factory(JournalEntryItem, formset=BaseJournalEntryItemFormset, form=JournalEntryItemForm)
-        debit_formset = JournalEntryItemFormset(request.POST, request.FILES, prefix='debits')
-        credit_formset = JournalEntryItemFormset(request.POST, request.FILES, prefix='credits')
-
-        if debit_formset.is_valid() and credit_formset.is_valid():
-            transaction_id = self.kwargs.get('transaction_id')
-            transaction = Transaction.objects.get(pk=transaction_id)
-            journal_entry = self._get_or_create_journal_entry(transaction)
-
-            debit_total = debit_formset.get_entry_total()
-            credit_total = credit_formset.get_entry_total()
-
-            if debit_total != credit_total:
-                raise ValidationError('debits and credits must match')
-
-            debit_formset.save(journal_entry, JournalEntryItem.JournalEntryType.DEBIT)
-            credit_formset.save(journal_entry, JournalEntryItem.JournalEntryType.CREDIT)
-
-            transaction.close()
-
-            filter_form = TransactionFilterForm(request.POST)
-            if filter_form.is_valid():
-                transactions = filter_form.get_transactions()
-
-            try:
-                transaction_id = transactions[0].id
-            except IndexError:
-                transaction_id = None
-
-            debit_formset, credit_formset = self.get_journal_entry_form(transaction_id=transaction_id)
-
-            context = {
-                'transactions': transactions,
-                'transaction_id': transaction_id,
-                'debit_formset': debit_formset,
-                'credit_formset': credit_formset
-            }
-
-            return render(request, self.template, context)
-
 class TransactionsViewMixin:
     view_template = 'api/views/journal-entry-view.html'
     filter_form_template = 'api/filter_forms/transactions-filter-form.html'
     table_template = 'api/tables/transactions-table.html'
     entry_form_template = 'api/entry_forms/journal-entry-item-form.html'
+    content_template  = 'api/components/journal-entry-content.html'
     filter_form = TransactionFilterForm
 
-    def get_filter_form_html(self, is_closed=None, has_linked_transaction=None, transaction_type=None):
+    def get_filter_form_html_and_objects(self, is_closed=None, has_linked_transaction=None, transaction_type=None):
         form = self.filter_form()
         form.initial['is_closed'] = is_closed
         form.initial['has_linked_transaction'] = has_linked_transaction
         form.initial['transaction_type'] = transaction_type
+        transactions = Transaction.objects.filter_for_table(is_closed, has_linked_transaction, transaction_type)
 
         context = {
             'filter_form': form
         }
 
-        return render_to_string(self.filter_form_template, context)
+        return render_to_string(self.filter_form_template, context), transactions
 
-    def get_table_html_and_objects(self, is_closed=None, has_linked_transaction=None, transaction_type=None):
-        transactions = Transaction.objects.filter_for_table(is_closed, has_linked_transaction, transaction_type)
+    def get_table_html(self, transactions):
 
         context = {
             'transactions': transactions
         }
 
-        return render_to_string(self.table_template, context), transactions
+        return render_to_string(self.table_template, context)
 
-    def get_entry_form_html(self, transactions):
-        try:
-            transaction = transactions[0]
-        except IndexError:
-            return None, None
-
+    def get_entry_form_html(self, transaction):
+        if not transaction:
+            return None
         try:
             journal_entry = transaction.journal_entry
             journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry)
@@ -465,81 +388,94 @@ class TransactionsViewMixin:
 
         return render_to_string(self.entry_form_template, context)
 
-# Called by transactions filter form
+# Called every time a table row is clicked
+class JournalEntryFormView(TransactionsViewMixin, LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
+    item_form_template = 'api/entry_forms/journal-entry-item-form.html'
+
+    def get(self, request, transaction_id):
+        transaction = Transaction.objects.get(pk=transaction_id)
+        entry_form_html = self.get_entry_form_html(transaction)
+
+        return HttpResponse(entry_form_html)
+
+# Called every time the page is filtered
 class TransactionsTableView(TransactionsViewMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
 
-    def get(self, request, *args, **kwargs):
-        data = request.GET if request.GET else request.POST
-        form = TransactionFilterForm(data)
+    def get(self, request):
+        form = TransactionFilterForm(request.GET)
         if form.is_valid():
             transactions = form.get_transactions()
-
-            try:
-                transaction_id = transactions[0].id
-            except IndexError:
-                transaction_id = None
-
-            debit_formset, credit_formset = self.get_journal_entry_form(transaction_id=transaction_id)
+            table_html = self.get_table_html(transactions=transactions)
+            entry_form_html = self.get_entry_form_html(transaction=transactions[0])
 
             context = {
-                'transactions': transactions,
-                'transaction_id': transaction_id,
-                'debit_formset': debit_formset,
-                'credit_formset': credit_formset
+                'table': table_html,
+                'entry_form': entry_form_html
             }
 
-            if request.GET.get('returnForm'):
-                if request.GET.get('returnForm') == 'jei-form':
-                    template = 'api/components/transactions-content.html'
-                elif request.GET.get('returnForm') == 'link-form':
-                    template = 'api/components/transactions-link-content.html'
+            html = render_to_string(self.content_template, context)
+            return HttpResponse(html)
 
-            return render(request, template, context)
+            # if request.GET.get('returnForm'):
+            #     if request.GET.get('returnForm') == 'jei-form':
+            #         template = 'api/components/transactions-content.html'
+            #     elif request.GET.get('returnForm') == 'link-form':
+            #         template = 'api/components/transactions-link-content.html'
 
+            # return render(request, template, context)
+
+# Called as the main page
 class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
 
     def get(self, request):
-        filter_form_html = self.get_filter_form_html(is_closed=False)
-        table_html, transactions = self.get_table_html_and_objects(is_closed=False)
-        entry_form_html = self.get_entry_form_html(transactions=transactions)
+        filter_form_html, transactions = self.get_filter_form_html_and_objects(is_closed=False)
+        table_html = self.get_table_html(transactions)
+        entry_form_html = self.get_entry_form_html(transaction=transactions[0])
 
         context = {
             'filter_form': filter_form_html,
-            'table': table_html,
-            'entry_form': entry_form_html
+            'table_and_form': render_to_string(
+                self.content_template,
+                {'table': table_html,'entry_form': entry_form_html}
+            )
         }
 
         html = render_to_string(self.view_template, context)
         return HttpResponse(html)
 
+    def post(self, request, transaction_id):
+        JournalEntryItemFormset = modelformset_factory(JournalEntryItem, formset=BaseJournalEntryItemFormset, form=JournalEntryItemForm)
+        debit_formset = JournalEntryItemFormset(request.POST, prefix='debits')
+        credit_formset = JournalEntryItemFormset(request.POST, prefix='credits')
 
-# class TransactionsListView(FilterFormMixIn, JournalEntryFormMixin, LoginRequiredMixin, View):
-#     login_url = '/login/'
-#     redirect_field_name = 'next'
-#     template = 'api/transactions-list.html'
+        if debit_formset.is_valid() and credit_formset.is_valid():
+            debit_total = debit_formset.get_entry_total()
+            credit_total = credit_formset.get_entry_total()
 
-#     def get(self, request, *args, **kwargs):
-#         filter_form = self.get_filter_form_html(form_include='jei-form', is_closed=False)
-#         transactions = Transaction.objects.all().order_by('date','account')
-#         transactions = transactions.filter(is_closed=False)
+            if debit_total != credit_total:
+                raise ValidationError('debits and credits must match')
 
-#         try:
-#             transaction_id = transactions[0].id
-#         except IndexError:
-#             transaction_id = None
+            transaction = Transaction.objects.get(pk=transaction_id)
+            debit_formset.save(transaction, JournalEntryItem.JournalEntryType.DEBIT)
+            credit_formset.save(transaction, JournalEntryItem.JournalEntryType.CREDIT)
+            transaction.close()
 
-#         debit_formset, credit_formset = self.get_journal_entry_form(transaction_id=transaction_id)
+            filter_form = TransactionFilterForm(request.POST)
+            if filter_form.is_valid():
+                transactions = filter_form.get_transactions()
+                table_html = self.get_table_html(transactions=transactions)
+                entry_form_html = self.get_entry_form_html(transaction=transactions[0])
 
-#         context = {
-#             'filter_form': filter_form,
-#             'transactions': transactions,
-#             'transaction_id': transaction_id,
-#             'debit_formset': debit_formset,
-#             'credit_formset': credit_formset
-#         }
-#         return render(request, self.template, context)
+                context = {
+                    'table': table_html,
+                    'entry_form': entry_form_html
+                }
 
+                html = render_to_string(self.content_template, context)
+                return HttpResponse(html)
