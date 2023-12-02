@@ -309,7 +309,6 @@ class TransactionForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super(TransactionForm, self).__init__(*args, **kwargs)
-        print(Account.objects.exclude(special_type=Account.SpecialType.WALLET))
         self.fields['date'].initial = timezone.localdate()  # Set today's date as initial value
 
     def save(self, *args, **kwargs):
