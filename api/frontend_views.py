@@ -337,15 +337,16 @@ class TransactionsViewMixin:
 
         return render_to_string(self.filter_form_template, context), transactions
 
-    def get_table_html(self, transactions):
+    def get_table_html(self, transactions, index=0):
 
         context = {
-            'transactions': transactions
+            'transactions': transactions,
+            'index': index
         }
 
         return render_to_string(self.table_template, context)
 
-    def get_entry_form_html(self, transaction):
+    def get_entry_form_html(self, transaction, index=0):
         if not transaction:
             return None
         try:
@@ -382,7 +383,8 @@ class TransactionsViewMixin:
         context = {
             'debit_formset': debit_formset,
             'credit_formset': credit_formset,
-            'transaction_id': transaction.id
+            'transaction_id': transaction.id,
+            'index': index
         }
 
         return render_to_string(self.entry_form_template, context)
@@ -395,7 +397,7 @@ class JournalEntryFormView(TransactionsViewMixin, LoginRequiredMixin, View):
 
     def get(self, request, transaction_id):
         transaction = Transaction.objects.get(pk=transaction_id)
-        entry_form_html = self.get_entry_form_html(transaction)
+        entry_form_html = self.get_entry_form_html(transaction=transaction, index=request.GET.get('row_index'))
 
         return HttpResponse(entry_form_html)
 
@@ -468,8 +470,15 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
             filter_form = TransactionFilterForm(request.POST)
             if filter_form.is_valid():
                 transactions = filter_form.get_transactions()
-                table_html = self.get_table_html(transactions=transactions)
-                entry_form_html = self.get_entry_form_html(transaction=transactions[0])
+                if request.POST.get('index'):
+                    index = int(request.POST.get('index', 0))  # Default to 0 if 'index' is not provided
+                    try:
+                        transaction = transactions[index]
+                        entry_form_html = self.get_entry_form_html(transaction=transaction, index=index)
+                    except IndexError:
+                        entry_form_html = None
+
+                table_html = self.get_table_html(transactions=transactions, index=index)
 
                 context = {
                     'table': table_html,
