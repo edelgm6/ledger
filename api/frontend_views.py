@@ -15,8 +15,8 @@ from api.statement import IncomeStatement, BalanceSheet
 class UploadTransactionsView(View):
 
     form = UploadTransactionsForm
-    template = 'api/upload-transactions.html'
-    form_template = 'api/components/upload-form.html'
+    template = 'api/views/upload-transactions.html'
+    form_template = 'api/entry_forms/upload-form.html'
 
     def get(self, request):
         form_html = render_to_string(self.form_template, {'form': self.form})
