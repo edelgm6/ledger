@@ -94,7 +94,7 @@ class TransactionQuerySet(models.QuerySet):
         if date_to:
             queryset = queryset.filter(date__gte=date_to)
 
-        return queryset.order_by('date', 'account')
+        return queryset.order_by('date', 'account', 'pk')
 
 class TransactionManager(models.Manager):
     def get_queryset(self):
