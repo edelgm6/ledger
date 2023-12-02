@@ -6,8 +6,8 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav">
-                <li class="nav-item {% if request.resolver_match.url_name == 'transactions-list' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'transactions-list' %}" hx-get="{% url 'transactions-list' %}" hx-target="#container">Journal Entries</a>
+                <li class="nav-item {% if request.resolver_match.url_name == 'journal-entries' %}active{% endif %}">
+                    <a class="nav-link" href="{% url 'journal-entries' %}" hx-get="{% url 'journal-entries' %}" hx-target="#container">Journal Entries</a>
                 </li>
                 <li class="nav-item {% if request.resolver_match.url_name == 'link-transactions' %}active{% endif %}">
                     <a class="nav-link" href="{% url 'link-transactions' %}" hx-get="{% url 'link-transactions' %}" hx-target="#container">Link Transactions</a>
