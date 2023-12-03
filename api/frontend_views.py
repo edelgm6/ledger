@@ -341,15 +341,14 @@ class TransactionsViewMixin:
 
         context = {
             'transactions': transactions,
-            'index': index,
-            'index_txn_id': transactions[index].id
+            'index': index
         }
 
         return render_to_string(self.table_template, context)
 
     def get_entry_form_html(self, transaction, index=0):
         if not transaction:
-            return None
+            return ''
         try:
             journal_entry = transaction.journal_entry
             journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry)
@@ -369,10 +368,11 @@ class TransactionsViewMixin:
         DEBITS_DECREASE_ACCOUNT_TYPES = [Account.Type.LIABILITY, Account.Type.EQUITY]
         debits_initial_data = []
         credits_initial_data = []
-        if debits_count + credits_count == 0:
-            is_debit = (transaction.amount < 0 and transaction.account.type in DEBITS_DECREASE_ACCOUNT_TYPES) or \
-                    (transaction.amount >= 0 and transaction.account.type not in DEBITS_DECREASE_ACCOUNT_TYPES)
 
+        is_debit = (transaction.amount < 0 and transaction.account.type in DEBITS_DECREASE_ACCOUNT_TYPES) or \
+                (transaction.amount >= 0 and transaction.account.type not in DEBITS_DECREASE_ACCOUNT_TYPES)
+
+        if debits_count + credits_count == 0:
             primary_account, secondary_account = (transaction.account, transaction.suggested_account) \
                 if is_debit else (transaction.suggested_account, transaction.account)
 
@@ -412,8 +412,12 @@ class TransactionsTableView(TransactionsViewMixin, LoginRequiredMixin, View):
         if form.is_valid():
             transactions = form.get_transactions()
             table_html = self.get_table_html(transactions=transactions)
-            entry_form_html = self.get_entry_form_html(transaction=transactions[0])
-
+            try:
+                transaction=transactions[0]
+            except IndexError:
+                transaction=None
+            entry_form_html = self.get_entry_form_html(transaction=transaction)
+            print(entry_form_html)
             context = {
                 'table': table_html,
                 'entry_form': entry_form_html
