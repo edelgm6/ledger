@@ -385,7 +385,8 @@ class TransactionsViewMixin:
             'debit_formset': debit_formset,
             'credit_formset': credit_formset,
             'transaction_id': transaction.id,
-            'index': index
+            'index': index,
+            'autofocus_debit': is_debit
         }
 
         return render_to_string(self.entry_form_template, context)
