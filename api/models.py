@@ -92,7 +92,7 @@ class TransactionQuerySet(models.QuerySet):
         if date_from:
             queryset = queryset.filter(date__gte=date_from)
         if date_to:
-            queryset = queryset.filter(date__gte=date_to)
+            queryset = queryset.filter(date__lte=date_to)
 
         return queryset.order_by('date', 'account', 'pk')
 
