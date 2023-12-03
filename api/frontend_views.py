@@ -436,7 +436,10 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
     redirect_field_name = 'next'
 
     def get(self, request):
-        filter_form_html, transactions = self.get_filter_form_html_and_objects(is_closed=False)
+        filter_form_html, transactions = self.get_filter_form_html_and_objects(
+            is_closed=False,
+            transaction_type=[Transaction.TransactionType.INCOME,Transaction.TransactionType.PURCHASE]
+        )
         table_html = self.get_table_html(transactions)
         entry_form_html = self.get_entry_form_html(transaction=transactions[0])
 
