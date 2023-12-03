@@ -153,6 +153,7 @@ class Transaction(models.Model):
 
     def create_link(self, transaction):
         self.linked_transaction = transaction
+        self.suggested_account = transaction.account
         self.save()
         transaction.close()
 

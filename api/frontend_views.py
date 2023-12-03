@@ -236,26 +236,6 @@ class TaxesView(TaxTableMixIn, LoginRequiredMixin, View):
 
         return render(request, template, context)
 
-
-class IndexView(LoginRequiredMixin, View):
-    login_url = '/login/'
-    redirect_field_name = 'next'
-    template = 'api/views/index.html'
-    success_template = 'api/wallet-success.html'
-    form_class = TransactionForm
-
-    def get(self, request, *args, **kwargs):
-        return render(request, self.template, {'form': self.form_class,'today': timezone.localdate()})
-
-    def post(self, request, *args, **kwargs):
-        form = self.form_class(request.POST)
-        if form.is_valid():
-            transaction = form.save()
-            success = render_to_string(self.success_template, {'transaction': transaction})
-            return HttpResponse(success)
-
-        return render(request, self.template_name, {'form': form})
-
 class TransactionsViewMixin:
     filter_form_template = 'api/filter_forms/transactions-filter-form.html'
     table_template = 'api/tables/transactions-table.html'
@@ -496,3 +476,24 @@ class JournalEntryView(JournalEntryFormMixin, TransactionsViewMixin, LoginRequir
                 html = render_to_string(self.content_template, context)
                 return HttpResponse(html)
             print(filter_form.errors)
+
+# ------------------Wallet Transactions View-----------------------
+
+class IndexView(LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
+    template = 'api/views/index.html'
+    success_template = 'api/wallet-success.html'
+    form_class = TransactionForm
+
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template, {'form': self.form_class,'today': timezone.localdate()})
+
+    def post(self, request, *args, **kwargs):
+        form = self.form_class(request.POST)
+        if form.is_valid():
+            transaction = form.save()
+            success = render_to_string(self.success_template, {'transaction': transaction})
+            return HttpResponse(success)
+
+        return render(request, self.template_name, {'form': form})
