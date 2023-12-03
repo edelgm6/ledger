@@ -45,6 +45,7 @@
                         id="{{ form.amount.auto_id }}"
                         value="{% if form.amount.value == 0 %}0.00{% else %}{{ form.amount.value }}{% endif %}"
                         tabindex="{{ forloop.counter|multiply:4|add:2 }}"
+                        {% if not autofocus_debit %}autofocus{% endif %}
                     >
                 </div>
             </div>
@@ -78,6 +79,7 @@
                         id="{{ form.amount.auto_id }}"
                         value="{% if form.amount.value == 0 %}0.00{% else %}{{ form.amount.value }}{% endif %}"
                         tabindex="{{ forloop.counter|multiply:4|add:4 }}"
+                        {% if autofocus_debit %}autofocus{% endif %}
                     >
                 </div>
             </div>
