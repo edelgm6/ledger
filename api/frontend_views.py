@@ -499,7 +499,7 @@ class IndexView(LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
     template = 'api/views/index.html'
-    success_template = 'api/wallet-success.html'
+    success_template = 'api/components/wallet-success.html'
     form_class = TransactionForm
 
     def get(self, request, *args, **kwargs):
