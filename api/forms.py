@@ -315,7 +315,7 @@ class TransactionForm(forms.ModelForm):
 
     class Meta:
         model = Transaction
-        fields = ['date','amount','description','suggested_account']
+        fields = ['date','amount','description','account','suggested_account']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
             'amount': forms.NumberInput(attrs={'step': '1'})
@@ -327,9 +327,7 @@ class TransactionForm(forms.ModelForm):
 
     def save(self, *args, **kwargs):
         instance = super(TransactionForm, self).save(commit=False)
-        wallet = Account.objects.get(special_type=Account.SpecialType.WALLET)
-
-        instance.account = wallet
-        instance.amount = instance.amount * -1
-        instance.save()
+        if self.cleaned_data['account'] == Account.objects.get(special_type=Account.SpecialType.WALLET):
+            instance.amount = instance.amount * -1
+            instance.save()
         return instance
