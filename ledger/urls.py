@@ -44,7 +44,7 @@ urlpatterns = [
     path('journal-entries/', JournalEntryView.as_view(), name='journal-entries'),
     path('journal-entries/<int:transaction_id>/', JournalEntryView.as_view(), name='journal-entries'),
     path('journal-entries/form/<int:transaction_id>/', JournalEntryFormView.as_view(), name='journal-entry-form'),
-    # path('create-journal-entry-items/<int:transaction_id>/', CreateJournalEntryItemsView.as_view(), name='create-journal-entry-items'),
+    # Link page
     path('transactions-linking/', LinkTransactionsView.as_view(), name='link-transactions'),
     path('taxes/', TaxesView.as_view(), name='taxes'),
     path('tax-charge-table/', TaxChargeTableView.as_view(), name='tax-charge-table'),

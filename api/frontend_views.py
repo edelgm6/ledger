@@ -240,7 +240,13 @@ class TransactionsViewMixin:
     filter_form_template = 'api/filter_forms/transactions-filter-form.html'
     table_template = 'api/tables/transactions-table.html'
 
-    def get_filter_form_html_and_objects(self, is_closed=None, has_linked_transaction=None, transaction_type=None):
+    def get_filter_form_html_and_objects(
+        self,
+        is_closed=None,
+        has_linked_transaction=None,
+        transaction_type=None,
+        return_form_type=None
+    ):
         form = TransactionFilterForm()
         form.initial['is_closed'] = is_closed
         form.initial['has_linked_transaction'] = has_linked_transaction
@@ -248,7 +254,8 @@ class TransactionsViewMixin:
         transactions = Transaction.objects.filter_for_table(is_closed, has_linked_transaction, transaction_type)
 
         context = {
-            'filter_form': form
+            'filter_form': form,
+            'return_form_type': return_form_type
         }
 
         return render_to_string(self.filter_form_template, context), transactions
@@ -262,66 +269,6 @@ class TransactionsViewMixin:
         }
 
         return render_to_string(self.table_template, context)
-
-# ------------------Linking View-----------------------
-
-class LinkTransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
-    login_url = '/login/'
-    redirect_field_name = 'next'
-    content_template  = 'api/components/transactions-link-content.html'
-
-    def _get_entry_form_html(self):
-        entry_form_template = 'api/entry_forms/transaction-link-form.html'
-        html = render_to_string(
-            entry_form_template,
-            {'link_form': TransactionLinkForm()}
-        )
-        return html
-
-    def get(self, request):
-        filter_form_html, transactions = self.get_filter_form_html_and_objects(
-            is_closed=False,
-            has_linked_transaction=False,
-            transaction_type=[Transaction.TransactionType.TRANSFER,Transaction.TransactionType.PAYMENT]
-        )
-        table_html = self.get_table_html(transactions, no_highlight=True)
-        link_form_html = self._get_entry_form_html()
-
-        context = {
-            'filter_form': filter_form_html,
-            'table_and_form': render_to_string(
-                self.content_template,{
-                    'table': table_html,
-                    'link_form': link_form_html
-                }
-            )
-        }
-
-        view_template = 'api/views/transactions-linking.html'
-        html = render_to_string(view_template, context)
-        return HttpResponse(html)
-
-    def post(self, request):
-        form = TransactionLinkForm(request.POST)
-        filter_form = TransactionFilterForm(request.POST)
-        if filter_form.is_valid():
-            transactions = filter_form.get_transactions()
-
-            if form.is_valid():
-                form.save()
-                table_html = self.get_table_html(transactions=transactions, no_highlight=True)
-                link_form_html = self._get_entry_form_html()
-                context = {
-                    'table': table_html,
-                    'link_form': link_form_html
-                }
-
-                html = render_to_string(self.content_template, context)
-                return HttpResponse(html)
-
-            print(form.errors)
-
-# ------------------Journal Entries View-----------------------
 
 class JournalEntryFormMixin:
     entry_form_template = 'api/entry_forms/journal-entry-item-form.html'
@@ -371,6 +318,100 @@ class JournalEntryFormMixin:
 
         return render_to_string(self.entry_form_template, context)
 
+class LinkFormMixin:
+    def get_link_form_html(self):
+        entry_form_template = 'api/entry_forms/transaction-link-form.html'
+        html = render_to_string(
+            entry_form_template,
+            {'link_form': TransactionLinkForm()}
+        )
+        return html
+
+# Called every time the page is filtered
+class TransactionsTableView(LinkFormMixin, JournalEntryFormMixin, TransactionsViewMixin, LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
+
+    def get(self, request, *args, **kwargs):
+        form = TransactionFilterForm(request.GET)
+        if form.is_valid():
+            transactions = form.get_transactions()
+
+            context = {}
+            if request.GET.get('return_form_type') == 'link':
+                table_html = self.get_table_html(transactions, no_highlight=True)
+                link_form_html = self.get_link_form_html()
+                context['link_form'] = link_form_html
+                content_template  = 'api/components/transactions-link-content.html'
+            else:
+                table_html = self.get_table_html(transactions=transactions)
+                try:
+                    transaction=transactions[0]
+                except IndexError:
+                    transaction=None
+                entry_form_html = self.get_entry_form_html(transaction=transaction)
+                context['entry_form'] = entry_form_html
+                content_template  = 'api/components/journal-entry-content.html'
+
+            context['table'] = table_html
+
+            html = render_to_string(content_template, context)
+            return HttpResponse(html)
+
+# ------------------Linking View-----------------------
+
+class LinkTransactionsView(LinkFormMixin, TransactionsViewMixin, LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
+    content_template  = 'api/components/transactions-link-content.html'
+
+    def get(self, request):
+        filter_form_html, transactions = self.get_filter_form_html_and_objects(
+            is_closed=False,
+            has_linked_transaction=False,
+            transaction_type=[Transaction.TransactionType.TRANSFER,Transaction.TransactionType.PAYMENT],
+            return_form_type='link'
+        )
+        table_html = self.get_table_html(transactions, no_highlight=True)
+        link_form_html = self.get_link_form_html()
+
+        context = {
+            'filter_form': filter_form_html,
+            'table_and_form': render_to_string(
+                self.content_template,{
+                    'table': table_html,
+                    'link_form': link_form_html
+                }
+            )
+        }
+
+        view_template = 'api/views/transactions-linking.html'
+        html = render_to_string(view_template, context)
+        return HttpResponse(html)
+
+    def post(self, request):
+        form = TransactionLinkForm(request.POST)
+        filter_form = TransactionFilterForm(request.POST)
+        if filter_form.is_valid():
+            transactions = filter_form.get_transactions()
+
+            if form.is_valid():
+                form.save()
+                table_html = self.get_table_html(transactions=transactions, no_highlight=True)
+                link_form_html = self.get_link_form_html()
+                context = {
+                    'table': table_html,
+                    'link_form': link_form_html
+                }
+
+                html = render_to_string(self.content_template, context)
+                return HttpResponse(html)
+
+            print(form.errors)
+            print(form.non_field_errors())
+
+# ------------------Journal Entries View-----------------------
+
 # Called every time a table row is clicked
 class JournalEntryFormView(JournalEntryFormMixin, TransactionsViewMixin, LoginRequiredMixin, View):
     login_url = '/login/'
@@ -382,31 +423,6 @@ class JournalEntryFormView(JournalEntryFormMixin, TransactionsViewMixin, LoginRe
         entry_form_html = self.get_entry_form_html(transaction=transaction, index=request.GET.get('row_index'))
 
         return HttpResponse(entry_form_html)
-
-# Called every time the page is filtered
-class TransactionsTableView(JournalEntryFormMixin, TransactionsViewMixin, LoginRequiredMixin, View):
-    login_url = '/login/'
-    redirect_field_name = 'next'
-    content_template  = 'api/components/journal-entry-content.html'
-
-    def get(self, request):
-        form = TransactionFilterForm(request.GET)
-        if form.is_valid():
-            transactions = form.get_transactions()
-            table_html = self.get_table_html(transactions=transactions)
-            try:
-                transaction=transactions[0]
-            except IndexError:
-                transaction=None
-            entry_form_html = self.get_entry_form_html(transaction=transaction)
-            print(entry_form_html)
-            context = {
-                'table': table_html,
-                'entry_form': entry_form_html
-            }
-
-            html = render_to_string(self.content_template, context)
-            return HttpResponse(html)
 
 # Called as the main page
 class JournalEntryView(JournalEntryFormMixin, TransactionsViewMixin, LoginRequiredMixin, View):

@@ -146,10 +146,22 @@ class TransactionLinkForm(forms.Form):
     )
     second_transaction = forms.ModelChoiceField(
         queryset=Transaction.objects.all(),
-        required=False,
+        required=True,
         label='Linked Transaction',
         widget=forms.HiddenInput()
     )
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        amount1 = self.cleaned_data.get('first_transaction').amount
+        amount2 = self.cleaned_data.get('second_transaction').amount
+
+        # Validate that amount1 is the negative of amount2
+        if amount1 != amount2 * -1:
+            raise forms.ValidationError("The amount of the first transaction must be the negative of the second transaction.")
+
+        return cleaned_data
 
     def save(self):
         first_transaction = self.cleaned_data.get('first_transaction')
