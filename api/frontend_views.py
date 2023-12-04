@@ -72,7 +72,7 @@ class ReconciliationTableMixin:
         formset = ReconciliationFormset(queryset=reconciliations)
         zipped_reconciliations = zip(reconciliations, formset)
 
-        template = 'api/components/reconciliation-table.html'
+        template = 'api/tables/reconciliation-table.html'
         return render_to_string(
             template,
             {
@@ -123,13 +123,13 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
 
-        template = 'api/reconciliation.html'
+        template = 'api/views/reconciliation.html'
         reconciliations = Reconciliation.objects.filter(date=self._get_last_day_of_last_month())
         reconciliation_table = self.get_reconciliation_html(reconciliations)
         context = {
             'reconciliation_table': reconciliation_table,
             'filter_form': render_to_string(
-                'api/components/reconciliation-filter-form.html',
+                'api/filter_forms/reconciliation-filter-form.html',
                 {'filter_form': ReconciliationFilterForm()}
             )
         }
