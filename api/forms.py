@@ -329,5 +329,5 @@ class TransactionForm(forms.ModelForm):
         instance = super(TransactionForm, self).save(commit=False)
         if self.cleaned_data['account'] == Account.objects.get(special_type=Account.SpecialType.WALLET):
             instance.amount = instance.amount * -1
-            instance.save()
+        instance.save()
         return instance
