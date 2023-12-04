@@ -55,6 +55,19 @@
                 {% endfor %}
             </div>
 
+            <!-- Account Field -->
+            <div class="form-group">
+                <select name="account" id="id_account" class="form-control select2">
+                    <option value="" selected="selected">---------</option>
+                    {% for option in form.account %}
+                        {{ option }}
+                    {% endfor %}
+                </select>
+                {% for error in form.suggested_account.errors %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+
             <!-- Amount Field -->
             <div class="form-group">
                 <div class="input-group">
