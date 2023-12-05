@@ -526,7 +526,7 @@ class TrendView(LoginRequiredMixin, View):
     redirect_field_name = 'next'
 
     def get(self, request, *args, **kwargs):
-        start_date = '2023-01-01'
+        start_date = '2022-12-31'
         end_date = '2023-12-31'
 
         trends = Trend(start_date,end_date).get_balances()
