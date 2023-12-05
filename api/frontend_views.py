@@ -532,17 +532,18 @@ class TrendView(LoginRequiredMixin, View):
         trends = Trend(start_date,end_date).get_balances()
 
         trends_csv = [
-            ['account','amount','account_type','account_sub_type','date','type']
+            ['Date','Account','Type','Amount','Account Type','Account Sub-type']
+
         ]
 
         for trend in trends:
             trends_csv.append([
+                trend.date,
                 trend.account,
+                trend.type,
                 trend.amount,
                 trend.account_type,
-                trend.account_sub_type,
-                trend.date,
-                trend.type
+                trend.account_sub_type
             ])
 
         # Create the HttpResponse object with the appropriate CSV header.
