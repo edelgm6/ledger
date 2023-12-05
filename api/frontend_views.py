@@ -526,22 +526,21 @@ class TrendView(LoginRequiredMixin, View):
     redirect_field_name = 'next'
 
     def get(self, request, *args, **kwargs):
-        start_date = '2022-12-31'
+        start_date = '2022-12-01'
         end_date = '2023-12-31'
 
         trends = Trend(start_date,end_date).get_balances()
 
         trends_csv = [
             ['Date','Account','Type','Amount','Account Type','Account Sub-type']
-
         ]
 
         for trend in trends:
             trends_csv.append([
-                trend.date,
+                str(trend.date),
                 trend.account,
                 trend.type,
-                trend.amount,
+                str(trend.amount),
                 trend.account_type,
                 trend.account_sub_type
             ])
@@ -554,9 +553,7 @@ class TrendView(LoginRequiredMixin, View):
 
         writer = csv.writer(response)
         for row in trends_csv:
-            # Convert special types to strings
-            processed_row = [str(item) if isinstance(item, (Decimal, date)) else item for item in row]
-            writer.writerow(processed_row)
+            writer.writerow(row)
 
         return response
 
