@@ -310,7 +310,7 @@ class TransactionFilterForm(forms.Form):
 class TransactionForm(forms.ModelForm):
 
     suggested_account = forms.ModelChoiceField(
-        queryset=Account.objects.exclude(special_type=Account.SpecialType.WALLET)
+        queryset=Account.objects.all()
     )
 
     class Meta:
