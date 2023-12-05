@@ -49,7 +49,7 @@ class TaxTableMixIn:
             tax_charge.tax_rate = None if taxable_income == 0 else tax_charge.amount / taxable_income
 
         tax_charge_table_html = render_to_string(
-            'api/components/tax-table.html',
+            'api/tables/tax-table.html',
             {'tax_charges': tax_charges}
         )
 
@@ -167,7 +167,7 @@ class TaxChargeTableView(TaxTableMixIn, LoginRequiredMixin, View):
             tax_table_charge_table_html = self.get_tax_table_html(tax_charges)
 
             template = 'api/components/taxes-content.html'
-            form_template = 'api/components/edit-tax-charge-form.html'
+            form_template = 'api/entry_forms/edit-tax-charge-form.html'
             context = {
                 'tax_charge_table': tax_table_charge_table_html,
                 'form': render_to_string(form_template, {'form': TaxChargeForm()}),
@@ -180,7 +180,7 @@ class TaxChargeFormView(TaxTableMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
     form_class = TaxChargeForm
-    form_template = 'api/components/edit-tax-charge-form.html'
+    form_template = 'api/entry_forms/edit-tax-charge-form.html'
 
     def get(self, request, pk=None, *args, **kwargs):
         if pk:
@@ -221,13 +221,13 @@ class TaxChargeFormView(TaxTableMixIn, LoginRequiredMixin, View):
 class TaxesView(TaxTableMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
-    form_template = 'api/components/edit-tax-charge-form.html'
+    form_template = 'api/entry_forms/edit-tax-charge-form.html'
 
     def get(self, request, *args, **kwargs):
 
         tax_charge_table = self.get_tax_table_html(TaxCharge.objects.all())
-        template = 'api/taxes.html'
-        filter_template = 'api/components/tax-charge-filter-form.html'
+        template = 'api/views/taxes.html'
+        filter_template = 'api/filter_forms/tax-charge-filter-form.html'
         context = {
             'tax_charge_table': tax_charge_table,
             'form': render_to_string(self.form_template, {'form': TaxChargeForm()}),
