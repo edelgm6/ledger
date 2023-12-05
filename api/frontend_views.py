@@ -1,5 +1,7 @@
-from datetime import date, datetime
 import calendar
+import csv
+from datetime import date, datetime
+from decimal import Decimal
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.views import View
@@ -10,7 +12,7 @@ from django.forms import modelformset_factory
 from django.core.exceptions import ValidationError
 from api.models import Reconciliation, TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
 from api.forms import UploadTransactionsForm, ReconciliationFilterForm, ReconciliationForm, TaxChargeFilterForm, TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
-from api.statement import IncomeStatement, BalanceSheet
+from api.statement import IncomeStatement, BalanceSheet, Trend
 
 class UploadTransactionsView(View):
 
@@ -518,3 +520,42 @@ class IndexView(LoginRequiredMixin, View):
             return HttpResponse(success)
         print(form.errors)
         return render(request, self.template, {'form': form})
+
+class TrendView(LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
+
+    def get(self, request, *args, **kwargs):
+        start_date = '2023-01-01'
+        end_date = '2023-12-31'
+
+        trends = Trend(start_date,end_date).get_balances()
+
+        trends_csv = [
+            ['account','amount','account_type','account_sub_type','date','type']
+        ]
+
+        for trend in trends:
+            trends_csv.append([
+                trend.account,
+                trend.amount,
+                trend.account_type,
+                trend.account_sub_type,
+                trend.date,
+                trend.type
+            ])
+
+        # Create the HttpResponse object with the appropriate CSV header.
+        response = HttpResponse(
+            content_type='text/csv',
+            headers={'Content-Disposition': 'attachment; filename="balances.csv"'},
+        )
+
+        writer = csv.writer(response)
+        for row in trends_csv:
+            # Convert special types to strings
+            processed_row = [str(item) if isinstance(item, (Decimal, date)) else item for item in row]
+            writer.writerow(processed_row)
+
+        return response
+
