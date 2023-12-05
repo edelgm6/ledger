@@ -296,8 +296,13 @@ class JournalEntryFormMixin:
         debits_initial_data = []
         credits_initial_data = []
 
-        is_debit = (transaction.amount < 0 and transaction.account.type in DEBITS_DECREASE_ACCOUNT_TYPES) or \
-                (transaction.amount >= 0 and transaction.account.type not in DEBITS_DECREASE_ACCOUNT_TYPES)
+        # is_debit = (transaction.amount < 0 and transaction.account.type in DEBITS_DECREASE_ACCOUNT_TYPES) or \
+        #         (transaction.amount >= 0 and transaction.account.type not in DEBITS_DECREASE_ACCOUNT_TYPES)
+
+        if transaction.amount >= 0:
+            is_debit = True
+        else:
+            is_debit = False
 
         if debits_count + credits_count == 0:
             primary_account, secondary_account = (transaction.account, transaction.suggested_account) \
@@ -511,5 +516,5 @@ class IndexView(LoginRequiredMixin, View):
             transaction = form.save()
             success = render_to_string(self.success_template, {'transaction': transaction})
             return HttpResponse(success)
-
-        return render(request, self.template_name, {'form': form})
+        print(form.errors)
+        return render(request, self.template, {'form': form})
