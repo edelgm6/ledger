@@ -133,14 +133,22 @@ class TaxChargeFilterForm(forms.Form):
         return queryset.order_by('date')
 
 class TaxChargeForm(forms.ModelForm):
+    date = forms.ChoiceField(
+        required=False,
+        choices=[]
+    )
+
     class Meta:
         model = TaxCharge
         fields = ['type','date','amount']
 
     def __init__(self, *args, **kwargs):
         super(TaxChargeForm, self).__init__(*args, **kwargs)
-        last_day_of_last_month = _get_last_days_of_month_tuples()[0][0]
+        last_days_of_month_tuples = _get_last_days_of_month_tuples()
+        self.fields['date'].choices = last_days_of_month_tuples
+        last_day_of_last_month = last_days_of_month_tuples[0][0]
         self.fields['date'].initial = last_day_of_last_month
+
 
 class TransactionLinkForm(forms.Form):
     first_transaction = forms.ModelChoiceField(
