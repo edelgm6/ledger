@@ -54,12 +54,22 @@ class ReconciliationTableMixin:
 
         formset = ReconciliationFormset(queryset=reconciliations)
         zipped_reconciliations = zip(reconciliations, formset)
+        zipped_reconciliations_list = list(zipped_reconciliations)
+
+        # Calculate the split index. Add 1 if the number of items is odd.
+        split_index = (len(zipped_reconciliations_list) + 1) // 2  # integer division
+
+        # Split the list into two parts, giving the left side the extra item if count is odd
+        left_reconciliations = zipped_reconciliations_list[:split_index]
+        right_reconciliations = zipped_reconciliations_list[split_index:]
 
         template = 'api/tables/reconciliation-table.html'
         return render_to_string(
             template,
             {
-                'zipped_reconciliations': zipped_reconciliations,
+                # 'zipped_reconciliations': zipped_reconciliations,
+                'left_reconciliations': left_reconciliations,
+                'right_reconciliations': right_reconciliations,
                 'formset': formset
             }
         )
