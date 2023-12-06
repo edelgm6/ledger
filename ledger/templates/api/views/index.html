@@ -109,6 +109,19 @@
                 {% endfor %}
             </div>
 
+            <!-- Type Field -->
+            <div class="form-group">
+                <select name="type" id="id_type" class="form-control">
+                    <option value="" selected="selected">---------</option>
+                    {% for option in form.type %}
+                        {{ option }}
+                    {% endfor %}
+                </select>
+                {% for error in form.type.errors %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+
             <!-- Submit Button -->
             <button type="submit" class="btn btn-primary">Save</button>
         </form>
