@@ -315,7 +315,7 @@ class TransactionForm(forms.ModelForm):
 
     class Meta:
         model = Transaction
-        fields = ['date','amount','description','account','suggested_account']
+        fields = ['date','amount','description','account','suggested_account','type']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
             'amount': forms.NumberInput(attrs={'step': '1'})
@@ -324,10 +324,5 @@ class TransactionForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super(TransactionForm, self).__init__(*args, **kwargs)
         self.fields['date'].initial = timezone.localdate()  # Set today's date as initial value
-
-    def save(self, *args, **kwargs):
-        instance = super(TransactionForm, self).save(commit=False)
-        if self.cleaned_data['account'] == Account.objects.get(special_type=Account.SpecialType.WALLET):
-            instance.amount = instance.amount * -1
-        instance.save()
-        return instance
+        self.fields['type'].initial = Transaction.TransactionType.PURCHASE
+        self.fields['account'].initial = Account.objects.special_type = Account.SpecialType.WALLET
