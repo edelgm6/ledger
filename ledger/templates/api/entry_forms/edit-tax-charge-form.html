@@ -10,14 +10,14 @@
     {% csrf_token %}
 
     <div class="row">
-            <div class="col-md-2">
-            <button
-                id="clear-button"
-                class="btn btn-secondary form-control"
-                hx-get="{% url 'create-tax-charge' %}"
-                hx-target="#form-container"
-            >Clear</button>
-            </div>
+        <div class="col-md-2">
+        <button
+            id="clear-button"
+            class="btn btn-secondary form-control"
+            hx-get="{% url 'create-tax-charge' %}"
+            hx-target="#form-container"
+        >Clear</button>
+        </div>
 
         <!-- Render the 'type' field -->
         <div class="col-md-2">
@@ -32,10 +32,14 @@
             </div>
         </div>
 
-        <!-- Render the 'date' field -->
+        <!-- Date Field -->
         <div class="col-md-2">
             <div class="form-group">
-                <input type="date" name="date" id="id_date" class="form-control" value="{{ form.date.value|date:'Y-m-d' }}">
+                <select name="date" id="id_date_to" class="form-control">
+                    {% for option in form.date %}
+                        {{ option }}
+                    {% endfor %}
+                </select>
             </div>
         </div>
 

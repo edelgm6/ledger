@@ -236,9 +236,28 @@ class TaxesView(TaxTableMixIn, LoginRequiredMixin, View):
     redirect_field_name = 'next'
     form_template = 'api/entry_forms/edit-tax-charge-form.html'
 
+    def _get_last_day_of_last_month(self):
+        current_date = datetime.now()
+
+        # Calculate the year and month for the previous month
+        year = current_date.year
+        month = current_date.month - 1
+
+        # If it's currently January, adjust to December of the previous year
+        if month == 0:
+            month = 12
+            year -= 1
+
+        # Get the last day of the previous month
+        _, last_day = calendar.monthrange(year, month)
+        last_day_date = date(year, month, last_day)
+
+        return last_day_date
+
     def get(self, request, *args, **kwargs):
 
-        tax_charge_table = self.get_tax_table_html(TaxCharge.objects.all())
+        tax_charges = TaxCharge.objects.filter(date__gte='2023-01-31',date__lte=self._get_last_day_of_last_month())
+        tax_charge_table = self.get_tax_table_html(tax_charges)
         template = 'api/views/taxes.html'
         filter_template = 'api/filter_forms/tax-charge-filter-form.html'
         context = {
@@ -305,12 +324,8 @@ class JournalEntryFormMixin:
         debit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=9-debits_count)
         credit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=9-credits_count)
 
-        DEBITS_DECREASE_ACCOUNT_TYPES = [Account.Type.LIABILITY, Account.Type.EQUITY]
         debits_initial_data = []
         credits_initial_data = []
-
-        # is_debit = (transaction.amount < 0 and transaction.account.type in DEBITS_DECREASE_ACCOUNT_TYPES) or \
-        #         (transaction.amount >= 0 and transaction.account.type not in DEBITS_DECREASE_ACCOUNT_TYPES)
 
         if transaction.amount >= 0:
             is_debit = True
