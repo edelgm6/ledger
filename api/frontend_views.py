@@ -38,25 +38,6 @@ class UploadTransactionsView(View):
             )
             return render(request, self.template, {'form': form_html, 'success': success_html})
 
-class TaxTableMixIn:
-
-    def get_tax_table_html(self, tax_charges):
-
-        tax_charges = tax_charges.order_by('date','type')
-        for tax_charge in tax_charges:
-            last_day_of_month = tax_charge.date
-            first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
-            taxable_income = IncomeStatement(tax_charge.date, first_day_of_month).get_taxable_income()
-            tax_charge.taxable_income = taxable_income
-            tax_charge.tax_rate = None if taxable_income == 0 else tax_charge.amount / taxable_income
-
-        tax_charge_table_html = render_to_string(
-            'api/tables/tax-table.html',
-            {'tax_charges': tax_charges}
-        )
-
-        return tax_charge_table_html
-
 class ReconciliationTableMixin:
 
     def _get_current_balance(self, reconciliation):
@@ -157,6 +138,25 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
 
         return HttpResponse(reconciliation_table)
 
+
+class TaxTableMixIn:
+
+    def get_tax_table_html(self, tax_charges):
+
+        tax_charges = tax_charges.order_by('date','type')
+        for tax_charge in tax_charges:
+            last_day_of_month = tax_charge.date
+            first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
+            taxable_income = IncomeStatement(tax_charge.date, first_day_of_month).get_taxable_income()
+            tax_charge.taxable_income = taxable_income
+            tax_charge.tax_rate = None if taxable_income == 0 else tax_charge.amount / taxable_income
+
+        tax_charge_table_html = render_to_string(
+            'api/tables/tax-table.html',
+            {'tax_charges': tax_charges}
+        )
+
+        return tax_charge_table_html
 
 class TaxChargeTableView(TaxTableMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
