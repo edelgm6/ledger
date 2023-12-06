@@ -9,32 +9,53 @@
 >
     {% csrf_token %}
 
-    <!-- Render the 'type' field -->
-    <div class="mb-3">
-        <select name="type" id="id_type" class="form-control">
-            {% for value, label in form.type.field.choices %}
-                <option value="{{ value }}" {% if form.type.value == value %} selected {% endif %}>
-                    {{ label }}
-                </option>
-            {% endfor %}
-        </select>
-    </div>
+    <div class="row">
+            <div class="col-md-2">
+            <button
+                id="clear-button"
+                class="btn btn-secondary form-control"
+                hx-get="{% url 'create-tax-charge' %}"
+                hx-target="#form-container"
+            >Clear</button>
+            </div>
 
-    <!-- Render the 'date' field -->
-    <div class="mb-3">
-        <input type="date" name="date" id="id_date" class="form-control" value="{{ form.date.value|date:'Y-m-d' }}">
-    </div>
+        <!-- Render the 'type' field -->
+        <div class="col-md-2">
+            <div class="form-group">
+                <select name="type" id="id_type" class="form-control">
+                    {% for value, label in form.type.field.choices %}
+                        <option value="{{ value }}" {% if form.type.value == value %} selected {% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
 
-    <!-- Render the 'amount' field -->
-    <div class="mb-3">
-        <input
-            type="text"
-            name="amount"
-            id="id_amount"
-            class="form-control"
-            value="{% if form.amount.value %}{{ form.amount.value }}{% else %}0.00{% endif %}"
-        >
-    </div>
+        <!-- Render the 'date' field -->
+        <div class="col-md-2">
+            <div class="form-group">
+                <input type="date" name="date" id="id_date" class="form-control" value="{{ form.date.value|date:'Y-m-d' }}">
+            </div>
+        </div>
 
-    <button type="submit" class="btn btn-primary">Save</button>
+        <!-- Render the 'amount' field -->
+        <div class="col-md-2">
+            <div class="form-group">
+                <input
+                    type="text"
+                    name="amount"
+                    id="id_amount"
+                    class="form-control"
+                    value="{% if form.amount.value %}{{ form.amount.value }}{% else %}0.00{% endif %}"
+                >
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary form-control">Save</button>
+            </div>
+        </div>
+    </div>
 </form>

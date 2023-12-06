@@ -1,5 +1,6 @@
 {% load humanize %}
 {% load math_filters %}
+
 <div class="row">
     <div class="col">
     <table class="table table-hover table-sm">
@@ -33,14 +34,4 @@
     </div>
 </div>
 
-<div class="row">
-    <div class="col">
-    <button
-        id="clear-button"
-        class="btn btn-primary btn-sm"
-        hx-get="{% url 'create-tax-charge' %}"
-        hx-target="#form-container"
-    >Clear</button>
-    </div>
-</div>
 {% include "api/components/clickable-row-script.html" %}
