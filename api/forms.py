@@ -137,6 +137,11 @@ class TaxChargeForm(forms.ModelForm):
         model = TaxCharge
         fields = ['type','date','amount']
 
+    def __init__(self, *args, **kwargs):
+        super(TaxChargeForm, self).__init__(*args, **kwargs)
+        last_day_of_last_month = _get_last_days_of_month_tuples()[0][0]
+        self.fields['date'].initial = last_day_of_last_month
+
 class TransactionLinkForm(forms.Form):
     first_transaction = forms.ModelChoiceField(
         queryset=Transaction.objects.all(),
