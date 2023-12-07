@@ -10,9 +10,35 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.forms import modelformset_factory
 from django.core.exceptions import ValidationError
-from api.models import Reconciliation, TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
+from api.models import Amortization, Reconciliation, TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
 from api.forms import UploadTransactionsForm, ReconciliationFilterForm, ReconciliationForm, TaxChargeFilterForm, TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
 from api.statement import IncomeStatement, BalanceSheet, Trend
+
+# Loads full page
+class AmortizationTableMixin:
+    def get_amortization_table_html(self, amortizations):
+        html = render_to_string('api/tables/amortization-table.html',{'amortizations': amortizations})
+        return html
+
+
+class AmortizationView(AmortizationTableMixin, LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
+    content_template = 'api/components/amortizations-content.html'
+
+    def get(self, request, *args, **kwargs):
+
+        amortizations = Amortization.objects.filter(is_closed=False)
+        amortizations_table_html = self.get_amortization_table_html(amortizations)
+
+        context = {
+            'table_and_form': render_to_string(
+                self.content_template,{'table': amortizations_table_html}
+            )
+        }
+
+        template = 'api/views/amortizations.html'
+        return render(request, template, context)
 
 class UploadTransactionsView(View):
 
@@ -187,7 +213,6 @@ class TaxChargeTableView(TaxTableMixIn, LoginRequiredMixin, View):
 
             return render(request, template, context)
 
-# Add in the Taxes table mixin
 class TaxChargeFormView(TaxTableMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
