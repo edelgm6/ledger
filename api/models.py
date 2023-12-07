@@ -1,6 +1,51 @@
+import math
 import datetime
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+
+class Amortization(models.Model):
+    accrued_transaction = models.OneToOneField('Transaction',on_delete=models.CASCADE,related_name='accrued_amortizations')
+    amount = models.DecimalField(decimal_places=2,max_digits=12)
+    periods = models.PositiveSmallIntegerField(null=True,blank=True)
+    is_closed = models.BooleanField(default=False)
+    description = models.CharField(max_length=200)
+    suggested_account = models.ForeignKey('Account',on_delete=models.CASCADE)
+
+    @staticmethod
+    def _round_down(n, decimals=2):
+        multiplier = 10 ** decimals
+        return math.floor(n * multiplier) / multiplier
+
+    def get_related_transactions(self):
+        return self.transaction_set.all()
+
+    def get_remaining_balance(self):
+        related_transactions = self.get_related_transactions()
+        total_amortized = sum([transaction.amount for transaction in related_transactions])
+        return self.amount + total_amortized
+
+    def amortize(self, date):
+        if self.periods - len(self.get_related_transactions) == 1:
+            amortization_amount = self.get_remaining_balance()
+            is_final_amortization = True
+        else:
+            amortization_amount = self._round_down(self.amount / self.months) * -1
+            is_final_amortization = False
+
+        transaction = Transaction.objects.create(
+            date=date,
+            account=Account.objects.get(special_type=Account.SpecialType.PREPAID_EXPENSES),
+            amount=amortization_amount,
+            description=self.description + ' amorization #' + str(len(self.get_related_transactions()) + 1),
+            suggested_account=self.suggested_account,
+            type=Transaction.TransactionType.PURCHASE,
+            amortization=self
+        )
+
+        if is_final_amortization:
+            self.closed = True
+            self.save()
+        return transaction
 
 class Reconciliation(models.Model):
     account = models.ForeignKey('Account',on_delete=models.CASCADE)
@@ -122,6 +167,7 @@ class Transaction(models.Model):
     suggested_account = models.ForeignKey('Account',related_name='suggested_account',on_delete=models.CASCADE,null=True,blank=True)
     type = models.CharField(max_length=25,choices=TransactionType.choices,blank=True)
     linked_transaction = models.OneToOneField('Transaction',on_delete=models.SET_NULL,null=True,blank=True)
+    amortization = models.ForeignKey('Amortization',on_delete=models.CASCADE,null=True,blank=True,related_name='transactions')
 
     objects = TransactionManager()
 
@@ -257,6 +303,7 @@ class Account(models.Model):
         FEDERAL_TAXES = 'federal_taxes', _('Federal Taxes')
         PROPERTY_TAXES = 'property_taxes', _('Property Taxes')
         WALLET = 'wallet', _('Wallet')
+        PREPAID_EXPENSES = 'prepaid_expenses', _('Prepaid Expenses')
 
     class Type(models.TextChoices):
         ASSET = 'asset', _('Asset')
