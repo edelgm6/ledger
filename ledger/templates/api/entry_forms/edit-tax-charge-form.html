@@ -1,0 +1,64 @@
+
+<form
+    class="form-sm"
+    method="post"
+    {% if tax_charge %}hx-post="{% url 'edit-tax-charge' pk=tax_charge.pk %}"{% else %}hx-post="{% url 'create-tax-charge' %}"{% endif %}
+    hx-target="#table-and-form"
+    hx-trigger="submit"
+    hx-include="#taxes-filter-form"
+>
+    {% csrf_token %}
+
+    <div class="row">
+        <!-- Render the 'type' field -->
+        <div class="col-md-2">
+            <div class="form-group">
+                <select name="type" id="id_type" class="form-control">
+                    {% for value, label in form.type.field.choices %}
+                        <option value="{{ value }}" {% if form.type.value == value %} selected {% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Date Field -->
+        <div class="col-md-2">
+            <div class="form-group">
+                <select name="date" id="id_date_to" class="form-control">
+                    {% for option in form.date %}
+                        {{ option }}
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Render the 'amount' field -->
+        <div class="col-md-2">
+            <div class="form-group">
+                <input
+                    type="text"
+                    name="amount"
+                    id="id_amount"
+                    class="form-control"
+                    value="{% if form.amount.value %}{{ form.amount.value }}{% else %}0.00{% endif %}"
+                >
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary form-control">Save</button>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <button
+                id="clear-button"
+                class="btn btn-secondary form-control"
+                hx-get="{% url 'create-tax-charge' %}"
+                hx-target="#form-container"
+            >Clear</button>
+        </div>
+    </div>
+</form>

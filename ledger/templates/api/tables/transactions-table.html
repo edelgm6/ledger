@@ -13,7 +13,12 @@
         </thead>
         <tbody>
             {% for transaction in transactions %}
-            <tr class="clickable-row{% if forloop.first and not no_highlight %} table-active{% endif %}" hx-get="{% url 'journal-entry-form' transaction.id %}" hx-target="#journal-entry-item-form" data-transaction-id="{{ transaction.id }}">
+            <tr
+                class="clickable-row{% if forloop.counter0 == index and not no_highlight %} table-active{% endif %}"
+                hx-get="{% url 'journal-entry-form' transaction.id %}?row_index={{ forloop.counter0 }}"
+                hx-target="#journal-entry-item-form"
+                data-transaction-id="{{ transaction.id }}"
+            >
                 <td>{{ transaction.date }}</td>
                 <td>{{ transaction.account }}</td>
                 <td>${{ transaction.amount|floatformat:2|intcomma }}</td>

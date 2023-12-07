@@ -1,0 +1,18 @@
+<script>
+    $(document).ready(function(){
+        // Find the highlighted row
+        var highlightedRow = document.querySelector('#transactions-table .table-active');
+
+        if (highlightedRow) {
+            // Get the position of the highlighted row relative to the table container
+            var rowPosition = highlightedRow.offsetTop;
+
+            // Calculate the height of the table header
+            var headerHeight = document.querySelector('#transactions-table thead').offsetHeight;
+
+            // Scroll the table container to the position of the highlighted row, adjusted by the header height
+            var tableContainer = document.getElementById('transactions-table');
+            tableContainer.scrollTop = rowPosition - headerHeight;
+        }
+    });
+</script>

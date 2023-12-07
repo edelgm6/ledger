@@ -4,18 +4,14 @@
     id="journal-entry-form"
     method="post"
     class="form-horizontal form-sm"
-    {% if transaction_id %}
-        hx-post="{% url 'create-journal-entry-items' transaction_id %}"
-    {% else %}
-        hx-post=""
-    {% endif %}
+    hx-post="{% url 'journal-entries' transaction_id %}"
     hx-target="#table-and-form"
     hx-trigger="submit"
     hx-include="#transactions-filter-form"
 >
 
     {% csrf_token %}
-
+    <input type="hidden" name="index" value="{{ index }}">
     <div class="row">
         <div class="col-12">
             <input type="submit" value="Submit" class="btn btn-primary mt-3" />
@@ -30,7 +26,12 @@
             <div class="row">
                 <div class="col-md-6">
                     {{ form.id }}
-                    <select class="form-control select2" name="{{ form.account.html_name }}" id="{{ form.account.auto_id }}" tabindex="{{ forloop.counter|multiply:4|add:1 }}">
+                    <select
+                        class="form-control select2"
+                        name="{{ form.account.html_name }}"
+                        id="{{ form.account.auto_id }}"
+                        tabindex="{{ forloop.counter|multiply:4|add:1 }}"
+                        >
                         {% for option in form.account %}
                             {{ option }}
                         {% endfor %}
@@ -44,6 +45,7 @@
                         id="{{ form.amount.auto_id }}"
                         value="{% if form.amount.value == 0 %}0.00{% else %}{{ form.amount.value }}{% endif %}"
                         tabindex="{{ forloop.counter|multiply:4|add:2 }}"
+                        {% if not autofocus_debit %}autofocus{% endif %}
                     >
                 </div>
             </div>
@@ -58,7 +60,12 @@
             <div class="row">
                 <div class="col-md-6">
                     {{ form.id }}
-                    <select class="form-control select2" name="{{ form.account.html_name }}" id="{{ form.account.auto_id }}" tabindex="{{ forloop.counter|multiply:4|add:3 }}">
+                    <select
+                        class="form-control select2"
+                        name="{{ form.account.html_name }}"
+                        id="{{ form.account.auto_id }}"
+                        tabindex="{{ forloop.counter|multiply:4|add:3 }}"
+                        >
                         {% for option in form.account %}
                             {{ option }}
                         {% endfor %}
@@ -72,6 +79,7 @@
                         id="{{ form.amount.auto_id }}"
                         value="{% if form.amount.value == 0 %}0.00{% else %}{{ form.amount.value }}{% endif %}"
                         tabindex="{{ forloop.counter|multiply:4|add:4 }}"
+                        {% if autofocus_debit %}autofocus{% endif %}
                     >
                 </div>
             </div>

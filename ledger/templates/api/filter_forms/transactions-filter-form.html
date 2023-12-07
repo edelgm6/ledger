@@ -1,7 +1,7 @@
 <form
     id="transactions-filter-form"
     method="get"
-    hx-get="{% url 'transactions-table' %}?returnForm={{form_include}}"
+    hx-get="{% url 'transactions-table' %}?return_form_type={{return_form_type}}"
     hx-target="#table-and-form"
     hx-trigger="submit"
     class="mb-3 form-sm"
