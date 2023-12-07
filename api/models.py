@@ -70,6 +70,40 @@ class Reconciliation(models.Model):
 
         return journal_entry
 
+class TransactionQuerySet(models.QuerySet):
+    def filter_for_table(
+        self,
+        is_closed=None,
+        has_linked_transaction=None,
+        transaction_types=None,
+        accounts=None,
+        date_from=None,
+        date_to=None
+    ):
+        queryset = self
+        if is_closed is not None:
+            queryset = queryset.filter(is_closed=is_closed)
+        if has_linked_transaction is not None:
+            queryset = queryset.exclude(linked_transaction__isnull=has_linked_transaction)
+        if transaction_types:
+            queryset = queryset.filter(type__in=transaction_types)
+        if accounts:
+            queryset = queryset.filter(account__in=accounts)
+        if date_from:
+            queryset = queryset.filter(date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(date__lte=date_to)
+
+        return queryset.order_by('date', 'account', 'pk')
+
+class TransactionManager(models.Manager):
+    def get_queryset(self):
+        return TransactionQuerySet(self.model, using=self._db)
+
+    def filter_for_table(self, *args, **kwargs):
+        return self.get_queryset().filter_for_table(*args, **kwargs)
+
+
 class Transaction(models.Model):
 
     class TransactionType(models.TextChoices):
@@ -88,6 +122,8 @@ class Transaction(models.Model):
     suggested_account = models.ForeignKey('Account',related_name='suggested_account',on_delete=models.CASCADE,null=True,blank=True)
     type = models.CharField(max_length=25,choices=TransactionType.choices,blank=True)
     linked_transaction = models.OneToOneField('Transaction',on_delete=models.SET_NULL,null=True,blank=True)
+
+    objects = TransactionManager()
 
     def __str__(self):
         return str(self.date) + ' ' + self.account.name + ' ' + self.description + ' $' + str(self.amount)
@@ -117,6 +153,7 @@ class Transaction(models.Model):
 
     def create_link(self, transaction):
         self.linked_transaction = transaction
+        self.suggested_account = transaction.account
         self.save()
         transaction.close()
 

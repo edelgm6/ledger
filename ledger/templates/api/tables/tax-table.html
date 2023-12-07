@@ -1,4 +1,5 @@
 {% load humanize %}
+{% load math_filters %}
 
 <div class="row">
     <div class="col">
@@ -21,7 +22,7 @@
                     <td>{{ tax_charge.date }}</td>
                     <td>${{ tax_charge.amount|floatformat:2|intcomma }}</td>
                     <td>${{ tax_charge.taxable_income|floatformat:2|intcomma }}</td>
-                    <td>{{ tax_charge.tax_rate|floatformat:4 }}%</td>
+                    <td>{{ tax_charge.tax_rate|multiply:100|floatformat:2 }}%</td>
                 </tr>
             {% empty %}
                 <tr>
@@ -33,14 +34,4 @@
     </div>
 </div>
 
-<div class="row">
-    <div class="col">
-    <button
-        id="clear-button"
-        class="btn btn-primary btn-sm"
-        hx-get="{% url 'create-tax-charge' %}"
-        hx-target="#form-container"
-    >Clear</button>
-    </div>
-</div>
 {% include "api/components/clickable-row-script.html" %}

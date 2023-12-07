@@ -1,11 +1,10 @@
 import csv
-import calendar
 from datetime import datetime, timedelta, date
 from django import forms
 from django.forms import BaseModelFormSet
 from django.utils import timezone
 from django.core.validators import RegexValidator
-from api.models import Transaction, Account, JournalEntryItem, TaxCharge, Reconciliation, CSVProfile
+from api.models import Transaction, Account, JournalEntryItem, TaxCharge, Reconciliation, JournalEntry
 
 def _get_last_days_of_month_tuples():
     # Get the current year and month
@@ -134,9 +133,22 @@ class TaxChargeFilterForm(forms.Form):
         return queryset.order_by('date')
 
 class TaxChargeForm(forms.ModelForm):
+    date = forms.ChoiceField(
+        required=False,
+        choices=[]
+    )
+
     class Meta:
         model = TaxCharge
         fields = ['type','date','amount']
+
+    def __init__(self, *args, **kwargs):
+        super(TaxChargeForm, self).__init__(*args, **kwargs)
+        last_days_of_month_tuples = _get_last_days_of_month_tuples()
+        self.fields['date'].choices = last_days_of_month_tuples
+        last_day_of_last_month = last_days_of_month_tuples[0][0]
+        self.fields['date'].initial = last_day_of_last_month
+
 
 class TransactionLinkForm(forms.Form):
     first_transaction = forms.ModelChoiceField(
@@ -147,10 +159,22 @@ class TransactionLinkForm(forms.Form):
     )
     second_transaction = forms.ModelChoiceField(
         queryset=Transaction.objects.all(),
-        required=False,
+        required=True,
         label='Linked Transaction',
         widget=forms.HiddenInput()
     )
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        amount1 = self.cleaned_data.get('first_transaction').amount
+        amount2 = self.cleaned_data.get('second_transaction').amount
+
+        # Validate that amount1 is the negative of amount2
+        if amount1 != amount2 * -1:
+            raise forms.ValidationError("The amount of the first transaction must be the negative of the second transaction.")
+
+        return cleaned_data
 
     def save(self):
         first_transaction = self.cleaned_data.get('first_transaction')
@@ -182,12 +206,20 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
 
         return total
 
-    def save(self, transaction_id, type, commit=True):
-        instances = []
+    def save(self, transaction, type, commit=True):
 
+        try:
+            journal_entry = transaction.journal_entry
+        except JournalEntry.DoesNotExist:
+            journal_entry = JournalEntry.objects.create(
+                date=transaction.date,
+                transaction=transaction
+            )
+
+        instances = []
         for form in self.forms:
             if form.is_valid() and form.has_changed():
-                instance = form.save(transaction_id, type, commit=False)
+                instance = form.save(journal_entry, type, commit=False)
                 instances.append(instance)
 
                 if commit:
@@ -276,32 +308,27 @@ class TransactionFilterForm(forms.Form):
             return data == 'True'
         return None
 
-    def get_transactions(self):
-        queryset = Transaction.objects.all()
-        if self.cleaned_data.get('date_from'):
-            queryset = queryset.filter(date__gte=self.cleaned_data['date_from'])
-        if self.cleaned_data.get('date_to'):
-            queryset = queryset.filter(date__lte=self.cleaned_data['date_to'])
-        if self.cleaned_data.get('is_closed') is not None:
-            queryset = queryset.filter(is_closed=self.cleaned_data['is_closed'])
-        if self.cleaned_data['account']:
-            queryset = queryset.filter(account__in=self.cleaned_data['account'])
-        if self.cleaned_data['transaction_type']:
-            queryset = queryset.filter(type__in=self.cleaned_data['transaction_type'])
-        if self.cleaned_data.get('has_linked_transaction') is not None:
-            queryset = queryset.exclude(linked_transaction__isnull=self.cleaned_data['has_linked_transaction'])
 
-        return queryset.order_by('date','account')
+    def get_transactions(self):
+        queryset = Transaction.objects.filter_for_table(
+            is_closed=self.cleaned_data.get('is_closed'),
+            has_linked_transaction=self.cleaned_data.get('has_linked_transaction'),
+            transaction_types=self.cleaned_data['transaction_type'],
+            accounts=self.cleaned_data['account'],
+            date_from=self.cleaned_data.get('date_from'),
+            date_to=self.cleaned_data.get('date_to')
+        )
+        return queryset
 
 class TransactionForm(forms.ModelForm):
 
     suggested_account = forms.ModelChoiceField(
-        queryset=Account.objects.exclude(special_type=Account.SpecialType.WALLET)
+        queryset=Account.objects.all()
     )
 
     class Meta:
         model = Transaction
-        fields = ['date','amount','description','suggested_account']
+        fields = ['date','amount','description','account','suggested_account','type']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
             'amount': forms.NumberInput(attrs={'step': '1'})
@@ -309,14 +336,6 @@ class TransactionForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super(TransactionForm, self).__init__(*args, **kwargs)
-        print(Account.objects.exclude(special_type=Account.SpecialType.WALLET))
         self.fields['date'].initial = timezone.localdate()  # Set today's date as initial value
-
-    def save(self, *args, **kwargs):
-        instance = super(TransactionForm, self).save(commit=False)
-        wallet = Account.objects.get(special_type=Account.SpecialType.WALLET)
-
-        instance.account = wallet
-        instance.amount = instance.amount * -1
-        instance.save()
-        return instance
+        self.fields['type'].initial = Transaction.TransactionType.PURCHASE
+        self.fields['account'].initial = Account.objects.special_type = Account.SpecialType.WALLET
