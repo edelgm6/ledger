@@ -1,1 +1,56 @@
-{{ form }}
+<form
+    class="form-sm"
+    id="amortization-form"
+    method="post"
+    hx-post="{% url 'amortization' %}"
+    hx-target="#create-amortizations"
+    hx-trigger="submit"
+>
+    <div class="form-row">
+
+        {{ form.accrued_transaction }}
+        <!-- Form group for 'periods' field -->
+        <div class="col-md-2">
+            <input type="text" class="form-control" placeholder="Periods" id="id_periods" name="periods"
+                value="{{ form.periods.value|default_if_none:'' }}">
+            {% if form.periods.errors %}
+                <div class="invalid-feedback">
+                    {{ form.periods.errors.as_text }}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Form group for 'description' field -->
+        <div class="col-md-2">
+            <input type="text" class="form-control" placeholder="Description" id="id_description" name="description"
+                value="{{ form.description.value|default_if_none:'' }}">
+            {% if form.description.errors %}
+                <div class="invalid-feedback">
+                    {{ form.description.errors.as_text }}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Form group for 'suggested_account' field -->
+        <div class="col-md-2">
+            <select class="form-control" id="id_suggested_account" name="suggested_account">
+                {% for account in form.suggested_account.field.queryset %}
+                    <option value="{{ account.pk }}" {% if form.suggested_account.value == account.pk %} selected {% endif %}>
+                        {{ account }}
+                    </option>
+                {% endfor %}
+            </select>
+            {% if form.suggested_account.errors %}
+                <div class="invalid-feedback">
+                    {{ form.suggested_account.errors.as_text }}
+                </div>
+            {% endif %}
+        </div>
+        <!-- Submit button -->
+        <div class="col-md-2">
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </div>
+        </div>
+    </div>
+</form>
