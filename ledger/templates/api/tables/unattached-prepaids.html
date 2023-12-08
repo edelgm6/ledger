@@ -11,6 +11,11 @@
         </thead>
         <tbody>
             {% for transaction in transactions %}
+            <tr
+                class="clickable-row{% if forloop.counter0 == index and not no_highlight %} table-active{% endif %}"
+                hx-get="{% url 'amortization-form' transaction.id %}"
+                hx-target="#amortization-form"
+            >
                 <td>{{ transaction.date }}</td>
                 <td>{{ transaction.account }}</td>
                 <td>${{ transaction.amount|floatformat:2|intcomma }}</td>

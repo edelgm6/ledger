@@ -19,6 +19,10 @@ class Amortization(models.Model):
     def get_related_transactions(self):
         return self.transactions.all()
 
+    def get_remaining_periods(self):
+        related_transactions_count = len(self.get_related_transactions())
+        return self.periods - related_transactions_count
+
     def get_remaining_balance(self):
         related_transactions = self.get_related_transactions()
         total_amortized = sum([transaction.amount for transaction in related_transactions])

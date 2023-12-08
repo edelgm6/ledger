@@ -40,12 +40,23 @@ def _get_last_days_of_month_tuples():
     return final_days_of_month
 
 class AmortizationForm(forms.ModelForm):
+    accrued_transaction = forms.ModelChoiceField(queryset=Transaction.objects.all(), widget=forms.HiddenInput())
+    suggested_account = forms.ModelChoiceField(queryset=Account.objects.filter(type=Account.Type.EXPENSE))
+
     class Meta:
         model = Amortization
-        fields = ['periods','description','suggested_account']
+        fields = ['accrued_transaction','periods','description','suggested_account']
 
-        def save(self, transaction, commit=False):
-            print(Wtf)
+    def save(self, commit=True):
+        instance = super(AmortizationForm, self).save(commit=False)
+        transaction = self.cleaned_data['accrued_transaction']
+        instance.amount = abs(transaction.amount)
+
+        if commit:
+            instance.save()
+            transaction.amortization = instance
+            transaction.save()
+        return instance
 
 class UploadTransactionsForm(forms.Form):
     account = forms.ModelChoiceField(queryset=Account.objects.filter(csv_profile__isnull=False))
