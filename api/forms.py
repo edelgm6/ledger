@@ -4,7 +4,7 @@ from django import forms
 from django.forms import BaseModelFormSet
 from django.utils import timezone
 from django.core.validators import RegexValidator
-from api.models import Transaction, Account, JournalEntryItem, TaxCharge, Reconciliation, JournalEntry
+from api.models import Amortization, Transaction, Account, JournalEntryItem, TaxCharge, Reconciliation, JournalEntry
 
 def _get_last_days_of_month_tuples():
     # Get the current year and month
@@ -38,6 +38,14 @@ def _get_last_days_of_month_tuples():
 
     final_days_of_month.reverse()
     return final_days_of_month
+
+class AmortizationForm(forms.ModelForm):
+    class Meta:
+        model = Amortization
+        fields = ['periods','description','suggested_account']
+
+        def save(self, transaction, commit=False):
+            print(Wtf)
 
 class UploadTransactionsForm(forms.Form):
     account = forms.ModelChoiceField(queryset=Account.objects.filter(csv_profile__isnull=False))

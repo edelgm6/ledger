@@ -1,0 +1,22 @@
+{% load humanize %}
+<div id="transactions-table" class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+    <table class="table table-hover table-sm">
+        <thead>
+            <tr>
+                <th style="position: sticky; top: 0; background: white; z-index: 10;">Date</th>
+                <th style="position: sticky; top: 0; background: white; z-index: 10;">Account</th>
+                <th style="position: sticky; top: 0; background: white; z-index: 10;">Amount</th>
+                <th style="position: sticky; top: 0; background: white; z-index: 10;">Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for transaction in transactions %}
+                <td>{{ transaction.date }}</td>
+                <td>{{ transaction.account }}</td>
+                <td>${{ transaction.amount|floatformat:2|intcomma }}</td>
+                <td>{{ transaction.description }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
