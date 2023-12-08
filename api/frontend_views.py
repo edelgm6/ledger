@@ -1,7 +1,6 @@
 import calendar
 import csv
 from datetime import date, datetime
-from decimal import Decimal
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.views import View
@@ -11,14 +10,30 @@ from django.utils import timezone
 from django.forms import modelformset_factory
 from django.core.exceptions import ValidationError
 from api.models import Amortization, Reconciliation, TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
-from api.forms import UploadTransactionsForm, ReconciliationFilterForm, ReconciliationForm, TaxChargeFilterForm, TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
+from api.forms import AmortizationForm, UploadTransactionsForm, ReconciliationFilterForm, ReconciliationForm, TaxChargeFilterForm, TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
 from api.statement import IncomeStatement, BalanceSheet, Trend
 
 # Loads full page
 class AmortizationTableMixin:
     def get_amortization_table_html(self, amortizations):
+        for amortization in amortizations:
+            amortization.remaining = amortization.get_remaining_balance()
         html = render_to_string('api/tables/amortization-table.html',{'amortizations': amortizations})
         return html
+
+    def get_unattached_prepaids_table_html(self):
+        prepaid_table_template = 'api/tables/unattached-prepaids.html'
+        unattached_transactions = Transaction.objects.filter(
+            journal_entry__journal_entry_items__account__special_type=Account.SpecialType.PREPAID_EXPENSES,
+            amortization__isnull=True
+        )
+
+        return render_to_string(prepaid_table_template,{'transactions': unattached_transactions})
+
+    def get_unattached_prepaids_form_html(self):
+        form = AmortizationForm()
+        form_template = 'api/entry_forms/amortization-form.html'
+        return render_to_string(form_template,{'form': form})
 
 
 class AmortizationView(AmortizationTableMixin, LoginRequiredMixin, View):
@@ -30,8 +45,17 @@ class AmortizationView(AmortizationTableMixin, LoginRequiredMixin, View):
 
         amortizations = Amortization.objects.filter(is_closed=False)
         amortizations_table_html = self.get_amortization_table_html(amortizations)
+        amortizations_content = 'api/components/amortizations-content.html'
+        amortization_form_html = self.get_unattached_prepaids_form_html()
 
         context = {
+            'unattached_transactions': render_to_string(
+                amortizations_content,
+                {
+                    'table': amortizations_table_html,
+                    'amortization_form': amortization_form_html
+                }
+            ),
             'table_and_form': render_to_string(
                 self.content_template,{'table': amortizations_table_html}
             )

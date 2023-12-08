@@ -17,7 +17,7 @@ class Amortization(models.Model):
         return math.floor(n * multiplier) / multiplier
 
     def get_related_transactions(self):
-        return self.transaction_set.all()
+        return self.transactions.all()
 
     def get_remaining_balance(self):
         related_transactions = self.get_related_transactions()
