@@ -19,6 +19,8 @@ class AmortizationTableMixin:
         unattached_transactions = Transaction.objects.filter(
             journal_entry__journal_entry_items__account__special_type=Account.SpecialType.PREPAID_EXPENSES,
             amortization__isnull=True
+        ).exclude(
+            accrued_amortizations__isnull=False
         )
         return render_to_string(prepaid_table_template,{'transactions': unattached_transactions})
 
