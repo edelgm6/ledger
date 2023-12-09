@@ -64,8 +64,6 @@ class AmortizationForm(forms.ModelForm):
 
         if commit:
             instance.save()
-            transaction.amortization = instance
-            transaction.save()
         return instance
 
 class UploadTransactionsForm(forms.Form):
