@@ -17,7 +17,8 @@ from django.contrib import admin
 from django.urls import path
 from django.contrib.auth.views import LoginView
 # from api.views import TaxChargeView, JournalEntryView, TransactionView, AccountView, UploadTransactionsView, AccountBalanceView, TransactionTypeView, CSVProfileView, GenerateReconciliationsView, ReconciliationView, PlugReconciliationView, TrendView
-from api.frontend_views import AmortizationFormView, AmortizationView, TrendView, JournalEntryView, UploadTransactionsView, ReconciliationTableView, ReconciliationView, TaxChargeTableView,TaxChargeFormView, TaxesView, LinkTransactionsView, JournalEntryFormView, TransactionsTableView, IndexView
+from api.frontend_views import TrendView, JournalEntryView, UploadTransactionsView, ReconciliationTableView, ReconciliationView, TaxChargeTableView,TaxChargeFormView, TaxesView, LinkTransactionsView, JournalEntryFormView, TransactionsTableView, IndexView
+from api.amortization_views import AmortizationFormView, AmortizationView, AmortizeFormView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -55,5 +56,6 @@ urlpatterns = [
     path('reconciliation-table/', ReconciliationTableView.as_view(), name='reconciliation-table'),
     path('upload-transactions/', UploadTransactionsView.as_view(), name='upload-transactions'),
     path('amortization/', AmortizationView.as_view(), name='amortization'),
-    path('amortization/form/<int:transaction_id>/', AmortizationFormView.as_view(), name='amortization-form'),
+    path('amortization/amortization-form/<int:transaction_id>/', AmortizationFormView.as_view(), name='amortization-form'),
+    path('amortization/amortize-form/<int:amortization_id>/', AmortizeFormView.as_view(), name='amortize-form'),
 ]

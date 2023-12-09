@@ -29,22 +29,45 @@ class Amortization(models.Model):
         return self.amount + total_amortized
 
     def amortize(self, date):
-        if self.periods - len(self.get_related_transactions) == 1:
+        if self.periods - len(self.get_related_transactions()) == 1:
             amortization_amount = self.get_remaining_balance()
             is_final_amortization = True
         else:
-            amortization_amount = self._round_down(self.amount / self.months) * -1
+            amortization_amount = self._round_down(self.amount / self.periods)
             is_final_amortization = False
+
+        prepaid_account = Account.objects.get(special_type=Account.SpecialType.PREPAID_EXPENSES)
 
         transaction = Transaction.objects.create(
             date=date,
-            account=Account.objects.get(special_type=Account.SpecialType.PREPAID_EXPENSES),
-            amount=amortization_amount,
+            account=prepaid_account,
+            amount=amortization_amount * -1,
             description=self.description + ' amorization #' + str(len(self.get_related_transactions()) + 1),
             suggested_account=self.suggested_account,
             type=Transaction.TransactionType.PURCHASE,
             amortization=self
         )
+
+        journal_entry = JournalEntry.objects.create(
+            date=date,
+            transaction=transaction
+        )
+
+        journal_entry_debit = JournalEntryItem.objects.create(
+            journal_entry=journal_entry,
+            type=JournalEntryItem.JournalEntryType.DEBIT,
+            amount=amortization_amount,
+            account=self.suggested_account
+        )
+
+        journal_entry_credit = JournalEntryItem.objects.create(
+            journal_entry=journal_entry,
+            type=JournalEntryItem.JournalEntryType.CREDIT,
+            amount=amortization_amount,
+            account=prepaid_account
+        )
+
+        transaction.close()
 
         if is_final_amortization:
             self.closed = True

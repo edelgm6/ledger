@@ -8,89 +8,9 @@ from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.forms import modelformset_factory
-from django.core.exceptions import ValidationError
-from api.models import Amortization, Reconciliation, TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
-from api.forms import AmortizationForm, UploadTransactionsForm, ReconciliationFilterForm, ReconciliationForm, TaxChargeFilterForm, TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
+from api.models import  Reconciliation, TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
+from api.forms import UploadTransactionsForm, ReconciliationFilterForm, ReconciliationForm, TaxChargeFilterForm, TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
 from api.statement import IncomeStatement, BalanceSheet, Trend
-
-# Loads full page
-class AmortizationTableMixin:
-    def get_amortization_table_html(self):
-        amortizations = Amortization.objects.select_related('accrued_transaction').filter(is_closed=False)
-        for amortization in amortizations:
-            amortization.remaining_balance = amortization.get_remaining_balance()
-            amortization.remaining_periods = amortization.get_remaining_periods()
-        return render_to_string('api/tables/amortization-table.html',{'amortizations': amortizations})
-
-    def get_unattached_prepaids_table_html(self):
-        prepaid_table_template = 'api/tables/unattached-prepaids.html'
-        unattached_transactions = Transaction.objects.filter(
-            journal_entry__journal_entry_items__account__special_type=Account.SpecialType.PREPAID_EXPENSES,
-            amortization__isnull=True
-        )
-        return render_to_string(prepaid_table_template,{'transactions': unattached_transactions})
-
-    def get_amortization_form_html(self, transaction=None):
-        form = AmortizationForm()
-        if transaction:
-            form.initial['accrued_transaction'] = transaction
-        form_template = 'api/entry_forms/amortization-form.html'
-        return render_to_string(form_template,{'form': form})
-
-class AmortizationFormView(AmortizationTableMixin, LoginRequiredMixin, View):
-    login_url = '/login/'
-    redirect_field_name = 'next'
-
-    def get(self, request, transaction_id):
-        transaction = get_object_or_404(Transaction, pk=transaction_id)
-        amortization_form_html = self.get_amortization_form_html(transaction)
-        return HttpResponse(amortization_form_html)
-
-class AmortizationView(AmortizationTableMixin, LoginRequiredMixin, View):
-    login_url = '/login/'
-    redirect_field_name = 'next'
-    content_template = 'api/components/amortizations-content.html'
-    amortizations_content = 'api/components/amortizations-content.html'
-
-    def get(self, request, *args, **kwargs):
-
-        amortizations_table_html = self.get_amortization_table_html()
-        amortization_form_html = self.get_amortization_form_html()
-        unattached_transactions_html = self.get_unattached_prepaids_table_html()
-
-        context = {
-            'unattached_transactions': render_to_string(
-                self.amortizations_content,
-                {
-                    'table': unattached_transactions_html,
-                    'amortization_form': amortization_form_html
-                }
-            ),
-            'table_and_form': render_to_string(
-                self.content_template,{'table': amortizations_table_html}
-            )
-        }
-
-        template = 'api/views/amortizations.html'
-        return render(request, template, context)
-
-    def post(self, request):
-        form = AmortizationForm(request.POST)
-        if form.is_valid():
-            form.save()
-            amortization_form_html = self.get_amortization_form_html()
-            unattached_transactions_html = self.get_unattached_prepaids_table_html()
-
-            form_and_table_html = render_to_string(
-                self.amortizations_content,
-                {
-                    'table': unattached_transactions_html,
-                    'amortization_form': amortization_form_html
-                }
-            )
-            return HttpResponse(form_and_table_html)
-
-        print(form.errors)
 
 class UploadTransactionsView(View):
 
