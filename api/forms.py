@@ -39,6 +39,16 @@ def _get_last_days_of_month_tuples():
     final_days_of_month.reverse()
     return final_days_of_month
 
+class DateForm(forms.Form):
+    date = forms.ChoiceField()
+
+    def __init__(self, *args, **kwargs):
+        super(DateForm, self).__init__(*args, **kwargs)
+        last_days_of_month_tuples = _get_last_days_of_month_tuples()
+        self.fields['date'].choices = last_days_of_month_tuples
+        self.fields['date'].initial = last_days_of_month_tuples[0][0]
+
+
 class AmortizationForm(forms.ModelForm):
     accrued_transaction = forms.ModelChoiceField(queryset=Transaction.objects.all(), widget=forms.HiddenInput())
     suggested_account = forms.ModelChoiceField(queryset=Account.objects.filter(type=Account.Type.EXPENSE))
