@@ -110,16 +110,38 @@ class AmortizationView(AmortizationTableMixin, LoginRequiredMixin, View):
         form = AmortizationForm(request.POST)
         if form.is_valid():
             form.save()
-            amortization_form_html = self.get_amortization_form_html()
-            unattached_transactions_html = self.get_unattached_prepaids_table_html()
+            # amortization_form_html = self.get_amortization_form_html()
+            # unattached_transactions_html = self.get_unattached_prepaids_table_html()
 
-            form_and_table_html = render_to_string(
-                self.amortizations_content,
-                {
-                    'table': unattached_transactions_html,
-                    'amortization_form': amortization_form_html
-                }
-            )
-            return HttpResponse(form_and_table_html)
+            # form_and_table_html = render_to_string(
+            #     self.amortizations_content,
+            #     {
+            #         'table': unattached_transactions_html,
+            #         'amortization_form': amortization_form_html
+            #     }
+            # )
+            # return HttpResponse(form_and_table_html)
+                    # create amortizations
+            unattached_transactions_html = self.get_unattached_prepaids_table_html()
+            amortization_form_html = self.get_amortization_form_html()
+
+            # amortize
+            amortizations_table_html = self.get_amortization_table_html()
+
+            context = {
+                'unattached_transactions': render_to_string(
+                    self.unattached_transactions_content,
+                    {
+                        'table': unattached_transactions_html,
+                        'amortization_form': amortization_form_html
+                    }
+                ),
+                'amortize': render_to_string(
+                    self.amortizations_content_template,{'table': amortizations_table_html}
+                )
+            }
+
+            template = 'api/views/amortizations.html'
+            return render(request, template, context)
 
         print(form.errors)
