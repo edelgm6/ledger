@@ -1,5 +1,5 @@
 from django.contrib import admin
-from api.models import Amortization, TaxCharge, Account, Transaction, JournalEntry, JournalEntryItem, AutoTag, CSVProfile, Reconciliation, CSVColumnValuePair
+from api.models import PrefillItem, Prefill, Amortization, TaxCharge, Account, Transaction, JournalEntry, JournalEntryItem, AutoTag, CSVProfile, Reconciliation, CSVColumnValuePair
 
 class AccountAdmin(admin.ModelAdmin):
     list_display = ('name','type', 'sub_type', 'csv_profile')
@@ -53,8 +53,18 @@ class JournalEntryAdmin(admin.ModelAdmin):
         JournalEntryItemInline,
     ]
 
-# class CSVColumnValuePairAdmin(admin.ModelAdmin):
-#     model = CSVColumnValuePair
+class PrefillItemInline(admin.TabularInline):
+    model = PrefillItem
+    extra = 8  # Number of empty forms to display
+
+class PrefillAdmin(admin.ModelAdmin):
+    inlines = [PrefillItemInline]
+    list_display = ('description',)
+
+    def description(self, obj):
+        return obj.name
+
+admin.site.register(Prefill, PrefillAdmin)
 
 admin.site.register(Account, AccountAdmin)
 admin.site.register(AutoTag, AutoTagAdmin)
@@ -66,3 +76,4 @@ admin.site.register(Reconciliation)
 admin.site.register(TaxCharge)
 admin.site.register(CSVColumnValuePair)
 admin.site.register(Amortization)
+admin.site.register(PrefillItem)

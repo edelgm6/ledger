@@ -201,6 +201,7 @@ class Transaction(models.Model):
     type = models.CharField(max_length=25,choices=TransactionType.choices,blank=True)
     linked_transaction = models.OneToOneField('Transaction',on_delete=models.SET_NULL,null=True,blank=True)
     amortization = models.ForeignKey('Amortization',on_delete=models.CASCADE,null=True,blank=True,related_name='transactions')
+    prefill = models.ForeignKey('Prefill',on_delete=models.CASCADE,null=True,blank=True)
 
     objects = TransactionManager()
 
@@ -209,19 +210,18 @@ class Transaction(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.suggested_account:
-            suggested_account = None
-            suggested_type = Transaction.TransactionType.PURCHASE
-            auto_tags = AutoTag.objects.all()
-
-            for tag in auto_tags:
-                if tag.search_string in self.description.lower():
-                    suggested_account = tag.account
+            # Loop through AutoTags to find the first match with the description
+            for tag in AutoTag.objects.all():
+                if tag.search_string.lower() in self.description.lower():
+                    self.suggested_account = tag.account
+                    self.prefill = tag.prefill
+                    # Only override the transaction type if it's specified in the tag
                     if tag.transaction_type:
-                        suggested_type = tag.transaction_type
+                        self.type = self.type or tag.transaction_type
                     break
-
-            self.suggested_account = suggested_account
-            self.type = self.type or suggested_type
+                else:
+                    # Set default transaction type if not already set
+                    self.type = Transaction.TransactionType.PURCHASE
 
         super().save(*args, **kwargs)
 
@@ -443,9 +443,22 @@ class AutoTag(models.Model):
     search_string = models.CharField(max_length=20)
     account = models.ForeignKey('Account',on_delete=models.CASCADE,null=True,blank=True)
     transaction_type = models.CharField(max_length=25,choices=Transaction.TransactionType.choices,blank=True)
+    prefill = models.ForeignKey('Prefill',on_delete=models.CASCADE,null=True,blank=True)
 
     def __str__(self):
         return '"' + self.search_string +  '": ' + str(self.account)
+
+class Prefill(models.Model):
+    name = models.CharField(max_length=200)
+
+    def __str__(self):
+        return self.name
+
+class PrefillItem(models.Model):
+    prefill = models.ForeignKey('Prefill',on_delete=models.CASCADE)
+    account = models.ForeignKey('Account',on_delete=models.CASCADE)
+    journal_entry_item_type = models.CharField(max_length=25,choices=JournalEntryItem.JournalEntryType.choices)
+    order = models.PositiveSmallIntegerField()
 
 class CSVColumnValuePair(models.Model):
     column = models.CharField(max_length=200)
