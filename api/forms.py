@@ -4,6 +4,7 @@ from django import forms
 from django.forms import BaseModelFormSet
 from django.utils import timezone
 from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
 from api.models import Amortization, Transaction, Account, JournalEntryItem, TaxCharge, Reconciliation, JournalEntry
 
 def _get_last_days_of_month_tuples():
@@ -56,6 +57,14 @@ class AmortizationForm(forms.ModelForm):
     class Meta:
         model = Amortization
         fields = ['accrued_transaction','periods','description','suggested_account']
+
+    def clean_periods(self):
+        periods = self.cleaned_data['periods']
+
+        if periods < 1:
+            raise ValidationError('Periods must be >= 1')
+
+        return periods
 
     def save(self, commit=True):
         instance = super(AmortizationForm, self).save(commit=False)
