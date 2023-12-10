@@ -18,6 +18,9 @@
                 <li class="nav-item {% if request.resolver_match.url_name == 'reconciliation' %}active{% endif %}">
                     <a class="nav-link" href="{% url 'reconciliation' %}" hx-get="{% url 'reconciliation' %}" hx-target="#container">Reconciliation</a>
                 </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'amortization' %}active{% endif %}">
+                    <a class="nav-link" href="{% url 'amortization' %}" hx-get="{% url 'amortization' %}" hx-target="#container">Amortization</a>
+                </li>
                 <li class="nav-item {% if request.resolver_match.url_name == 'upload-transactions' %}active{% endif %}">
                     <a class="nav-link" href="{% url 'upload-transactions' %}" hx-get="{% url 'upload-transactions' %}" hx-target="#container">Upload</a>
                 </li>

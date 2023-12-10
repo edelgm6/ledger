@@ -1,5 +1,5 @@
 from django.contrib import admin
-from api.models import TaxCharge, Account, Transaction, JournalEntry, JournalEntryItem, AutoTag, CSVProfile, Reconciliation, CSVColumnValuePair
+from api.models import Amortization, TaxCharge, Account, Transaction, JournalEntry, JournalEntryItem, AutoTag, CSVProfile, Reconciliation, CSVColumnValuePair
 
 class AccountAdmin(admin.ModelAdmin):
     list_display = ('name','type', 'sub_type', 'csv_profile')
@@ -65,3 +65,4 @@ admin.site.register(JournalEntryItem, JournalEntryItemAdmin)
 admin.site.register(Reconciliation)
 admin.site.register(TaxCharge)
 admin.site.register(CSVColumnValuePair)
+admin.site.register(Amortization)

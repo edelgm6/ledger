@@ -4,7 +4,8 @@ from django import forms
 from django.forms import BaseModelFormSet
 from django.utils import timezone
 from django.core.validators import RegexValidator
-from api.models import Transaction, Account, JournalEntryItem, TaxCharge, Reconciliation, JournalEntry
+from django.core.exceptions import ValidationError
+from api.models import Amortization, Transaction, Account, JournalEntryItem, TaxCharge, Reconciliation, JournalEntry
 
 def _get_last_days_of_month_tuples():
     # Get the current year and month
@@ -38,6 +39,41 @@ def _get_last_days_of_month_tuples():
 
     final_days_of_month.reverse()
     return final_days_of_month
+
+class DateForm(forms.Form):
+    date = forms.ChoiceField()
+
+    def __init__(self, *args, **kwargs):
+        super(DateForm, self).__init__(*args, **kwargs)
+        last_days_of_month_tuples = _get_last_days_of_month_tuples()
+        self.fields['date'].choices = last_days_of_month_tuples
+        self.fields['date'].initial = last_days_of_month_tuples[0][0]
+
+
+class AmortizationForm(forms.ModelForm):
+    accrued_transaction = forms.ModelChoiceField(queryset=Transaction.objects.all(), widget=forms.HiddenInput())
+    suggested_account = forms.ModelChoiceField(queryset=Account.objects.filter(type=Account.Type.EXPENSE))
+
+    class Meta:
+        model = Amortization
+        fields = ['accrued_transaction','periods','description','suggested_account']
+
+    def clean_periods(self):
+        periods = self.cleaned_data['periods']
+
+        if periods < 1:
+            raise ValidationError('Periods must be >= 1')
+
+        return periods
+
+    def save(self, commit=True):
+        instance = super(AmortizationForm, self).save(commit=False)
+        transaction = self.cleaned_data['accrued_transaction']
+        instance.amount = abs(transaction.amount)
+
+        if commit:
+            instance.save()
+        return instance
 
 class UploadTransactionsForm(forms.Form):
     account = forms.ModelChoiceField(queryset=Account.objects.filter(csv_profile__isnull=False))

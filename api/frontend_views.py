@@ -1,7 +1,6 @@
 import calendar
 import csv
 from datetime import date, datetime
-from decimal import Decimal
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.views import View
@@ -9,8 +8,7 @@ from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.forms import modelformset_factory
-from django.core.exceptions import ValidationError
-from api.models import Reconciliation, TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
+from api.models import  Reconciliation, TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
 from api.forms import UploadTransactionsForm, ReconciliationFilterForm, ReconciliationForm, TaxChargeFilterForm, TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
 from api.statement import IncomeStatement, BalanceSheet, Trend
 
@@ -187,7 +185,6 @@ class TaxChargeTableView(TaxTableMixIn, LoginRequiredMixin, View):
 
             return render(request, template, context)
 
-# Add in the Taxes table mixin
 class TaxChargeFormView(TaxTableMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
