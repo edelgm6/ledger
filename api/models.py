@@ -1,6 +1,84 @@
+import math
 import datetime
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+
+class Amortization(models.Model):
+    accrued_transaction = models.OneToOneField('Transaction',on_delete=models.CASCADE,related_name='accrued_amortizations')
+    amount = models.DecimalField(decimal_places=2,max_digits=12)
+    periods = models.PositiveSmallIntegerField(null=True,blank=True)
+    is_closed = models.BooleanField(default=False)
+    description = models.CharField(max_length=200)
+    suggested_account = models.ForeignKey('Account',on_delete=models.CASCADE)
+
+    @staticmethod
+    def _round_down(n, decimals=2):
+        multiplier = 10 ** decimals
+        return math.floor(n * multiplier) / multiplier
+
+    def get_related_transactions(self):
+        return self.transactions.all()
+
+    def get_remaining_periods(self):
+        related_transactions_count = len(self.get_related_transactions())
+        return self.periods - related_transactions_count
+
+    def get_remaining_balance(self):
+        related_transactions = self.get_related_transactions()
+        total_amortized = sum([transaction.amount for transaction in related_transactions])
+        return self.amount + total_amortized
+
+    def amortize(self, date):
+        starting_amortization_count = len(self.get_related_transactions())
+        print(starting_amortization_count)
+
+        if self.periods - starting_amortization_count == 0 or self.is_closed:
+            raise ValidationError('Cannot further amortize')
+        elif self.periods - starting_amortization_count == 1:
+            amortization_amount = self.get_remaining_balance()
+            is_final_amortization = True
+        else:
+            amortization_amount = self._round_down(self.amount / self.periods)
+            is_final_amortization = False
+
+        prepaid_account = Account.objects.get(special_type=Account.SpecialType.PREPAID_EXPENSES)
+
+        transaction = Transaction.objects.create(
+            date=date,
+            account=prepaid_account,
+            amount=amortization_amount * -1,
+            description=self.description + ' amorization #' + str(len(self.get_related_transactions()) + 1),
+            suggested_account=self.suggested_account,
+            type=Transaction.TransactionType.PURCHASE,
+            amortization=self
+        )
+
+        journal_entry = JournalEntry.objects.create(
+            date=date,
+            transaction=transaction
+        )
+
+        journal_entry_debit = JournalEntryItem.objects.create(
+            journal_entry=journal_entry,
+            type=JournalEntryItem.JournalEntryType.DEBIT,
+            amount=amortization_amount,
+            account=self.suggested_account
+        )
+
+        journal_entry_credit = JournalEntryItem.objects.create(
+            journal_entry=journal_entry,
+            type=JournalEntryItem.JournalEntryType.CREDIT,
+            amount=amortization_amount,
+            account=prepaid_account
+        )
+
+        transaction.close()
+
+        if is_final_amortization:
+            self.is_closed = True
+            self.save()
+        return transaction
 
 class Reconciliation(models.Model):
     account = models.ForeignKey('Account',on_delete=models.CASCADE)
@@ -122,6 +200,7 @@ class Transaction(models.Model):
     suggested_account = models.ForeignKey('Account',related_name='suggested_account',on_delete=models.CASCADE,null=True,blank=True)
     type = models.CharField(max_length=25,choices=TransactionType.choices,blank=True)
     linked_transaction = models.OneToOneField('Transaction',on_delete=models.SET_NULL,null=True,blank=True)
+    amortization = models.ForeignKey('Amortization',on_delete=models.CASCADE,null=True,blank=True,related_name='transactions')
 
     objects = TransactionManager()
 
@@ -257,6 +336,7 @@ class Account(models.Model):
         FEDERAL_TAXES = 'federal_taxes', _('Federal Taxes')
         PROPERTY_TAXES = 'property_taxes', _('Property Taxes')
         WALLET = 'wallet', _('Wallet')
+        PREPAID_EXPENSES = 'prepaid_expenses', _('Prepaid Expenses')
 
     class Type(models.TextChoices):
         ASSET = 'asset', _('Asset')
