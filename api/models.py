@@ -1,5 +1,6 @@
 import math
 import datetime
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -29,7 +30,12 @@ class Amortization(models.Model):
         return self.amount + total_amortized
 
     def amortize(self, date):
-        if self.periods - len(self.get_related_transactions()) == 1:
+        starting_amortization_count = len(self.get_related_transactions())
+        print(starting_amortization_count)
+
+        if self.periods - starting_amortization_count == 0 or self.is_closed:
+            raise ValidationError('Cannot further amortize')
+        elif self.periods - starting_amortization_count == 1:
             amortization_amount = self.get_remaining_balance()
             is_final_amortization = True
         else:
@@ -70,7 +76,7 @@ class Amortization(models.Model):
         transaction.close()
 
         if is_final_amortization:
-            self.closed = True
+            self.is_closed = True
             self.save()
         return transaction
 
