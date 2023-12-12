@@ -302,50 +302,55 @@ class TransactionsViewMixin:
 class JournalEntryFormMixin:
     entry_form_template = 'api/entry_forms/journal-entry-item-form.html'
 
-    def get_entry_form_html(self, transaction, index=0):
+    def get_entry_form_html(self, transaction, index=0, debit_formset=None, credit_formset=None, is_debit=True):
         if not transaction:
             return ''
-        try:
-            journal_entry = transaction.journal_entry
-            journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry)
-            journal_entry_debits = journal_entry_items.filter(type=JournalEntryItem.JournalEntryType.DEBIT)
-            journal_entry_credits = journal_entry_items.filter(type=JournalEntryItem.JournalEntryType.CREDIT)
-            debits_count = journal_entry_debits.count()
-            credits_count = journal_entry_credits.count()
-        except JournalEntry.DoesNotExist:
-            debits_count = 0
-            credits_count = 0
-            journal_entry_debits = JournalEntryItem.objects.none()
-            journal_entry_credits = JournalEntryItem.objects.none()
 
-        debit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=9-debits_count)
-        credit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=9-credits_count)
+        context = {}
 
-        debits_initial_data = []
-        credits_initial_data = []
+        if not (debit_formset and credit_formset):
+            try:
+                journal_entry = transaction.journal_entry
+                journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry)
+                journal_entry_debits = journal_entry_items.filter(type=JournalEntryItem.JournalEntryType.DEBIT)
+                journal_entry_credits = journal_entry_items.filter(type=JournalEntryItem.JournalEntryType.CREDIT)
+                debits_count = journal_entry_debits.count()
+                credits_count = journal_entry_credits.count()
+            except JournalEntry.DoesNotExist:
+                debits_count = 0
+                credits_count = 0
+                journal_entry_debits = JournalEntryItem.objects.none()
+                journal_entry_credits = JournalEntryItem.objects.none()
 
-        if transaction.amount >= 0:
-            is_debit = True
-        else:
-            is_debit = False
+            debit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=9-debits_count)
+            credit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=9-credits_count)
 
-        if debits_count + credits_count == 0:
-            primary_account, secondary_account = (transaction.account, transaction.suggested_account) \
-                if is_debit else (transaction.suggested_account, transaction.account)
+            debits_initial_data = []
+            credits_initial_data = []
 
-            debits_initial_data.append({'account': primary_account, 'amount': abs(transaction.amount)})
-            credits_initial_data.append({'account': secondary_account, 'amount': abs(transaction.amount)})
+            if transaction.amount >= 0:
+                is_debit = True
+            else:
+                is_debit = False
 
-            if transaction.prefill:
-                prefill_items = transaction.prefill.prefillitem_set.all().order_by('order')
-                for item in prefill_items:
-                    if item.journal_entry_item_type == JournalEntryItem.JournalEntryType.DEBIT:
-                        debits_initial_data.append({'account': item.account, 'amount': 0})
-                    else:
-                        credits_initial_data.append({'account': item.account, 'amount': 0})
+            if debits_count + credits_count == 0:
+                primary_account, secondary_account = (transaction.account, transaction.suggested_account) \
+                    if is_debit else (transaction.suggested_account, transaction.account)
 
-        debit_formset = debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits')
-        credit_formset = credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
+                debits_initial_data.append({'account': primary_account, 'amount': abs(transaction.amount)})
+                credits_initial_data.append({'account': secondary_account, 'amount': abs(transaction.amount)})
+
+                if transaction.prefill:
+                    prefill_items = transaction.prefill.prefillitem_set.all().order_by('order')
+                    for item in prefill_items:
+                        if item.journal_entry_item_type == JournalEntryItem.JournalEntryType.DEBIT:
+                            debits_initial_data.append({'account': item.account, 'amount': 0})
+                        else:
+                            credits_initial_data.append({'account': item.account, 'amount': 0})
+
+            debit_formset = debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits')
+            credit_formset = credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
+
         context = {
             'debit_formset': debit_formset,
             'credit_formset': credit_formset,
@@ -497,39 +502,45 @@ class JournalEntryView(JournalEntryFormMixin, TransactionsViewMixin, LoginRequir
         debit_formset = JournalEntryItemFormset(request.POST, prefix='debits')
         credit_formset = JournalEntryItemFormset(request.POST, prefix='credits')
 
-        if debit_formset.is_valid() and credit_formset.is_valid():
-            debit_total = debit_formset.get_entry_total()
-            credit_total = credit_formset.get_entry_total()
+        if request.POST.get('index'):
+            index = int(request.POST.get('index', 0))  # Default to 0 if 'index' is not provided
 
-            if debit_total != credit_total:
-                return HttpResponse('debits and credits must match')
-
+        filter_form = TransactionFilterForm(request.POST)
+        if filter_form.is_valid():
+            transactions = filter_form.get_transactions()
             transaction = Transaction.objects.get(pk=transaction_id)
-            debit_formset.save(transaction, JournalEntryItem.JournalEntryType.DEBIT)
-            credit_formset.save(transaction, JournalEntryItem.JournalEntryType.CREDIT)
-            transaction.close()
+            table_html = self.get_table_html(transactions=transactions, index=index)
 
-            filter_form = TransactionFilterForm(request.POST)
-            if filter_form.is_valid():
-                transactions = filter_form.get_transactions()
-                if request.POST.get('index'):
-                    index = int(request.POST.get('index', 0))  # Default to 0 if 'index' is not provided
-                    try:
-                        transaction = transactions[index]
-                        entry_form_html = self.get_entry_form_html(transaction=transaction, index=index)
-                    except IndexError:
-                        entry_form_html = None
+            context = {}
+            context['table'] = table_html
+            if debit_formset.is_valid() and credit_formset.is_valid():
+                debit_total = debit_formset.get_entry_total()
+                credit_total = credit_formset.get_entry_total()
 
-                table_html = self.get_table_html(transactions=transactions, index=index)
+                if debit_total != credit_total:
+                    return HttpResponse('debits and credits must match')
+                else:
+                    debit_formset.save(transaction, JournalEntryItem.JournalEntryType.DEBIT)
+                    credit_formset.save(transaction, JournalEntryItem.JournalEntryType.CREDIT)
+                    transaction.close()
 
-                context = {
-                    'table': table_html,
-                    'entry_form': entry_form_html
-                }
+                    entry_form_html = self.get_entry_form_html(transaction=transaction, index=index)
+                    # try:
+                    #     transaction = transactions[index]
+                    # except IndexError:
+                    #     entry_form_html = None
 
-                html = render_to_string(self.content_template, context)
-                return HttpResponse(html)
-            print(filter_form.errors)
+            else:
+                entry_form_html = self.get_entry_form_html(
+                    transaction=transaction,
+                    index=index,
+                    debit_formset=debit_formset,
+                    credit_formset=credit_formset
+                )
+
+            context['entry_form'] = entry_form_html
+            html = render_to_string(self.content_template, context)
+            return HttpResponse(html)
 
 # ------------------Wallet Transactions View-----------------------
 
