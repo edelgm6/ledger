@@ -501,46 +501,63 @@ class JournalEntryView(JournalEntryFormMixin, TransactionsViewMixin, LoginRequir
         JournalEntryItemFormset = modelformset_factory(JournalEntryItem, formset=BaseJournalEntryItemFormset, form=JournalEntryItemForm)
         debit_formset = JournalEntryItemFormset(request.POST, prefix='debits')
         credit_formset = JournalEntryItemFormset(request.POST, prefix='credits')
+        transaction = get_object_or_404(Transaction,pk=transaction_id)
 
-        if request.POST.get('index'):
-            index = int(request.POST.get('index', 0))  # Default to 0 if 'index' is not provided
+        # First check if the forms are valid and create JEIs if so
+        has_errors = False
+        if debit_formset.is_valid() and credit_formset.is_valid():
+            debit_total = debit_formset.get_entry_total()
+            credit_total = credit_formset.get_entry_total()
 
+            if debit_total != credit_total:
+                has_errors = True
+        else:
+            has_errors = True
+
+        if not has_errors:
+            debit_formset.save(transaction, JournalEntryItem.JournalEntryType.DEBIT)
+            credit_formset.save(transaction, JournalEntryItem.JournalEntryType.CREDIT)
+            transaction.close()
+
+        # Build the transactions table — use the filter settings if valid, else return all transactions
         filter_form = TransactionFilterForm(request.POST)
         if filter_form.is_valid():
             transactions = filter_form.get_transactions()
-            transaction = Transaction.objects.get(pk=transaction_id)
-            table_html = self.get_table_html(transactions=transactions, index=index)
+            index = int(request.POST.get('index', 0))  # Default to 0 if 'index' is not provided
+        else:
+            _, transactions = self.get_filter_form_html_and_objects(
+                is_closed=False,
+                transaction_type=[Transaction.TransactionType.INCOME,Transaction.TransactionType.PURCHASE]
+            )
+            index = 0
 
-            context = {}
-            context['table'] = table_html
-            if debit_formset.is_valid() and credit_formset.is_valid():
-                debit_total = debit_formset.get_entry_total()
-                credit_total = credit_formset.get_entry_total()
-
-                if debit_total != credit_total:
-                    return HttpResponse('debits and credits must match')
-                else:
-                    debit_formset.save(transaction, JournalEntryItem.JournalEntryType.DEBIT)
-                    credit_formset.save(transaction, JournalEntryItem.JournalEntryType.CREDIT)
-                    transaction.close()
-
-                    entry_form_html = self.get_entry_form_html(transaction=transaction, index=index)
-                    # try:
-                    #     transaction = transactions[index]
-                    # except IndexError:
-                    #     entry_form_html = None
-
+        # If either form has errors, return the forms to render the errors, else build it
+        if has_errors:
+            entry_form_html = self.get_entry_form_html(
+                transaction=transaction,
+                index=index,
+                debit_formset=debit_formset,
+                credit_formset=credit_formset
+            )
+        else:
+            if len(transactions) == 0:
+                entry_form_html = None
             else:
-                entry_form_html = self.get_entry_form_html(
-                    transaction=transaction,
-                    index=index,
-                    debit_formset=debit_formset,
-                    credit_formset=credit_formset
-                )
+                # Need to check an index error in case user chose the last entry
+                try:
+                    highlighted_transaction = transactions[index]
+                except IndexError:
+                    index = 0
+                    highlighted_transaction = transactions[index]
+                entry_form_html = self.get_entry_form_html(transaction=highlighted_transaction, index=index)
 
-            context['entry_form'] = entry_form_html
-            html = render_to_string(self.content_template, context)
-            return HttpResponse(html)
+        table_html = self.get_table_html(transactions=transactions, index=index)
+        context = {
+            'table': table_html,
+            'entry_form': entry_form_html
+        }
+        html = render_to_string(self.content_template, context)
+        return HttpResponse(html)
 
 # ------------------Wallet Transactions View-----------------------
 
