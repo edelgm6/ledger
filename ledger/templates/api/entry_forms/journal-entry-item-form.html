@@ -9,13 +9,15 @@
         hx-trigger="submit"
         hx-include="#transactions-filter-form"
     >
-
         {% csrf_token %}
         <input type="hidden" name="index" value="{{ index }}">
         <div class="row">
             <div class="col-12">
                 <input type="submit" value="Submit" class="btn btn-primary mt-3" />
             </div>
+        </div>
+        <div class="col-md-6 alert alert-danger" role="alert">
+            <small>{{ form_errors }}</small>
         </div>
         <div class="row">
             <!-- Debit Formset Column -->
