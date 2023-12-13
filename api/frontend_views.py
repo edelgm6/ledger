@@ -506,14 +506,18 @@ class JournalEntryView(JournalEntryFormMixin, TransactionsViewMixin, LoginRequir
 
         # First check if the forms are valid and create JEIs if so
         has_errors = False
-        form_errors = None
+        form_errors = []
         if debit_formset.is_valid() and credit_formset.is_valid():
             debit_total = debit_formset.get_entry_total()
             credit_total = credit_formset.get_entry_total()
-
             if debit_total != credit_total:
-                form_errors = 'Debits ($' + str(debit_total) + ') and Credits ($' + str(credit_total) + ') must balance.'
+                form_errors.append('Debits ($' + str(debit_total) + ') and Credits ($' + str(credit_total) + ') must balance.')
                 has_errors = True
+
+            account_amount = credit_formset.get_account_amount(transaction.account) if transaction.amount < 0 else debit_formset.get_account_amount(transaction.account)
+            if account_amount != abs(transaction.amount):
+                form_errors.append('At least one JEI must have the same account and amount as the transaction.')
+
         else:
             has_errors = True
 

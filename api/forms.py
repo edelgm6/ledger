@@ -242,6 +242,12 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
 
         return total
 
+    def get_account_amount(self, target_account):
+        for form in self.forms:
+            account = form.cleaned_data.get('account')
+            if account == target_account:
+                return form.cleaned_data.get('amount')
+
     def save(self, transaction, type, commit=True):
 
         try:
