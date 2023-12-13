@@ -16,9 +16,13 @@
                 <input type="submit" value="Submit" class="btn btn-primary mt-3" />
             </div>
         </div>
+        {% if form_errors %}
         <div class="col-md-6 alert alert-danger" role="alert">
-            <small>{{ form_errors }}</small>
+            {% for error in form_errors %}
+                <small>{{ error }}</small><br>
+            {% endfor %}
         </div>
+        {% endif %}
         <div class="row">
             <!-- Debit Formset Column -->
             <div class="col-md-6">
