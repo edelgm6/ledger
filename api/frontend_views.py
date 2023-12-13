@@ -302,7 +302,7 @@ class TransactionsViewMixin:
 class JournalEntryFormMixin:
     entry_form_template = 'api/entry_forms/journal-entry-item-form.html'
 
-    def get_entry_form_html(self, transaction, index=0, debit_formset=None, credit_formset=None, is_debit=True):
+    def get_entry_form_html(self, transaction, index=0, debit_formset=None, credit_formset=None, is_debit=True, form_errors=None):
         if not transaction:
             return ''
 
@@ -356,7 +356,8 @@ class JournalEntryFormMixin:
             'credit_formset': credit_formset,
             'transaction_id': transaction.id,
             'index': index,
-            'autofocus_debit': is_debit
+            'autofocus_debit': is_debit,
+            'form_errors': form_errors
         }
 
         return render_to_string(self.entry_form_template, context)
@@ -505,11 +506,13 @@ class JournalEntryView(JournalEntryFormMixin, TransactionsViewMixin, LoginRequir
 
         # First check if the forms are valid and create JEIs if so
         has_errors = False
+        form_errors = None
         if debit_formset.is_valid() and credit_formset.is_valid():
             debit_total = debit_formset.get_entry_total()
             credit_total = credit_formset.get_entry_total()
 
             if debit_total != credit_total:
+                form_errors = 'Debits ($' + str(debit_total) + ') and Credits ($' + str(credit_total) + ') must balance.'
                 has_errors = True
         else:
             has_errors = True
@@ -537,7 +540,8 @@ class JournalEntryView(JournalEntryFormMixin, TransactionsViewMixin, LoginRequir
                 transaction=transaction,
                 index=index,
                 debit_formset=debit_formset,
-                credit_formset=credit_formset
+                credit_formset=credit_formset,
+                form_errors=form_errors
             )
         else:
             if len(transactions) == 0:
