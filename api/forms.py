@@ -294,6 +294,12 @@ class JournalEntryItemForm(forms.ModelForm):
         self.fields['amount'].widget.is_localized = True
         self.fields['account'].choices = [(account.name, account.name) for account in Account.objects.all()]
 
+        # Resolve the account name for the bound form
+        if self.instance.pk and self.instance.account:
+            self.account_name = self.instance.account.name
+        else:
+            self.account_name = ''
+
     def clean_account(self):
         account_name = self.cleaned_data['account']
         try:
