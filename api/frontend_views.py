@@ -337,16 +337,23 @@ class JournalEntryFormMixin:
                 primary_account, secondary_account = (transaction.account, transaction.suggested_account) \
                     if is_debit else (transaction.suggested_account, transaction.account)
 
-                debits_initial_data.append({'account': primary_account, 'amount': abs(transaction.amount)})
-                credits_initial_data.append({'account': secondary_account, 'amount': abs(transaction.amount)})
+                debits_initial_data.append({
+                    'account': getattr(primary_account, 'name', None),
+                    'amount': abs(transaction.amount)
+                })
+
+                credits_initial_data.append({
+                    'account': getattr(secondary_account, 'name', None),
+                    'amount': abs(transaction.amount)
+                })
 
                 if transaction.prefill:
                     prefill_items = transaction.prefill.prefillitem_set.all().order_by('order')
                     for item in prefill_items:
                         if item.journal_entry_item_type == JournalEntryItem.JournalEntryType.DEBIT:
-                            debits_initial_data.append({'account': item.account, 'amount': 0})
+                            debits_initial_data.append({'account': item.account.name, 'amount': 0})
                         else:
-                            credits_initial_data.append({'account': item.account, 'amount': 0})
+                            credits_initial_data.append({'account': item.account.name, 'amount': 0})
 
             debit_formset = debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits')
             credit_formset = credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
