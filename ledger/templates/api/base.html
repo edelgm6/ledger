@@ -8,29 +8,10 @@
 
     <!-- Include jQuery -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <!-- Select2 JS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <!-- htmx -->
     <script src="https://unpkg.com/htmx.org"></script>
 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
-
-    <script>
-    function initializeSelect2() {
-        $('.select2').select2({
-            placeholder: "Account",
-            allowClear: true
-        });
-    }
-
-    // Run initializeSelect2 on document ready
-    $(document).ready(initializeSelect2);
-
-    // Re-run initializeSelect2 after any htmx DOM swaps
-    $(document).ready(function() {
-        document.body.addEventListener('htmx:afterSettle', initializeSelect2);
-    });
-    </script>
 
     <style>
 
@@ -58,41 +39,6 @@
             font-size: 0.8em; /* Match the font size to the input field */
             /* You may need to adjust the height if it's not automatically aligning */
             height: calc(1.7rem + 1px); /* This is Bootstrap's default height for small form controls, adjust the calc() as necessary */
-        }
-
-
-        .select2-container--default .select2-selection--single {
-            font-size: 0.75rem; /* Smaller font size for select input */
-            height: calc(1.5em + .5rem + 2px); /* Adjusted height for better text alignment */
-            padding: 0.25rem 0.5rem; /* Adjust padding to vertically center the text */
-        }
-
-        .select2-container--default .select2-selection--single .select2-selection__rendered {
-            line-height: 1.5em; /* Line height to match the height of the select box */
-            padding: 0; /* Remove additional padding */
-        }
-
-        .select2-container--default .select2-selection--single .select2-selection__arrow {
-            height: calc(1.5em + .5rem); /* Adjusted height to match the select box */
-            top: 50%; /* Position arrow in the middle vertically */
-            transform: translateY(-50%); /* Adjust transformation to center the arrow */
-        }
-
-        /* Adjustments for when select2 is open to keep font size consistent */
-        .select2-container--open .select2-dropdown--below,
-        .select2-container--default .select2-results__option {
-            font-size: 0.75rem;
-        }
-
-        /* Additional styles for Select2 search box within the dropdown */
-        .select2-container--default .select2-search--dropdown .select2-search__field {
-            font-size: 0.75rem;
-        }
-
-        /* Style adjustments for Select2 multi-value tokens */
-        .select2-container--default .select2-selection--multiple .select2-selection__choice {
-            font-size: 0.75rem;
-            line-height: 1.5em; /* Adjust line height for multi-value tokens */
         }
 
         .table-sm th, .table-sm td {

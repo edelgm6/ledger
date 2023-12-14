@@ -282,6 +282,7 @@ class JournalEntryItemForm(forms.ModelForm):
         ],
         widget=forms.NumberInput(attrs={'step': '0.01'})
     )
+    account = forms.ChoiceField(choices=[])
 
     class Meta:
         model = JournalEntryItem
@@ -291,6 +292,15 @@ class JournalEntryItemForm(forms.ModelForm):
         super(JournalEntryItemForm, self).__init__(*args, **kwargs)
         self.fields['amount'].localize = True
         self.fields['amount'].widget.is_localized = True
+        self.fields['account'].choices = [(account.name, account.name) for account in Account.objects.all()]
+
+    def clean_account(self):
+        account_name = self.cleaned_data['account']
+        try:
+            account = Account.objects.get(name=account_name)
+            return account
+        except Account.DoesNotExist:
+            raise forms.ValidationError("This Account does not exist.")
 
     def save(self, journal_entry, type, commit=True):
         instance = super(JournalEntryItemForm, self).save(commit=False)
