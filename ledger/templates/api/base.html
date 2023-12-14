@@ -11,8 +11,6 @@
     <!-- htmx -->
     <script src="https://unpkg.com/htmx.org"></script>
 
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
-
     <style>
 
         .form-sm .form-control {
@@ -70,6 +68,13 @@
     document.body.addEventListener('htmx:configRequest', (event) => {
         event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
     });
+</script>
+
+<script>
+$(document).on('click', '.nav-item', function() {
+    $('.nav-item').removeClass('active'); // Remove 'active' class from all tabs
+    $(this).addClass('active'); // Add 'active' class to the clicked tab
+});
 </script>
 {% block extra_js %}{% endblock %}
 </html>
