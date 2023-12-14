@@ -38,7 +38,7 @@
                             name="{{ form.account.html_name }}"
                             id="{{ form.account.auto_id }}"
                             tabindex="{{ forloop.counter|multiply:4|add:1 }}"
-                            value="{% if form.account.value %}{{ form.account.value }}{% endif %}"
+                            value="{% if form.account_name %}{{ form.account_name }}{% elif form.account.value %}{{ form.account.value }}{% endif %}"
                             {% if not autofocus_debit %}autofocus{% endif %}
                             >
                             <datalist id="debitAccountOptions">
@@ -86,7 +86,7 @@
                             name="{{ form.account.html_name }}"
                             id="{{ form.account.auto_id }}"
                             tabindex="{{ forloop.counter|multiply:4|add:1 }}"
-                            value="{% if form.account.value %}{{ form.account.value }}{% endif %}"
+                            value="{% if form.account_name %}{{ form.account_name }}{% elif form.account.value %}{{ form.account.value }}{% endif %}"
                             {% if autofocus_debit %}autofocus{% endif %}
                             >
                             <datalist id="debitAccountOptions">
