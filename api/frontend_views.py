@@ -314,16 +314,13 @@ class JournalEntryFormMixin:
                 journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry)
                 journal_entry_debits = journal_entry_items.filter(type=JournalEntryItem.JournalEntryType.DEBIT)
                 journal_entry_credits = journal_entry_items.filter(type=JournalEntryItem.JournalEntryType.CREDIT)
-                debits_count = journal_entry_debits.count()
-                credits_count = journal_entry_credits.count()
+                bound_debits_count = journal_entry_debits.count()
+                bound_credits_count = journal_entry_credits.count()
             except JournalEntry.DoesNotExist:
-                debits_count = 0
-                credits_count = 0
+                bound_debits_count = 0
+                bound_credits_count = 0
                 journal_entry_debits = JournalEntryItem.objects.none()
                 journal_entry_credits = JournalEntryItem.objects.none()
-
-            debit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=9-debits_count)
-            credit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=9-credits_count)
 
             debits_initial_data = []
             credits_initial_data = []
@@ -333,7 +330,9 @@ class JournalEntryFormMixin:
             else:
                 is_debit = False
 
-            if debits_count + credits_count == 0:
+            prefill_debits_count = 0
+            prefill_credits_count = 0
+            if bound_debits_count + bound_credits_count == 0:
                 primary_account, secondary_account = (transaction.account, transaction.suggested_account) \
                     if is_debit else (transaction.suggested_account, transaction.account)
 
@@ -352,8 +351,13 @@ class JournalEntryFormMixin:
                     for item in prefill_items:
                         if item.journal_entry_item_type == JournalEntryItem.JournalEntryType.DEBIT:
                             debits_initial_data.append({'account': item.account.name, 'amount': 0})
+                            prefill_debits_count += 1
                         else:
                             credits_initial_data.append({'account': item.account.name, 'amount': 0})
+                            prefill_credits_count += 1
+
+            debit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=max((9-bound_debits_count),prefill_debits_count))
+            credit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=max((9-bound_credits_count),prefill_credits_count))
 
             debit_formset = debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits')
             credit_formset = credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
