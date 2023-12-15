@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.forms import modelformset_factory
 from api.models import  Reconciliation, TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
 from api.forms import UploadTransactionsForm, ReconciliationFilterForm, ReconciliationForm, TaxChargeFilterForm, TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
-from api.statement import IncomeStatement, BalanceSheet, Trend
+from api.statement import BalanceSheet, Trend
 
 class UploadTransactionsView(View):
 
@@ -145,125 +145,6 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
         reconciliation_table = self.get_reconciliation_html(reconciliations)
 
         return HttpResponse(reconciliation_table)
-
-
-class TaxTableMixIn:
-
-    def get_tax_table_html(self, tax_charges):
-
-        tax_charges = tax_charges.order_by('date','type')
-        for tax_charge in tax_charges:
-            last_day_of_month = tax_charge.date
-            first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
-            taxable_income = IncomeStatement(tax_charge.date, first_day_of_month).get_taxable_income()
-            tax_charge.taxable_income = taxable_income
-            tax_charge.tax_rate = None if taxable_income == 0 else tax_charge.amount / taxable_income
-
-        tax_charge_table_html = render_to_string(
-            'api/tables/tax-table.html',
-            {'tax_charges': tax_charges}
-        )
-
-        return tax_charge_table_html
-
-class TaxChargeTableView(TaxTableMixIn, LoginRequiredMixin, View):
-    login_url = '/login/'
-    redirect_field_name = 'next'
-
-    def get(self, request, *args, **kwargs):
-        form = TaxChargeFilterForm(request.GET)
-        if form.is_valid():
-            tax_charges = form.get_tax_charges()
-            tax_table_charge_table_html = self.get_tax_table_html(tax_charges)
-
-            template = 'api/components/taxes-content.html'
-            form_template = 'api/entry_forms/edit-tax-charge-form.html'
-            context = {
-                'tax_charge_table': tax_table_charge_table_html,
-                'form': render_to_string(form_template, {'form': TaxChargeForm()}),
-            }
-
-            return render(request, template, context)
-
-class TaxChargeFormView(TaxTableMixIn, LoginRequiredMixin, View):
-    login_url = '/login/'
-    redirect_field_name = 'next'
-    form_class = TaxChargeForm
-    form_template = 'api/entry_forms/edit-tax-charge-form.html'
-
-    def get(self, request, pk=None, *args, **kwargs):
-        if pk:
-            tax_charge = get_object_or_404(TaxCharge, pk=pk)
-            form = self.form_class(instance=tax_charge)
-        else:
-            tax_charge = None
-            form = self.form_class()
-
-        context = {
-            'form': form,
-            'tax_charge': tax_charge
-        }
-
-        return render(request, self.form_template, context)
-
-    def post(self, request, pk=None, *args, **kwargs):
-        if pk:
-            tax_charge = get_object_or_404(TaxCharge, pk=pk)
-            form = self.form_class(data=request.POST, instance=tax_charge)
-        else:
-            form = self.form_class(data=request.POST)
-
-        if form.is_valid():
-            tax_charge = form.save()
-            print(tax_charge)
-            tax_charges_form = TaxChargeFilterForm(request.POST)
-            if tax_charges_form.is_valid():
-                tax_charges = tax_charges_form.get_tax_charges()
-
-            context = {
-                'tax_charge_table': self.get_tax_table_html(tax_charges),
-                'form': render_to_string(self.form_template, {'form': form})
-            }
-            form_template = 'api/components/taxes-content.html'
-            return render(request, form_template, context)
-
-# Loads full page
-class TaxesView(TaxTableMixIn, LoginRequiredMixin, View):
-    login_url = '/login/'
-    redirect_field_name = 'next'
-    form_template = 'api/entry_forms/edit-tax-charge-form.html'
-
-    def _get_last_day_of_last_month(self):
-        current_date = datetime.now()
-
-        # Calculate the year and month for the previous month
-        year = current_date.year
-        month = current_date.month - 1
-
-        # If it's currently January, adjust to December of the previous year
-        if month == 0:
-            month = 12
-            year -= 1
-
-        # Get the last day of the previous month
-        _, last_day = calendar.monthrange(year, month)
-        last_day_date = date(year, month, last_day)
-
-        return last_day_date
-
-    def get(self, request, *args, **kwargs):
-
-        tax_charges = TaxCharge.objects.filter(date__gte='2023-01-31',date__lte=self._get_last_day_of_last_month())
-        tax_charge_table = self.get_tax_table_html(tax_charges)
-        template = 'api/views/taxes.html'
-        filter_template = 'api/filter_forms/tax-charge-filter-form.html'
-        context = {
-            'tax_charge_table': tax_charge_table,
-            'form': render_to_string(self.form_template, {'form': TaxChargeForm()}),
-            'filter_form': render_to_string(filter_template, {'filter_form': TaxChargeFilterForm()})
-        }
-
-        return render(request, template, context)
 
 class TransactionsViewMixin:
     filter_form_template = 'api/filter_forms/transactions-filter-form.html'
