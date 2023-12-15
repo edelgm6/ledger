@@ -9,7 +9,17 @@ from api.models import  TaxCharge
 from api.forms import TaxChargeFilterForm, TaxChargeForm
 from api.statement import IncomeStatement
 
-class TaxTableMixIn:
+class TaxChargeMixIn:
+
+    def _add_tax_rate_and_charge(self, tax_charge, current_taxable_income=None):
+        last_day_of_month = tax_charge.date
+        first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
+        taxable_income = IncomeStatement(tax_charge.date, first_day_of_month).get_taxable_income()
+        tax_charge.taxable_income = taxable_income
+        tax_charge.tax_rate = None if taxable_income == 0 else tax_charge.amount / taxable_income
+        if current_taxable_income:
+            tax_charge.current_tax = tax_charge.tax_rate * current_taxable_income
+
 
     def get_tax_form_html(self, last_day_of_month):
         first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
@@ -22,11 +32,7 @@ class TaxTableMixIn:
 
         for tax_charge in [latest_federal_tax_charge,latest_state_tax_charge]:
             if tax_charge:
-                last_day_of_month = tax_charge.date
-                first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
-                taxable_income = IncomeStatement(tax_charge.date, first_day_of_month).get_taxable_income()
-                tax_charge.tax_rate = None if taxable_income == 0 else tax_charge.amount / taxable_income
-                tax_charge.current_tax = tax_charge.tax_rate * current_taxable_income
+                self._add_tax_rate_and_charge(tax_charge, current_taxable_income)
 
         form_template = 'api/entry_forms/edit-tax-charge-form.html'
         context = {
@@ -44,11 +50,7 @@ class TaxTableMixIn:
 
         tax_charges = tax_charges.order_by('date','type')
         for tax_charge in tax_charges:
-            last_day_of_month = tax_charge.date
-            first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
-            taxable_income = IncomeStatement(tax_charge.date, first_day_of_month).get_taxable_income()
-            tax_charge.taxable_income = taxable_income
-            tax_charge.tax_rate = None if taxable_income == 0 else tax_charge.amount / taxable_income
+            self._add_tax_rate_and_charge(tax_charge)
 
         tax_charge_table_html = render_to_string(
             'api/tables/tax-table.html',
@@ -57,7 +59,7 @@ class TaxTableMixIn:
 
         return tax_charge_table_html
 
-class TaxChargeTableView(TaxTableMixIn, LoginRequiredMixin, View):
+class TaxChargeTableView(TaxChargeMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
 
@@ -76,7 +78,7 @@ class TaxChargeTableView(TaxTableMixIn, LoginRequiredMixin, View):
 
             return render(request, template, context)
 
-class TaxChargeFormView(TaxTableMixIn, LoginRequiredMixin, View):
+class TaxChargeFormView(TaxChargeMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
     form_class = TaxChargeForm
@@ -118,7 +120,7 @@ class TaxChargeFormView(TaxTableMixIn, LoginRequiredMixin, View):
             return render(request, form_template, context)
 
 # Loads full page
-class TaxesView(TaxTableMixIn, LoginRequiredMixin, View):
+class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
 
