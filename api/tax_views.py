@@ -11,6 +11,24 @@ from api.statement import IncomeStatement
 
 class TaxChargeMixIn:
 
+    def _get_last_day_of_last_month(self):
+        current_date = datetime.now()
+
+        # Calculate the year and month for the previous month
+        year = current_date.year
+        month = current_date.month - 1
+
+        # If it's currently January, adjust to December of the previous year
+        if month == 0:
+            month = 12
+            year -= 1
+
+        # Get the last day of the previous month
+        _, last_day = calendar.monthrange(year, month)
+        last_day_date = date(year, month, last_day)
+
+        return last_day_date
+
     def _add_tax_rate_and_charge(self, tax_charge, current_taxable_income=None):
         last_day_of_month = tax_charge.date
         first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
@@ -21,7 +39,8 @@ class TaxChargeMixIn:
             tax_charge.current_tax = tax_charge.tax_rate * current_taxable_income
 
 
-    def get_tax_form_html(self, last_day_of_month):
+    def get_tax_form_html(self, last_day_of_month=None):
+        last_day_of_month = last_day_of_month if last_day_of_month else self._get_last_day_of_last_month()
         first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
         income_statement = IncomeStatement(last_day_of_month, first_day_of_month)
         latest_federal_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.FEDERAL).order_by('-date').first()
@@ -73,7 +92,7 @@ class TaxChargeTableView(TaxChargeMixIn, LoginRequiredMixin, View):
             form_template = 'api/entry_forms/edit-tax-charge-form.html'
             context = {
                 'tax_charge_table': tax_table_charge_table_html,
-                'form': render_to_string(form_template, {'form': TaxChargeForm()}),
+                'form': self.get_tax_form_html(),
             }
 
             return render(request, template, context)
@@ -123,24 +142,6 @@ class TaxChargeFormView(TaxChargeMixIn, LoginRequiredMixin, View):
 class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
-
-    def _get_last_day_of_last_month(self):
-        current_date = datetime.now()
-
-        # Calculate the year and month for the previous month
-        year = current_date.year
-        month = current_date.month - 1
-
-        # If it's currently January, adjust to December of the previous year
-        if month == 0:
-            month = 12
-            year -= 1
-
-        # Get the last day of the previous month
-        _, last_day = calendar.monthrange(year, month)
-        last_day_date = date(year, month, last_day)
-
-        return last_day_date
 
     def get(self, request, *args, **kwargs):
 
