@@ -1,33 +1,15 @@
-import calendar
-from datetime import date, datetime
+from datetime import date
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.views import View
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from api.models import  TaxCharge
 from api.forms import TaxChargeFilterForm, TaxChargeForm
 from api.statement import IncomeStatement
+from api import utils
 
 class TaxChargeMixIn:
-
-    def _get_last_day_of_last_month(self):
-        current_date = datetime.now()
-
-        # Calculate the year and month for the previous month
-        year = current_date.year
-        month = current_date.month - 1
-
-        # If it's currently January, adjust to December of the previous year
-        if month == 0:
-            month = 12
-            year -= 1
-
-        # Get the last day of the previous month
-        _, last_day = calendar.monthrange(year, month)
-        last_day_date = date(year, month, last_day)
-
-        return last_day_date
 
     def _add_tax_rate_and_charge(self, tax_charge, current_taxable_income=None):
         last_day_of_month = tax_charge.date
@@ -50,7 +32,7 @@ class TaxChargeMixIn:
         else:
             form = TaxChargeForm()
 
-        last_day_of_month = last_day_of_month if last_day_of_month else self._get_last_day_of_last_month()
+        last_day_of_month = last_day_of_month if last_day_of_month else utils.get_last_day_of_last_month()
         first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
         income_statement = IncomeStatement(last_day_of_month, first_day_of_month)
         latest_federal_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.FEDERAL).order_by('-date').first()
@@ -128,11 +110,11 @@ class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
 
-        tax_charges = TaxCharge.objects.filter(date__gte='2023-01-31',date__lte=self._get_last_day_of_last_month())
+        tax_charges = TaxCharge.objects.filter(date__gte='2023-01-31',date__lte=utils.get_last_day_of_last_month())
 
         context = {
             'tax_charge_table': self.get_tax_table_html(tax_charges),
-            'form': self.get_tax_form_html(last_day_of_month=self._get_last_day_of_last_month()),
+            'form': self.get_tax_form_html(last_day_of_month=utils.get_last_day_of_last_month()),
             'filter_form': self.get_tax_filter_form_html
         }
         template = 'api/views/taxes.html'
