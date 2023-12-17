@@ -8,9 +8,10 @@ from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.forms import modelformset_factory
-from api.models import  Reconciliation, TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
-from api.forms import UploadTransactionsForm, ReconciliationFilterForm, ReconciliationForm, TaxChargeFilterForm, TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
-from api.statement import IncomeStatement, BalanceSheet, Trend
+from api.models import  Reconciliation, Transaction, JournalEntry, JournalEntryItem
+from api.forms import UploadTransactionsForm, ReconciliationFilterForm, ReconciliationForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
+from api.statement import BalanceSheet, Trend
+from api import utils
 
 class UploadTransactionsView(View):
 
@@ -94,28 +95,10 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
 
-    def _get_last_day_of_last_month(self):
-        current_date = datetime.now()
-
-        # Calculate the year and month for the previous month
-        year = current_date.year
-        month = current_date.month - 1
-
-        # If it's currently January, adjust to December of the previous year
-        if month == 0:
-            month = 12
-            year -= 1
-
-        # Get the last day of the previous month
-        _, last_day = calendar.monthrange(year, month)
-        last_day_date = date(year, month, last_day)
-
-        return last_day_date
-
     def get(self, request, *args, **kwargs):
 
         template = 'api/views/reconciliation.html'
-        reconciliations = Reconciliation.objects.filter(date=self._get_last_day_of_last_month())
+        reconciliations = Reconciliation.objects.filter(date=utils.get_last_day_of_last_month())
         reconciliation_table = self.get_reconciliation_html(reconciliations)
         context = {
             'reconciliation_table': reconciliation_table,

@@ -17,9 +17,9 @@ from django.contrib import admin
 from django.urls import path
 from django.contrib.auth.views import LoginView
 # from api.views import TaxChargeView, JournalEntryView, TransactionView, AccountView, UploadTransactionsView, AccountBalanceView, TransactionTypeView, CSVProfileView, GenerateReconciliationsView, ReconciliationView, PlugReconciliationView, TrendView
-from api.frontend_views import TrendView, JournalEntryView, UploadTransactionsView, ReconciliationTableView, ReconciliationView, LinkTransactionsView, JournalEntryFormView, TransactionsTableView, IndexView
-from api.tax_views import TaxChargeTableView,TaxChargeFormView, TaxesView
-from api.amortization_views import AmortizationFormView, AmortizationView, AmortizeFormView
+from api.views.frontend_views import TrendView, JournalEntryView, UploadTransactionsView, ReconciliationTableView, ReconciliationView, LinkTransactionsView, JournalEntryFormView, TransactionsTableView, IndexView
+from api.views.tax_views import TaxChargeTableView,TaxChargeFormView, TaxesView
+from api.views.amortization_views import AmortizationFormView, AmortizationView, AmortizeFormView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
