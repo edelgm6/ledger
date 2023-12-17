@@ -135,6 +135,7 @@ class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
             'form': self.get_tax_form_html(last_day_of_month=self._get_last_day_of_last_month()),
             'filter_form': self.get_tax_filter_form_html
         }
+        template = 'api/views/taxes.html'
         html = render_to_string(template, context)
 
         template = 'api/views/taxes.html'
