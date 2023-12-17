@@ -49,10 +49,13 @@ urlpatterns = [
     path('journal-entries/form/<int:transaction_id>/', JournalEntryFormView.as_view(), name='journal-entry-form'),
     # Link page
     path('transactions-linking/', LinkTransactionsView.as_view(), name='link-transactions'),
+    # Taxes page
     path('taxes/', TaxesView.as_view(), name='taxes'),
     path('taxes/<int:pk>/', TaxesView.as_view(), name='edit-tax-charge'),
     path('tax-charge-table/', TaxChargeTableView.as_view(), name='tax-charge-table'),
-    path('edit-or-create-tax-charge/', TaxChargeFormView.as_view(), name='create-tax-charge'),
+    path('taxes/form/', TaxChargeFormView.as_view(), name='tax-form'),
+    path('taxes/form/<int:pk>/', TaxChargeFormView.as_view(), name='tax-form-bound'),
+    # Other
     path('reconciliation/', ReconciliationView.as_view(), name='reconciliation'),
     path('reconciliation-table/', ReconciliationTableView.as_view(), name='reconciliation-table'),
     path('upload-transactions/', UploadTransactionsView.as_view(), name='upload-transactions'),

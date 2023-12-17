@@ -16,7 +16,7 @@
         </thead>
         <tbody>
             {% for tax_charge in tax_charges %}
-                <tr class="clickable-row" hx-get="{% url 'edit-tax-charge' pk=tax_charge.pk %}" hx-target="#form-container">
+                <tr class="clickable-row" hx-get="{% url 'tax-form-bound' pk=tax_charge.pk %}" hx-target="#form-container">
                     <td>{{ tax_charge.type }}</td>
                     <td>{{ tax_charge.transaction }}</td>
                     <td>{{ tax_charge.date }}</td>
