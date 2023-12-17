@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, generics
 from api.serializers import TransactionOutputSerializer, JournalEntryInputSerializer, JournalEntryOutputSerializer, AccountOutputSerializer, TransactionInputSerializer, AccountBalanceOutputSerializer, TransactionTypeOutputSerializer, CSVProfileOutputSerializer, ReconciliationsCreateSerializer, ReconciliationOutputSerializer, ReconciliationInputSerializer, TaxChargeInputSerializer, TaxChargeOutputSerializer, CreateTaxChargeInputSerializer, BalanceOutputSerializer, TransactionBulkUploadSerializer
-from api.models import TaxCharge, Transaction, Account, CSVProfile, Reconciliation, JournalEntry, JournalEntryItem
+from api.models import TaxCharge, Transaction, Account, CSVProfile, Reconciliation, JournalEntry
 from api.statement import BalanceSheet, IncomeStatement, CashFlowStatement, Trend
 
 class TrendView(APIView):
