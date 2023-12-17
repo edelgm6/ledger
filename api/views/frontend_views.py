@@ -394,6 +394,7 @@ class JournalEntryView(JournalEntryFormMixin, TransactionsViewMixin, LoginRequir
                 form_errors.append('At least one JEI must have the same account and amount as the transaction.')
 
         else:
+            print(debit_formset.errors)
             has_errors = True
 
         if not has_errors:

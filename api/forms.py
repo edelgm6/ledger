@@ -1,9 +1,10 @@
 import csv
 from datetime import datetime, date
+from decimal import Decimal, InvalidOperation
 from django import forms
-from django.forms import BaseModelFormSet
+from django.forms import BaseModelFormSet, DecimalField
 from django.utils import timezone
-from django.core.validators import RegexValidator
+from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 from api.models import Amortization, Transaction, Account, JournalEntryItem, TaxCharge, Reconciliation, JournalEntry
 from api import utils
@@ -237,17 +238,23 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
 
         return instances
 
+class CommaDecimalField(DecimalField):
+    def to_python(self, value):
+        if value is None:
+            return value
+        try:
+            # Remove commas and convert to Decimal
+            value = Decimal(str(value).replace(',', ''))
+        except InvalidOperation:
+            raise forms.ValidationError('Enter a number.')
+        return super().to_python(value)
+
 class JournalEntryItemForm(forms.ModelForm):
-    amount = forms.DecimalField(
+    amount = CommaDecimalField(
         initial=0.00,
         decimal_places=2,
         max_digits=12,
-        validators=[
-            RegexValidator(
-                regex=r'^\d{1,10}(\.\d{1,2})?$',
-                message="Enter a valid amount in dollars and cents format."
-            )
-        ],
+        validators=[MinValueValidator(Decimal('0.00'))],
         widget=forms.NumberInput(attrs={'step': '0.01'})
     )
     account = forms.ChoiceField(choices=[])
