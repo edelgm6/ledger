@@ -24,19 +24,6 @@
                 {% endfor %}
             </div>
 
-            <!-- Account Field -->
-            <div class="form-group">
-                <select name="account" id="id_account" class="form-control select2">
-                    <option value="" selected="selected">---------</option>
-                    {% for option in form.account %}
-                        {{ option }}
-                    {% endfor %}
-                </select>
-                {% for error in form.suggested_account.errors %}
-                    <div class="alert alert-danger">{{ error }}</div>
-                {% endfor %}
-            </div>
-
             <!-- Amount Field -->
             <div class="form-group">
                 <div class="input-group">
@@ -80,12 +67,15 @@
 
             <!-- Type Field -->
             <div class="form-group">
-                <select name="type" id="id_type" class="form-control">
-                    <option value="" selected="selected">---------</option>
+                <!-- Button Group Styled Radio Buttons -->
+                <div class="btn-group btn-group-toggle" data-toggle="buttons">
                     {% for option in form.type %}
-                        {{ option }}
+                        <label class="btn btn-outline-primary {% if option.choice_label == 'Purchase' %}active{% endif %}">
+                            <input type="radio" name="{{ form.type.html_name }}" id="{{ option.id_for_label }}" value="{{ option.choice_value }}" {% if option.choice_label == 'Purchase' %}checked{% endif %} autocomplete="off">
+                            {{ option.choice_label }}
+                        </label>
                     {% endfor %}
-                </select>
+                </div>
                 {% for error in form.type.errors %}
                     <div class="alert alert-danger">{{ error }}</div>
                 {% endfor %}
