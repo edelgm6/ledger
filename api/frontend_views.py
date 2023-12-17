@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.forms import modelformset_factory
 from api.models import  Reconciliation, TaxCharge, Transaction, Account, JournalEntry, JournalEntryItem
 from api.forms import UploadTransactionsForm, ReconciliationFilterForm, ReconciliationForm, TaxChargeFilterForm, TaxChargeForm, TransactionLinkForm, TransactionForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
-from api.statement import BalanceSheet, Trend
+from api.statement import IncomeStatement, BalanceSheet, Trend
 
 class UploadTransactionsView(View):
 

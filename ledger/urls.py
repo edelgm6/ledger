@@ -50,8 +50,8 @@ urlpatterns = [
     # Link page
     path('transactions-linking/', LinkTransactionsView.as_view(), name='link-transactions'),
     path('taxes/', TaxesView.as_view(), name='taxes'),
+    path('taxes/<int:pk>/', TaxesView.as_view(), name='edit-tax-charge'),
     path('tax-charge-table/', TaxChargeTableView.as_view(), name='tax-charge-table'),
-    path('edit-or-create-tax-charge/<int:pk>/', TaxChargeFormView.as_view(), name='edit-tax-charge'),
     path('edit-or-create-tax-charge/', TaxChargeFormView.as_view(), name='create-tax-charge'),
     path('reconciliation/', ReconciliationView.as_view(), name='reconciliation'),
     path('reconciliation-table/', ReconciliationTableView.as_view(), name='reconciliation-table'),

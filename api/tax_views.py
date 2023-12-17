@@ -118,26 +118,6 @@ class TaxChargeFormView(TaxChargeMixIn, LoginRequiredMixin, View):
 
         return render(request, self.form_template, context)
 
-    def post(self, request, pk=None, *args, **kwargs):
-        if pk:
-            tax_charge = get_object_or_404(TaxCharge, pk=pk)
-            form = self.form_class(data=request.POST, instance=tax_charge)
-        else:
-            form = self.form_class(data=request.POST)
-
-        if form.is_valid():
-            tax_charge = form.save()
-            tax_charges_form = TaxChargeFilterForm(request.POST)
-            if tax_charges_form.is_valid():
-                tax_charges = tax_charges_form.get_tax_charges()
-
-            context = {
-                'tax_charge_table': self.get_tax_table_html(tax_charges),
-                'form': render_to_string(self.form_template, {'form': form})
-            }
-            form_template = 'api/components/taxes-content.html'
-            return render(request, form_template, context)
-
 # Loads full page
 class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
@@ -156,3 +136,23 @@ class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
         }
 
         return render(request, template, context)
+
+    def post(self, request, pk=None, *args, **kwargs):
+        if pk:
+            tax_charge = get_object_or_404(TaxCharge, pk=pk)
+            form = self.form_class(data=request.POST, instance=tax_charge)
+        else:
+            form = self.form_class(data=request.POST)
+
+        if form.is_valid():
+            tax_charge = form.save()
+            tax_charges_form = TaxChargeFilterForm(request.POST)
+            if tax_charges_form.is_valid():
+                tax_charges = tax_charges_form.get_tax_charges()
+
+            context = {
+                'tax_charge_table': self.get_tax_table_html(tax_charges),
+                'form': self.get_tax_form_html()
+            }
+            form_template = 'api/components/taxes-content.html'
+            return render(request, form_template, context)
