@@ -22,10 +22,7 @@
                     <a class="nav-link" href="{% url 'amortization' %}" hx-get="{% url 'amortization' %}" hx-target="#container">Amortization</a>
                 </li>
                 <li class="nav-item {% if request.resolver_match.url_name == 'upload-transactions' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'upload-transactions' %}" hx-get="{% url 'upload-transactions' %}" hx-target="#container">Upload</a>
-                </li>
-                <li class="nav-item {% if request.resolver_match.url_name == 'trend' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'trend' %}">Download</a>
+                    <a class="nav-link" href="{% url 'upload-transactions' %}" hx-get="{% url 'upload-transactions' %}" hx-target="#container">Upload/Download</a>
                 </li>
             </ul>
         </div>
