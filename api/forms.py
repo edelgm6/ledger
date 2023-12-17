@@ -1,51 +1,19 @@
 import csv
-from datetime import datetime, timedelta, date
+from datetime import datetime, date
 from django import forms
 from django.forms import BaseModelFormSet
 from django.utils import timezone
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
 from api.models import Amortization, Transaction, Account, JournalEntryItem, TaxCharge, Reconciliation, JournalEntry
-
-def _get_last_days_of_month_tuples():
-    # Get the current year and month
-    current_date = datetime.today()
-    current_year = current_date.year
-    current_month = current_date.month
-
-    # Adjust for the previous month
-    # If the current month is January, set to December of the previous year
-    if current_month == 1:
-        current_year -= 1
-        current_month = 12
-    else:
-        current_month -= 1
-
-    # Create a list of year-month tuples
-    # For the current year, include months up to the previous month.
-    # For previous years, include all months.
-    year_month_tuples = [(year, month) for year in range(2023, current_year + 1)
-                         for month in range(1, current_month + 1 if year == current_year else 13)]
-
-    final_days_of_month = []
-    for year, month in year_month_tuples:
-        # Calculate the first day of the next month
-        next_month = month % 12 + 1
-        next_month_year = year if month != 12 else year + 1
-
-        # Calculate the last day of the current month
-        last_day = date(next_month_year, next_month, 1) - timedelta(days=1)
-        final_days_of_month.append((last_day, last_day.strftime('%B %d, %Y')))
-
-    final_days_of_month.reverse()
-    return final_days_of_month
+from api import utils
 
 class DateForm(forms.Form):
     date = forms.ChoiceField()
 
     def __init__(self, *args, **kwargs):
         super(DateForm, self).__init__(*args, **kwargs)
-        last_days_of_month_tuples = _get_last_days_of_month_tuples()
+        last_days_of_month_tuples = utils.get_last_days_of_month_tuples()
         self.fields['date'].choices = last_days_of_month_tuples
         self.fields['date'].initial = last_days_of_month_tuples[0][0]
 
@@ -99,7 +67,7 @@ class ReconciliationFilterForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super(ReconciliationFilterForm, self).__init__(*args, **kwargs)
-        self.fields['date'].choices = _get_last_days_of_month_tuples()
+        self.fields['date'].choices = utils.get_last_days_of_month_tuples()
 
     def get_reconciliations(self):
         return Reconciliation.objects.filter(date=self.cleaned_data['date'])
@@ -151,7 +119,7 @@ class TaxChargeFilterForm(forms.Form):
         # Restrict both fields to only allow last days of months
         for field_name in ['date_from', 'date_to']:
             field = self.fields[field_name]
-            field.choices = _get_last_days_of_month_tuples()
+            field.choices = utils.get_last_days_of_month_tuples()
 
         current_year = datetime.now().year
         january_31 = date(current_year, 1, 31)
@@ -180,7 +148,7 @@ class TaxChargeForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super(TaxChargeForm, self).__init__(*args, **kwargs)
-        last_days_of_month_tuples = _get_last_days_of_month_tuples()
+        last_days_of_month_tuples = utils.get_last_days_of_month_tuples()
         self.fields['date'].choices = last_days_of_month_tuples
         last_day_of_last_month = last_days_of_month_tuples[0][0]
         self.fields['date'].initial = last_day_of_last_month
