@@ -355,13 +355,7 @@ class TransactionFilterForm(forms.Form):
 
 class TransactionForm(forms.ModelForm):
 
-    suggested_account = forms.ModelChoiceField(
-        queryset=Account.objects.filter(
-            type__in=[Account.Type.INCOME,Account.Type.EXPENSE]
-        ).exclude(
-            special_type=Account.SpecialType.WALLET
-        )
-    )
+    suggested_account = forms.ChoiceField(choices=[])
 
     class Meta:
         model = Transaction
@@ -378,6 +372,17 @@ class TransactionForm(forms.ModelForm):
         ]
         self.fields['type'].choices = type_choices
         self.fields['type'].initial = Transaction.TransactionType.PURCHASE
+        eligible_accounts = Account.objects.filter(
+            type__in=[Account.Type.INCOME,Account.Type.EXPENSE]
+        ).exclude(
+            special_type=Account.SpecialType.WALLET
+        )
+        self.fields['suggested_account'].choices = [(account.name, account.name) for account in eligible_accounts]
+
+    def clean_suggested_account(self):
+        suggested_account_name = self.cleaned_data['suggested_account']
+        suggested_account = Account.objects.get(name=suggested_account_name)
+        return suggested_account
 
     def save(self, commit=True):
         instance = super(TransactionForm, self).save(commit=False)
