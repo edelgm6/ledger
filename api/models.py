@@ -198,7 +198,7 @@ class Transaction(models.Model):
     is_closed = models.BooleanField(default=False)
     date_closed = models.DateField(null=True,blank=True)
     suggested_account = models.ForeignKey('Account',related_name='suggested_account',on_delete=models.CASCADE,null=True,blank=True)
-    type = models.CharField(max_length=25,choices=TransactionType.choices,blank=True)
+    type = models.CharField(max_length=25,choices=TransactionType.choices)
     linked_transaction = models.OneToOneField('Transaction',on_delete=models.SET_NULL,null=True,blank=True)
     amortization = models.ForeignKey('Amortization',on_delete=models.CASCADE,null=True,blank=True,related_name='transactions')
     prefill = models.ForeignKey('Prefill',on_delete=models.CASCADE,null=True,blank=True)
