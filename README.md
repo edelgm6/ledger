@@ -7,4 +7,3 @@ Ledger is a personal accounting tool to generate the three accounting statements
 Once you've hosted Ledger, you'll need to do the following:
 * Create an admin user via Django's `python manage.py createsuperuser`
 * Log into the Admin page to generate some accounts. At the very least, you'll need one of each `Special type`
-* Create an Authorization token for the admin user to be used with the Retool frontend below
