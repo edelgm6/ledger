@@ -356,7 +356,11 @@ class TransactionFilterForm(forms.Form):
 class TransactionForm(forms.ModelForm):
 
     suggested_account = forms.ModelChoiceField(
-        queryset=Account.objects.all()
+        queryset=Account.objects.filter(
+            type__in=[Account.Type.INCOME,Account.Type.EXPENSE]
+        ).exclude(
+            special_type=Account.SpecialType.WALLET
+        )
     )
 
     class Meta:
@@ -374,3 +378,17 @@ class TransactionForm(forms.ModelForm):
         ]
         self.fields['type'].choices = type_choices
         self.fields['type'].initial = Transaction.TransactionType.PURCHASE
+
+    def save(self, commit=True):
+        instance = super(TransactionForm, self).save(commit=False)
+
+        if instance.type == Transaction.TransactionType.PURCHASE:
+            instance.amount *= -1
+
+        wallet = Account.objects.get(special_type=Account.SpecialType.WALLET)
+        instance.account = wallet
+
+        if commit:
+            instance.save()
+
+        return instance
