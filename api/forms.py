@@ -355,20 +355,45 @@ class TransactionFilterForm(forms.Form):
 
 class TransactionForm(forms.ModelForm):
 
-    suggested_account = forms.ModelChoiceField(
-        queryset=Account.objects.all()
-    )
+    suggested_account = forms.ChoiceField(choices=[])
 
     class Meta:
         model = Transaction
-        fields = ['date','amount','description','account','suggested_account','type']
-        widgets = {
-            'date': forms.DateInput(attrs={'type': 'date'}),
-            'amount': forms.NumberInput(attrs={'step': '1'})
-        }
+        fields = ['date','amount','description','suggested_account','type']
 
     def __init__(self, *args, **kwargs):
         super(TransactionForm, self).__init__(*args, **kwargs)
         self.fields['date'].initial = timezone.localdate()  # Set today's date as initial value
+
+        # Override the 'type' field choices
+        type_choices = [
+            (Transaction.TransactionType.PURCHASE, 'Purchase'),
+            (Transaction.TransactionType.INCOME, 'Income')
+        ]
+        self.fields['type'].choices = type_choices
         self.fields['type'].initial = Transaction.TransactionType.PURCHASE
-        self.fields['account'].initial = Account.objects.special_type = Account.SpecialType.WALLET
+        eligible_accounts = Account.objects.filter(
+            type__in=[Account.Type.INCOME,Account.Type.EXPENSE]
+        ).exclude(
+            special_type=Account.SpecialType.WALLET
+        )
+        self.fields['suggested_account'].choices = [(account.name, account.name) for account in eligible_accounts]
+
+    def clean_suggested_account(self):
+        suggested_account_name = self.cleaned_data['suggested_account']
+        suggested_account = Account.objects.get(name=suggested_account_name)
+        return suggested_account
+
+    def save(self, commit=True):
+        instance = super(TransactionForm, self).save(commit=False)
+
+        if instance.type == Transaction.TransactionType.PURCHASE:
+            instance.amount *= -1
+
+        wallet = Account.objects.get(special_type=Account.SpecialType.WALLET)
+        instance.account = wallet
+
+        if commit:
+            instance.save()
+
+        return instance

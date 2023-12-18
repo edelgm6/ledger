@@ -8,101 +8,11 @@
         <h2>Wallet transactions</h2>
     </div>
 </div>
-<div class="row">
-    <div class="col-md-6">
-        <form method="post" hx-post="/" hx-swap="innerHTML" hx-target="#transaction-result" class="form-group">
-            {% csrf_token %}
 
-            <!-- Date Field -->
-            <div class="form-group">
-                <input type="date" name="{{ form.date.html_name }}" id="{{ form.date.id_for_label }}"
-                    class="form-control"
-                    value="{{ form.date.value|default_if_none:today|date:'Y-m-d' }}"
-                    placeholder="{{ form.date.label }}">
-                {% for error in form.date.errors %}
-                    <div class="alert alert-danger">{{ error }}</div>
-                {% endfor %}
-            </div>
-
-            <!-- Account Field -->
-            <div class="form-group">
-                <select name="account" id="id_account" class="form-control select2">
-                    <option value="" selected="selected">---------</option>
-                    {% for option in form.account %}
-                        {{ option }}
-                    {% endfor %}
-                </select>
-                {% for error in form.suggested_account.errors %}
-                    <div class="alert alert-danger">{{ error }}</div>
-                {% endfor %}
-            </div>
-
-            <!-- Amount Field -->
-            <div class="form-group">
-                <div class="input-group">
-                    <div class="input-group-prepend">
-                        <span class="input-group-text">$</span>
-                    </div>
-                    <input type="text" name="{{ form.amount.html_name }}" id="{{ form.amount.id_for_label }}"
-                        class="form-control"
-                        value="{{ form.amount.value|default_if_none:'' }}"
-                        placeholder="{{ form.amount.label }}">
-                </div>
-                {% for error in form.amount.errors %}
-                    <div class="alert alert-danger">{{ error }}</div>
-                {% endfor %}
-            </div>
-
-            <!-- Description Field -->
-            <div class="form-group">
-                <input type="text" name="{{ form.description.html_name }}" id="{{ form.description.id_for_label }}"
-                    class="form-control"
-                    value="{{ form.description.value|default_if_none:'' }}"
-                    placeholder="{{ form.description.label }}">
-                {% for error in form.description.errors %}
-                    <div class="alert alert-danger">{{ error }}</div>
-                {% endfor %}
-            </div>
-
-            <!-- Suggested Account Field -->
-            <div class="form-group">
-                <!-- <label for="id_suggested_account">Suggested account</label> -->
-                <select name="suggested_account" id="id_suggested_account" class="form-control select2">
-                    <option value="" selected="selected">---------</option>
-                    {% for account in form.suggested_account.field.queryset %}
-                        <option value="{{ account.pk }}">{{ account }}</option>
-                    {% endfor %}
-                </select>
-                {% for error in form.suggested_account.errors %}
-                    <div class="alert alert-danger">{{ error }}</div>
-                {% endfor %}
-            </div>
-
-            <!-- Type Field -->
-            <div class="form-group">
-                <select name="type" id="id_type" class="form-control">
-                    <option value="" selected="selected">---------</option>
-                    {% for option in form.type %}
-                        {{ option }}
-                    {% endfor %}
-                </select>
-                {% for error in form.type.errors %}
-                    <div class="alert alert-danger">{{ error }}</div>
-                {% endfor %}
-            </div>
-
-            <!-- Submit Button -->
-            <button type="submit" class="btn btn-primary">Save</button>
-        </form>
-    </div>
+<div id="form-block">
+    {{ form }}
 </div>
-<div class="row">
-    <div class="col-md-6">
-        <div id="transaction-result">
-            {{ success }}
-        </div>
-    </div>
-</div>
+
 {% endblock %}
 
 {% block extra_js %}
