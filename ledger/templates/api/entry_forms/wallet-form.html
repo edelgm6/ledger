@@ -43,17 +43,20 @@
 
             <!-- Suggested Account Field -->
             <div class="form-group">
-                <!-- <label for="id_suggested_account">Suggested account</label> -->
-                <select name="suggested_account" id="id_suggested_account" class="form-control select2">
-                    <option value="" selected="selected">---------</option>
-                    {% for account in form.suggested_account.field.queryset %}
-                        <option value="{{ account.pk }}">{{ account }}</option>
-                    {% endfor %}
-                </select>
-                {% for error in form.suggested_account.errors %}
-                    <div class="alert alert-danger">{{ error }}</div>
-                {% endfor %}
+                <input
+                    class="form-control"
+                    list="accountOptions"
+                    name="suggested_account"
+                    id="id_suggested_account"
+                >
+                    <datalist id="accountOptions">
+                        {% for value, text in form.suggested_account.field.choices %}
+                            <option value="{{ text }}">
+                        {% endfor %}
+                    </datalist>
+                </input>
             </div>
+
 
             <!-- Type Field -->
             <div class="form-group">
