@@ -449,20 +449,27 @@ class IndexView(LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
     template = 'api/views/index.html'
-    success_template = 'api/components/wallet-success.html'
+    form_template = 'api/entry_forms/wallet-form.html'
     form_class = TransactionForm
 
     def get(self, request, *args, **kwargs):
-        return render(request, self.template, {'form': self.form_class,'today': timezone.localdate()})
+        context = {
+            'form': render_to_string(self.form_template, {'form': self.form_class})
+        }
+        return render(request, self.template, context)
 
     def post(self, request, *args, **kwargs):
         form = self.form_class(request.POST)
         if form.is_valid():
             transaction = form.save()
-            success = render_to_string(self.success_template, {'transaction': transaction})
-            return HttpResponse(success)
+            success_template = 'api/components/wallet-content.html'
+            context = {
+                'form': render_to_string(self.form_template, {'form': self.form_class}),
+                'transaction': transaction
+            }
+            html = render_to_string(success_template, context)
+            return HttpResponse(html)
         print(form.errors)
-        return render(request, self.template, {'form': form})
 
 class TrendView(LoginRequiredMixin, View):
     login_url = '/login/'
