@@ -1,13 +1,14 @@
 {% load humanize %}
 <div class="row">
+    <div class="col">
     <form
-    method="post"
-    class="form-sm"
-    hx-post="{% url 'reconciliation' %}"
-    hx-target="#table-and-form"
-    hx-trigger="submit"
-    hx-include="#reconciliation-filter-form"
->
+        method="post"
+        class="form-sm"
+        hx-post="{% url 'reconciliation' %}"
+        hx-target="#table-and-form"
+        hx-trigger="submit"
+        hx-include="#reconciliation-filter-form"
+    >
         {% csrf_token %}
         <div class="row">
         <div class="col-md-6">
@@ -87,4 +88,5 @@
     </div>
     <button class="btn btn-primary" type="submit" value="Submit">Update</button>
     </form>
+    </div>
 </div>
