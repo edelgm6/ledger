@@ -61,7 +61,7 @@ class AmortizeFormView(AmortizationTableMixin, LoginRequiredMixin, View):
                 'amortization_form': self.get_amortize_form_html(amortization)
             }
 
-            amortizations_content_template = 'api/components/amortizations-content.html'
+            amortizations_content_template = 'api/content/amortizations-content.html'
             html = render_to_string(amortizations_content_template, context)
             return HttpResponse(html)
 
@@ -77,9 +77,9 @@ class AmortizationFormView(AmortizationTableMixin, LoginRequiredMixin, View):
 class AmortizationView(AmortizationTableMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
-    amortizations_content_template = 'api/components/amortizations-content.html'
-    unattached_transactions_content = 'api/components/unattached-transactions-content.html'
-    amortizations_content = 'api/components/amortizations-content.html'
+    amortizations_content_template = 'api/content/amortizations-content.html'
+    unattached_transactions_content = 'api/content/unattached-transactions-content.html'
+    amortizations_content = 'api/content/amortizations-content.html'
 
     def get(self, request, *args, **kwargs):
 

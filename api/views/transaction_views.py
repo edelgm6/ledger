@@ -139,7 +139,7 @@ class TransactionsTableView(LinkFormMixin, JournalEntryFormMixin, TransactionsVi
                 table_html = self.get_table_html(transactions, no_highlight=True)
                 link_form_html = self.get_link_form_html()
                 context['link_form'] = link_form_html
-                content_template  = 'api/components/transactions-link-content.html'
+                content_template  = 'api/content/transactions-link-content.html'
             else:
                 table_html = self.get_table_html(transactions=transactions)
                 try:
@@ -148,7 +148,7 @@ class TransactionsTableView(LinkFormMixin, JournalEntryFormMixin, TransactionsVi
                     transaction=None
                 entry_form_html = self.get_entry_form_html(transaction=transaction)
                 context['entry_form'] = entry_form_html
-                content_template  = 'api/components/journal-entry-content.html'
+                content_template  = 'api/content/journal-entry-content.html'
 
             context['table'] = table_html
 
@@ -160,7 +160,7 @@ class TransactionsTableView(LinkFormMixin, JournalEntryFormMixin, TransactionsVi
 class LinkTransactionsView(LinkFormMixin, TransactionsViewMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
-    content_template  = 'api/components/transactions-link-content.html'
+    content_template  = 'api/content/transactions-link-content.html'
 
     def get(self, request):
         filter_form_html, transactions = self.get_filter_form_html_and_objects(
@@ -226,7 +226,7 @@ class JournalEntryView(JournalEntryFormMixin, TransactionsViewMixin, LoginRequir
     login_url = '/login/'
     redirect_field_name = 'next'
     view_template = 'api/views/journal-entry-view.html'
-    content_template  = 'api/components/journal-entry-content.html'
+    content_template  = 'api/content/journal-entry-content.html'
 
     def get(self, request):
         filter_form_html, transactions = self.get_filter_form_html_and_objects(
