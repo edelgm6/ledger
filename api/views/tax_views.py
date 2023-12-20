@@ -80,7 +80,7 @@ class TaxChargeTableView(TaxChargeMixIn, LoginRequiredMixin, View):
             tax_charges = form.get_tax_charges()
             tax_table_charge_table_html = self.get_tax_table_html(tax_charges)
 
-            template = 'api/components/taxes-content.html'
+            template = 'api/content/taxes-content.html'
             context = {
                 'tax_charge_table': tax_table_charge_table_html,
                 'form': self.get_tax_form_html(),
@@ -141,6 +141,6 @@ class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
                 'tax_charge_table': self.get_tax_table_html(tax_charges),
                 'form': self.get_tax_form_html()
             }
-            template = 'api/components/taxes-content.html'
+            template = 'api/content/taxes-content.html'
             html = render_to_string(template, context)
             return HttpResponse(html)
