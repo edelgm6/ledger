@@ -1,6 +1,5 @@
-from datetime import datetime, date
+from datetime import date
 from django.test import TestCase
-from rest_framework.test import APIRequestFactory
 from api.statement import BalanceSheet, IncomeStatement, CashFlowStatement, Trend
 from api.models import Account, JournalEntryItem, JournalEntry, Transaction
 
