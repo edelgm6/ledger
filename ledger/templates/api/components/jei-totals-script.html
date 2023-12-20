@@ -1,0 +1,29 @@
+<script>
+$(document).ready(function() {
+    // Function to calculate and format totals
+    function calculateTotals() {
+        let totalDebits = 0;
+        let totalCredits = 0;
+
+        // Calculate total for debits
+        $('[name^="debits-"][name$="-amount"]').each(function() {
+            totalDebits += parseFloat($(this).val()) || 0;
+        });
+
+        // Calculate total for credits
+        $('[name^="credits-"][name$="-amount"]').each(function() {
+            totalCredits += parseFloat($(this).val()) || 0;
+        });
+
+        // Format the totals and update in the HTML
+        $('#totalDebits').text(totalDebits.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        $('#totalCredits').text(totalCredits.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    }
+
+    // Attach event listener for input on amount fields
+    $('#journal-entry-form').on('input', '[name$="-amount"]', function() {
+        calculateTotals();
+    });
+    calculateTotals();
+});
+</script>
