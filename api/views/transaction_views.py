@@ -104,13 +104,20 @@ class JournalEntryFormMixin:
             debit_formset = debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits')
             credit_formset = credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
 
+        prefilled_total = 0
+        for form in debit_formset:
+            try:
+                prefilled_total += form.initial['amount']
+            except KeyError:
+                pass
         context = {
             'debit_formset': debit_formset,
             'credit_formset': credit_formset,
             'transaction_id': transaction.id,
             'index': index,
             'autofocus_debit': is_debit,
-            'form_errors': form_errors
+            'form_errors': form_errors,
+            'prefilled_total': prefilled_total
         }
 
         return render_to_string(self.entry_form_template, context)

@@ -1,4 +1,5 @@
     {% load math_filters %}
+    {% load humanize %}
     <form
         id="journal-entry-form"
         method="post"
@@ -27,7 +28,7 @@
             <div class="col-md-6">
                 <h3>Debits</h3>
                 {{ debit_formset.management_form }}
-                Total Debits: $<span id="totalDebits">0.00</span>
+                <small>Total Debits: $<span id="totalDebits">{{ prefilled_total|floatformat:2|intcomma }}</span></small>
                 {% for form in debit_formset %}
                 <div class="row">
                     <div class="col-md-6">
@@ -59,7 +60,7 @@
                             class="form-control {% if form.amount.errors %}is-invalid{% endif %}"
                             name="{{ form.amount.html_name }}"
                             id="{{ form.amount.auto_id }}"
-                            value="{% if form.amount.value == 0 %}0.00{% else %}{{ form.amount.value }}{% endif %}"
+                            value="{% if form.amount.value == 0 %}0.00{% else %}{{ form.amount.value|floatformat:2|intcomma }}{% endif %}"
                             tabindex="{{ forloop.counter|multiply:4|add:2 }}"
                         >
                         <div class="invalid-feedback">
@@ -76,7 +77,7 @@
             <div class="col-md-6">
                 <h3>Credits</h3>
                 {{ credit_formset.management_form }}
-                Total Credits: $<span id="totalCredits">0.00</span>
+                <small>Total Credits: $<span id="totalCredits">{{ prefilled_total|floatformat:2|intcomma }}</span></small>
                 {% for form in credit_formset %}
                 <div class="row">
                     <div class="col-md-6">
@@ -108,7 +109,7 @@
                             class="form-control {% if form.amount.errors %}is-invalid{% endif %}"
                             name="{{ form.amount.html_name }}"
                             id="{{ form.amount.auto_id }}"
-                            value="{% if form.amount.value == 0 %}0.00{% else %}{{ form.amount.value }}{% endif %}"
+                            value="{% if form.amount.value == 0 %}0.00{% else %}{{ form.amount.value|floatformat:2|intcomma }}{% endif %}"
                             tabindex="{{ forloop.counter|multiply:4|add:4 }}"
                         >
                         <div class="invalid-feedback">
