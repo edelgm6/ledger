@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path
 from django.contrib.auth.views import LoginView
 from api.views.frontend_views import TrendView,  UploadTransactionsView, IndexView
-from api.views.transaction_views import JournalEntryView, LinkTransactionsView, JournalEntryFormView, TransactionsTableView
+from api.views.transaction_views import JournalEntryView, LinkTransactionsView, JournalEntryFormView, TransactionsTableView, TransactionsView
 from api.views.tax_views import TaxChargeTableView,TaxChargeFormView, TaxesView
 from api.views.reconciliation_views import ReconciliationTableView, ReconciliationView
 from api.views.amortization_views import AmortizationFormView, AmortizationView, AmortizeFormView
@@ -22,6 +22,9 @@ urlpatterns = [
 
     # Link page
     path('transactions-linking/', LinkTransactionsView.as_view(), name='link-transactions'),
+
+    # Transactions page
+    path('transactions/', TransactionsView.as_view(), name='transactions'),
 
     # Taxes page
     path('taxes/', TaxesView.as_view(), name='taxes'),

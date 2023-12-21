@@ -1,3 +1,4 @@
+from datetime import timedelta
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.views import View
@@ -6,6 +7,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.forms import modelformset_factory
 from api.models import  Transaction, JournalEntry, JournalEntryItem
 from api.forms import TransactionLinkForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
+from api import utils
 
 class TransactionsViewMixin:
     filter_form_template = 'api/filter_forms/transactions-filter-form.html'
@@ -16,13 +18,24 @@ class TransactionsViewMixin:
         is_closed=None,
         has_linked_transaction=None,
         transaction_type=None,
-        return_form_type=None
+        return_form_type=None,
+        date_from=None,
+        date_to=None
     ):
         form = TransactionFilterForm()
         form.initial['is_closed'] = is_closed
         form.initial['has_linked_transaction'] = has_linked_transaction
         form.initial['transaction_type'] = transaction_type
-        transactions = Transaction.objects.filter_for_table(is_closed, has_linked_transaction, transaction_type)
+        form.initial['date_from'] = utils.format_datetime_to_string(date_from) if date_from else None
+        form.initial['date_to'] = utils.format_datetime_to_string(date_to) if date_to else None
+
+        transactions = Transaction.objects.filter_for_table(
+            is_closed=is_closed,
+            has_linked_transaction=has_linked_transaction,
+            transaction_types=transaction_type,
+            date_from=date_from,
+            date_to=date_to
+        )
 
         context = {
             'filter_form': form,
@@ -161,6 +174,58 @@ class TransactionsTableView(LinkFormMixin, JournalEntryFormMixin, TransactionsVi
 
             html = render_to_string(content_template, context)
             return HttpResponse(html)
+
+# ------------------Transactions View-----------------------
+
+class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
+    content_template  = 'api/content/transactions-content.html'
+
+    def get(self, request):
+        last_two_months_last_days = utils.get_last_days_of_month_tuples()[0:2]
+        last_day_of_last_month = last_two_months_last_days[0][0]
+        first_day_of_last_month = last_two_months_last_days[1][0] + timedelta(days=1)
+
+        filter_form_html, transactions = self.get_filter_form_html_and_objects(
+            date_from=first_day_of_last_month,
+            date_to=last_day_of_last_month
+        )
+        table_html = self.get_table_html(transactions, no_highlight=True)
+
+        context = {
+            'filter_form': filter_form_html,
+            'table_and_form': render_to_string(
+                self.content_template,{
+                    'table': table_html
+                }
+            )
+        }
+
+        view_template = 'api/views/transactions.html'
+        html = render_to_string(view_template, context)
+        return HttpResponse(html)
+
+    # def post(self, request):
+    #     form = TransactionLinkForm(request.POST)
+    #     filter_form = TransactionFilterForm(request.POST)
+    #     if filter_form.is_valid():
+    #         transactions = filter_form.get_transactions()
+
+    #         if form.is_valid():
+    #             form.save()
+    #             table_html = self.get_table_html(transactions=transactions, no_highlight=True)
+    #             link_form_html = self.get_link_form_html()
+    #             context = {
+    #                 'table': table_html,
+    #                 'link_form': link_form_html
+    #             }
+
+    #             html = render_to_string(self.content_template, context)
+    #             return HttpResponse(html)
+
+    #         print(form.errors)
+    #         print(form.non_field_errors())
 
 # ------------------Linking View-----------------------
 
