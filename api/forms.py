@@ -359,10 +359,39 @@ class TransactionForm(forms.ModelForm):
 
     class Meta:
         model = Transaction
-        fields = ['date','amount','description','suggested_account','type']
+        fields = ['date','account','amount','description','suggested_account','type']
 
     def __init__(self, *args, **kwargs):
         super(TransactionForm, self).__init__(*args, **kwargs)
+        self.fields['date'].initial = timezone.localdate()  # Set today's date as initial value
+        self.fields['type'].choices = Transaction.TransactionType.choices # Remove the 'None' option
+
+        # Resolve the account name for the bound form
+        if self.instance.pk and self.instance.account:
+            self.account_name = self.instance.account.name
+        else:
+            self.account_name = ''
+
+        if self.instance.pk and self.instance.suggested_account:
+            self.suggested_account_name = self.instance.suggested_account.name
+        else:
+            self.suggested_account_name = ''
+
+    def clean_suggested_account(self):
+        suggested_account_name = self.cleaned_data['suggested_account']
+        suggested_account = Account.objects.get(name=suggested_account_name)
+        return suggested_account
+
+class WalletForm(forms.ModelForm):
+
+    suggested_account = forms.ChoiceField(choices=[])
+
+    class Meta:
+        model = Transaction
+        fields = ['date','amount','description','suggested_account','type']
+
+    def __init__(self, *args, **kwargs):
+        super(WalletForm, self).__init__(*args, **kwargs)
         self.fields['date'].initial = timezone.localdate()  # Set today's date as initial value
 
         # Override the 'type' field choices
@@ -385,7 +414,7 @@ class TransactionForm(forms.ModelForm):
         return suggested_account
 
     def save(self, commit=True):
-        instance = super(TransactionForm, self).save(commit=False)
+        instance = super(WalletForm, self).save(commit=False)
 
         if instance.type == Transaction.TransactionType.PURCHASE:
             instance.amount *= -1

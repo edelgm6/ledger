@@ -5,13 +5,13 @@ from django.views import View
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.forms import modelformset_factory
+from django.urls import reverse
 from api.models import  Transaction, JournalEntry, JournalEntryItem
-from api.forms import TransactionLinkForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset
+from api.forms import TransactionLinkForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset, TransactionForm
 from api import utils
 
 class TransactionsViewMixin:
     filter_form_template = 'api/filter_forms/transactions-filter-form.html'
-    table_template = 'api/tables/transactions-table.html'
 
     def get_filter_form_html_and_objects(
         self,
@@ -44,15 +44,17 @@ class TransactionsViewMixin:
 
         return render_to_string(self.filter_form_template, context), transactions
 
-    def get_table_html(self, transactions, index=0, no_highlight=False):
+    def get_table_html(self, transactions, index=0, no_highlight=False, row_url=None):
 
         context = {
             'transactions': transactions,
             'index': index,
-            'no_highlight': no_highlight
+            'no_highlight': no_highlight,
+            'row_url': row_url
         }
 
-        return render_to_string(self.table_template, context)
+        table_template = 'api/tables/transactions-table-new.html'
+        return render_to_string(table_template, context)
 
 class JournalEntryFormMixin:
     entry_form_template = 'api/entry_forms/journal-entry-item-form.html'
@@ -177,6 +179,17 @@ class TransactionsTableView(LinkFormMixin, JournalEntryFormMixin, TransactionsVi
 
 # ------------------Transactions View-----------------------
 
+class TransactionFormView(LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
+
+    def get(self, request, transaction_id):
+        transaction = get_object_or_404(Transaction, pk=transaction_id)
+        form = TransactionForm(instance=transaction)
+        template = 'api/entry_forms/transaction-form.html'
+        form_html = render_to_string(template, {'form': form})
+        return HttpResponse(form_html)
+
 class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
@@ -191,7 +204,14 @@ class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
             date_from=first_day_of_last_month,
             date_to=last_day_of_last_month
         )
-        table_html = self.get_table_html(transactions, no_highlight=True)
+
+        row_url = reverse('transaction-form', args=[100])
+        row_url = row_url.replace('100/', '')
+        table_html = self.get_table_html(
+            transactions=transactions,
+            no_highlight=True,
+            row_url=row_url
+        )
 
         context = {
             'filter_form': filter_form_html,
