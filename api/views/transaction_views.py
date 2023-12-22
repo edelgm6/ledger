@@ -44,13 +44,12 @@ class TransactionsViewMixin:
 
         return render_to_string(self.filter_form_template, context), transactions
 
-    def get_table_html(self, transactions, index=0, no_highlight=False, row_url=None):
+    def get_table_html(self, transactions, index=0, no_highlight=False):
 
         context = {
             'transactions': transactions,
             'index': index,
-            'no_highlight': no_highlight,
-            'row_url': row_url
+            'no_highlight': no_highlight
         }
 
         table_template = 'api/tables/transactions-table-new.html'
@@ -205,12 +204,9 @@ class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
             date_to=last_day_of_last_month
         )
 
-        row_url = reverse('transaction-form', args=[100])
-        row_url = row_url.replace('100/', '')
         table_html = self.get_table_html(
             transactions=transactions,
-            no_highlight=True,
-            row_url=row_url
+            no_highlight=True
         )
 
         context = {
