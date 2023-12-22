@@ -355,7 +355,8 @@ class TransactionFilterForm(forms.Form):
 
 class TransactionForm(forms.ModelForm):
 
-    suggested_account = forms.ChoiceField(choices=[])
+    account = forms.ChoiceField(choices=[])
+    suggested_account = forms.ChoiceField(choices=[], required=False)
 
     class Meta:
         model = Transaction
@@ -365,6 +366,10 @@ class TransactionForm(forms.ModelForm):
         super(TransactionForm, self).__init__(*args, **kwargs)
         self.fields['date'].initial = timezone.localdate()  # Set today's date as initial value
         self.fields['type'].choices = Transaction.TransactionType.choices # Remove the 'None' option
+        eligible_accounts = Account.objects.exclude(special_type__in=[Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES])
+        account_tuples = [(account.name, account.name) for account in eligible_accounts]
+        self.fields['suggested_account'].choices = account_tuples
+        self.fields['account'].choices = account_tuples
 
         # Resolve the account name for the bound form
         if self.instance.pk and self.instance.account:
@@ -377,7 +382,14 @@ class TransactionForm(forms.ModelForm):
         else:
             self.suggested_account_name = ''
 
+    def clean_account(self):
+        account_name = self.cleaned_data['account']
+        account = Account.objects.get(name=account_name)
+        return account
+
     def clean_suggested_account(self):
+        if not self.cleaned_data['suggested_account']:
+            return None
         suggested_account_name = self.cleaned_data['suggested_account']
         suggested_account = Account.objects.get(name=suggested_account_name)
         return suggested_account

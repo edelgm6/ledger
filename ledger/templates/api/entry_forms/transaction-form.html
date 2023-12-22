@@ -1,6 +1,17 @@
 <div class="row">
     <div class="col-md-4">
-        <form method="post" hx-post="/" hx-swap="innerHTML" hx-target="#form-block" class="form-group form-sm">
+        <form
+            method="post"
+            {% if transaction %}
+            hx-post="{% url 'update-transaction' transaction.id %}"
+            {% else %}
+            hx-post="{% url 'transactions' %}"
+            {% endif %}
+            hx-swap="innerHTML"
+            hx-target="#table-and-form"
+            hx-include="#transactions-filter-form"
+            class="form-group form-sm"
+        >
             {% csrf_token %}
 
             <!-- Date Field -->
@@ -64,12 +75,12 @@
             <div class="form-group">
                 <input
                     class="form-control"
-                    list="accountOptions"
+                    list="suggestedAccountOptions"
                     name="suggested_account"
                     id="id_suggested_account"
                     value="{{ form.suggested_account_name }}"
                 >
-                    <datalist id="accountOptions">
+                    <datalist id="suggestedAccountOptions">
                         {% for value, text in form.suggested_account.field.choices %}
                             <option value="{{ text }}">
                         {% endfor %}

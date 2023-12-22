@@ -25,6 +25,7 @@ urlpatterns = [
 
     # Transactions page
     path('transactions/', TransactionsView.as_view(), name='transactions'),
+    path('transactions/<int:transaction_id>/', TransactionsView.as_view(), name='update-transaction'),
     path('transactions/form/<int:transaction_id>/', TransactionFormView.as_view(), name='transaction-form'),
 
     # Taxes page
