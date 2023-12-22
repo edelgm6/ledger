@@ -22,7 +22,7 @@ class TransactionsViewMixin:
         date_from=None,
         date_to=None
     ):
-        form = TransactionFilterForm()
+        form = TransactionFilterForm(prefix='filter')
         form.initial['is_closed'] = is_closed
         form.initial['has_linked_transaction'] = has_linked_transaction
         form.initial['transaction_type'] = transaction_type
@@ -187,7 +187,7 @@ class TransactionFormView(LoginRequiredMixin, View):
         transaction = get_object_or_404(Transaction, pk=transaction_id)
         form = TransactionForm(instance=transaction)
         template = 'api/entry_forms/transaction-form.html'
-        form_html = render_to_string(template, {'form': form})
+        form_html = render_to_string(template, {'form': form, 'transaction': transaction})
         return HttpResponse(form_html)
 
 class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
@@ -213,11 +213,13 @@ class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
             row_url=row_url
         )
 
+        transaction_form_html = render_to_string('api/entry_forms/transaction-form.html', {'form': TransactionForm()})
         context = {
             'filter_form': filter_form_html,
             'table_and_form': render_to_string(
                 self.content_template,{
-                    'table': table_html
+                    'table': table_html,
+                    'transactions_form': transaction_form_html
                 }
             )
         }
@@ -226,26 +228,46 @@ class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
         html = render_to_string(view_template, context)
         return HttpResponse(html)
 
-    # def post(self, request):
-    #     form = TransactionLinkForm(request.POST)
-    #     filter_form = TransactionFilterForm(request.POST)
-    #     if filter_form.is_valid():
-    #         transactions = filter_form.get_transactions()
+    def post(self, request, transaction_id=None):
+        filter_form = TransactionFilterForm(request.POST, prefix='filter')
+        if filter_form.is_valid():
+            transactions = filter_form.get_transactions()
+        else:
+            print(filter_form.errors)
 
-    #         if form.is_valid():
-    #             form.save()
-    #             table_html = self.get_table_html(transactions=transactions, no_highlight=True)
-    #             link_form_html = self.get_link_form_html()
-    #             context = {
-    #                 'table': table_html,
-    #                 'link_form': link_form_html
-    #             }
+        if transaction_id:
+            transaction = get_object_or_404(Transaction, pk=transaction_id)
+            form = TransactionForm(request.POST, instance=transaction)
+        else:
+            form = TransactionForm(request.POST)
 
-    #             html = render_to_string(self.content_template, context)
-    #             return HttpResponse(html)
+        if form.is_valid():
+            transaction = form.save()
+            form_template = 'api/entry_forms/transaction-form.html'
+            form_html = render_to_string(
+                form_template,
+                {
+                    'form': TransactionForm()
+                 }
+            )
 
-    #         print(form.errors)
-    #         print(form.non_field_errors())
+            row_url = reverse('transactions')
+            row_url += 'form/'
+            table_html = self.get_table_html(
+                transactions=transactions,
+                no_highlight=True,
+                row_url=row_url
+            )
+
+            content_template = 'api/content/transactions-content.html'
+            context = {
+                'transactions_form': form_html,
+                'table': table_html
+            }
+
+            html = render_to_string(content_template, context)
+            return HttpResponse(html)
+        print(form.errors)
 
 # ------------------Linking View-----------------------
 
