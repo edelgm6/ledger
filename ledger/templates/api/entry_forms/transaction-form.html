@@ -1,0 +1,100 @@
+<div class="row">
+    <div class="col-md-4">
+        <form method="post" hx-post="/" hx-swap="innerHTML" hx-target="#form-block" class="form-group form-sm">
+            {% csrf_token %}
+
+            <!-- Date Field -->
+            <div class="form-group">
+                <input type="date" name="{{ form.date.html_name }}" id="{{ form.date.id_for_label }}"
+                    class="form-control"
+                    value="{{ form.date.value|date:'Y-m-d' }}"
+                    placeholder="{{ form.date.label }}">
+                {% for error in form.date.errors %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <!-- Account Field -->
+            <div class="form-group">
+                <input
+                    class="form-control"
+                    list="accountOptions"
+                    name="account"
+                    id="id_account"
+                    value="{{ form.account_name }}"
+                >
+                    <datalist id="accountOptions">
+                        {% for value, text in form.account.field.choices %}
+                            <option value="{{ text }}">
+                        {% endfor %}
+                    </datalist>
+                </input>
+            </div>
+
+            <!-- Amount Field -->
+            <div class="form-group">
+                <div class="input-group">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text">$</span>
+                    </div>
+                    <input type="text" name="{{ form.amount.html_name }}" id="{{ form.amount.id_for_label }}"
+                        class="form-control"
+                        value="{{ form.amount.value|default_if_none:'' }}"
+                        placeholder="{{ form.amount.label }}"
+                        autofocus
+                    >
+                </div>
+                {% for error in form.amount.errors %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <!-- Description Field -->
+            <div class="form-group">
+                <input type="text" name="{{ form.description.html_name }}" id="{{ form.description.id_for_label }}"
+                    class="form-control"
+                    value="{{ form.description.value|default_if_none:'' }}"
+                    placeholder="{{ form.description.label }}">
+                {% for error in form.description.errors %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <!-- Suggested Account Field -->
+            <div class="form-group">
+                <input
+                    class="form-control"
+                    list="accountOptions"
+                    name="suggested_account"
+                    id="id_suggested_account"
+                    value="{{ form.suggested_account_name }}"
+                >
+                    <datalist id="accountOptions">
+                        {% for value, text in form.suggested_account.field.choices %}
+                            <option value="{{ text }}">
+                        {% endfor %}
+                    </datalist>
+                </input>
+            </div>
+
+            <!-- Type Field -->
+            <div class="form-group">
+                <!-- Button Group Styled Radio Buttons -->
+                <div class="btn-group btn-group-toggle" data-toggle="buttons">
+                    {% for value, label in form.type.field.choices %}
+                        <label class="btn btn-outline-primary {% if form.type.value == value %}active{% endif %}">
+                            <input type="radio" name="{{ form.type.html_name }}" id="id_type_{{ value }}" value="{{ value }}" {% if form.type.value == value %}checked{% endif %} autocomplete="off">
+                            {{ label }}
+                        </label>
+                    {% endfor %}
+                </div>
+                {% for error in form.type.errors %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn btn-primary">Save</button>
+        </form>
+    </div>
+</div>
