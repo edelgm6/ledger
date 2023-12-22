@@ -17,7 +17,7 @@
                     {% for transaction in transactions %}
                     <tr
                         class="clickable-row"
-                        hx-get="{{ row_url }}{{transaction.id}}/"
+                        hx-get="{% url 'transactions' %}form/{{transaction.id}}/"
                         hx-target="#transaction-form"
                     >
                         <td>{{ transaction.date }}</td>
