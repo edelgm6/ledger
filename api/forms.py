@@ -294,22 +294,18 @@ class JournalEntryItemForm(forms.ModelForm):
 
 class TransactionFilterForm(forms.Form):
     date_from = forms.DateField(
-        required=False,
-        widget=forms.DateInput(attrs={'type': 'date', 'placeholder': 'Start Date', 'class': 'form-control'})
+        required=False
     )
     date_to = forms.DateField(
-        required=False,
-        widget=forms.DateInput(attrs={'type': 'date', 'placeholder': 'End Date', 'class': 'form-control'})
+        required=False
     )
     account = forms.ModelMultipleChoiceField(
         queryset=Account.objects.all(),
-        required=False,
-        widget=forms.SelectMultiple(attrs={'class': 'form-control select2'})
+        required=False
     )
     transaction_type = forms.MultipleChoiceField(
         choices=Transaction.TransactionType.choices,
-        required=False,
-        widget=forms.SelectMultiple(attrs={'class': 'form-control select2'})
+        required=False
     )
     IS_CLOSED_CHOICES = (
         (None, '---------'),
