@@ -229,6 +229,7 @@ class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
         return HttpResponse(html)
 
     def post(self, request, transaction_id=None):
+        print(request.POST)
         filter_form = TransactionFilterForm(request.POST, prefix='filter')
         if filter_form.is_valid():
             transactions = filter_form.get_transactions()
