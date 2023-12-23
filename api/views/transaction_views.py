@@ -433,6 +433,7 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
             account_amount = credit_formset.get_account_amount(transaction.account) if transaction.amount < 0 else debit_formset.get_account_amount(transaction.account)
             if account_amount != abs(transaction.amount):
                 form_errors.append('At least one JEI must have the same account and amount as the transaction.')
+                has_errors = True
 
         else:
             print(debit_formset.errors)
