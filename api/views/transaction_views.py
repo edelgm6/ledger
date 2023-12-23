@@ -161,37 +161,6 @@ class TransactionsViewMixin:
         )
         return html
 
-# Called every time the page is filtered
-class TransactionsTableView(TransactionsViewMixin, LoginRequiredMixin, View):
-    login_url = '/login/'
-    redirect_field_name = 'next'
-
-    def get(self, request, *args, **kwargs):
-        form = TransactionFilterForm(request.GET)
-        if form.is_valid():
-            transactions = form.get_transactions()
-
-            context = {}
-            if request.GET.get('return_form_type') == 'link':
-                table_html = self.get_table_html(transactions, no_highlight=True)
-                link_form_html = self.get_link_form_html()
-                context['link_form'] = link_form_html
-                content_template  = 'api/content/transactions-link-content.html'
-            else:
-                table_html = self.get_table_html(transactions=transactions)
-                try:
-                    transaction=transactions[0]
-                except IndexError:
-                    transaction=None
-                entry_form_html = self.get_entry_form_html(transaction=transaction)
-                context['entry_form'] = entry_form_html
-                content_template  = 'api/content/journal-entry-content.html'
-
-            context['table'] = table_html
-
-            html = render_to_string(content_template, context)
-            return HttpResponse(html)
-
 # ------------------Transactions View-----------------------
 
 # Called by the filter form
@@ -203,7 +172,6 @@ class TransactionContentView(TransactionsViewMixin, LoginRequiredMixin, View):
             form_html = self.get_transaction_form_html()
 
             row_url = reverse('transactions')
-            row_url += 'form/'
             table_html = self.get_table_html(
                 transactions=transactions,
                 no_highlight=True,
@@ -359,6 +327,37 @@ class LinkTransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
 
 # ------------------Journal Entries View-----------------------
 
+# Called every time the page is filtered
+class JournalEntryTableView(TransactionsViewMixin, LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
+
+    def get(self, request, *args, **kwargs):
+        form = TransactionFilterForm(request.GET, prefix='filter')
+        if form.is_valid():
+            transactions = form.get_transactions()
+
+            # context = {}
+            # if request.GET.get('return_form_type') == 'link':
+            #     table_html = self.get_table_html(transactions, no_highlight=True)
+            #     link_form_html = self.get_link_form_html()
+            #     context['link_form'] = link_form_html
+            #     content_template  = 'api/content/transactions-link-content.html'
+            table_html = self.get_table_html(transactions=transactions, row_url=reverse('journal-entries'))
+            try:
+                transaction=transactions[0]
+            except IndexError:
+                transaction=None
+            entry_form_html = self.get_journal_entry_form_html(transaction=transaction)
+            content_template = 'api/content/journal-entry-content.html'
+            context = {
+                'entry_form': entry_form_html,
+                'table': table_html
+            }
+
+            html = render_to_string(content_template, context)
+            return HttpResponse(html)
+
 # Called every time a table row is clicked
 class JournalEntryFormView(TransactionsViewMixin, LoginRequiredMixin, View):
     login_url = '/login/'
@@ -367,7 +366,7 @@ class JournalEntryFormView(TransactionsViewMixin, LoginRequiredMixin, View):
 
     def get(self, request, transaction_id):
         transaction = Transaction.objects.get(pk=transaction_id)
-        entry_form_html = self.get_entry_form_html(transaction=transaction, index=request.GET.get('row_index'))
+        entry_form_html = self.get_journal_entry_form_html(transaction=transaction, index=request.GET.get('row_index'))
 
         return HttpResponse(entry_form_html)
 
@@ -381,14 +380,18 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
     def get(self, request):
         filter_form_html, transactions = self.get_filter_form_html_and_objects(
             is_closed=False,
-            transaction_type=[Transaction.TransactionType.INCOME,Transaction.TransactionType.PURCHASE]
+            transaction_type=[Transaction.TransactionType.INCOME,Transaction.TransactionType.PURCHASE],
+            get_url=reverse('journal-entries-table')
         )
-        table_html = self.get_table_html(transactions)
+        table_html = self.get_table_html(
+            transactions=transactions,
+            row_url=reverse('journal-entries')
+        )
         try:
             transaction=transactions[0]
         except IndexError:
             transaction = None
-        entry_form_html = self.get_entry_form_html(transaction=transaction)
+        entry_form_html = self.get_journal_entry_form_html(transaction=transaction)
 
         context = {
             'filter_form': filter_form_html,
@@ -431,7 +434,7 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
             transaction.close()
 
         # Build the transactions table — use the filter settings if valid, else return all transactions
-        filter_form = TransactionFilterForm(request.POST)
+        filter_form = TransactionFilterForm(request.POST, prefix='filter')
         if filter_form.is_valid():
             transactions = filter_form.get_transactions()
             index = int(request.POST.get('index', 0))  # Default to 0 if 'index' is not provided
@@ -444,7 +447,7 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
 
         # If either form has errors, return the forms to render the errors, else build it
         if has_errors:
-            entry_form_html = self.get_entry_form_html(
+            entry_form_html = self.get_journal_entry_form_html(
                 transaction=transaction,
                 index=index,
                 debit_formset=debit_formset,
@@ -461,9 +464,9 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
                 except IndexError:
                     index = 0
                     highlighted_transaction = transactions[index]
-                entry_form_html = self.get_entry_form_html(transaction=highlighted_transaction, index=index)
+                entry_form_html = self.get_journal_entry_form_html(transaction=highlighted_transaction, index=index)
 
-        table_html = self.get_table_html(transactions=transactions, index=index)
+        table_html = self.get_table_html(transactions=transactions, index=index, row_url=reverse('journal-entries'))
         context = {
             'table': table_html,
             'entry_form': entry_form_html
