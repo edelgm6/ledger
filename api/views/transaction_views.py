@@ -291,7 +291,7 @@ class LinkTransactionsContentView(TransactionsViewMixin, LoginRequiredMixin, Vie
             html = render_to_string(content_template, context)
             return HttpResponse(html)
 
-
+# Called to load page and link transactions
 class LinkTransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
