@@ -53,7 +53,7 @@ class IndexView(LoginRequiredMixin, View):
             success_template = 'api/content/wallet-content.html'
             context = {
                 'form': render_to_string(self.form_template, {'form': self.form_class}),
-                'transaction': transaction
+                'created_transaction': transaction
             }
             html = render_to_string(success_template, context)
             return HttpResponse(html)
