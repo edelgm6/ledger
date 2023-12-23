@@ -12,6 +12,9 @@
                 <li class="nav-item {% if request.resolver_match.url_name == 'link-transactions' %}active{% endif %}">
                     <a class="nav-link" href="{% url 'link-transactions' %}" hx-get="{% url 'link-transactions' %}" hx-target="#container">Link Transactions</a>
                 </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'transactions' %}active{% endif %}">
+                    <a class="nav-link" href="{% url 'transactions' %}" hx-get="{% url 'transactions' %}" hx-target="#container">Transactions</a>
+                </li>
                 <li class="nav-item {% if request.resolver_match.url_name == 'taxes' %}active{% endif %}">
                     <a class="nav-link" href="{% url 'taxes' %}" hx-get="{% url 'taxes' %}" hx-target="#container">Taxes</a>
                 </li>

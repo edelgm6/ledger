@@ -2,7 +2,6 @@
 $(document).ready(function(){
     $('.clickable-row').click(function() {
         var highlightedCount = $('.clickable-row.table-active').length;
-
         if ($(this).hasClass('table-active')) {
             $(this).removeClass('table-active');
             updateFormWithSelectedRows();
@@ -15,7 +14,6 @@ $(document).ready(function(){
     });
 
     function updateFormWithSelectedRows() {
-
         var selectedRows = $('.clickable-row.table-active');
         var selectedIds = selectedRows.map(function() {
             return $(this).data('transaction-id'); // Assuming each row has a data attribute for the transaction ID

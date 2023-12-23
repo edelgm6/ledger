@@ -1,0 +1,24 @@
+{% load humanize %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="alert alert-success" role="alert">
+            <small>Added transaction</small>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <p class="card-text small" style="margin-bottom: 10px;"><strong>Date:</strong> {{ created_transaction.date }}</p>
+                <p class="card-text small" style="margin-bottom: 10px;">
+                    <strong>Amount:</strong>
+                    {% if transaction.amount < 0 %}
+                        -${{ created_transaction.amount|floatformat:2|intcomma|cut:"-" }}
+                    {% else %}
+                        ${{ created_transaction.amount|floatformat:2|intcomma }}
+                    {% endif %}
+                </p>
+                <p class="card-text small" style="margin-bottom: 10px;"><strong>Description:</strong> {{ created_transaction.description }}</p>
+                <p class="card-text small" style="margin-bottom: 10px;"><strong>Account:</strong> {{ created_transaction.suggested_account }}</p>
+            </div>
+        </div>
+    </div>
+</div>

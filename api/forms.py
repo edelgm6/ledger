@@ -294,22 +294,18 @@ class JournalEntryItemForm(forms.ModelForm):
 
 class TransactionFilterForm(forms.Form):
     date_from = forms.DateField(
-        required=False,
-        widget=forms.DateInput(attrs={'type': 'date', 'placeholder': 'Start Date', 'class': 'form-control'})
+        required=False
     )
     date_to = forms.DateField(
-        required=False,
-        widget=forms.DateInput(attrs={'type': 'date', 'placeholder': 'End Date', 'class': 'form-control'})
+        required=False
     )
     account = forms.ModelMultipleChoiceField(
         queryset=Account.objects.all(),
-        required=False,
-        widget=forms.SelectMultiple(attrs={'class': 'form-control select2'})
+        required=False
     )
     transaction_type = forms.MultipleChoiceField(
         choices=Transaction.TransactionType.choices,
-        required=False,
-        widget=forms.SelectMultiple(attrs={'class': 'form-control select2'})
+        required=False
     )
     IS_CLOSED_CHOICES = (
         (None, '---------'),
@@ -355,6 +351,47 @@ class TransactionFilterForm(forms.Form):
 
 class TransactionForm(forms.ModelForm):
 
+    account = forms.ChoiceField(choices=[])
+    suggested_account = forms.ChoiceField(choices=[], required=False)
+
+    class Meta:
+        model = Transaction
+        fields = ['date','account','amount','description','suggested_account','type']
+
+    def __init__(self, *args, **kwargs):
+        super(TransactionForm, self).__init__(*args, **kwargs)
+        self.fields['date'].initial = timezone.localdate()  # Set today's date as initial value
+        self.fields['type'].choices = Transaction.TransactionType.choices # Remove the 'None' option
+        eligible_accounts = Account.objects.exclude(special_type__in=[Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES])
+        account_tuples = [(account.name, account.name) for account in eligible_accounts]
+        self.fields['suggested_account'].choices = account_tuples
+        self.fields['account'].choices = account_tuples
+
+        # Resolve the account name for the bound form
+        if self.instance.pk and self.instance.account:
+            self.account_name = self.instance.account.name
+        else:
+            self.account_name = ''
+
+        if self.instance.pk and self.instance.suggested_account:
+            self.suggested_account_name = self.instance.suggested_account.name
+        else:
+            self.suggested_account_name = ''
+
+    def clean_account(self):
+        account_name = self.cleaned_data['account']
+        account = Account.objects.get(name=account_name)
+        return account
+
+    def clean_suggested_account(self):
+        if not self.cleaned_data['suggested_account']:
+            return None
+        suggested_account_name = self.cleaned_data['suggested_account']
+        suggested_account = Account.objects.get(name=suggested_account_name)
+        return suggested_account
+
+class WalletForm(forms.ModelForm):
+
     suggested_account = forms.ChoiceField(choices=[])
 
     class Meta:
@@ -362,7 +399,7 @@ class TransactionForm(forms.ModelForm):
         fields = ['date','amount','description','suggested_account','type']
 
     def __init__(self, *args, **kwargs):
-        super(TransactionForm, self).__init__(*args, **kwargs)
+        super(WalletForm, self).__init__(*args, **kwargs)
         self.fields['date'].initial = timezone.localdate()  # Set today's date as initial value
 
         # Override the 'type' field choices
@@ -385,7 +422,7 @@ class TransactionForm(forms.ModelForm):
         return suggested_account
 
     def save(self, commit=True):
-        instance = super(TransactionForm, self).save(commit=False)
+        instance = super(WalletForm, self).save(commit=False)
 
         if instance.type == Transaction.TransactionType.PURCHASE:
             instance.amount *= -1
