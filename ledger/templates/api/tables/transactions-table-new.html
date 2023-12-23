@@ -16,9 +16,9 @@
                 <tbody>
                     {% for transaction in transactions %}
                     <tr
-                        class="clickable-row"
-                        hx-get="{{ row_url }}{{transaction.id}}/"
-                        hx-target="#transaction-form"
+                        class="clickable-row{% if forloop.counter0 == index and not no_highlight %} table-active{% endif %}"
+                        hx-get="{{ row_url }}form/{{ transaction.id }}/?row_index={{ forloop.counter0 }}"
+                        hx-target="#form-div"
                     >
                         <td>{{ transaction.date }}</td>
                         <td>{{ transaction.account }}</td>
