@@ -19,7 +19,6 @@ class TransactionsViewMixin:
         is_closed=None,
         has_linked_transaction=None,
         transaction_type=None,
-        # return_form_type=None,
         date_from=None,
         date_to=None,
         get_url=None
@@ -41,7 +40,6 @@ class TransactionsViewMixin:
 
         context = {
             'filter_form': form,
-            # 'return_form_type': return_form_type,
             'get_url': get_url
         }
 
@@ -275,17 +273,36 @@ class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
 
 # ------------------Linking View-----------------------
 
+# Called on filter
+class LinkTransactionsContentView(TransactionsViewMixin, LoginRequiredMixin, View):
+    def get(self, request):
+        form = TransactionFilterForm(request.GET, prefix='filter')
+        if form.is_valid():
+            transactions = form.get_transactions()
+
+            table_html = self.get_table_html(transactions, no_highlight=True)
+            link_form_html = self.get_link_form_html()
+            context = {
+                'link_form': link_form_html,
+                'table': table_html
+            }
+            content_template  = 'api/content/transactions-link-content.html'
+
+            html = render_to_string(content_template, context)
+            return HttpResponse(html)
+
+
 class LinkTransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
-    content_template  = 'api/content/transactions-link-content.html'
+    content_template = 'api/content/transactions-link-content.html'
 
     def get(self, request):
         filter_form_html, transactions = self.get_filter_form_html_and_objects(
             is_closed=False,
             has_linked_transaction=False,
             transaction_type=[Transaction.TransactionType.TRANSFER,Transaction.TransactionType.PAYMENT],
-            return_form_type='link'
+            get_url=reverse('link-transactions-content')
         )
         table_html = self.get_table_html(transactions, no_highlight=True)
         link_form_html = self.get_link_form_html()
@@ -336,13 +353,6 @@ class JournalEntryTableView(TransactionsViewMixin, LoginRequiredMixin, View):
         form = TransactionFilterForm(request.GET, prefix='filter')
         if form.is_valid():
             transactions = form.get_transactions()
-
-            # context = {}
-            # if request.GET.get('return_form_type') == 'link':
-            #     table_html = self.get_table_html(transactions, no_highlight=True)
-            #     link_form_html = self.get_link_form_html()
-            #     context['link_form'] = link_form_html
-            #     content_template  = 'api/content/transactions-link-content.html'
             table_html = self.get_table_html(transactions=transactions, row_url=reverse('journal-entries'))
             try:
                 transaction=transactions[0]
