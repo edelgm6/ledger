@@ -4,7 +4,7 @@ from django.template.loader import render_to_string
 from django.views import View
 from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
-from api.forms import UploadTransactionsForm, TransactionForm
+from api.forms import UploadTransactionsForm, WalletForm
 from api.statement import Trend
 
 class UploadTransactionsView(View):
@@ -38,7 +38,7 @@ class IndexView(LoginRequiredMixin, View):
     redirect_field_name = 'next'
     template = 'api/views/index.html'
     form_template = 'api/entry_forms/wallet-form.html'
-    form_class = TransactionForm
+    form_class = WalletForm
 
     def get(self, request, *args, **kwargs):
         context = {
@@ -50,10 +50,10 @@ class IndexView(LoginRequiredMixin, View):
         form = self.form_class(request.POST)
         if form.is_valid():
             transaction = form.save()
-            success_template = 'api/components/wallet-content.html'
+            success_template = 'api/content/wallet-content.html'
             context = {
                 'form': render_to_string(self.form_template, {'form': self.form_class}),
-                'transaction': transaction
+                'created_transaction': transaction
             }
             html = render_to_string(success_template, context)
             return HttpResponse(html)
