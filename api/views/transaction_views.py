@@ -79,6 +79,10 @@ class TransactionsViewMixin:
 
         context = {}
 
+        # if (debit_formset and credit_formset):
+        #     for form in debit_formset:
+        #         print(form.cleaned_data['account'])
+        #         print(form.cleaned_data['amount'])
         if not (debit_formset and credit_formset):
             try:
                 journal_entry = transaction.journal_entry
@@ -148,6 +152,8 @@ class TransactionsViewMixin:
             'form_errors': form_errors,
             'prefilled_total': prefilled_total
         }
+        # for form in debit_formset[0]:
+        #     print(form)
 
         return render_to_string(self.entry_form_template, context)
 
@@ -475,6 +481,8 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
                 credit_formset=credit_formset,
                 form_errors=form_errors
             )
+            # for form in debit_formset[0]:
+            #     print(form)
         else:
             if len(transactions) == 0:
                 entry_form_html = None
