@@ -266,7 +266,6 @@ class JournalEntryItemForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super(JournalEntryItemForm, self).__init__(*args, **kwargs)
         self.fields['amount'].localize = True
-        # self.fields['amount'].widget.is_localized = True
         self.fields['account'].choices = [(account.name, account.name) for account in Account.objects.all()]
 
         # Resolve the account name for the bound form
@@ -274,10 +273,6 @@ class JournalEntryItemForm(forms.ModelForm):
             self.account_name = self.instance.account.name
         else:
             self.account_name = ''
-
-    def clean_amount(self):
-        amount = self.cleaned_data['amount']
-        return Decimal(amount)
 
     def clean_account(self):
         account_name = self.cleaned_data['account']
