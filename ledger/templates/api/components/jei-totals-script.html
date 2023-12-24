@@ -7,17 +7,21 @@ $(document).ready(function() {
 
         // Calculate total for debits
         $('[name^="debits-"][name$="-amount"]').each(function() {
-            totalDebits += parseFloat($(this).val()) || 0;
+            let value = $(this).val().replace(/,/g, ''); // Remove commas
+            totalDebits += parseFloat(value) || 0;
         });
 
         // Calculate total for credits
         $('[name^="credits-"][name$="-amount"]').each(function() {
-            totalCredits += parseFloat($(this).val()) || 0;
+            let value = $(this).val().replace(/,/g, ''); // Remove commas
+            totalCredits += parseFloat(value) || 0;
         });
 
         // Format the totals and update in the HTML
         $('#totalDebits').text(totalDebits.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
         $('#totalCredits').text(totalCredits.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        console.log(totalDebits)
+        console.log(totalCredits)
     }
 
     // Attach event listener for input on amount fields
