@@ -18,6 +18,7 @@ class ReconciliationTableMixin:
 
     def get_reconciliation_html(self, reconciliations):
         reconciliations = reconciliations.order_by('account')
+
         for reconciliation in reconciliations:
             reconciliation.current_balance = self._get_current_balance(reconciliation)
 
