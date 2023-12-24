@@ -1,5 +1,4 @@
 import csv
-import re
 from datetime import datetime, date
 from decimal import Decimal, InvalidOperation
 from django import forms
