@@ -414,6 +414,21 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
         html = render_to_string(self.view_template, context)
         return HttpResponse(html)
 
+    def _get_combined_formset_errors(self, debit_formset, credit_formset, transaction):
+        form_errors = []
+        debit_total = debit_formset.get_entry_total()
+        credit_total = credit_formset.get_entry_total()
+        if debit_total != credit_total:
+            form_errors.append('Debits ($' + str(debit_total) + ') and Credits ($' + str(credit_total) + ') must balance.')
+
+        account_amount = credit_formset.get_account_amount(transaction.account) if transaction.amount < 0 else debit_formset.get_account_amount(transaction.account)
+        if account_amount != abs(transaction.amount):
+            form_errors.append('At least one JEI must have the same account and amount as the transaction.')
+
+        print(form_errors)
+        return form_errors
+
+
     def post(self, request, transaction_id):
         JournalEntryItemFormset = modelformset_factory(JournalEntryItem, formset=BaseJournalEntryItemFormset, form=JournalEntryItemForm)
         debit_formset = JournalEntryItemFormset(request.POST, prefix='debits')
@@ -424,17 +439,12 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
         has_errors = False
         form_errors = []
         if debit_formset.is_valid() and credit_formset.is_valid():
-            debit_total = debit_formset.get_entry_total()
-            credit_total = credit_formset.get_entry_total()
-            if debit_total != credit_total:
-                form_errors.append('Debits ($' + str(debit_total) + ') and Credits ($' + str(credit_total) + ') must balance.')
-                has_errors = True
-
-            account_amount = credit_formset.get_account_amount(transaction.account) if transaction.amount < 0 else debit_formset.get_account_amount(transaction.account)
-            if account_amount != abs(transaction.amount):
-                form_errors.append('At least one JEI must have the same account and amount as the transaction.')
-                has_errors = True
-
+            form_errors = self._get_combined_formset_errors(
+                debit_formset=debit_formset,
+                credit_formset=credit_formset,
+                transaction=transaction
+            )
+            has_errors = bool(form_errors)
         else:
             print(debit_formset.errors)
             has_errors = True
