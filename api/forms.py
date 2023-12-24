@@ -85,7 +85,8 @@ class ReconciliationFilterForm(forms.Form):
                 )
             )
 
-        reconciliations = Reconciliation.objects.bulk_create(reconciliation_list)
+        Reconciliation.objects.bulk_create(reconciliation_list)
+        reconciliations = Reconciliation.objects.filter(date=date)
         return reconciliations
 
 class ReconciliationForm(forms.ModelForm):
