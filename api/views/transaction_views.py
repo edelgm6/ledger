@@ -57,7 +57,7 @@ class TransactionsViewMixin:
         table_template = 'api/tables/transactions-table-new.html'
         return render_to_string(table_template, context)
 
-    def get_transaction_form_html(self, transaction=None, created_transaction=None):
+    def get_transaction_form_html(self, transaction=None, created_transaction=None, change=None):
         form_template = 'api/entry_forms/transaction-form.html'
         if transaction:
             form = TransactionForm(instance=transaction)
@@ -68,7 +68,8 @@ class TransactionsViewMixin:
             {
                 'form': form,
                 'transaction': transaction,
-                'created_transaction': created_transaction
+                'created_transaction': created_transaction,
+                'change': change
             }
         )
         return form_html
@@ -190,7 +191,7 @@ class TransactionFormView(TransactionsViewMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
 
-    def get(self, request, transaction_id):
+    def get(self, request, transaction_id=None):
         transaction = get_object_or_404(Transaction, pk=transaction_id)
         form_html = self.get_transaction_form_html(transaction=transaction)
         return HttpResponse(form_html)
@@ -247,28 +248,35 @@ class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
         else:
             form = TransactionForm(request.POST)
 
-        if form.is_valid():
+        if request.POST['action'] == 'delete':
+            form_html = self.get_transaction_form_html(created_transaction=transaction, change='delete')
+            transaction.delete()
+        elif request.POST['action'] == 'clear':
+            form_html = self.get_transaction_form_html()
+        elif form.is_valid():
+            if transaction_id:
+                change = 'update'
+            else:
+                change = 'create'
             transaction = form.save()
-            form_html = self.get_transaction_form_html(created_transaction=transaction)
+            form_html = self.get_transaction_form_html(created_transaction=transaction, change=change)
 
-            row_url = reverse('transactions')
-            row_url += 'form/'
-            table_html = self.get_table_html(
-                transactions=transactions,
-                no_highlight=True,
-                row_url=row_url
-            )
+        row_url = reverse('transactions')
+        table_html = self.get_table_html(
+            transactions=transactions,
+            no_highlight=True,
+            row_url=row_url
+        )
 
-            content_template = 'api/content/transactions-content.html'
-            context = {
-                'transactions_form': form_html,
-                'table': table_html,
-                'transaction': transaction
-            }
+        content_template = 'api/content/transactions-content.html'
+        context = {
+            'transactions_form': form_html,
+            'table': table_html,
+            'transaction': transaction
+        }
 
-            html = render_to_string(content_template, context)
-            return HttpResponse(html)
-        print(form.errors)
+        html = render_to_string(content_template, context)
+        return HttpResponse(html)
 
 # ------------------Linking View-----------------------
 

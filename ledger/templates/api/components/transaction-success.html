@@ -1,9 +1,19 @@
 {% load humanize %}
 <div class="row">
     <div class="col-md-6">
+        {% if change == "create" %}
         <div class="alert alert-success" role="alert">
             <small>Added transaction</small>
         </div>
+        {% elif change == "update" %}
+        <div class="alert alert-success" role="alert">
+            <small>Updated transaction</small>
+        </div>
+        {% elif change == "delete" %}
+        <div class="alert alert-danger" role="alert">
+            <small>Deleted transaction</small>
+        </div>
+        {% endif %}
 
         <div class="card">
             <div class="card-body">
@@ -17,7 +27,7 @@
                     {% endif %}
                 </p>
                 <p class="card-text small" style="margin-bottom: 10px;"><strong>Description:</strong> {{ created_transaction.description }}</p>
-                <p class="card-text small" style="margin-bottom: 10px;"><strong>Account:</strong> {{ created_transaction.suggested_account }}</p>
+                <p class="card-text small" style="margin-bottom: 10px;"><strong>Account:</strong> {{ created_transaction.account }}</p>
             </div>
         </div>
     </div>
