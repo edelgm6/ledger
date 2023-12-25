@@ -249,29 +249,27 @@ class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
 
         if request.POST['action'] == 'delete':
             transaction.delete()
-
-        if form.is_valid():
+            form_html = ''
+        elif form.is_valid():
             transaction = form.save()
             form_html = self.get_transaction_form_html(created_transaction=transaction)
 
-            row_url = reverse('transactions')
-            row_url += 'form/'
-            table_html = self.get_table_html(
-                transactions=transactions,
-                no_highlight=True,
-                row_url=row_url
-            )
+        row_url = reverse('transactions')
+        table_html = self.get_table_html(
+            transactions=transactions,
+            no_highlight=True,
+            row_url=row_url
+        )
 
-            content_template = 'api/content/transactions-content.html'
-            context = {
-                'transactions_form': form_html,
-                'table': table_html,
-                'transaction': transaction
-            }
+        content_template = 'api/content/transactions-content.html'
+        context = {
+            'transactions_form': form_html,
+            'table': table_html,
+            'transaction': transaction
+        }
 
-            html = render_to_string(content_template, context)
-            return HttpResponse(html)
-        print(form.errors)
+        html = render_to_string(content_template, context)
+        return HttpResponse(html)
 
 # ------------------Linking View-----------------------
 
