@@ -247,6 +247,9 @@ class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
         else:
             form = TransactionForm(request.POST)
 
+        if request.POST['action'] == 'delete':
+            transaction.delete()
+
         if form.is_valid():
             transaction = form.save()
             form_html = self.get_transaction_form_html(created_transaction=transaction)
