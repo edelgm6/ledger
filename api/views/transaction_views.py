@@ -190,7 +190,7 @@ class TransactionFormView(TransactionsViewMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
 
-    def get(self, request, transaction_id):
+    def get(self, request, transaction_id=None):
         transaction = get_object_or_404(Transaction, pk=transaction_id)
         form_html = self.get_transaction_form_html(transaction=transaction)
         return HttpResponse(form_html)
@@ -249,7 +249,9 @@ class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
 
         if request.POST['action'] == 'delete':
             transaction.delete()
-            form_html = ''
+            form_html = self.get_transaction_form_html()
+        elif request.POST['action'] == 'clear':
+            form_html = self.get_transaction_form_html()
         elif form.is_valid():
             transaction = form.save()
             form_html = self.get_transaction_form_html(created_transaction=transaction)
