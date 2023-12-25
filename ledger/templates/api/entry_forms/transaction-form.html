@@ -67,9 +67,11 @@
                 <div class="col-auto">
                     <button type="submit" name="action" class="btn btn-primary mb-2">Save</button>
                 </div>
+                {% if transaction %}
                 <div class="col-auto">
                     <button type="submit" name="action" value="delete" class="btn btn-danger mb-2">Delete</button>
                 </div>
+                {% endif %}
             </div>
         </form>
     </div>
