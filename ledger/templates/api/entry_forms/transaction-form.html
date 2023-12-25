@@ -1,5 +1,5 @@
 <div class="row">
-    <div class="col-md-12">
+    <div class="col-md-6">
         <form
             method="post"
             {% if transaction %}
@@ -16,13 +16,13 @@
 
             <!-- Date Field -->
             <div class="form-row align-items-center">
-                <div class="col-md-2">
+                <div class="col-md-4">
                     <label for="{{ form.date.id_for_label }}" class="sr-only">{{ form.date.label }}</label>
                     <input type="date" name="{{ form.date.html_name }}" id="{{ form.date.id_for_label }}" class="form-control mb-2" value="{{ form.date.value|date:'Y-m-d' }}" placeholder="{{ form.date.label }}">
                 </div>
 
                 <!-- Account Field -->
-                <div class="col-md-2">
+                <div class="col-md-4">
                     <label for="id_account" class="sr-only">Account</label>
                     <input class="form-control mb-2" list="accountOptions" name="account" id="id_account" value="{{ form.account_name }}" placeholder="Account">
                     <datalist id="accountOptions">
@@ -33,7 +33,7 @@
                 </div>
 
                 <!-- Amount Field -->
-                <div class="col-md-2">
+                <div class="col-md-4">
                     <div class="input-group mb-2">
                         <div class="input-group-prepend">
                             <div class="input-group-text">$</div>
@@ -44,12 +44,12 @@
             </div>
             <div class="form-row align-items-center">
                 <!-- Description Field -->
-                <div class="col-md-4">
+                <div class="col-md-8">
                     <input type="text" name="{{ form.description.html_name }}" id="{{ form.description.id_for_label }}" class="form-control mb-2" value="{{ form.description.value|default_if_none:'' }}" placeholder="{{ form.description.label }}">
                 </div>
 
                 <!-- Suggested Account Field -->
-                <div class="col-md-2">
+                <div class="col-md-4">
                     <input class="form-control mb-2" list="suggestedAccountOptions" name="suggested_account" id="id_suggested_account" value="{{ form.suggested_account_name }}" placeholder="Suggested Account">
                     <datalist id="suggestedAccountOptions">
                         {% for value, text in form.suggested_account.field.choices %}
@@ -75,7 +75,7 @@
             <!-- Submit Button -->
             <div class="form-row">
                 <div class="col-auto">
-                    <button type="submit" name="action" class="btn btn-primary mb-2">Save</button>
+                    <button type="submit" name="action" value="create" class="btn btn-primary mb-2">Save</button>
                 </div>
                 {% if transaction %}
                 <div class="col-auto">

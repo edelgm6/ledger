@@ -57,7 +57,7 @@ class TransactionsViewMixin:
         table_template = 'api/tables/transactions-table-new.html'
         return render_to_string(table_template, context)
 
-    def get_transaction_form_html(self, transaction=None, created_transaction=None):
+    def get_transaction_form_html(self, transaction=None, created_transaction=None, change=None):
         form_template = 'api/entry_forms/transaction-form.html'
         if transaction:
             form = TransactionForm(instance=transaction)
@@ -68,7 +68,8 @@ class TransactionsViewMixin:
             {
                 'form': form,
                 'transaction': transaction,
-                'created_transaction': created_transaction
+                'created_transaction': created_transaction,
+                'change': change
             }
         )
         return form_html
@@ -248,13 +249,17 @@ class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
             form = TransactionForm(request.POST)
 
         if request.POST['action'] == 'delete':
+            form_html = self.get_transaction_form_html(created_transaction=transaction, change='delete')
             transaction.delete()
-            form_html = self.get_transaction_form_html()
         elif request.POST['action'] == 'clear':
             form_html = self.get_transaction_form_html()
         elif form.is_valid():
+            if transaction_id:
+                change = 'update'
+            else:
+                change = 'create'
             transaction = form.save()
-            form_html = self.get_transaction_form_html(created_transaction=transaction)
+            form_html = self.get_transaction_form_html(created_transaction=transaction, change=change)
 
         row_url = reverse('transactions')
         table_html = self.get_table_html(
