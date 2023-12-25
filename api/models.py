@@ -10,7 +10,7 @@ class Amortization(models.Model):
     periods = models.PositiveSmallIntegerField(null=True,blank=True)
     is_closed = models.BooleanField(default=False)
     description = models.CharField(max_length=200)
-    suggested_account = models.ForeignKey('Account',on_delete=models.CASCADE)
+    suggested_account = models.ForeignKey('Account',on_delete=models.PROTECT)
 
     @staticmethod
     def _round_down(n, decimals=2):
@@ -84,7 +84,7 @@ class Reconciliation(models.Model):
     account = models.ForeignKey('Account',on_delete=models.CASCADE)
     date = models.DateField()
     amount = models.DecimalField(decimal_places=2,max_digits=12,null=True,blank=True)
-    transaction = models.OneToOneField('Transaction',on_delete=models.CASCADE,null=True,blank=True)
+    transaction = models.OneToOneField('Transaction',on_delete=models.PROTECT,null=True,blank=True)
 
     class Meta:
         unique_together = [['account','date']]
@@ -191,17 +191,17 @@ class Transaction(models.Model):
         TRANSFER = 'transfer', _('Transfer')
 
     date = models.DateField()
-    account = models.ForeignKey('Account',on_delete=models.CASCADE)
+    account = models.ForeignKey('Account',on_delete=models.PROTECT)
     amount = models.DecimalField(decimal_places=2,max_digits=12)
     description = models.CharField(max_length=200,blank=True)
     category = models.CharField(max_length=200,blank=True)
     is_closed = models.BooleanField(default=False)
     date_closed = models.DateField(null=True,blank=True)
-    suggested_account = models.ForeignKey('Account',related_name='suggested_account',on_delete=models.CASCADE,null=True,blank=True)
+    suggested_account = models.ForeignKey('Account',related_name='suggested_account',on_delete=models.PROTECT,null=True,blank=True)
     type = models.CharField(max_length=25,choices=TransactionType.choices)
     linked_transaction = models.OneToOneField('Transaction',on_delete=models.SET_NULL,null=True,blank=True)
-    amortization = models.ForeignKey('Amortization',on_delete=models.CASCADE,null=True,blank=True,related_name='transactions')
-    prefill = models.ForeignKey('Prefill',on_delete=models.CASCADE,null=True,blank=True)
+    amortization = models.ForeignKey('Amortization',on_delete=models.PROTECT,null=True,blank=True,related_name='transactions')
+    prefill = models.ForeignKey('Prefill',on_delete=models.PROTECT,null=True,blank=True)
 
     objects = TransactionManager()
 
@@ -243,7 +243,7 @@ class TaxCharge(models.Model):
         STATE = 'state', _('State')
 
     type = models.CharField(max_length=25,choices=Type.choices)
-    transaction = models.OneToOneField('Transaction',on_delete=models.CASCADE)
+    transaction = models.OneToOneField('Transaction',on_delete=models.PROTECT)
     date = models.DateField()
     amount = models.DecimalField(decimal_places=2,max_digits=12)
 
@@ -437,7 +437,7 @@ class JournalEntryItem(models.Model):
     journal_entry = models.ForeignKey('JournalEntry',related_name='journal_entry_items',on_delete=models.CASCADE)
     type = models.CharField(max_length=6,choices=JournalEntryType.choices)
     amount = models.DecimalField(decimal_places=2,max_digits=12)
-    account = models.ForeignKey('Account',on_delete=models.CASCADE)
+    account = models.ForeignKey('Account',on_delete=models.PROTECT)
 
     def __str__(self):
         return str(self.journal_entry.id) + ' ' + self.type + ' $' + str(self.amount)
