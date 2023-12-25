@@ -213,7 +213,6 @@ class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
         )
 
         row_url = reverse('transactions')
-        row_url += 'form/'
         table_html = self.get_table_html(
             transactions=transactions,
             no_highlight=True,
