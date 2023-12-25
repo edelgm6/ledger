@@ -25,6 +25,11 @@
                 <div class="col-md-2">
                     <label for="id_account" class="sr-only">Account</label>
                     <input class="form-control mb-2" list="accountOptions" name="account" id="id_account" value="{{ form.account_name }}" placeholder="Account">
+                    <datalist id="accountOptions">
+                        {% for value, text in form.account.field.choices %}
+                            <option value="{{ text }}">
+                        {% endfor %}
+                    </datalist>
                 </div>
 
                 <!-- Amount Field -->
@@ -46,6 +51,11 @@
                 <!-- Suggested Account Field -->
                 <div class="col-md-2">
                     <input class="form-control mb-2" list="suggestedAccountOptions" name="suggested_account" id="id_suggested_account" value="{{ form.suggested_account_name }}" placeholder="Suggested Account">
+                    <datalist id="suggestedAccountOptions">
+                        {% for value, text in form.suggested_account.field.choices %}
+                            <option value="{{ text }}">
+                        {% endfor %}
+                    </datalist>
                 </div>
             </div>
             <div class="form-row align-items-center">
@@ -70,6 +80,9 @@
                 {% if transaction %}
                 <div class="col-auto">
                     <button type="submit" name="action" value="delete" class="btn btn-danger mb-2">Delete</button>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" name="action" value="clear" class="btn btn-secondary mb-2">Clear</button>
                 </div>
                 {% endif %}
             </div>
