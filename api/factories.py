@@ -1,4 +1,4 @@
-from api.models import Reconciliation, Account
+from api.models import Reconciliation, Account, TaxCharge
 
 class ReconciliationFactory:
 
@@ -18,3 +18,11 @@ class ReconciliationFactory:
 
         reconciliations = Reconciliation.objects.filter(date=date)
         return reconciliations
+
+class TaxChargeFactory:
+
+    @staticmethod
+    def create_bulk_tax_charges(date):
+        for value, _ in TaxCharge.Type.choices:
+            if not TaxCharge.objects.filter(date=date,type=value).exists():
+                TaxCharge.objects.create(date=date,type=value,amount=0)

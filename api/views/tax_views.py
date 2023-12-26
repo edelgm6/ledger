@@ -7,6 +7,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from api.models import  TaxCharge
 from api.forms import TaxChargeFilterForm, TaxChargeForm
 from api.statement import IncomeStatement
+from api.factories import TaxChargeFactory
 from api import utils
 
 class TaxChargeMixIn:
@@ -110,7 +111,10 @@ class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
 
-        tax_charges = TaxCharge.objects.filter(date__gte='2023-01-31',date__lte=utils.get_last_day_of_last_month())
+        initial_end_date = utils.get_last_day_of_last_month()
+        TaxChargeFactory.create_bulk_tax_charges(date=initial_end_date)
+
+        tax_charges = TaxCharge.objects.filter(date__gte='2023-01-31',date__lte=initial_end_date)
 
         context = {
             'tax_charge_table': self.get_tax_table_html(tax_charges),
