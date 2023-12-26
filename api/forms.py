@@ -8,6 +8,7 @@ from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 from api.models import Amortization, Transaction, Account, JournalEntryItem, TaxCharge, Reconciliation, JournalEntry
 from api import utils
+from api.factories import ReconciliationFactory
 
 class DateForm(forms.Form):
     date = forms.ChoiceField()
@@ -72,22 +73,25 @@ class ReconciliationFilterForm(forms.Form):
     def get_reconciliations(self):
         return Reconciliation.objects.filter(date=self.cleaned_data['date'])
 
-    def generate_reconciliations(self):
-        date = self.cleaned_data['date']
-
-        balance_sheet_accounts = Account.objects.filter(type__in=[Account.Type.ASSET,Account.Type.LIABILITY])
-        reconciliation_list = []
-        for account in balance_sheet_accounts:
-            reconciliation_list.append(
-                Reconciliation(
-                    account=account,
-                    date=date
-                )
-            )
-
-        Reconciliation.objects.bulk_create(reconciliation_list)
-        reconciliations = Reconciliation.objects.filter(date=date)
+    def generate_reconciliations(self, create_date=None):
+        create_date = create_date if create_date else self.cleaned_data['date']
+        reconciliations = ReconciliationFactory.create_bulk_reconciliations(date=create_date)
         return reconciliations
+
+    #     existing_reconciliations = set(Reconciliation.objects.filter(date=create_date).values_list('account__name', flat=True))
+    #     balance_sheet_account_names = set(Account.objects.filter(type__in=[Account.Type.ASSET, Account.Type.LIABILITY]).values_list('name', flat=True))
+
+    #     new_reconciliations = balance_sheet_account_names - existing_reconciliations
+    #     new_reconciliation_list = [
+    #         Reconciliation(account=Account.objects.get(name=account_name), date=create_date)
+    #         for account_name in new_reconciliations
+    #     ]
+
+    #     if new_reconciliation_list:
+    #         Reconciliation.objects.bulk_create(new_reconciliation_list)
+
+    #     reconciliations = Reconciliation.objects.filter(date=create_date)
+    #     return reconciliations
 
 class ReconciliationForm(forms.ModelForm):
     class Meta:

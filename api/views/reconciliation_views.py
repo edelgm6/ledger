@@ -7,6 +7,7 @@ from django.forms import modelformset_factory
 from api.models import  Reconciliation
 from api.forms import ReconciliationFilterForm, ReconciliationForm
 from api.statement import BalanceSheet
+from api.factories import ReconciliationFactory
 from api import utils
 
 class ReconciliationTableMixin:
@@ -55,10 +56,8 @@ class ReconciliationTableView(ReconciliationTableMixin, LoginRequiredMixin, View
 
         form = ReconciliationFilterForm(request.GET)
         if form.is_valid():
-            if request.GET.get('generate'):
-                reconciliations = form.generate_reconciliations()
-            else:
-                reconciliations = form.get_reconciliations()
+            ReconciliationFactory.create_bulk_reconciliations(date=form.cleaned_data['date'])
+            reconciliations = form.get_reconciliations()
 
             reconciliations_table = self.get_reconciliation_html(reconciliations)
             return HttpResponse(reconciliations_table)
@@ -71,7 +70,10 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
 
         template = 'api/views/reconciliation.html'
-        reconciliations = Reconciliation.objects.filter(date=utils.get_last_day_of_last_month())
+        initial_date = utils.get_last_day_of_last_month()
+        ReconciliationFactory.create_bulk_reconciliations(date=initial_date)
+
+        reconciliations = Reconciliation.objects.filter(date=initial_date)
         reconciliation_table = self.get_reconciliation_html(reconciliations)
         context = {
             'reconciliation_table': reconciliation_table,
