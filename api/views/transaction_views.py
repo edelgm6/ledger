@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.forms import modelformset_factory
 from django.urls import reverse
-from api.models import  Transaction, JournalEntry, JournalEntryItem
+from api.models import  Transaction, JournalEntry, JournalEntryItem, Account
 from api.forms import TransactionLinkForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset, TransactionForm
 from api import utils
 
@@ -431,6 +431,12 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
         account_amount = credit_formset.get_account_amount(transaction.account) if transaction.amount < 0 else debit_formset.get_account_amount(transaction.account)
         if account_amount != abs(transaction.amount):
             form_errors.append('At least one JEI must have the same account and amount as the transaction.')
+
+        prepaid_account = Account.objects.get(special_type=Account.SpecialType.PREPAID_EXPENSES)
+        prepaid_amount = credit_formset.get_account_amount(prepaid_account)
+        print(prepaid_amount)
+        if prepaid_amount:
+            form_errors.append('Cannot credit prepaid expenses.')
 
         print(form_errors)
         return form_errors
