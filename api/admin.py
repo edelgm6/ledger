@@ -1,61 +1,77 @@
 from django.contrib import admin
-from api.models import PrefillItem, Prefill, Amortization, TaxCharge, Account, Transaction, JournalEntry, JournalEntryItem, AutoTag, CSVProfile, Reconciliation, CSVColumnValuePair
+from import_export import resources, fields
+from import_export.widgets import ForeignKeyWidget
+from import_export.admin import ImportExportModelAdmin
+from .models import (
+    PrefillItem, Prefill, Amortization, TaxCharge, Account, Transaction,
+    JournalEntry, JournalEntryItem, AutoTag, CSVProfile, Reconciliation,
+    CSVColumnValuePair
+)
 
+# Resource definitions for django-import-export
+class JournalEntryItemResource(resources.ModelResource):
+    journal_entry = fields.Field(
+        column_name='journal_entry',
+        attribute='journal_entry',
+        widget=ForeignKeyWidget(JournalEntry, 'id'))
+
+    class Meta:
+        model = JournalEntryItem
+        fields = ('journal_entry', 'type', 'amount', 'account')
+
+class JournalEntryResource(resources.ModelResource):
+    transaction = fields.Field(
+        column_name='transaction',
+        attribute='transaction',
+        widget=ForeignKeyWidget(Transaction, 'id'))
+
+    class Meta:
+        model = JournalEntry
+        fields = ('id', 'date', 'description', 'transaction')
+        export_order = ('id', 'date', 'description', 'transaction')
+
+class TransactionResource(resources.ModelResource):
+    class Meta:
+        model = Transaction
+        fields = ('id', 'date', 'account', 'amount', 'description', 'category', 'is_closed', 'linked_transaction')
+
+# Admin definitions
 class AccountAdmin(admin.ModelAdmin):
-    list_display = ('name','type', 'sub_type', 'csv_profile')
+    list_display = ('name', 'type', 'sub_type', 'csv_profile')
 
 class AutoTagAdmin(admin.ModelAdmin):
-    list_display = ('account','search_string','transaction_type')
+    list_display = ('account', 'search_string', 'transaction_type')
 
 class CSVProfileAdmin(admin.ModelAdmin):
-    list_display = ('name','date','description','category')
+    list_display = ('name', 'date', 'description', 'category')
 
-class JournalEntryItemAdmin(admin.ModelAdmin):
-    list_display = ('journal_entry','type','amount','account')
-
-# TODO: Possible to get this to show up on each individual line?
-@admin.display(description='Journal Entries')
-def journal_entries(journal_entry):
-    journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry).order_by('type','-amount')
-    entries_list = ''
-    for journal_entry_item in journal_entry_items:
-        entries_list += journal_entry_item.type + ' ' + str(journal_entry_item.amount) + '\n\n'
-
-    return entries_list
+class JournalEntryItemAdmin(ImportExportModelAdmin):
+    resource_class = JournalEntryItemResource
+    list_display = ('journal_entry', 'type', 'amount', 'account')
 
 class JournalEntryItemInline(admin.TabularInline):
     model = JournalEntryItem
     extra = 1
 
-class JournalEntryAdmin(admin.ModelAdmin):
-    list_display = ('pk', 'date', 'description', 'transaction', journal_entries)
-    inlines = [
-        JournalEntryItemInline,
-    ]
+class JournalEntryAdmin(ImportExportModelAdmin):
+    resource_class = JournalEntryResource
+    list_display = ('pk', 'date', 'description', 'transaction')
+    inlines = [JournalEntryItemInline]
 
 class JournalEntryInline(admin.StackedInline):
     model = JournalEntry
     extra = 1
-    inlines = [
-        JournalEntryItemInline,
-    ]
+    inlines = [JournalEntryItemInline]
 
-class TransactionAdmin(admin.ModelAdmin):
-    list_display = ('date', 'account', 'amount', 'description', 'category', 'is_closed','linked_transaction')
-    list_filter = ('account__name','date','is_closed')
-    inlines = [
-        JournalEntryInline,
-    ]
-
-class JournalEntryAdmin(admin.ModelAdmin):
-    list_display = ('pk', 'date', 'description', 'transaction', journal_entries)
-    inlines = [
-        JournalEntryItemInline,
-    ]
+class TransactionAdmin(ImportExportModelAdmin):
+    resource_class = TransactionResource
+    list_display = ('date', 'account', 'amount', 'description', 'category', 'is_closed', 'linked_transaction')
+    list_filter = ('account__name', 'date', 'is_closed')
+    inlines = [JournalEntryInline]
 
 class PrefillItemInline(admin.TabularInline):
     model = PrefillItem
-    extra = 8  # Number of empty forms to display
+    extra = 8
 
 class PrefillAdmin(admin.ModelAdmin):
     inlines = [PrefillItemInline]
@@ -64,8 +80,8 @@ class PrefillAdmin(admin.ModelAdmin):
     def description(self, obj):
         return obj.name
 
+# Register your models here
 admin.site.register(Prefill, PrefillAdmin)
-
 admin.site.register(Account, AccountAdmin)
 admin.site.register(AutoTag, AutoTagAdmin)
 admin.site.register(CSVProfile, CSVProfileAdmin)
