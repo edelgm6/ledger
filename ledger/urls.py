@@ -6,7 +6,7 @@ from api.views.transaction_views import LinkTransactionsContentView, Transaction
 from api.views.tax_views import TaxChargeTableView,TaxChargeFormView, TaxesView
 from api.views.reconciliation_views import ReconciliationTableView, ReconciliationView
 from api.views.amortization_views import AmortizationFormView, AmortizationView, AmortizeFormView
-from api.views.statement_views import IncomeStatementView, BalanceSheetView, CashFlowView
+from api.views.statement_views import StatementView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -16,9 +16,7 @@ urlpatterns = [
     path('upload-transactions/', UploadTransactionsView.as_view(), name='upload-transactions'),
 
     # Statements
-    path('income-statement/', IncomeStatementView.as_view(), name='income-statement'),
-    path('balance-sheet/', BalanceSheetView.as_view(), name='balance-sheet'),
-    path('cash-flow/', CashFlowView.as_view(), name='cash-flow'),
+    path('statements/<str:statement_type>/', StatementView.as_view(), name='statements'),
 
     # JE page
     path('journal-entries/', JournalEntryView.as_view(), name='journal-entries'),

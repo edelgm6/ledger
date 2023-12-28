@@ -27,14 +27,14 @@
                 <li class="nav-item {% if request.resolver_match.url_name == 'upload-transactions' %}active{% endif %}">
                     <a class="nav-link" href="{% url 'upload-transactions' %}" hx-get="{% url 'upload-transactions' %}" hx-target="#container">Upload/Download</a>
                 </li>
-                <li class="nav-item {% if request.resolver_match.url_name == 'income-statement' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'income-statement' %}" hx-get="{% url 'income-statement' %}" hx-target="#container">Income Statement</a>
+                <li class="nav-item {% if request.resolver_match.url_name == 'statements' %}active{% endif %}">
+                    <a class="nav-link" href="{% url 'statements' 'income' %}" hx-get="{% url 'statements' 'income' %}" hx-target="#container">Income Statement</a>
                 </li>
-                <li class="nav-item {% if request.resolver_match.url_name == 'balance-sheet' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'balance-sheet' %}" hx-get="{% url 'balance-sheet' %}" hx-target="#container">Balance Sheet</a>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'statements' 'balance' %}" hx-get="{% url 'statements' 'balance' %}" hx-target="#container">Balance Sheet</a>
                 </li>
-                <li class="nav-item {% if request.resolver_match.url_name == 'cash-flow' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'cash-flow' %}" hx-get="{% url 'cash-flow' %}" hx-target="#container">Cash Flow</a>
+                <li class="nav-item {% if request.resolver_match.url_name == 'statements' %}active{% endif %}">
+                    <a class="nav-link" href="{% url 'statements' 'cash' %}" hx-get="{% url 'statements' 'cash' %}" hx-target="#container">Cash Flow</a>
                 </li>
             </ul>
         </div>
