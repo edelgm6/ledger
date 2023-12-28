@@ -27,6 +27,12 @@
                 <li class="nav-item {% if request.resolver_match.url_name == 'upload-transactions' %}active{% endif %}">
                     <a class="nav-link" href="{% url 'upload-transactions' %}" hx-get="{% url 'upload-transactions' %}" hx-target="#container">Upload/Download</a>
                 </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'income-statement' %}active{% endif %}">
+                    <a class="nav-link" href="{% url 'income-statement' %}" hx-get="{% url 'income-statement' %}" hx-target="#container">Income Statement</a>
+                </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'balance-sheet' %}active{% endif %}">
+                    <a class="nav-link" href="{% url 'balance-sheet' %}" hx-get="{% url 'balance-sheet' %}" hx-target="#container">Balance Sheet</a>
+                </li>
             </ul>
         </div>
     </div>
