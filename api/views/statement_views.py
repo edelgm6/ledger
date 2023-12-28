@@ -1,3 +1,4 @@
+from datetime import timedelta
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.views import View
@@ -5,6 +6,39 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from api.statement import IncomeStatement, BalanceSheet, CashFlowStatement
 from api.models import Account
 from api import utils
+
+class CashFlowView(LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
+
+    def get(self, request, *args, **kwargs):
+        last_month_tuple = utils.get_last_days_of_month_tuples()[0]
+        last_day_of_last_month = last_month_tuple[0]
+        first_day_of_last_month = utils.get_first_day_of_month_from_date(last_day_of_last_month)
+        income_statement = IncomeStatement(
+            end_date=last_day_of_last_month,
+            start_date=first_day_of_last_month
+        )
+        end_balance_sheet = BalanceSheet(end_date=last_day_of_last_month)
+        start_balance_sheet = BalanceSheet(end_date=first_day_of_last_month + timedelta(days=-1))
+        cash_statement = CashFlowStatement(
+            income_statement=income_statement,
+            start_balance_sheet=start_balance_sheet,
+            end_balance_sheet=end_balance_sheet
+        )
+
+        context = {
+            'operations_flows': cash_statement.cash_from_operations_balances,
+            'financing_flows': cash_statement.cash_from_financing_balances,
+            'investing_flows': cash_statement.cash_from_investing_balances,
+            'cash_from_operations': sum([metric.value for metric in cash_statement.summaries if metric.name == 'Cash Flow From Operations']),
+            'cash_from_financing': sum([metric.value for metric in cash_statement.summaries if metric.name == 'Cash Flow From Investing']),
+            'cash_from_investing': sum([metric.value for metric in cash_statement.summaries if metric.name == 'Cash Flow From Financing']),
+            'net_cash_flow': sum([metric.value for metric in cash_statement.summaries if metric.name == 'Net Cash Flow'])
+        }
+
+        template = 'api/views/cash-flow-statement.html'
+        return HttpResponse(render_to_string(template, context))
 
 class BalanceSheetView(LoginRequiredMixin, View):
     login_url = '/login/'
