@@ -1,12 +1,13 @@
 <form
-    id="transactions-filter-form"
+    id="statement-form"
     method="get"
     hx-get="{{ get_url }}"
-    hx-target="#table-and-form"
+    hx-target="#container"
     hx-trigger="submit"
     class="mb-3 form-sm"
 >
     <div class="row">
+        {% if statement_type != 'balance' %}
         <!-- Date From Field -->
         <div class="col-md-2">
             <div class="form-group">
@@ -14,6 +15,7 @@
                        value="{{ filter_form.date_from.value|default_if_none:'' }}" placeholder="Start Date">
             </div>
         </div>
+        {% endif %}
 
         <!-- Date To Field -->
         <div class="col-md-2">
