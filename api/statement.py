@@ -157,20 +157,20 @@ class CashFlowStatement(Statement):
 
         # TODO: Can definitely combine finding the balances and getting the totals
         self.balances = []
-        cash_from_operations_balances = self.get_cash_from_operations_balances()
-        cash_from_financing_balances = self.get_cash_from_financing_balances()
-        cash_from_investing_balances = self.get_cash_from_investing_balances()
+        self.cash_from_operations_balances = self.get_cash_from_operations_balances()
+        self.cash_from_financing_balances = self.get_cash_from_financing_balances()
+        self.cash_from_investing_balances = self.get_cash_from_investing_balances()
         self.net_cash_flow = 0
-        for balances_list in [cash_from_operations_balances,cash_from_financing_balances,cash_from_investing_balances]:
+        for balances_list in [self.cash_from_operations_balances,self.cash_from_financing_balances,self.cash_from_investing_balances]:
             self.balances += balances_list
             self.net_cash_flow += self.get_cash_flow(balances_list)
 
         self.summaries = [
             Metric('Starting Cash', self.get_cash_balance(self.start_balance_sheet)),
             Metric('Ending Cash', self.get_cash_balance(self.end_balance_sheet)),
-            Metric('Cash Flow From Operations', self.get_cash_flow(cash_from_operations_balances)),
-            Metric('Cash Flow From Investing', self.get_cash_flow(cash_from_investing_balances)),
-            Metric('Cash Flow From Financing', self.get_cash_flow(cash_from_financing_balances)),
+            Metric('Cash Flow From Operations', self.get_cash_flow(self.cash_from_operations_balances)),
+            Metric('Cash Flow From Investing', self.get_cash_flow(self.cash_from_investing_balances)),
+            Metric('Cash Flow From Financing', self.get_cash_flow(self.cash_from_financing_balances)),
             Metric('Net Cash Flow', self.net_cash_flow)
         ]
         self.metrics = [
