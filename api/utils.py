@@ -4,6 +4,9 @@ from datetime import date, datetime, timedelta
 def format_datetime_to_string(form_date):
     return form_date.strftime('%Y-%m-%d')
 
+def get_first_day_of_month_from_date(original_date):
+    return original_date.replace(day=1)
+
 def get_last_days_of_month_tuples():
     # Get the current year and month
     current_date = datetime.today()
