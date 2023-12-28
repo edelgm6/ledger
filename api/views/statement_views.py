@@ -60,8 +60,6 @@ class StatementMixIn:
         total_assets = sum([metric.value for metric in balance_sheet.summaries if metric.name == 'Asset'])
         total_liabilities = sum([metric.value for metric in balance_sheet.summaries if metric.name == 'Liability'])
         total_equity = sum([metric.value for metric in balance_sheet.summaries if metric.name == 'Equity'])
-        for metric in balance_sheet.summaries:
-            print(metric.name)
 
         context = {
             'assets_balances': assets_balances,
