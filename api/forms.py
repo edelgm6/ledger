@@ -11,7 +11,7 @@ from api import utils
 from api.factories import ReconciliationFactory
 
 class FromToDateForm(forms.Form):
-    date_from = forms.DateField()
+    date_from = forms.DateField(required=False)
     date_to = forms.DateField()
 
     def __init__(self, *args, **kwargs):

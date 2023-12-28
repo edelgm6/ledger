@@ -3,16 +3,27 @@ from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.urls import reverse
 from api.statement import IncomeStatement, BalanceSheet, CashFlowStatement
 from api.models import Account
 from api.forms import FromToDateForm
 from api import utils
 
-class FilterFormMixIn:
+class StatementMixIn:
 
-    def get_filter_form_html(self, statement_type):
+    def get_filter_form_html(self, statement_type, from_date, to_date):
+        initial_data = {
+            # from_date will be None if submitted from balance sheet, so put in arbitrary value
+            'date_from': utils.format_datetime_to_string(from_date) if from_date else '2023-01-01',
+            'date_to': utils.format_datetime_to_string(to_date)
+        }
+
         template = 'api/filter_forms/from-to-date-form.html'
-        context = {'filter_form': FromToDateForm()}
+        context = {
+            'filter_form': FromToDateForm(initial=initial_data),
+            'get_url': reverse('statements', args=(statement_type,)),
+            'statement_type': statement_type
+        }
         return render_to_string(template, context)
 
     def get_income_statement_html(self, from_date, to_date):
@@ -87,65 +98,38 @@ class FilterFormMixIn:
         template = 'api/content/cash-flow-content.html'
         return render_to_string(template, context)
 
-class StatementFilterView(FilterFormMixIn, LoginRequiredMixin, View):
-    login_url = '/login/'
-    redirect_field_name = 'next'
-
-    def get(self, request, statement_type):
-        form = FromToDateForm(request.GET)
-        from_date = form.cleaned_data['from_date']
-        to_date = form.cleaned_data['to_date']
-
-        if form.is_valid():
-            if statement_type == 'income':
-                html = self.get_income_statement_html(from_date=from_date,to_date=to_date)
-            elif statement_type == 'balance':
-                html = self.get_balance_sheet_html(to_date=to_date)
-            elif statement_type == 'cash':
-                html = self.get_cash_flow_html(from_date=from_date,to_date=to_date)
-
-        return HttpResponse(html)
-
-class StatementView(LoginRequiredMixin, FilterFormMixIn, View):
+class StatementView(StatementMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
 
     def get(self, request, statement_type, *args, **kwargs):
 
-        last_month_tuple = utils.get_last_days_of_month_tuples()[0]
-        last_day_of_last_month = last_month_tuple[0]
-        first_day_of_last_month = utils.get_first_day_of_month_from_date(last_day_of_last_month)
+        form = FromToDateForm(request.GET)
+        if form.is_valid():
+            from_date = form.cleaned_data['date_from']
+            to_date = form.cleaned_data['date_to']
+        else:
+            last_month_tuple = utils.get_last_days_of_month_tuples()[0]
+            last_day_of_last_month = last_month_tuple[0]
+            first_day_of_last_month = utils.get_first_day_of_month_from_date(last_day_of_last_month)
+            from_date = first_day_of_last_month
+            to_date = last_day_of_last_month
 
         if statement_type == 'income':
-            statement_html = self.get_income_statement_html(from_date=first_day_of_last_month,to_date=last_day_of_last_month)
+            statement_html = self.get_income_statement_html(from_date=from_date,to_date=to_date)
             title = 'Income Statement'
         elif statement_type == 'balance':
-            statement_html = self.get_balance_sheet_html(to_date=last_day_of_last_month)
+            statement_html = self.get_balance_sheet_html(to_date=to_date)
             title = 'Balance Sheet'
         elif statement_type == 'cash':
-            statement_html = self.get_cash_flow_html(from_date=first_day_of_last_month,to_date=last_day_of_last_month)
+            statement_html = self.get_cash_flow_html(from_date=from_date,to_date=to_date)
             title = 'Cash Flow Statement'
 
         context = {
             'statement': statement_html,
-            'filter_form': self.get_filter_form_html(statement_type),
+            'filter_form': self.get_filter_form_html(statement_type, from_date=from_date, to_date=to_date),
             'title': title
         }
 
         template = 'api/views/statement.html'
         return HttpResponse(render_to_string(template, context))
-
-# class BalanceSheetView(LoginRequiredMixin, View):
-#     login_url = '/login/'
-#     redirect_field_name = 'next'
-
-#     def get(self, request, *args, **kwargs):
-#         pass
-
-
-# class IncomeStatementView(LoginRequiredMixin, View):
-#     login_url = '/login/'
-#     redirect_field_name = 'next'
-
-#     def get(self, request, *args, **kwargs):
-#         pass
