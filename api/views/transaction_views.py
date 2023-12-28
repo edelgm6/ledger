@@ -428,9 +428,9 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
         if debit_total != credit_total:
             form_errors.append('Debits ($' + str(debit_total) + ') and Credits ($' + str(credit_total) + ') must balance.')
 
-        account_amount = credit_formset.get_account_amount(transaction.account) if transaction.amount < 0 else debit_formset.get_account_amount(transaction.account)
-        if account_amount != abs(transaction.amount):
-            form_errors.append('At least one JEI must have the same account and amount as the transaction.')
+        # account_amount = credit_formset.get_account_amount(transaction.account) if transaction.amount < 0 else debit_formset.get_account_amount(transaction.account)
+        # if account_amount != abs(transaction.amount):
+            # form_errors.append('At least one JEI must have the same account and amount as the transaction.')
 
         prepaid_account = Account.objects.get(special_type=Account.SpecialType.PREPAID_EXPENSES)
         prepaid_amount = credit_formset.get_account_amount(prepaid_account)
