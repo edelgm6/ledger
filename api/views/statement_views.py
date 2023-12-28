@@ -54,8 +54,8 @@ class StatementMixIn:
     def get_balance_sheet_html(self, to_date):
         balance_sheet = BalanceSheet(end_date=to_date)
 
-        assets_balances = [balance for balance in balance_sheet.balances if balance.account_type == Account.Type.INCOME]
-        liabilities_balances = [balance for balance in balance_sheet.balances if balance.account_type == Account.Type.EXPENSE]
+        assets_balances = [balance for balance in balance_sheet.balances if balance.account_type == Account.Type.ASSET]
+        liabilities_balances = [balance for balance in balance_sheet.balances if balance.account_type == Account.Type.LIABILITY]
         equity_balances = [balance for balance in balance_sheet.balances if balance.account_sub_type == Account.SubType.RETAINED_EARNINGS]
         total_assets = sum([metric.value for metric in balance_sheet.summaries if metric.name == 'Asset'])
         total_liabilities = sum([metric.value for metric in balance_sheet.summaries if metric.name == 'Liability'])
