@@ -1,0 +1,33 @@
+<form
+    id="transactions-filter-form"
+    method="get"
+    hx-get="{{ get_url }}"
+    hx-target="#table-and-form"
+    hx-trigger="submit"
+    class="mb-3 form-sm"
+>
+    <div class="row">
+        <!-- Date From Field -->
+        <div class="col-md-2">
+            <div class="form-group">
+                <input type="date" name="{{ filter_form.date_from.html_name }}" id="{{ filter_form.date_from.auto_id }}" class="form-control"
+                       value="{{ filter_form.date_from.value|default_if_none:'' }}" placeholder="Start Date">
+            </div>
+        </div>
+
+        <!-- Date To Field -->
+        <div class="col-md-2">
+            <div class="form-group">
+                <input type="date" name="{{ filter_form.date_to.html_name }}" id="{{ filter_form.date_to.auto_id }}" class="form-control"
+                       value="{{ filter_form.date_to.value|default_if_none:'' }}" placeholder="End Date">
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <!-- Submit Button -->
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">Filter</button>
+            </div>
+        </div>
+    </div>
+</form>

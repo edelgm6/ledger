@@ -5,13 +5,22 @@ from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from api.statement import IncomeStatement, BalanceSheet, CashFlowStatement
 from api.models import Account
+from api.forms import FromToDateForm
 from api import utils
 
-class CashFlowView(LoginRequiredMixin, View):
+class FilterFormMixIn:
+
+    def get_filter_form_html(self):
+        template = 'api/filter_forms/from-to-date-form.html'
+        context = {'filter_form': FromToDateForm()}
+        return render_to_string(template, context)
+
+class CashFlowView(LoginRequiredMixin, FilterFormMixIn, View):
     login_url = '/login/'
     redirect_field_name = 'next'
 
     def get(self, request, *args, **kwargs):
+
         last_month_tuple = utils.get_last_days_of_month_tuples()[0]
         last_day_of_last_month = last_month_tuple[0]
         first_day_of_last_month = utils.get_first_day_of_month_from_date(last_day_of_last_month)
@@ -28,6 +37,7 @@ class CashFlowView(LoginRequiredMixin, View):
         )
 
         context = {
+            'filter_form': self.get_filter_form_html(),
             'operations_flows': cash_statement.cash_from_operations_balances,
             'financing_flows': cash_statement.cash_from_financing_balances,
             'investing_flows': cash_statement.cash_from_investing_balances,
