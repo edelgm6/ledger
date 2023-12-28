@@ -27,14 +27,16 @@
                 <li class="nav-item {% if request.resolver_match.url_name == 'upload-transactions' %}active{% endif %}">
                     <a class="nav-link" href="{% url 'upload-transactions' %}" hx-get="{% url 'upload-transactions' %}" hx-target="#container">Upload/Download</a>
                 </li>
-                <li class="nav-item {% if request.resolver_match.url_name == 'statements' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'statements' 'income' %}" hx-get="{% url 'statements' 'income' %}" hx-target="#container">Income Statement</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'statements' 'balance' %}" hx-get="{% url 'statements' 'balance' %}" hx-target="#container">Balance Sheet</a>
-                </li>
-                <li class="nav-item {% if request.resolver_match.url_name == 'statements' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'statements' 'cash' %}" hx-get="{% url 'statements' 'cash' %}" hx-target="#container">Cash Flow</a>
+                <!-- Dropdown Menu for Financial Statements -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Financial Statements
+                    </a>
+                    <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+                        <a class="dropdown-item" href="{% url 'statements' 'income' %}" hx-get="{% url 'statements' 'income' %}" hx-target="#container">Income Statement</a>
+                        <a class="dropdown-item" href="{% url 'statements' 'balance' %}" hx-get="{% url 'statements' 'balance' %}" hx-target="#container">Balance Sheet</a>
+                        <a class="dropdown-item" href="{% url 'statements' 'cash' %}" hx-get="{% url 'statements' 'cash' %}" hx-target="#container">Cash Flow</a>
+                    </div>
                 </li>
             </ul>
         </div>
