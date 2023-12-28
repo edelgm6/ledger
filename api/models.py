@@ -96,7 +96,7 @@ class Reconciliation(models.Model):
         GAIN_LOSS_ACCOUNT = Account.objects.get(special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES)
 
         delta = self.amount - (self.account.get_balance(self.date) - (self.transaction.amount if self.transaction is not None else 0))
-
+        print(delta)
         if self.transaction:
             transaction = self.transaction
             transaction.amount = delta
