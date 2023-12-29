@@ -6,19 +6,19 @@
 </div>
 <div class="row">
     <div class="col">
-        <h4>Net: ${{ net_cash_flow|intcomma }}</h4>
+        <h4>Net: ${{ net_cash_flow|floatformat:"0"|intcomma }}</h4>
     </div>
 </div>
 <div class="row">
     <div class="col-md-4">
         <h4>Cash from Operations</h4>
-        ${{ cash_from_operations|intcomma }}
+        ${{ cash_from_operations|floatformat:"0"|intcomma }}
         <table class="table table-hover table-sm">
             <tbody>
                 {% for balance in operations_flows %}
                 <tr>
                     <td>{{ balance.account }}</td>
-                    <td>${{ balance.amount|intcomma }}</td>
+                    <td>${{ balance.amount|floatformat:"0"|intcomma }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -27,13 +27,13 @@
 
     <div class="col-md-4">
         <h4>Cash from Financing</h4>
-        ${{ cash_from_financing|intcomma }}
+        ${{ cash_from_financing|floatformat:"0"|intcomma }}
         <table class="table table-hover table-sm">
             <tbody>
                 {% for balance in financing_flows %}
                 <tr>
                     <td>{{ balance.account }}</td>
-                    <td>${{ balance.amount|intcomma }}</td>
+                    <td>${{ balance.amount|floatformat:"0"|intcomma }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -42,13 +42,13 @@
 
     <div class="col-md-4">
         <h4>Cash from Investing</h4>
-        ${{ cash_from_investing|intcomma }}
+        ${{ cash_from_investing|floatformat:"0"|intcomma }}
         <table class="table table-hover table-sm">
             <tbody>
                 {% for balance in investing_flows %}
                 <tr>
                     <td>{{ balance.account }}</td>
-                    <td>${{ balance.amount|intcomma }}</td>
+                    <td>${{ balance.amount|floatformat:"0"|intcomma }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
