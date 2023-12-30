@@ -10,6 +10,18 @@ from api.models import Amortization, Transaction, Account, JournalEntryItem, Tax
 from api import utils
 from api.factories import ReconciliationFactory
 
+class FromToDateForm(forms.Form):
+    date_from = forms.DateField(required=False)
+    date_to = forms.DateField()
+
+    def __init__(self, *args, **kwargs):
+        super(FromToDateForm, self).__init__(*args, **kwargs)
+        last_days_of_month_tuples = utils.get_last_days_of_month_tuples()
+        last_day_of_last_month = last_days_of_month_tuples[0][0]
+
+        self.fields['date_from'].initial = utils.format_datetime_to_string(utils.get_first_day_of_month_from_date(last_day_of_last_month))
+        self.fields['date_to'].initial = utils.format_datetime_to_string(last_day_of_last_month)
+
 class DateForm(forms.Form):
     date = forms.ChoiceField()
 

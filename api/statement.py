@@ -122,6 +122,25 @@ class Statement:
 
         balances = self._get_balance_from_aggregates(aggregates,self.end_date,balance_type)
 
+        # Add accounts without any activity
+        represented_accounts_names = [balance.account for balance in balances]
+        represented_accounts = set(Account.objects.filter(name__in=represented_accounts_names))
+
+        type_objects = [Account.Type[type_value.upper()] for type_value in ACCOUNT_TYPES]
+        eligible_accounts = set(Account.objects.filter(type__in=type_objects))
+
+        unrepresented_accounts = eligible_accounts - represented_accounts
+        for account in unrepresented_accounts:
+            new_balance = Balance(
+                account=account.name,
+                amount=0,
+                account_type=account.type,
+                account_sub_type=account.sub_type,
+                date=self.end_date,
+                type=balance_type)
+            balances.append(new_balance)
+
+        balances.sort(key=lambda balance: balance.account)
         return balances
 
     def get_summaries(self):
@@ -157,20 +176,20 @@ class CashFlowStatement(Statement):
 
         # TODO: Can definitely combine finding the balances and getting the totals
         self.balances = []
-        cash_from_operations_balances = self.get_cash_from_operations_balances()
-        cash_from_financing_balances = self.get_cash_from_financing_balances()
-        cash_from_investing_balances = self.get_cash_from_investing_balances()
+        self.cash_from_operations_balances = self.get_cash_from_operations_balances()
+        self.cash_from_financing_balances = self.get_cash_from_financing_balances()
+        self.cash_from_investing_balances = self.get_cash_from_investing_balances()
         self.net_cash_flow = 0
-        for balances_list in [cash_from_operations_balances,cash_from_financing_balances,cash_from_investing_balances]:
+        for balances_list in [self.cash_from_operations_balances,self.cash_from_financing_balances,self.cash_from_investing_balances]:
             self.balances += balances_list
             self.net_cash_flow += self.get_cash_flow(balances_list)
 
         self.summaries = [
             Metric('Starting Cash', self.get_cash_balance(self.start_balance_sheet)),
             Metric('Ending Cash', self.get_cash_balance(self.end_balance_sheet)),
-            Metric('Cash Flow From Operations', self.get_cash_flow(cash_from_operations_balances)),
-            Metric('Cash Flow From Investing', self.get_cash_flow(cash_from_investing_balances)),
-            Metric('Cash Flow From Financing', self.get_cash_flow(cash_from_financing_balances)),
+            Metric('Cash Flow From Operations', self.get_cash_flow(self.cash_from_operations_balances)),
+            Metric('Cash Flow From Investing', self.get_cash_flow(self.cash_from_investing_balances)),
+            Metric('Cash Flow From Financing', self.get_cash_flow(self.cash_from_financing_balances)),
             Metric('Net Cash Flow', self.net_cash_flow)
         ]
         self.metrics = [
