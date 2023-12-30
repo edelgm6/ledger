@@ -351,14 +351,14 @@ class Account(models.Model):
     class SubType(models.TextChoices):
         # Liability types
         SHORT_TERM_DEBT = 'short_term_debt', _('Short-term Debt')
-        LONG_TERM_DEBT = 'long_term_debt', _('Long-term Debt')
         TAXES_PAYABLE = 'taxes_payable', _('Taxes Payable')
+        LONG_TERM_DEBT = 'long_term_debt', _('Long-term Debt')
         # Asset types
         CASH = 'cash', _('Cash')
-        REAL_ESTATE = 'real_estate', _('Real Estate')
-        SECURITIES_RETIREMENT = 'securities_retirement', _('Securities-Retirement')
-        SECURITIES_UNRESTRICTED = 'securities_unrestricted', _('Securities-Unrestricted')
         ACCOUNTS_RECEIVABLE = 'accounts_receivable', _('Accounts Receivable')
+        SECURITIES_UNRESTRICTED = 'securities_unrestricted', _('Securities-Unrestricted')
+        SECURITIES_RETIREMENT = 'securities_retirement', _('Securities-Retirement')
+        REAL_ESTATE = 'real_estate', _('Real Estate')
         # Equity types
         RETAINED_EARNINGS = 'retained_earnings', _('Retained Earnings')
         # Income types
