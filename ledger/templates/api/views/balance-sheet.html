@@ -1,0 +1,49 @@
+{% load humanize %}
+<h2>Balance Sheet</h2>
+
+<div class="row">
+    <div class="col-md-4">
+        <h4>Assets</h4>
+        ${{ total_assets|intcomma }}
+        <table class="table table-hover table-sm">
+            <tbody>
+                {% for balance in assets_balances %}
+                <tr>
+                    <td>{{ balance.account }}</td>
+                    <td>${{ balance.amount|intcomma }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="col-md-4">
+        <h4>Liabilities</h4>
+        ${{ total_liabilities|intcomma }}
+        <table class="table table-hover table-sm">
+            <tbody>
+                {% for balance in liabilities_balances %}
+                <tr>
+                    <td>{{ balance.account }}</td>
+                    <td>${{ balance.amount|intcomma }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="col-md-4">
+        <h4>Equity</h4>
+        ${{ total_equity|intcomma }}
+        <table class="table table-hover table-sm">
+            <tbody>
+                {% for balance in equity_balances %}
+                <tr>
+                    <td>{{ balance.account }}</td>
+                    <td>${{ balance.amount|intcomma }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
