@@ -140,6 +140,7 @@ class Statement:
                 type=balance_type)
             balances.append(new_balance)
 
+        balances.sort(key=lambda balance: balance.account)
         return balances
 
     def get_summaries(self):
