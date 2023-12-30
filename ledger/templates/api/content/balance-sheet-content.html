@@ -8,51 +8,60 @@
     <div class="col-md-4">
         <h4>Assets: ${{ summary.asset.total|floatformat:"0"|intcomma }}</h4>
         {% for account in summary.asset.balances %}
-            <h6>{{ account.name }}: ${{ account.total|floatformat:"0"|intcomma }}</h6>
-            <table class="table table-hover table-sm">
-                <tbody>
-                    {% for balance in account.balances %}
-                    <tr>
-                        <td class="col-8">{{ balance.account }}</td>
-                        <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <table class="table table-hover table-sm">
+            <tbody>
+                <tr>
+                    <td class="col-8"><strong>{{ account.name }}</strong></td>
+                    <td class="col-4"><strong>${{ account.total|floatformat:"0"|intcomma }}</strong></td>
+                </tr>
+                {% for balance in account.balances %}
+                <tr>
+                    <td class="col-8">{{ balance.account }}</td>
+                    <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
         {% endfor %}
     </div>
 
     <div class="col-md-4">
         <h4>Liabilities: ${{ summary.liability.total|floatformat:"0"|intcomma }}</h4>
         {% for account in summary.liability.balances %}
-            <h6>{{ account.name }}: ${{ account.total|floatformat:"0"|intcomma }}</h6>
-            <table class="table table-hover table-sm">
-                <tbody>
-                    {% for balance in account.balances %}
-                    <tr>
-                        <td class="col-8">{{ balance.account }}</td>
-                        <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <table class="table table-hover table-sm">
+            <tbody>
+                <tr>
+                    <td class="col-8"><strong>{{ account.name }}</strong></td>
+                    <td class="col-4"><strong>${{ account.total|floatformat:"0"|intcomma }}</strong></td>
+                </tr>
+                {% for balance in account.balances %}
+                <tr>
+                    <td class="col-8">{{ balance.account }}</td>
+                    <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
         {% endfor %}
     </div>
 
     <div class="col-md-4">
         <h4>Equity: ${{ summary.equity.total|floatformat:"0"|intcomma }}</h4>
         {% for account in summary.equity.balances %}
-            <h6>{{ account.name }}: ${{ account.total|floatformat:"0"|intcomma }}</h6>
-            <table class="table table-hover table-sm">
-                <tbody>
-                    {% for balance in account.balances %}
-                    <tr>
-                        <td class="col-8">{{ balance.account }}</td>
-                        <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <table class="table table-hover table-sm">
+            <tbody>
+                <tr>
+                    <td class="col-8"><strong>{{ account.name }}</strong></td>
+                    <td class="col-4"><strong>${{ account.total|floatformat:"0"|intcomma }}</strong></td>
+                </tr>
+                {% for balance in account.balances %}
+                <tr>
+                    <td class="col-8">{{ balance.account }}</td>
+                    <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
         {% endfor %}
     </div>
 </div>
