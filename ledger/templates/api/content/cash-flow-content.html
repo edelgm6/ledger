@@ -17,8 +17,8 @@
             <tbody>
                 {% for balance in operations_flows %}
                 <tr>
-                    <td>{{ balance.account }}</td>
-                    <td>${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                    <td class="col-8">{{ balance.account }}</td>
+                    <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -32,8 +32,8 @@
             <tbody>
                 {% for balance in financing_flows %}
                 <tr>
-                    <td>{{ balance.account }}</td>
-                    <td>${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                    <td class="col-8">{{ balance.account }}</td>
+                    <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -47,8 +47,8 @@
             <tbody>
                 {% for balance in investing_flows %}
                 <tr>
-                    <td>{{ balance.account }}</td>
-                    <td>${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                    <td class="col-8">{{ balance.account }}</td>
+                    <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
