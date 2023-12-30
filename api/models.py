@@ -358,6 +358,7 @@ class Account(models.Model):
         REAL_ESTATE = 'real_estate', _('Real Estate')
         SECURITIES_RETIREMENT = 'securities_retirement', _('Securities-Retirement')
         SECURITIES_UNRESTRICTED = 'securities_unrestricted', _('Securities-Unrestricted')
+        ACCOUNTS_RECEIVABLE = 'accounts_receivable', _('Accounts Receivable')
         # Equity types
         RETAINED_EARNINGS = 'retained_earnings', _('Retained Earnings')
         # Income types
@@ -370,7 +371,21 @@ class Account(models.Model):
         PURCHASES = 'purchases', _('Purchases')
         TAX = 'tax', _('Tax')
         INTEREST = 'interest', _('Interest Expense')
-        ACCOUNTS_RECEIVABLE = 'accounts_receivable', _('Accounts Receivable')
+
+    # TODO: Add a test that makes sure every type/subtype is represented here
+    SUBTYPE_TO_TYPE_MAP = {
+        Type.LIABILITY: [SubType.SHORT_TERM_DEBT,SubType.LONG_TERM_DEBT,SubType.TAXES_PAYABLE],
+        Type.ASSET: [SubType.CASH,SubType.REAL_ESTATE,SubType.SECURITIES_RETIREMENT,SubType.SECURITIES_UNRESTRICTED,SubType.ACCOUNTS_RECEIVABLE],
+        Type.EQUITY: [SubType.RETAINED_EARNINGS],
+        Type.INCOME: [
+            SubType.UNREALIZED_INVESTMENT_GAINS,
+            SubType.REALIZED_INVESTMENT_GAINS,
+            SubType.SALARY,
+            SubType.DIVIDENDS_AND_INTEREST,
+            SubType.OTHER_INCOME
+        ],
+        Type.EXPENSE: [SubType.PURCHASES,SubType.TAX,SubType.INTEREST]
+    }
 
     name = models.CharField(max_length=200,unique=True)
     type = models.CharField(max_length=9,choices=Type.choices)

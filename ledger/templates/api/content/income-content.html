@@ -13,7 +13,7 @@
                 {% for balance in income_balances %}
                 <tr>
                     <td>{{ balance.account }}</td>
-                    <td>${{ balance.amount|intcomma }}</td>
+                    <td>${{ balance.amount|floatformat:"0"|intcomma }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -28,7 +28,7 @@
                 {% for balance in expense_balances %}
                 <tr>
                     <td>{{ balance.account }}</td>
-                    <td>${{ balance.amount|intcomma }}</td>
+                    <td>${{ balance.amount|floatformat:"0"|intcomma }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -38,5 +38,17 @@
     <div class="col-md-4">
         <h4>Net Income</h4>
         ${{ net_income|intcomma }}
+        <table class="table table-hover table-sm">
+            <tbody>
+                <tr>
+                    <td>Realized Net Income</td>
+                    <td>${{ realized_net_income|floatformat:"0"|intcomma }}</td>
+                </tr>
+                <tr>
+                    <td>Unrealized Income</td>
+                    <td>${{ unrealized_income|floatformat:"0"|intcomma }}</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 </div>
