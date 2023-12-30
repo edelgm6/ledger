@@ -38,6 +38,7 @@ class StatementMixIn:
         net_income = sum([balance.amount for balance in income_statement.balances if balance.account_sub_type == Account.SubType.RETAINED_EARNINGS])
         total_income = sum([metric.value for metric in income_statement.summaries if metric.name == 'Income'])
         total_expense = sum([metric.value for metric in income_statement.summaries if metric.name == 'Expense'])
+        realized_net_income = income_statement.net_income - income_statement.investment_gains
 
         context = {
             'income_balances': income_balances,
@@ -45,7 +46,9 @@ class StatementMixIn:
             'net_income': net_income,
             'income_statement': income_statement,
             'total_income': total_income,
-            'total_expense': total_expense
+            'total_expense': total_expense,
+            'realized_net_income': realized_net_income,
+            'unrealized_income': income_statement.investment_gains
         }
 
         template = 'api/content/income-content.html'
@@ -54,20 +57,31 @@ class StatementMixIn:
     def get_balance_sheet_html(self, to_date):
         balance_sheet = BalanceSheet(end_date=to_date)
 
-        assets_balances = [balance for balance in balance_sheet.balances if balance.account_type == Account.Type.ASSET]
-        liabilities_balances = [balance for balance in balance_sheet.balances if balance.account_type == Account.Type.LIABILITY]
-        equity_balances = [balance for balance in balance_sheet.balances if balance.account_sub_type == Account.SubType.RETAINED_EARNINGS]
-        total_assets = sum([metric.value for metric in balance_sheet.summaries if metric.name == 'Asset'])
-        total_liabilities = sum([metric.value for metric in balance_sheet.summaries if metric.name == 'Liability'])
-        total_equity = sum([metric.value for metric in balance_sheet.summaries if metric.name == 'Equity'])
+        type_dict = dict(Account.Type.choices)
+        balance_sheet_summary = {}
+        for account_type in Account.Type.values:
+            type_total = 0
+            account_balances = []
+            for sub_type in Account.SUBTYPE_TO_TYPE_MAP[account_type]:
+                balances = [balance for balance in balance_sheet.balances if balance.account_sub_type == sub_type]
+                sub_type_total = sum([balance.amount for balance in balances])
+                account_balances.append(
+                    {
+                        'name': sub_type.label,
+                        'balances': balances,
+                        'total': sub_type_total
+                    }
+                )
+                type_total += sub_type_total
+            label = type_dict[account_type]
+            balance_sheet_summary[account_type] = {
+                'name': label,
+                'balances': account_balances,
+                'total': type_total
+            }
 
         context = {
-            'assets_balances': assets_balances,
-            'liabilities_balances': liabilities_balances,
-            'equity_balances': equity_balances,
-            'total_assets': total_assets,
-            'total_liabilities': total_liabilities,
-            'total_equity': total_equity
+            'summary': balance_sheet_summary
         }
 
         template = 'api/content/balance-sheet-content.html'

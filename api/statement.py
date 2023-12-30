@@ -122,6 +122,21 @@ class Statement:
 
         balances = self._get_balance_from_aggregates(aggregates,self.end_date,balance_type)
 
+        # Add accounts without any activity
+        represented_accounts = [balance.account for balance in balances]
+        type_objects = [Account.Type[type_value.upper()] for type_value in ACCOUNT_TYPES]
+        eligible_accounts = Account.objects.filter(type__in=type_objects)
+        for account in eligible_accounts:
+            if account not in represented_accounts:
+                new_balance = Balance(
+                    account=account,
+                    amount=0,
+                    account_type=account.type,
+                    account_sub_type=account.sub_type,
+                    date=self.end_date,
+                    type=balance_type)
+                balances.append(new_balance)
+
         return balances
 
     def get_summaries(self):
