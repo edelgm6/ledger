@@ -11,6 +11,33 @@ from api import utils
 
 class StatementMixIn:
 
+    def _get_statement_summary_dict(self, statement):
+
+        type_dict = dict(Account.Type.choices)
+        summary = {}
+        for account_type in Account.Type.values:
+            type_total = 0
+            account_balances = []
+            for sub_type in Account.SUBTYPE_TO_TYPE_MAP[account_type]:
+                balances = [balance for balance in statement.balances if balance.account_sub_type == sub_type]
+                sub_type_total = sum([balance.amount for balance in balances])
+                account_balances.append(
+                    {
+                        'name': sub_type.label,
+                        'balances': balances,
+                        'total': sub_type_total
+                    }
+                )
+                type_total += sub_type_total
+            label = type_dict[account_type]
+            summary[account_type] = {
+                'name': label,
+                'balances': account_balances,
+                'total': type_total
+            }
+
+        return summary
+
     def get_filter_form_html(self, statement_type, from_date, to_date):
         initial_data = {
             # from_date will be None if submitted from balance sheet, so put in arbitrary value
@@ -32,23 +59,26 @@ class StatementMixIn:
             start_date=from_date
         )
 
-        income_balances = [balance for balance in income_statement.balances if balance.account_type == Account.Type.INCOME]
-        expense_balances = [balance for balance in income_statement.balances if balance.account_type == Account.Type.EXPENSE]
-        net_income = sum([balance.amount for balance in income_statement.balances if balance.account_sub_type == Account.SubType.RETAINED_EARNINGS])
-        net_income = sum([balance.amount for balance in income_statement.balances if balance.account_sub_type == Account.SubType.RETAINED_EARNINGS])
-        total_income = sum([metric.value for metric in income_statement.summaries if metric.name == 'Income'])
-        total_expense = sum([metric.value for metric in income_statement.summaries if metric.name == 'Expense'])
-        realized_net_income = income_statement.net_income - income_statement.investment_gains
+        # income_balances = [balance for balance in income_statement.balances if balance.account_type == Account.Type.INCOME]
+        # expense_balances = [balance for balance in income_statement.balances if balance.account_type == Account.Type.EXPENSE]
+        # net_income = sum([balance.amount for balance in income_statement.balances if balance.account_sub_type == Account.SubType.RETAINED_EARNINGS])
+        # net_income = sum([balance.amount for balance in income_statement.balances if balance.account_sub_type == Account.SubType.RETAINED_EARNINGS])
+        # total_income = sum([metric.value for metric in income_statement.summaries if metric.name == 'Income'])
+        # total_expense = sum([metric.value for metric in income_statement.summaries if metric.name == 'Expense'])
+        # realized_net_income = income_statement.net_income - income_statement.investment_gains
 
+        summary = self._get_statement_summary_dict(statement=income_statement)
+        print(summary)
         context = {
-            'income_balances': income_balances,
-            'expense_balances': expense_balances,
-            'net_income': net_income,
-            'income_statement': income_statement,
-            'total_income': total_income,
-            'total_expense': total_expense,
-            'realized_net_income': realized_net_income,
-            'unrealized_income': income_statement.investment_gains
+            'summary': summary
+            # 'income_balances': income_balances,
+            # 'expense_balances': expense_balances,
+            # 'net_income': net_income,
+            # 'income_statement': income_statement,
+            # 'total_income': total_income,
+            # 'total_expense': total_expense,
+            # 'realized_net_income': realized_net_income,
+            # 'unrealized_income': income_statement.investment_gains
         }
 
         template = 'api/content/income-content.html'
@@ -56,32 +86,10 @@ class StatementMixIn:
 
     def get_balance_sheet_html(self, to_date):
         balance_sheet = BalanceSheet(end_date=to_date)
-
-        type_dict = dict(Account.Type.choices)
-        balance_sheet_summary = {}
-        for account_type in Account.Type.values:
-            type_total = 0
-            account_balances = []
-            for sub_type in Account.SUBTYPE_TO_TYPE_MAP[account_type]:
-                balances = [balance for balance in balance_sheet.balances if balance.account_sub_type == sub_type]
-                sub_type_total = sum([balance.amount for balance in balances])
-                account_balances.append(
-                    {
-                        'name': sub_type.label,
-                        'balances': balances,
-                        'total': sub_type_total
-                    }
-                )
-                type_total += sub_type_total
-            label = type_dict[account_type]
-            balance_sheet_summary[account_type] = {
-                'name': label,
-                'balances': account_balances,
-                'total': type_total
-            }
+        summary = self._get_statement_summary_dict(statement=balance_sheet)
 
         context = {
-            'summary': balance_sheet_summary
+            'summary': summary
         }
 
         template = 'api/content/balance-sheet-content.html'
