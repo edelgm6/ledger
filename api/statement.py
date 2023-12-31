@@ -235,7 +235,7 @@ class CashFlowStatement(Statement):
     def get_cash_from_operations_balances(self):
         net_income_less_gains_and_losses = [
             Balance(
-                'Net Income less Gains/Losses',
+                'Realized Net Income',
                 self.net_income_less_gains_and_losses,
                 Account.Type.EQUITY,Account.SubType.RETAINED_EARNINGS,
                 self.end_balance_sheet.end_date
