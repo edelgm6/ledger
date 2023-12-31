@@ -100,7 +100,9 @@ class StatementMixIn:
             'cash_from_operations': sum([metric.value for metric in cash_statement.summaries if metric.name == 'Cash Flow From Operations']),
             'cash_from_financing': sum([metric.value for metric in cash_statement.summaries if metric.name == 'Cash Flow From Financing']),
             'cash_from_investing': sum([metric.value for metric in cash_statement.summaries if metric.name == 'Cash Flow From Investing']),
-            'net_cash_flow': sum([metric.value for metric in cash_statement.summaries if metric.name == 'Net Cash Flow'])
+            'net_cash_flow': sum([metric.value for metric in cash_statement.summaries if metric.name == 'Net Cash Flow']),
+            'levered_cash_flow': cash_statement.get_levered_after_tax_cash_flow(),
+            'levered_cash_flow_post_retirement': cash_statement.get_levered_after_tax_after_retirement_cash_flow()
         }
 
         template = 'api/content/cash-flow-content.html'
