@@ -1,4 +1,5 @@
 {% load humanize %}
+{% load math_filters %}
 <div class="row">
     <div class="col">
         {{ filter_form }}
@@ -10,12 +11,12 @@
             <div class="row text-center">
                 <!-- Savings Rate -->
                 <div class="col-md-2">
-                    <h5 class="font-weight-bold">{{ savings_rate }}%</h5>
+                    <h5 class="font-weight-bold">{{ savings_rate|multiply:100|floatformat:1 }}%</h5>
                     <p class="text-secondary">Savings Rate</p>
                 </div>
                 <!-- Tax Rate -->
                 <div class="col-md-2">
-                    <h5 class="font-weight-bold">{{ tax_rate }}%</h5>
+                    <h5 class="font-weight-bold">{{ tax_rate|multiply:100|floatformat:1 }}%</h5>
                     <p class="text-secondary">Tax Rate</p>
                 </div>
                 <!-- Additional metrics can be added here -->
