@@ -74,7 +74,10 @@ class StatementMixIn:
         summary = self._get_statement_summary_dict(statement=balance_sheet)
 
         context = {
-            'summary': summary
+            'summary': summary,
+            'cash_percent_assets': balance_sheet.get_cash_percent_assets(),
+            'debt_to_equity_ratio': balance_sheet.get_debt_to_equity(),
+            'liquid_percent_assets': balance_sheet.get_liquid_assets_percent()
         }
 
         template = 'api/content/balance-sheet-content.html'

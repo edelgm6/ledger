@@ -1,67 +1,88 @@
 {% load humanize %}
+{% load math_filters %}
 <div class="row">
     <div class="col">
         {{ filter_form }}
     </div>
 </div>
-<div class="row">
-    <div class="col-md-4">
-        <h4>Assets: ${{ summary.asset.total|floatformat:"0"|intcomma }}</h4>
-        {% for account in summary.asset.balances %}
-        <table class="table table-hover table-sm">
-            <tbody>
-                <tr>
-                    <td class="col-8"><strong>{{ account.name }}</strong></td>
-                    <td class="col-4"><strong>${{ account.total|floatformat:"0"|intcomma }}</strong></td>
-                </tr>
-                {% for balance in account.balances %}
-                <tr>
-                    <td class="col-8">{{ balance.account }}</td>
-                    <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% endfor %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="row text-center">
+                <div class="col-md-2">
+                    <h5 class="font-weight-bold">{{ cash_percent_assets|multiply:100|floatformat:1 }}%</h5>
+                    <p class="text-secondary">Cash % Assets</p>
+                </div>
+                <div class="col-md-2">
+                    <h5 class="font-weight-bold">{{ liquid_percent_assets|multiply:100|floatformat:1 }}%</h5>
+                    <p class="text-secondary">% Liquid</p>
+                </div>
+                <div class="col-md-2">
+                    <h5 class="font-weight-bold">{{ debt_to_equity_ratio|floatformat:2 }}x</h5>
+                    <p class="text-secondary">Debt to Equity</p>
+                </div>
+            </div>
+        </div>
     </div>
+    <div class="row">
+        <div class="col-md-4">
+            <h4>Assets: ${{ summary.asset.total|floatformat:"0"|intcomma }}</h4>
+            {% for account in summary.asset.balances %}
+            <table class="table table-hover table-sm">
+                <tbody>
+                    <tr>
+                        <td class="col-8"><strong>{{ account.name }}</strong></td>
+                        <td class="col-4"><strong>${{ account.total|floatformat:"0"|intcomma }}</strong></td>
+                    </tr>
+                    {% for balance in account.balances %}
+                    <tr>
+                        <td class="col-8">{{ balance.account }}</td>
+                        <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endfor %}
+        </div>
 
-    <div class="col-md-4">
-        <h4>Liabilities: ${{ summary.liability.total|floatformat:"0"|intcomma }}</h4>
-        {% for account in summary.liability.balances %}
-        <table class="table table-hover table-sm">
-            <tbody>
-                <tr>
-                    <td class="col-8"><strong>{{ account.name }}</strong></td>
-                    <td class="col-4"><strong>${{ account.total|floatformat:"0"|intcomma }}</strong></td>
-                </tr>
-                {% for balance in account.balances %}
-                <tr>
-                    <td class="col-8">{{ balance.account }}</td>
-                    <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% endfor %}
-    </div>
+        <div class="col-md-4">
+            <h4>Liabilities: ${{ summary.liability.total|floatformat:"0"|intcomma }}</h4>
+            {% for account in summary.liability.balances %}
+            <table class="table table-hover table-sm">
+                <tbody>
+                    <tr>
+                        <td class="col-8"><strong>{{ account.name }}</strong></td>
+                        <td class="col-4"><strong>${{ account.total|floatformat:"0"|intcomma }}</strong></td>
+                    </tr>
+                    {% for balance in account.balances %}
+                    <tr>
+                        <td class="col-8">{{ balance.account }}</td>
+                        <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endfor %}
+        </div>
 
-    <div class="col-md-4">
-        <h4>Equity: ${{ summary.equity.total|floatformat:"0"|intcomma }}</h4>
-        {% for account in summary.equity.balances %}
-        <table class="table table-hover table-sm">
-            <tbody>
-                <tr>
-                    <td class="col-8"><strong>{{ account.name }}</strong></td>
-                    <td class="col-4"><strong>${{ account.total|floatformat:"0"|intcomma }}</strong></td>
-                </tr>
-                {% for balance in account.balances %}
-                <tr>
-                    <td class="col-8">{{ balance.account }}</td>
-                    <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% endfor %}
+        <div class="col-md-4">
+            <h4>Equity: ${{ summary.equity.total|floatformat:"0"|intcomma }}</h4>
+            {% for account in summary.equity.balances %}
+            <table class="table table-hover table-sm">
+                <tbody>
+                    <tr>
+                        <td class="col-8"><strong>{{ account.name }}</strong></td>
+                        <td class="col-4"><strong>${{ account.total|floatformat:"0"|intcomma }}</strong></td>
+                    </tr>
+                    {% for balance in account.balances %}
+                    <tr>
+                        <td class="col-8">{{ balance.account }}</td>
+                        <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endfor %}
+        </div>
     </div>
 </div>
