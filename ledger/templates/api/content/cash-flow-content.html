@@ -4,60 +4,75 @@
         {{ filter_form }}
     </div>
 </div>
-<div class="row">
-    <div class="col">
-        <h4>Net: ${{ net_cash_flow|floatformat:"0"|intcomma }}</h4>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="row text-center">
+                <div class="col-md-2">
+                    <h5 class="font-weight-bold">${{ net_cash_flow|floatformat:0|intcomma }}</h5>
+                    <p class="text-secondary">Cash Balance Change</p>
+                </div>
+                <div class="col-md-2">
+                    <h5 class="font-weight-bold">${{ levered_cash_flow|floatformat:0|intcomma }}</h5>
+                    <p class="text-secondary">Levered Cash Flow</p>
+                </div>
+                <div class="col-md-2">
+                    <h5 class="font-weight-bold">${{ levered_cash_flow_post_retirement|floatformat:0|intcomma }}</h5>
+                    <p class="text-secondary">Levered Cash Flow, post-Retirement</p>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
-<div class="row">
-    <div class="col-md-4">
-        <table class="table table-hover table-sm">
-            <tbody>
-                <tr>
-                    <td class="col-8"><strong>Cash from Operations</strong></td>
-                    <td class="col-4"><strong>${{ cash_from_operations|floatformat:"0"|intcomma }}</strong></td>
-                </tr>
-                {% for balance in operations_flows %}
-                <tr>
-                    <td class="col-8">{{ balance.account }}</td>
-                    <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    <div class="row">
+        <div class="col-md-4">
+            <table class="table table-hover table-sm">
+                <tbody>
+                    <tr>
+                        <td class="col-8"><strong>Cash from Operations</strong></td>
+                        <td class="col-4"><strong>${{ cash_from_operations|floatformat:"0"|intcomma }}</strong></td>
+                    </tr>
+                    {% for balance in operations_flows %}
+                    <tr>
+                        <td class="col-8">{{ balance.account }}</td>
+                        <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
 
-    <div class="col-md-4">
-        <table class="table table-hover table-sm">
-            <tbody>
-                <tr>
-                    <td class="col-8"><strong>Cash from Financing</strong></td>
-                    <td class="col-4"><strong>${{ cash_from_financing|floatformat:"0"|intcomma }}</strong></td>
-                </tr>
-                {% for balance in financing_flows %}
-                <tr>
-                    <td class="col-8">{{ balance.account }}</td>
-                    <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+        <div class="col-md-4">
+            <table class="table table-hover table-sm">
+                <tbody>
+                    <tr>
+                        <td class="col-8"><strong>Cash from Financing</strong></td>
+                        <td class="col-4"><strong>${{ cash_from_financing|floatformat:"0"|intcomma }}</strong></td>
+                    </tr>
+                    {% for balance in financing_flows %}
+                    <tr>
+                        <td class="col-8">{{ balance.account }}</td>
+                        <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
 
-    <div class="col-md-4">
-        <table class="table table-hover table-sm">
-            <tbody>
-                <tr>
-                    <td class="col-8"><strong>Cash from Investing</strong></td>
-                    <td class="col-4"><strong>${{ cash_from_investing|floatformat:"0"|intcomma }}</strong></td>
-                </tr>
-                {% for balance in investing_flows %}
-                <tr>
-                    <td class="col-8">{{ balance.account }}</td>
-                    <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="col-md-4">
+            <table class="table table-hover table-sm">
+                <tbody>
+                    <tr>
+                        <td class="col-8"><strong>Cash from Investing</strong></td>
+                        <td class="col-4"><strong>${{ cash_from_investing|floatformat:"0"|intcomma }}</strong></td>
+                    </tr>
+                    {% for balance in investing_flows %}
+                    <tr>
+                        <td class="col-8">{{ balance.account }}</td>
+                        <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
