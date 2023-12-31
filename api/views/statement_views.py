@@ -59,26 +59,11 @@ class StatementMixIn:
             start_date=from_date
         )
 
-        # income_balances = [balance for balance in income_statement.balances if balance.account_type == Account.Type.INCOME]
-        # expense_balances = [balance for balance in income_statement.balances if balance.account_type == Account.Type.EXPENSE]
-        # net_income = sum([balance.amount for balance in income_statement.balances if balance.account_sub_type == Account.SubType.RETAINED_EARNINGS])
-        # net_income = sum([balance.amount for balance in income_statement.balances if balance.account_sub_type == Account.SubType.RETAINED_EARNINGS])
-        # total_income = sum([metric.value for metric in income_statement.summaries if metric.name == 'Income'])
-        # total_expense = sum([metric.value for metric in income_statement.summaries if metric.name == 'Expense'])
-        # realized_net_income = income_statement.net_income - income_statement.investment_gains
-
         summary = self._get_statement_summary_dict(statement=income_statement)
-        print(summary)
         context = {
-            'summary': summary
-            # 'income_balances': income_balances,
-            # 'expense_balances': expense_balances,
-            # 'net_income': net_income,
-            # 'income_statement': income_statement,
-            # 'total_income': total_income,
-            # 'total_expense': total_expense,
-            # 'realized_net_income': realized_net_income,
-            # 'unrealized_income': income_statement.investment_gains
+            'summary': summary,
+            'tax_rate': 0 if not income_statement.get_tax_rate() else income_statement.get_tax_rate(),
+            'savings_rate': 0 if not income_statement.get_savings_rate() else income_statement.get_savings_rate()
         }
 
         template = 'api/content/income-content.html'
