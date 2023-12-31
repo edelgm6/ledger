@@ -295,7 +295,24 @@ class IncomeStatement(Statement):
 
         self.net_income = self.get_net_income()
         self.investment_gains = self.get_unrealized_gains_and_losses()
-        self.balances.append(Balance('Net Income', self.net_income, Account.Type.EQUITY, Account.SubType.RETAINED_EARNINGS,self.end_date))
+        self.balances.append(
+            Balance(
+                'Realized Net Income',
+                self.net_income - self.investment_gains,
+                Account.Type.EQUITY,
+                Account.SubType.RETAINED_EARNINGS,
+                self.end_date
+            )
+        )
+        self.balances.append(
+            Balance(
+                'Unrealized Gains/Losses',
+                self.investment_gains,
+                Account.Type.EQUITY,
+                Account.SubType.RETAINED_EARNINGS,
+                self.end_date
+            )
+        )
         self.metrics = self.get_metrics()
         self.summaries = self.get_summaries()
 
