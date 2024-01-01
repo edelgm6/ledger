@@ -1,10 +1,14 @@
-    <h2>Linking</h2>
+<h2>Linking</h2>
 
-    {{ filter_form }}
+{{ filter_form }}
 
-    <div id="table-and-form">
-        {{ table_and_form }}
-    </div>
+<div id="table-and-form">
+    {{ table_and_form }}
+</div>
+
+{% block extra_js %}
+{% include "api/components/two-row-select-script.html" %}
+{% endblock %}
 
 
 
