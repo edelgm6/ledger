@@ -217,7 +217,7 @@ class Transaction(models.Model):
                     self.prefill = tag.prefill
                     # Only override the transaction type if it's specified in the tag
                     if tag.transaction_type:
-                        self.type = self.type or tag.transaction_type
+                        self.type = tag.transaction_type or self.type
                     break
                 else:
                     # Set default transaction type if not already set
