@@ -114,17 +114,16 @@ class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
         initial_end_date = utils.get_last_day_of_last_month()
         TaxChargeFactory.create_bulk_tax_charges(date=initial_end_date)
 
-        tax_charges = TaxCharge.objects.filter(date__gte='2023-01-31',date__lte=initial_end_date)
+        six_months_ago = utils.get_last_days_of_month_tuples()[5][0]
+        tax_charges = TaxCharge.objects.filter(date__gte=six_months_ago,date__lte=initial_end_date)
 
         context = {
             'tax_charge_table': self.get_tax_table_html(tax_charges),
             'form': self.get_tax_form_html(last_day_of_month=utils.get_last_day_of_last_month()),
-            'filter_form': self.get_tax_filter_form_html
+            'filter_form': self.get_tax_filter_form_html()
         }
         template = 'api/views/taxes.html'
         html = render_to_string(template, context)
-
-        template = 'api/views/taxes.html'
         return HttpResponse(html)
 
     def post(self, request, pk=None, *args, **kwargs):
