@@ -2,6 +2,7 @@
 $(document).ready(function(){
     // Functionality to highlight a row
     $('.clickable-row').click(function() {
+        console.log('click-highlight')
         var $currentTable = $(this).closest('table');
         if (!$(this).hasClass('table-active')) {
             $currentTable.find('.clickable-row').removeClass('table-active');
@@ -15,5 +16,4 @@ $(document).ready(function(){
         $currentTable.find('.clickable-row').removeClass('table-active');
     });
 });
-
 </script>
