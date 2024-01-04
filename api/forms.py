@@ -119,13 +119,13 @@ class TaxChargeFilterForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super(TaxChargeFilterForm, self).__init__(*args, **kwargs)
         # Restrict both fields to only allow last days of months
+        last_days_of_month_tuples = utils.get_last_days_of_month_tuples()
         for field_name in ['date_from', 'date_to']:
             field = self.fields[field_name]
-            field.choices = utils.get_last_days_of_month_tuples()
+            field.choices = last_days_of_month_tuples
 
-        current_year = datetime.now().year
-        january_31 = date(current_year, 1, 31)
-        self.fields['date_from'].initial = january_31
+        six_months_ago_date_string = last_days_of_month_tuples[5][0]
+        self.fields['date_from'].initial = six_months_ago_date_string
 
     def get_tax_charges(self):
         queryset = TaxCharge.objects.all()

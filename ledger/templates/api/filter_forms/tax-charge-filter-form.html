@@ -12,7 +12,7 @@
         <div class="col-md-2">
             <div class="form-group">
                 <label for="id_date_from">Date From</label>
-                <select name="date_from" id="id_date_from" class="form-control">
+                <select name="date_from" id="id_date_from" class="form-control" value="{{ filter_form.date_from.value }}">
                     {% for option in filter_form.date_from %}
                         {{ option }}
                     {% endfor %}
