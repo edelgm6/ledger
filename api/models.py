@@ -362,11 +362,11 @@ class Account(models.Model):
         # Equity types
         RETAINED_EARNINGS = 'retained_earnings', _('Retained Earnings')
         # Income types
-        UNREALIZED_INVESTMENT_GAINS = 'unrealized_investment_gains', _('Unrealized Investment Gains')
-        REALIZED_INVESTMENT_GAINS = 'realized_investment_gains', _('Realized Investment Gains')
         SALARY = 'salary', _('Salary')
         DIVIDENDS_AND_INTEREST = 'dividends_and_interest', _('Dividends & Interest')
+        REALIZED_INVESTMENT_GAINS = 'realized_investment_gains', _('Realized Investment Gains')
         OTHER_INCOME = 'other_income', _('Other Income')
+        UNREALIZED_INVESTMENT_GAINS = 'unrealized_investment_gains', _('Unrealized Investment Gains')
         # Expense Types
         PURCHASES = 'purchases', _('Purchases')
         TAX = 'tax', _('Tax')
@@ -378,11 +378,11 @@ class Account(models.Model):
         Type.ASSET: [SubType.CASH,SubType.REAL_ESTATE,SubType.SECURITIES_RETIREMENT,SubType.SECURITIES_UNRESTRICTED,SubType.ACCOUNTS_RECEIVABLE],
         Type.EQUITY: [SubType.RETAINED_EARNINGS],
         Type.INCOME: [
-            SubType.UNREALIZED_INVESTMENT_GAINS,
-            SubType.REALIZED_INVESTMENT_GAINS,
             SubType.SALARY,
             SubType.DIVIDENDS_AND_INTEREST,
-            SubType.OTHER_INCOME
+            SubType.REALIZED_INVESTMENT_GAINS,
+            SubType.OTHER_INCOME,
+            SubType.UNREALIZED_INVESTMENT_GAINS
         ],
         Type.EXPENSE: [SubType.PURCHASES,SubType.TAX,SubType.INTEREST]
     }
