@@ -282,6 +282,7 @@ class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
 
 # Called on filter
 class LinkTransactionsContentView(TransactionsViewMixin, LoginRequiredMixin, View):
+
     def get(self, request):
         form = TransactionFilterForm(request.GET, prefix='filter')
         if form.is_valid():
@@ -290,8 +291,8 @@ class LinkTransactionsContentView(TransactionsViewMixin, LoginRequiredMixin, Vie
             table_html = self.get_table_html(transactions, no_highlight=True)
             link_form_html = self.get_link_form_html()
             context = {
-                'link_form': link_form_html,
-                'table': table_html
+                'table': table_html,
+                'link_form': link_form_html
             }
             content_template  = 'api/content/transactions-link-content.html'
 
@@ -330,7 +331,8 @@ class LinkTransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
 
     def post(self, request):
         form = TransactionLinkForm(request.POST)
-        filter_form = TransactionFilterForm(request.POST)
+        filter_form = TransactionFilterForm(request.POST, prefix='filter')
+        print(request.POST)
         if filter_form.is_valid():
             transactions = filter_form.get_transactions()
 

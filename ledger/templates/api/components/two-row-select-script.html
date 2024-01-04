@@ -1,6 +1,8 @@
 <script>
 $(document).ready(function(){
+    console.log('ready')
     $('.clickable-row').click(function() {
+        console.log('click-select2')
         var highlightedCount = $('.clickable-row.table-active').length;
         if ($(this).hasClass('table-active')) {
             $(this).removeClass('table-active');
