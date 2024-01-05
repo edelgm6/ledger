@@ -33,9 +33,10 @@
                         Financial Statements
                     </a>
                     <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
-                        <a class="dropdown-item" href="{% url 'statements' 'income' %}" hx-get="{% url 'statements' 'income' %}" hx-target="#container">Income Statement</a>
-                        <a class="dropdown-item" href="{% url 'statements' 'balance' %}" hx-get="{% url 'statements' 'balance' %}" hx-target="#container">Balance Sheet</a>
-                        <a class="dropdown-item" href="{% url 'statements' 'cash' %}" hx-get="{% url 'statements' 'cash' %}" hx-target="#container">Cash Flow</a>
+                        <!-- hx include to maintain filters between statements -->
+                        <a class="dropdown-item" href="{% url 'statements' 'income' %}" hx-get="{% url 'statements' 'income' %}" hx-target="#container" hx-include="#statement-form">Income Statement</a>
+                        <a class="dropdown-item" href="{% url 'statements' 'balance' %}" hx-get="{% url 'statements' 'balance' %}" hx-target="#container" hx-include="#statement-form">Balance Sheet</a>
+                        <a class="dropdown-item" href="{% url 'statements' 'cash' %}" hx-get="{% url 'statements' 'cash' %}" hx-target="#container" hx-include="#statement-form">Cash Flow</a>
                     </div>
                 </li>
             </ul>
