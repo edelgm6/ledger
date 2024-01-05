@@ -15,6 +15,9 @@
                        value="{{ filter_form.date_from.value|default_if_none:'' }}" placeholder="Start Date">
             </div>
         </div>
+        {% else %}
+                <input hidden="true" type="date" name="{{ filter_form.date_from.html_name }}" id="{{ filter_form.date_from.auto_id }}" class="form-control"
+                       value="{{ filter_form.date_from.value|default_if_none:'' }}" placeholder="Start Date">
         {% endif %}
 
         <!-- Date To Field -->
