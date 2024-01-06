@@ -35,7 +35,7 @@
                                             <div class="input-group-prepend">
                                                 <span class="input-group-text">$</span>
                                             </div>
-                                            <input type="text" name="{{ form.amount.html_name }}" id="{{ form.amount.id_for_label }}" value="{{ form.amount.value|default_if_none:'' }}" class="form-control">
+                                            <input type="text" name="{{ form.amount.html_name }}" id="{{ form.amount.id_for_label }}" value="{{ form.amount.value|default_if_none:''|intcomma }}" class="form-control">
                                         </div>
                                     </div>
                                 </div>
@@ -72,7 +72,7 @@
                                             <div class="input-group-prepend">
                                                 <span class="input-group-text">$</span>
                                             </div>
-                                            <input type="text" name="{{ form.amount.html_name }}" id="{{ form.amount.id_for_label }}" value="{{ form.amount.value|default_if_none:'' }}" class="form-control">
+                                            <input type="text" name="{{ form.amount.html_name }}" id="{{ form.amount.id_for_label }}" value="{{ form.amount.value|default_if_none:''|intcomma }}" class="form-control">
                                         </div>
                                     </div>
                                 </div>
