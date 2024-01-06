@@ -45,7 +45,7 @@
                                 name="amount"
                                 id="id_amount"
                                 class="form-control"
-                                value="{% if form.amount.value %}{{ form.amount.value }}{% else %}0.00{% endif %}"
+                                value="{% if form.amount.value %}{{ form.amount.value|intcomma }}{% else %}0.00{% endif %}"
                             >
                         </div>
                     </div>

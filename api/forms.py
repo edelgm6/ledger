@@ -10,6 +10,18 @@ from api.models import Amortization, Transaction, Account, JournalEntryItem, Tax
 from api import utils
 from api.factories import ReconciliationFactory
 
+class CommaDecimalField(DecimalField):
+    def to_python(self, value):
+        if value is None or '':
+            return value
+        try:
+            value = str(value).replace(',', '')
+            value = str(value).replace('$', '')
+            value = Decimal(value)
+        except InvalidOperation:
+            return None
+        return super().to_python(value)
+
 class FromToDateForm(forms.Form):
     date_from = forms.DateField(required=False)
     date_to = forms.DateField()
@@ -91,6 +103,15 @@ class ReconciliationFilterForm(forms.Form):
         return reconciliations
 
 class ReconciliationForm(forms.ModelForm):
+    amount = CommaDecimalField(
+        initial=0.00,
+        decimal_places=2,
+        max_digits=12,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        widget=forms.NumberInput(attrs={'step': '0.01'}),
+        required=False
+    )
+
     class Meta:
         model = Reconciliation
         fields = ['amount']
@@ -142,6 +163,13 @@ class TaxChargeForm(forms.ModelForm):
     date = forms.ChoiceField(
         required=False,
         choices=[]
+    )
+    amount = CommaDecimalField(
+        initial=0.00,
+        decimal_places=2,
+        max_digits=12,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        widget=forms.NumberInput(attrs={'step': '0.01'})
     )
 
     class Meta:
@@ -238,17 +266,6 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
                     instance.save()
 
         return instances
-
-class CommaDecimalField(DecimalField):
-    def to_python(self, value):
-        if value is None:
-            return value
-        try:
-            # Remove commas and convert to Decimal
-            value = Decimal(str(value).replace(',', ''))
-        except InvalidOperation:
-            raise forms.ValidationError('Enter a number.')
-        return super().to_python(value)
 
 class JournalEntryItemForm(forms.ModelForm):
     amount = CommaDecimalField(
@@ -353,6 +370,12 @@ class TransactionForm(forms.ModelForm):
 
     account = forms.ChoiceField(choices=[])
     suggested_account = forms.ChoiceField(choices=[], required=False)
+    amount = CommaDecimalField(
+        initial=0.00,
+        decimal_places=2,
+        max_digits=12,
+        widget=forms.NumberInput(attrs={'step': '0.01'})
+    )
 
     class Meta:
         model = Transaction
