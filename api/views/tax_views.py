@@ -42,8 +42,6 @@ class TaxChargeMixIn:
         latest_state_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.STATE, amount__gt=0).order_by('-date').first()
         latest_property_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.PROPERTY, amount__gt=0).order_by('-date').first()
 
-        print(latest_property_tax_charge.amount)
-
         current_taxable_income = income_statement.get_taxable_income()
 
         for latest_tax_charge in [latest_federal_tax_charge,latest_state_tax_charge]:
