@@ -504,6 +504,8 @@ class CSVProfile(models.Model):
 
         transactions_list = []
         for row in cleared_rows_csv:
+            if row == {}:
+                continue
             transactions_list.append(
                 Transaction.objects.create(
                     date=self._get_formatted_date(row[self.date]),
