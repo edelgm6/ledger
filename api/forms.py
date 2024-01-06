@@ -15,7 +15,7 @@ class CommaDecimalField(DecimalField):
         if value is None or '':
             return value
         try:
-            # Remove commas and convert to Decimal
+            # Remove commas and $s and convert to Decimal
             value = str(value).replace(',', '')
             value = str(value).replace('$', '')
             value = Decimal(value)
