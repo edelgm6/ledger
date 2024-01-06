@@ -372,6 +372,12 @@ class TransactionForm(forms.ModelForm):
 
     account = forms.ChoiceField(choices=[])
     suggested_account = forms.ChoiceField(choices=[], required=False)
+    amount = CommaDecimalField(
+        initial=0.00,
+        decimal_places=2,
+        max_digits=12,
+        widget=forms.NumberInput(attrs={'step': '0.01'})
+    )
 
     class Meta:
         model = Transaction
