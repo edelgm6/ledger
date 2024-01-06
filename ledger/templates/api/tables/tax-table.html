@@ -22,7 +22,7 @@
                     <td>{{ tax_charge.date }}</td>
                     <td>${{ tax_charge.amount|floatformat:2|intcomma }}</td>
                     <td>${{ tax_charge.taxable_income|floatformat:2|intcomma }}</td>
-                    <td>{{ tax_charge.tax_rate|multiply:100|floatformat:2 }}%</td>
+                    <td>{% if not tax_charge.type == 'property' %}{{ tax_charge.tax_rate|multiply:100|floatformat:2 }}%{% endif %}</td>
                 </tr>
             {% empty %}
                 <tr>
