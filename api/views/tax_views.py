@@ -36,9 +36,11 @@ class TaxChargeMixIn:
         last_day_of_month = last_day_of_month if last_day_of_month else utils.get_last_day_of_last_month()
         first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
         income_statement = IncomeStatement(last_day_of_month, first_day_of_month)
-        latest_federal_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.FEDERAL).order_by('-date').first()
-        latest_state_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.STATE).order_by('-date').first()
-        latest_property_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.PROPERTY).order_by('-date').first()
+        latest_federal_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.FEDERAL, amount__gt=0).order_by('-date').first()
+        latest_state_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.STATE, amount__gt=0).order_by('-date').first()
+        latest_property_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.PROPERTY, amount__gt=0).order_by('-date').first()
+
+        print(latest_property_tax_charge.amount)
 
         current_taxable_income = income_statement.get_taxable_income()
 
