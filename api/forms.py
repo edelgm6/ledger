@@ -284,7 +284,7 @@ class JournalEntryItemForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super(JournalEntryItemForm, self).__init__(*args, **kwargs)
         self.fields['amount'].localize = True
-        self.fields['account'].choices = [(account.name, account.name) for account in Account.objects.all()]
+        self.fields['account'].choices = [(account.name, account.name) for account in Account.objects.filter(is_closed=False)]
 
         # Resolve the account name for the bound form
         if self.instance.pk and self.instance.account:
@@ -385,7 +385,11 @@ class TransactionForm(forms.ModelForm):
         super(TransactionForm, self).__init__(*args, **kwargs)
         self.fields['date'].initial = timezone.localdate()  # Set today's date as initial value
         self.fields['type'].choices = Transaction.TransactionType.choices # Remove the 'None' option
-        eligible_accounts = Account.objects.exclude(special_type__in=[Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES])
+        eligible_accounts = Account.objects.exclude(
+            special_type__in=[Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES],
+        ).filter(
+            is_closed=False
+        )
         account_tuples = [(account.name, account.name) for account in eligible_accounts]
         self.fields['suggested_account'].choices = account_tuples
         self.fields['account'].choices = account_tuples

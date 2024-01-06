@@ -392,6 +392,7 @@ class Account(models.Model):
     sub_type = models.CharField(max_length=30,choices=SubType.choices)
     csv_profile = models.ForeignKey('CSVProfile',related_name='accounts',on_delete=models.PROTECT,null=True,blank=True)
     special_type = models.CharField(max_length=30,choices=SpecialType.choices, null=True, blank=True, unique=True)
+    is_closed = models.BooleanField(default=False)
 
     class Meta:
         ordering = ('name',)
