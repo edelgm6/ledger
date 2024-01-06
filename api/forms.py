@@ -166,6 +166,13 @@ class TaxChargeForm(forms.ModelForm):
         required=False,
         choices=[]
     )
+    amount = CommaDecimalField(
+        initial=0.00,
+        decimal_places=2,
+        max_digits=12,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        widget=forms.NumberInput(attrs={'step': '0.01'})
+    )
 
     class Meta:
         model = TaxCharge
