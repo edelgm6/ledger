@@ -15,13 +15,11 @@ class CommaDecimalField(DecimalField):
         if value is None or '':
             return value
         try:
-            # Remove commas and $s and convert to Decimal
             value = str(value).replace(',', '')
             value = str(value).replace('$', '')
             value = Decimal(value)
         except InvalidOperation:
             return None
-            # raise forms.ValidationError('Enter a number.')
         return super().to_python(value)
 
 class FromToDateForm(forms.Form):
