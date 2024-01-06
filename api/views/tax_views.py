@@ -18,7 +18,7 @@ class TaxChargeMixIn:
         taxable_income = IncomeStatement(tax_charge.date, first_day_of_month).get_taxable_income()
         tax_charge.taxable_income = taxable_income
         tax_charge.tax_rate = None if taxable_income == 0 else tax_charge.amount / taxable_income
-        if current_taxable_income:
+        if current_taxable_income and tax_charge.tax_rate:
             tax_charge.current_tax = tax_charge.tax_rate * current_taxable_income
 
     def get_tax_filter_form_html(self):
