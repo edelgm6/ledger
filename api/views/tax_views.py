@@ -18,7 +18,7 @@ class TaxChargeMixIn:
         taxable_income = IncomeStatement(tax_charge.date, first_day_of_month).get_taxable_income()
         tax_charge.taxable_income = taxable_income
         tax_charge.tax_rate = None if taxable_income == 0 else tax_charge.amount / taxable_income
-        if current_taxable_income:
+        if current_taxable_income and tax_charge.tax_rate:
             tax_charge.current_tax = tax_charge.tax_rate * current_taxable_income
 
     def get_tax_filter_form_html(self):
@@ -36,9 +36,11 @@ class TaxChargeMixIn:
         last_day_of_month = last_day_of_month if last_day_of_month else utils.get_last_day_of_last_month()
         first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
         income_statement = IncomeStatement(last_day_of_month, first_day_of_month)
-        latest_federal_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.FEDERAL).order_by('-date').first()
-        latest_state_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.STATE).order_by('-date').first()
-        latest_property_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.PROPERTY).order_by('-date').first()
+
+        # Get latest charge that has a positive value to account for auto-created tax charges
+        latest_federal_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.FEDERAL, amount__gt=0).order_by('-date').first()
+        latest_state_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.STATE, amount__gt=0).order_by('-date').first()
+        latest_property_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.PROPERTY, amount__gt=0).order_by('-date').first()
 
         current_taxable_income = income_statement.get_taxable_income()
 
