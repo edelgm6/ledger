@@ -1,8 +1,6 @@
 import datetime
 from django.test import TestCase
-from django.utils import timezone
-from decimal import Decimal
-from api.models import Transaction, Account
+from api.models import Transaction, TransactionQuerySet
 from api.tests.testing_factories import TransactionFactory, AccountFactory
 
 class TransactionModelTest(TestCase):
@@ -76,3 +74,130 @@ class TransactionModelTest(TestCase):
 
         # Check that transaction2 is now closed
         self.assertTrue(transaction2.is_closed, "Transaction2 should be marked as closed")
+
+class TransactionQuerySetTest(TestCase):
+
+    def setUp(self):
+        self.account1 = AccountFactory()
+        self.account2 = AccountFactory()
+        # Create a set of transactions with varying attributes
+
+        self.start_date = datetime.date(2022, 1, 1)
+        self.middle_date = datetime.date(2022, 6, 11)
+        self.end_date = datetime.date(2022, 12, 31)
+
+        self.transaction1 = TransactionFactory(
+            date=self.start_date,
+            account=self.account1,
+            is_closed=False,
+            type=Transaction.TransactionType.INCOME
+        )
+        self.transaction2 = TransactionFactory(
+            date=self.middle_date,
+            account=self.account1,
+            is_closed=True,
+            type=Transaction.TransactionType.PURCHASE
+        )
+        self.transaction3 = TransactionFactory(
+            date=self.end_date,
+            account=self.account2,
+            is_closed=False,
+            type=Transaction.TransactionType.PAYMENT,
+            linked_transaction=self.transaction1
+        )
+
+    def test_filter_for_table(self):
+        # Test filtering by is_closed
+        closed_transactions = Transaction.objects.filter_for_table(is_closed=True)
+        self.assertIn(self.transaction2, closed_transactions)
+        self.assertNotIn(self.transaction1, closed_transactions)
+        self.assertNotIn(self.transaction3, closed_transactions)
+
+        # Test filtering by has_linked_transaction
+        with_linked_transactions = Transaction.objects.filter_for_table(has_linked_transaction=True)
+        self.assertIn(self.transaction3, with_linked_transactions)
+        self.assertNotIn(self.transaction1, with_linked_transactions)
+        self.assertNotIn(self.transaction2, with_linked_transactions)
+
+        # Test filtering by transaction_types
+        income_transactions = Transaction.objects.filter_for_table(transaction_types=[Transaction.TransactionType.INCOME])
+        self.assertIn(self.transaction1, income_transactions)
+        self.assertNotIn(self.transaction2, income_transactions)
+        self.assertNotIn(self.transaction3, income_transactions)
+
+        # Test filtering by accounts
+        account1_transactions = Transaction.objects.filter_for_table(accounts=[self.account1])
+        self.assertIn(self.transaction1, account1_transactions)
+        self.assertIn(self.transaction2, account1_transactions)
+        self.assertNotIn(self.transaction3, account1_transactions)
+
+        # Test filtering by date range
+        date_range_transactions = Transaction.objects.filter_for_table(date_from=self.start_date, date_to=self.end_date)
+        # Assuming the transactions are created today in setUp
+        self.assertIn(self.transaction1, date_range_transactions)
+        self.assertIn(self.transaction2, date_range_transactions)
+        self.assertIn(self.transaction3, date_range_transactions)
+
+class TransactionManagerTest(TestCase):
+    def setUp(self):
+        self.account1 = AccountFactory()
+        self.account2 = AccountFactory()
+
+        self.start_date = datetime.date(2022, 1, 1)
+        self.middle_date = datetime.date(2022, 6, 11)
+        self.end_date = datetime.date(2022, 12, 31)
+
+        self.transaction1 = TransactionFactory(
+            date=self.start_date,
+            account=self.account1,
+            is_closed=False,
+            type=Transaction.TransactionType.INCOME
+        )
+        self.transaction2 = TransactionFactory(
+            date=self.middle_date,
+            account=self.account1,
+            is_closed=True,
+            type=Transaction.TransactionType.PURCHASE
+        )
+        self.transaction3 = TransactionFactory(
+            date=self.end_date,
+            account=self.account2,
+            is_closed=False,
+            type=Transaction.TransactionType.PAYMENT,
+            linked_transaction=self.transaction1
+        )
+
+    def test_filter_for_table(self):
+        # Test filtering by is_closed
+        closed_transactions = Transaction.objects.filter_for_table(is_closed=True)
+        self.assertIn(self.transaction2, closed_transactions)
+        self.assertNotIn(self.transaction1, closed_transactions)
+        self.assertNotIn(self.transaction3, closed_transactions)
+
+        # Test filtering by has_linked_transaction
+        with_linked_transactions = Transaction.objects.filter_for_table(has_linked_transaction=True)
+        self.assertIn(self.transaction3, with_linked_transactions)
+        self.assertNotIn(self.transaction1, with_linked_transactions)
+        self.assertNotIn(self.transaction2, with_linked_transactions)
+
+        # Test filtering by transaction_types
+        income_transactions = Transaction.objects.filter_for_table(transaction_types=[Transaction.TransactionType.INCOME])
+        self.assertIn(self.transaction1, income_transactions)
+        self.assertNotIn(self.transaction2, income_transactions)
+        self.assertNotIn(self.transaction3, income_transactions)
+
+        # Test filtering by accounts
+        account1_transactions = Transaction.objects.filter_for_table(accounts=[self.account1])
+        self.assertIn(self.transaction1, account1_transactions)
+        self.assertIn(self.transaction2, account1_transactions)
+        self.assertNotIn(self.transaction3, account1_transactions)
+
+        # Test filtering by date range
+        date_range_transactions = Transaction.objects.filter_for_table(date_from=self.start_date, date_to=self.end_date)
+        self.assertIn(self.transaction1, date_range_transactions)
+        self.assertIn(self.transaction2, date_range_transactions)
+        self.assertIn(self.transaction3, date_range_transactions)
+
+    def test_get_queryset(self):
+        # Test that get_queryset returns a TransactionQuerySet
+        self.assertIsInstance(Transaction.objects.get_queryset(), TransactionQuerySet, "get_queryset should return a TransactionQuerySet instance")
