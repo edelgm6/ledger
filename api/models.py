@@ -208,23 +208,6 @@ class Transaction(models.Model):
     def __str__(self):
         return str(self.date) + ' ' + self.account.name + ' ' + self.description + ' $' + str(self.amount)
 
-    def save(self, *args, **kwargs):
-        if not self.suggested_account:
-            # Loop through AutoTags to find the first match with the description
-            for tag in AutoTag.objects.all():
-                if tag.search_string.lower() in self.description.lower():
-                    self.suggested_account = tag.account
-                    self.prefill = tag.prefill
-                    # Only override the transaction type if it's specified in the tag
-                    if tag.transaction_type:
-                        self.type = tag.transaction_type or self.type
-                    break
-                else:
-                    # Set default transaction type if not already set
-                    self.type = Transaction.TransactionType.PURCHASE
-
-        super().save(*args, **kwargs)
-
     def close(self, date=datetime.date.today()):
         self.is_closed = True
         self.date_closed = date
@@ -506,17 +489,37 @@ class CSVProfile(models.Model):
         for row in cleared_rows_csv:
             if row == {}:
                 continue
+
+            # Loop through AutoTags to find the first match with the description
+            for tag in AutoTag.objects.all():
+                if tag.search_string.lower() in row[self.description].lower():
+                    suggested_account = tag.account
+                    prefill = tag.prefill
+                    # Only override the transaction type if it's specified in the tag
+                    transaction_type = tag.transaction_type if tag.transaction_type else Transaction.TransactionType.PURCHASE
+                    break
+                else:
+                    # Set default transaction type if not already set
+                    transaction_type = Transaction.TransactionType.PURCHASE
+                    suggested_account = None
+                    prefill = None
+
             transactions_list.append(
-                Transaction.objects.create(
+                Transaction(
                     date=self._get_formatted_date(row[self.date]),
                     account=account,
                     amount=self._get_coalesced_amount(row),
                     description=row[self.description],
-                    category=row[self.category]
+                    category=row[self.category],
+                    suggested_account=suggested_account,
+                    prefill=prefill,
+                    type=transaction_type
                 )
             )
 
-        return transactions_list
+            Transaction.objects.bulk_create(transactions_list)
+
+        return len(transactions_list)
 
     def _get_formatted_date(self, date_string):
         # Parse the original date using the input format
