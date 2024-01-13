@@ -20,12 +20,12 @@ class UploadTransactionsView(View):
     def post(self, request):
         form = self.form(request.POST, request.FILES)
         if form.is_valid():
-            transactions = form.save()
+            transactions_count = form.save()
             form_html = render_to_string(self.form_template, {'form': form})
             success_html = render_to_string(
                 'api/components/upload-success.html',
                 {
-                    'count': len(transactions),
+                    'count': transactions_count,
                     'account': form.cleaned_data['account']
                 }
             )
