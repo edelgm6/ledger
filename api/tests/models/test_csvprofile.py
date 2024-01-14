@@ -44,7 +44,7 @@ class CSVProfileModelTest(TestCase):
             clear_prepended_until_value="Settlement Date",
             inflow="Inflow",
             outflow="Outflow",
-            date_format="%Y-%m-%d"
+            date_format="%d-%Y-%m"
         )
         pair = CSVColumnValuePair.objects.create(
             column="Transaction Type",
@@ -58,11 +58,16 @@ class CSVProfileModelTest(TestCase):
         self.csv_profile.clear_values_column_pairs.add(pair)
         pair = CSVColumnValuePair.objects.create(
             column="Transaction Type",
-            value="Sweeep in"
+            value="Sweep in"
         )
         self.csv_profile.clear_values_column_pairs.add(pair)
         pair = CSVColumnValuePair.objects.create(
             column="Transaction Type",
+            value="Reinvestment"
+        )
+        self.csv_profile.clear_values_column_pairs.add(pair)
+        pair = CSVColumnValuePair.objects.create(
+            column="Keyerror test",
             value="Reinvestment"
         )
         self.csv_profile.clear_values_column_pairs.add(pair)
@@ -90,3 +95,39 @@ class CSVProfileModelTest(TestCase):
         self.assertEqual(len(cleared_csv),27)
         self.assertTrue('Total Value' in cleared_csv[0])
         self.assertTrue('Trade Date' not in cleared_csv[0])
+
+    def test_lists_turned_into_dicts(self):
+        copied_list = list(csv_data)
+
+        cleared_csv = self.csv_profile._clear_prepended_rows(copied_list)
+        list_of_dicts = self.csv_profile._list_of_lists_to_list_of_dicts(cleared_csv)
+        self.assertEqual(len(list_of_dicts),9)
+        for row in list_of_dicts:
+            self.assertTrue(isinstance(row, dict))
+
+    def test_clear_extraneous_rows(self):
+        copied_list = list(csv_data)
+
+        cleared_csv = self.csv_profile._clear_prepended_rows(copied_list)
+        list_of_dicts = self.csv_profile._list_of_lists_to_list_of_dicts(cleared_csv)
+        cleared_list = self.csv_profile._clear_extraneous_rows(list_of_dicts)
+        self.assertEqual(len(cleared_list),3)
+
+    def test_get_coalesced_amount(self):
+        test_row = {
+            'Inflow': 1000,
+            'Outflow': '',
+        }
+        value = self.csv_profile._get_coalesced_amount(test_row)
+        self.assertEqual(value, 1000)
+        test_row = {
+            'Inflow': '',
+            'Outflow': 500
+        }
+        value = self.csv_profile._get_coalesced_amount(test_row)
+        self.assertEqual(value, 500)
+
+    def test_date_string_formatted(self):
+        test_date = '31-2023-03'
+        formatted_date = self.csv_profile._get_formatted_date(test_date)
+        self.assertEqual(formatted_date, '2023-03-31')
