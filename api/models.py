@@ -490,19 +490,19 @@ class CSVProfile(models.Model):
             if row == {}:
                 continue
 
+            # Set defaults
+            transaction_type = Transaction.TransactionType.PURCHASE
+            suggested_account = None
+            prefill = None
             # Loop through AutoTags to find the first match with the description
             for tag in AutoTag.objects.all():
                 if tag.search_string.lower() in row[self.description].lower():
                     suggested_account = tag.account
                     prefill = tag.prefill
                     # Only override the transaction type if it's specified in the tag
-                    transaction_type = tag.transaction_type if tag.transaction_type else Transaction.TransactionType.PURCHASE
+                    transaction_type = tag.transaction_type if tag.transaction_type else transaction_type
                     break
-                else:
-                    # Set default transaction type if not already set
-                    transaction_type = Transaction.TransactionType.PURCHASE
-                    suggested_account = None
-                    prefill = None
+
 
             transactions_list.append(
                 Transaction(
@@ -517,7 +517,7 @@ class CSVProfile(models.Model):
                 )
             )
 
-            Transaction.objects.bulk_create(transactions_list)
+        Transaction.objects.bulk_create(transactions_list)
 
         return len(transactions_list)
 

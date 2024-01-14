@@ -1,6 +1,6 @@
 from django.test import TestCase
-from api.models import CSVColumnValuePair
-from api.tests.testing_factories import CSVProfileFactory
+from api.models import CSVColumnValuePair, Transaction, AutoTag
+from api.tests.testing_factories import CSVProfileFactory, AccountFactory, PrefillFactory
 
 csv_data = [
     ["Account Number", "Investment Name", "Symbol", "Shares", "Share Price", "Total Value"],
@@ -27,9 +27,9 @@ csv_data = [
     ['21281793', '2023-12-21', '2023-12-21', 'Buy', 'Sweep Into Settlement Fund', 'VANGUARD FEDERAL MONEY MARKET INVESTOR CL', 'VMFXX', '0', '1', '-3386.98', '0', '-3386.98', '', '-3386.98', '0', 'CASH',''],
     ['21281793', '2023-12-22', '2023-12-22', 'Sweep in', 'Sweep Into Settlement Fund', 'VANGUARD FEDERAL MONEY MARKET INVESTOR CL', 'VMFXX', '0', '1', '-57.32', '0', '-57.32', '', '-57.32', '0', 'CASH',''],
     ['21281793', '2023-12-27', '2023-12-27', 'Sweep in', 'Sweep Into Settlement Fund', 'VANGUARD FEDERAL MONEY MARKET INVESTOR CL', 'VMFXX', '0', '1', '-964.38', '0', '-964.38', '', '-964.38', '0', 'CASH',''],
-    ['21281793', '2023-12-29', '2023-12-29', 'Dividend Received', 'Dividend Reinvestment', 'VANGUARD FEDERAL MONEY MARKET INVESTOR CL', 'VMFXX', '0', '0', '-51.84', '0', '-51.84', '', '51.84', '0', 'CASH',''],
-    ['21281793', '2023-12-29', '2023-12-29', 'Funds Received', 'Dividend Reinvestment', 'VANGUARD FEDERAL MONEY MARKET INVESTOR CL', 'VMFXX', '0', '0', '-51.84', '0', '-51.84', '', '4000', '0', 'CASH',''],
-    ['21281793', '2023-12-29', '2023-12-29', 'Funds Withdrawn', 'Dividend Reinvestment', 'VANGUARD FEDERAL MONEY MARKET INVESTOR CL', 'VMFXX', '0', '0', '-51.84', '0', '-51.84', '', '-1000', '0', 'CASH',''],
+    ['21281793', '2023-12-29', '2023-12-29', 'Dividend Received', 'Dividends', 'VANGUARD FEDERAL MONEY MARKET INVESTOR CL', 'VMFXX', '0', '0', '-51.84', '0', '-51.84', '', '51.84', '0', 'CASH',''],
+    ['21281793', '2023-12-29', '2023-12-29', 'Funds Received', 'Transfer', 'VANGUARD FEDERAL MONEY MARKET INVESTOR CL', 'VMFXX', '0', '0', '-51.84', '0', '-51.84', '', '4000', '0', 'CASH',''],
+    ['21281793', '2023-12-29', '2023-12-29', 'Funds Withdrawn', 'Brokerage Fee', 'VANGUARD FEDERAL MONEY MARKET INVESTOR CL', 'VMFXX', '0', '0', '-51.84', '0', '-51.84', '', '-1000', '0', 'CASH',''],
 ]
 
 class CSVProfileModelTest(TestCase):
@@ -44,7 +44,8 @@ class CSVProfileModelTest(TestCase):
             clear_prepended_until_value="Settlement Date",
             inflow="Inflow",
             outflow="Outflow",
-            date_format="%d-%Y-%m"
+            # date_format="%d-%Y-%m"
+            date_format="%Y-%m-%d"
         )
         pair = CSVColumnValuePair.objects.create(
             column="Transaction Type",
@@ -129,5 +130,39 @@ class CSVProfileModelTest(TestCase):
 
     def test_date_string_formatted(self):
         test_date = '31-2023-03'
+        self.csv_profile.date_format = "%d-%Y-%m"
+        self.csv_profile.save()
         formatted_date = self.csv_profile._get_formatted_date(test_date)
         self.assertEqual(formatted_date, '2023-03-31')
+
+    def test_autotags_applied_to_transactions(self):
+        copied_list = list(csv_data)
+        copied_list.append({})
+        account = AccountFactory()
+
+        fee_account = AccountFactory()
+        prefill = PrefillFactory()
+        AutoTag.objects.create(
+            search_string='fee',
+            account=fee_account,
+            prefill=prefill
+        )
+        AutoTag.objects.create(
+            search_string='dividends',
+            account=AccountFactory(),
+            transaction_type=Transaction.TransactionType.INCOME
+        )
+
+        self.csv_profile.create_transactions_from_csv(copied_list, account)
+        transaction = Transaction.objects.get(description='Brokerage Fee')
+        self.assertEqual(transaction.prefill, prefill)
+        self.assertEqual(transaction.suggested_account, fee_account)
+        self.assertEqual(transaction.type, Transaction.TransactionType.PURCHASE)
+        transaction = Transaction.objects.get(description='Dividends')
+        self.assertEqual(transaction.type, Transaction.TransactionType.INCOME)
+
+
+    # search_string = models.CharField(max_length=20)
+    # account = models.ForeignKey('Account',on_delete=models.CASCADE,null=True,blank=True)
+    # transaction_type = models.CharField(max_length=25,choices=Transaction.TransactionType.choices,blank=True)
+    # prefill = models.ForeignKey('Prefill',on_delete=models.CASCADE,null=True,blank=True)
