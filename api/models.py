@@ -31,7 +31,6 @@ class Amortization(models.Model):
 
     def amortize(self, date):
         starting_amortization_count = len(self.get_related_transactions())
-        print(starting_amortization_count)
 
         if self.periods - starting_amortization_count == 0 or self.is_closed:
             raise ValidationError('Cannot further amortize')
@@ -96,7 +95,6 @@ class Reconciliation(models.Model):
         GAIN_LOSS_ACCOUNT = Account.objects.get(special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES)
 
         delta = self.amount - (self.account.get_balance(self.date) - (self.transaction.amount if self.transaction is not None else 0))
-        print(delta)
         if self.transaction:
             transaction = self.transaction
             transaction.amount = delta
@@ -236,7 +234,7 @@ class TaxCharge(models.Model):
     def __str__(self):
         return str(self.date) + ' ' + self.type
 
-    def save(self, *args, **kwargs):
+    def _get_tax_accounts(self):
         tax_accounts = {
             self.Type.STATE: {
                 'expense': Account.objects.get(special_type=Account.SpecialType.STATE_TAXES),
@@ -255,8 +253,10 @@ class TaxCharge(models.Model):
                 'description': 'Property Tax'
             }
         }
+        return tax_accounts[self.type]
 
-        accounts = tax_accounts[self.type]
+    def save(self, *args, **kwargs):
+        accounts = self._get_tax_accounts()
 
         try:
             transaction = self.transaction
@@ -274,8 +274,6 @@ class TaxCharge(models.Model):
             )
             self.transaction = transaction
 
-        super().save(*args, **kwargs)
-
         try:
             journal_entry = self.transaction.journal_entry
         except JournalEntry.DoesNotExist:
@@ -283,9 +281,7 @@ class TaxCharge(models.Model):
                 date=self.date,
                 transaction=self.transaction
             )
-
-        journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry)
-        journal_entry_items.delete()
+        journal_entry.delete_journal_entry_items()
 
         debit = JournalEntryItem.objects.create(
             journal_entry=journal_entry,
@@ -293,7 +289,6 @@ class TaxCharge(models.Model):
             amount=self.transaction.amount,
             account=accounts['expense']
         )
-
         credit = JournalEntryItem.objects.create(
             journal_entry=journal_entry,
             type=JournalEntryItem.JournalEntryType.CREDIT,
@@ -310,6 +305,8 @@ class TaxCharge(models.Model):
             reconciliation.save()
         except Reconciliation.DoesNotExist:
             pass
+
+        super().save(*args, **kwargs)
 
 class Account(models.Model):
 

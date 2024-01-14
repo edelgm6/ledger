@@ -18,7 +18,7 @@ class AccountFactory(factory.django.DjangoModelFactory):
     type = factory.Iterator(Account.Type.choices, getter=lambda c: c[0])
     sub_type = factory.Iterator(Account.SubType.choices, getter=lambda c: c[0])
     csv_profile = factory.SubFactory(CSVProfileFactory)
-    special_type = factory.Iterator(Account.SpecialType.choices, getter=lambda c: c[0], cycle=True)
+    special_type = None
     is_closed = factory.Faker('boolean')
 
 # Transaction Factory
@@ -31,7 +31,7 @@ class TransactionFactory(factory.django.DjangoModelFactory):
     amount = factory.Faker('pydecimal', left_digits=5, right_digits=2, positive=True)
     description = factory.Faker('sentence')
     category = factory.Faker('word')
-    is_closed = False
+    is_closed = factory.Faker('boolean')
     date_closed = factory.Maybe('is_closed', yes_declaration=factory.Faker('date_object'), no_declaration=None)
     suggested_account = factory.SubFactory(AccountFactory)
     type = factory.Iterator(Transaction.TransactionType.choices, getter=lambda c: c[0])
