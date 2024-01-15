@@ -41,6 +41,7 @@ class ReconciliationTests(TestCase):
     def test_plug_reconciliation(self):
         today = datetime.date.today()
         unrealized_account = AccountFactory(
+            type=Account.Type.INCOME,
             special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES
         )
         cash_account = AccountFactory(
@@ -51,8 +52,14 @@ class ReconciliationTests(TestCase):
             name='income',
             type=Account.Type.INCOME
         )
+        transaction = TransactionFactory(
+            date=today,
+            account=income_account,
+            amount=100
+        )
         journal_entry = JournalEntryFactory(
-            date=today
+            date=today,
+            transaction=transaction
         )
         journal_entry_item = JournalEntryItemFactory(
             journal_entry=journal_entry,
@@ -74,11 +81,12 @@ class ReconciliationTests(TestCase):
         reconciliation.plug_investment_change()
 
         self.assertEqual(reconciliation.transaction.amount, 100)
-        self.assertEqual(cash_account.get_balance(today), 200)
-        self.assertEqual(unrealized_account.get_balance(today), 100)
+        print(cash_account.name)
+        self.assertEqual(cash_account.get_balance(end_date=today), 200)
+        self.assertEqual(unrealized_account.get_balance(today,start_date=today), 100)
 
         reconciliation.amount = Decimal('50.00')
         reconciliation.plug_investment_change()
         self.assertEqual(reconciliation.transaction.amount, Decimal('-50.00'))
         self.assertEqual(cash_account.get_balance(today), 50)
-        self.assertEqual(unrealized_account.get_balance(today), Decimal('-50.00'))
+        self.assertEqual(unrealized_account.get_balance(today,start_date=today), Decimal('-50.00'))
