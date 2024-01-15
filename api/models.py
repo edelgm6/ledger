@@ -31,7 +31,6 @@ class Amortization(models.Model):
 
     def amortize(self, date):
         starting_amortization_count = len(self.get_related_transactions())
-        print(starting_amortization_count)
 
         if self.periods - starting_amortization_count == 0 or self.is_closed:
             raise ValidationError('Cannot further amortize')
@@ -96,7 +95,6 @@ class Reconciliation(models.Model):
         GAIN_LOSS_ACCOUNT = Account.objects.get(special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES)
 
         delta = self.amount - (self.account.get_balance(self.date) - (self.transaction.amount if self.transaction is not None else 0))
-        print(delta)
         if self.transaction:
             transaction = self.transaction
             transaction.amount = delta
@@ -208,23 +206,6 @@ class Transaction(models.Model):
     def __str__(self):
         return str(self.date) + ' ' + self.account.name + ' ' + self.description + ' $' + str(self.amount)
 
-    def save(self, *args, **kwargs):
-        if not self.suggested_account:
-            # Loop through AutoTags to find the first match with the description
-            for tag in AutoTag.objects.all():
-                if tag.search_string.lower() in self.description.lower():
-                    self.suggested_account = tag.account
-                    self.prefill = tag.prefill
-                    # Only override the transaction type if it's specified in the tag
-                    if tag.transaction_type:
-                        self.type = tag.transaction_type or self.type
-                    break
-                else:
-                    # Set default transaction type if not already set
-                    self.type = Transaction.TransactionType.PURCHASE
-
-        super().save(*args, **kwargs)
-
     def close(self, date=datetime.date.today()):
         self.is_closed = True
         self.date_closed = date
@@ -253,7 +234,7 @@ class TaxCharge(models.Model):
     def __str__(self):
         return str(self.date) + ' ' + self.type
 
-    def save(self, *args, **kwargs):
+    def _get_tax_accounts(self):
         tax_accounts = {
             self.Type.STATE: {
                 'expense': Account.objects.get(special_type=Account.SpecialType.STATE_TAXES),
@@ -272,8 +253,10 @@ class TaxCharge(models.Model):
                 'description': 'Property Tax'
             }
         }
+        return tax_accounts[self.type]
 
-        accounts = tax_accounts[self.type]
+    def save(self, *args, **kwargs):
+        accounts = self._get_tax_accounts()
 
         try:
             transaction = self.transaction
@@ -291,8 +274,6 @@ class TaxCharge(models.Model):
             )
             self.transaction = transaction
 
-        super().save(*args, **kwargs)
-
         try:
             journal_entry = self.transaction.journal_entry
         except JournalEntry.DoesNotExist:
@@ -300,9 +281,7 @@ class TaxCharge(models.Model):
                 date=self.date,
                 transaction=self.transaction
             )
-
-        journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry)
-        journal_entry_items.delete()
+        journal_entry.delete_journal_entry_items()
 
         debit = JournalEntryItem.objects.create(
             journal_entry=journal_entry,
@@ -310,7 +289,6 @@ class TaxCharge(models.Model):
             amount=self.transaction.amount,
             account=accounts['expense']
         )
-
         credit = JournalEntryItem.objects.create(
             journal_entry=journal_entry,
             type=JournalEntryItem.JournalEntryType.CREDIT,
@@ -327,6 +305,8 @@ class TaxCharge(models.Model):
             reconciliation.save()
         except Reconciliation.DoesNotExist:
             pass
+
+        super().save(*args, **kwargs)
 
 class Account(models.Model):
 
@@ -506,17 +486,37 @@ class CSVProfile(models.Model):
         for row in cleared_rows_csv:
             if row == {}:
                 continue
+
+            # Set defaults
+            transaction_type = Transaction.TransactionType.PURCHASE
+            suggested_account = None
+            prefill = None
+            # Loop through AutoTags to find the first match with the description
+            for tag in AutoTag.objects.all():
+                if tag.search_string.lower() in row[self.description].lower():
+                    suggested_account = tag.account
+                    prefill = tag.prefill
+                    # Only override the transaction type if it's specified in the tag
+                    transaction_type = tag.transaction_type if tag.transaction_type else transaction_type
+                    break
+
+
             transactions_list.append(
-                Transaction.objects.create(
+                Transaction(
                     date=self._get_formatted_date(row[self.date]),
                     account=account,
                     amount=self._get_coalesced_amount(row),
                     description=row[self.description],
-                    category=row[self.category]
+                    category=row[self.category],
+                    suggested_account=suggested_account,
+                    prefill=prefill,
+                    type=transaction_type
                 )
             )
 
-        return transactions_list
+        Transaction.objects.bulk_create(transactions_list)
+
+        return len(transactions_list)
 
     def _get_formatted_date(self, date_string):
         # Parse the original date using the input format
