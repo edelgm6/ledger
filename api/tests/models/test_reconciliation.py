@@ -12,6 +12,7 @@ class ReconciliationTests(TestCase):
         self.transaction = TransactionFactory.create()
 
     def test_create_reconciliation(self):
+        dog = 'woof'
         reconciliation = Reconciliation.objects.create(
             account=self.account,
             date=datetime.date.today(),
@@ -81,7 +82,6 @@ class ReconciliationTests(TestCase):
         reconciliation.plug_investment_change()
 
         self.assertEqual(reconciliation.transaction.amount, 100)
-        print(cash_account.name)
         self.assertEqual(cash_account.get_balance(end_date=today), 200)
         self.assertEqual(unrealized_account.get_balance(today,start_date=today), 100)
 
