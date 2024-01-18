@@ -253,7 +253,7 @@ class BalanceSheetTest(TestCase):
     def test_creates_balances(self):
         balance_sheet = BalanceSheet('2023-01-31')
         chase_balance = [balance.amount for balance in balance_sheet.balances if balance.account == '1200-Chase'][0]
-        self.assertEqual(len(balance_sheet.balances), 4)
+        self.assertEqual(len(balance_sheet.balances), 5)
         self.assertEqual(chase_balance, 400)
 
     def test_returns_cash_balance(self):
@@ -409,13 +409,13 @@ class IncomeStatementTest(TestCase):
         journal_entry = JournalEntry.objects.create(date='2023-01-28',transaction=transaction)
         journal_entry_debit = JournalEntryItem.objects.create(
             type='credit',
-            amount=100,
+            amount=300,
             account=income,
             journal_entry=journal_entry
         )
         journal_entry_credit = JournalEntryItem.objects.create(
             type='debit',
-            amount=100,
+            amount=300,
             account=cash,
             journal_entry=journal_entry
         )
@@ -425,16 +425,16 @@ class IncomeStatementTest(TestCase):
 
     def test_creates_balances(self):
         income_statement = IncomeStatement('2023-01-31','2023-01-01')
-        net_income = [balance.amount for balance in income_statement.balances if balance.account == 'Net Income'][0]
-        self.assertEqual(len(income_statement.balances), 5)
+        net_income = [balance.amount for balance in income_statement.balances if balance.account == 'Realized Net Income'][0]
+        self.assertEqual(len(income_statement.balances), 6)
         self.assertEqual(net_income, 200)
 
     def test_net_income(self):
         income_statement = IncomeStatement('2023-01-31','2023-01-01')
-        net_income = [balance.amount for balance in income_statement.balances if balance.account == 'Net Income'][0]
-        self.assertEqual(len(income_statement.balances), 5)
+        net_income = [balance.amount for balance in income_statement.balances if balance.account == 'Realized Net Income'][0]
+        self.assertEqual(len(income_statement.balances), 6)
         self.assertEqual(net_income, 200)
-        self.assertEqual(income_statement.net_income, 200)
+        self.assertEqual(income_statement.net_income, 400)
 
     def test_create_cash_flow_statement(self):
         income_statement = IncomeStatement('2023-01-31','2023-01-01')
