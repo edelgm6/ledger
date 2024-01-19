@@ -1,11 +1,14 @@
 import calendar
 from datetime import date, datetime, timedelta
 
+
 def format_datetime_to_string(form_date):
     return form_date.strftime('%Y-%m-%d')
 
+
 def get_first_day_of_month_from_date(original_date):
     return original_date.replace(day=1)
+
 
 def get_last_days_of_month_tuples():
     # Get the current year and month
@@ -24,8 +27,13 @@ def get_last_days_of_month_tuples():
     # Create a list of year-month tuples
     # For the current year, include months up to the previous month.
     # For previous years, include all months.
-    year_month_tuples = [(year, month) for year in range(2023, current_year + 1)
-                         for month in range(1, current_month + 1 if year == current_year else 13)]
+    year_range = range(2023, current_year + 1)
+    year_month_tuples = [
+        (year, month) for year in year_range
+        for month in range(
+            1, current_month + 1 if year == current_year else 13
+        )
+    ]
 
     final_days_of_month = []
     for year, month in year_month_tuples:
@@ -39,6 +47,7 @@ def get_last_days_of_month_tuples():
 
     final_days_of_month.reverse()
     return final_days_of_month
+
 
 def get_last_day_of_last_month():
     current_date = datetime.now()
@@ -58,6 +67,9 @@ def get_last_day_of_last_month():
 
     return last_day_date
 
+
 def is_last_day_of_month(date):
-    last_day_of_month = (date.replace(day=1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+    some_day_next_month = date.replace(day=1) + timedelta(days=32)
+    first_of_next_month = some_day_next_month.replace(day=1)
+    last_day_of_month = first_of_next_month - timedelta(days=1)
     return date == last_day_of_month
