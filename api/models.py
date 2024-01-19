@@ -4,13 +4,18 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+
 class Amortization(models.Model):
-    accrued_transaction = models.OneToOneField('Transaction',on_delete=models.CASCADE,related_name='accrued_amortizations')
-    amount = models.DecimalField(decimal_places=2,max_digits=12)
-    periods = models.PositiveSmallIntegerField(null=True,blank=True)
+    accrued_transaction = models.OneToOneField(
+        'Transaction',
+        on_delete=models.CASCADE,
+        related_name='accrued_amortizations'
+    )
+    amount = models.DecimalField(decimal_places=2, max_digits=12)
+    periods = models.PositiveSmallIntegerField(null=True, blank=True)
     is_closed = models.BooleanField(default=False)
     description = models.CharField(max_length=200)
-    suggested_account = models.ForeignKey('Account',on_delete=models.PROTECT)
+    suggested_account = models.ForeignKey('Account', on_delete=models.PROTECT)
 
     @staticmethod
     def _round_down(n, decimals=2):
@@ -26,7 +31,9 @@ class Amortization(models.Model):
 
     def get_remaining_balance(self):
         related_transactions = self.get_related_transactions()
-        total_amortized = sum([transaction.amount for transaction in related_transactions])
+        total_amortized = sum(
+            [transaction.amount for transaction in related_transactions]
+        )
         return self.amount + total_amortized
 
     def amortize(self, date):
@@ -41,13 +48,19 @@ class Amortization(models.Model):
             amortization_amount = self._round_down(self.amount / self.periods)
             is_final_amortization = False
 
-        prepaid_account = Account.objects.get(special_type=Account.SpecialType.PREPAID_EXPENSES)
+        prepaid_account = Account.objects.get(
+            special_type=Account.SpecialType.PREPAID_EXPENSES
+        )
 
         transaction = Transaction.objects.create(
             date=date,
             account=prepaid_account,
             amount=amortization_amount * -1,
-            description=self.description + ' amorization #' + str(len(self.get_related_transactions()) + 1),
+            description=(
+                self.description +
+                ' amorization #' +
+                str(len(self.get_related_transactions()) + 1)
+            ),
             suggested_account=self.suggested_account,
             type=Transaction.TransactionType.PURCHASE,
             amortization=self
@@ -58,14 +71,14 @@ class Amortization(models.Model):
             transaction=transaction
         )
 
-        journal_entry_debit = JournalEntryItem.objects.create(
+        JournalEntryItem.objects.create(
             journal_entry=journal_entry,
             type=JournalEntryItem.JournalEntryType.DEBIT,
             amount=amortization_amount,
             account=self.suggested_account
         )
 
-        journal_entry_credit = JournalEntryItem.objects.create(
+        JournalEntryItem.objects.create(
             journal_entry=journal_entry,
             type=JournalEntryItem.JournalEntryType.CREDIT,
             amount=amortization_amount,
@@ -79,22 +92,40 @@ class Amortization(models.Model):
             self.save()
         return transaction
 
+
 class Reconciliation(models.Model):
-    account = models.ForeignKey('Account',on_delete=models.CASCADE)
+    account = models.ForeignKey('Account', on_delete=models.CASCADE)
     date = models.DateField()
-    amount = models.DecimalField(decimal_places=2,max_digits=12,null=True,blank=True)
-    transaction = models.OneToOneField('Transaction',on_delete=models.PROTECT,null=True,blank=True)
+    amount = models.DecimalField(
+        decimal_places=2,
+        max_digits=12,
+        null=True,
+        blank=True
+    )
+    transaction = models.OneToOneField(
+        'Transaction',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True
+    )
 
     class Meta:
-        unique_together = [['account','date']]
+        unique_together = [['account', 'date']]
 
     def __str__(self):
         return str(self.date) + ' ' + self.account.name
 
     def plug_investment_change(self):
-        GAIN_LOSS_ACCOUNT = Account.objects.get(special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES)
+        GAIN_LOSS_ACCOUNT = Account.objects.get(
+            special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES
+        )
 
-        delta = self.amount - (self.account.get_balance(self.date) - (self.transaction.amount if self.transaction is not None else 0))
+        transaction_amount = (
+            self.transaction.amount if self.transaction is not None else 0
+        )
+        account_balance = self.account.get_balance(self.date)
+        delta = self.amount - (account_balance - transaction_amount)
+
         if self.transaction:
             transaction = self.transaction
             transaction.amount = delta
@@ -104,7 +135,11 @@ class Reconciliation(models.Model):
                 date=self.date,
                 amount=delta,
                 account=self.account,
-                description=str(self.date) + ' Plug gain/loss for ' + self.account.name
+                description=(
+                    str(self.date) +
+                    ' Plug gain/loss for ' +
+                    self.account.name
+                )
             )
             self.transaction = transaction
             self.save()
@@ -125,17 +160,19 @@ class Reconciliation(models.Model):
             gain_loss_entry_type = JournalEntryItem.JournalEntryType.DEBIT
             account_entry_type = JournalEntryItem.JournalEntryType.CREDIT
 
-        journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry)
+        journal_entry_items = JournalEntryItem.objects.filter(
+            journal_entry=journal_entry
+        )
         journal_entry_items.delete()
 
-        gain_loss_entry = JournalEntryItem.objects.create(
+        JournalEntryItem.objects.create(
             journal_entry=journal_entry,
             type=gain_loss_entry_type,
             amount=abs(delta),
             account=GAIN_LOSS_ACCOUNT
         )
 
-        account_entry = JournalEntryItem.objects.create(
+        JournalEntryItem.objects.create(
             journal_entry=journal_entry,
             type=account_entry_type,
             amount=abs(delta),
@@ -145,6 +182,7 @@ class Reconciliation(models.Model):
         transaction.close()
 
         return journal_entry
+
 
 class TransactionQuerySet(models.QuerySet):
     def filter_for_table(
@@ -160,7 +198,9 @@ class TransactionQuerySet(models.QuerySet):
         if is_closed is not None:
             queryset = queryset.filter(is_closed=is_closed)
         if has_linked_transaction is not None:
-            queryset = queryset.exclude(linked_transaction__isnull=has_linked_transaction)
+            queryset = queryset.exclude(
+                linked_transaction__isnull=has_linked_transaction
+            )
         if transaction_types:
             queryset = queryset.filter(type__in=transaction_types)
         if accounts:
@@ -171,6 +211,7 @@ class TransactionQuerySet(models.QuerySet):
             queryset = queryset.filter(date__lte=date_to)
 
         return queryset.order_by('date', 'account', 'pk')
+
 
 class TransactionManager(models.Manager):
     def get_queryset(self):
@@ -189,22 +230,49 @@ class Transaction(models.Model):
         TRANSFER = 'transfer', _('Transfer')
 
     date = models.DateField()
-    account = models.ForeignKey('Account',on_delete=models.PROTECT)
-    amount = models.DecimalField(decimal_places=2,max_digits=12)
-    description = models.CharField(max_length=200,blank=True)
-    category = models.CharField(max_length=200,blank=True)
+    account = models.ForeignKey('Account', on_delete=models.PROTECT)
+    amount = models.DecimalField(decimal_places=2, max_digits=12)
+    description = models.CharField(max_length=200, blank=True)
+    category = models.CharField(max_length=200, blank=True)
     is_closed = models.BooleanField(default=False)
-    date_closed = models.DateField(null=True,blank=True)
-    suggested_account = models.ForeignKey('Account',related_name='suggested_account',on_delete=models.PROTECT,null=True,blank=True)
-    type = models.CharField(max_length=25,choices=TransactionType.choices)
-    linked_transaction = models.OneToOneField('Transaction',on_delete=models.SET_NULL,null=True,blank=True)
-    amortization = models.ForeignKey('Amortization',on_delete=models.PROTECT,null=True,blank=True,related_name='transactions')
-    prefill = models.ForeignKey('Prefill',on_delete=models.PROTECT,null=True,blank=True)
+    date_closed = models.DateField(null=True, blank=True)
+    suggested_account = models.ForeignKey(
+        'Account',
+        related_name='suggested_account',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True
+    )
+    type = models.CharField(max_length=25, choices=TransactionType.choices)
+    linked_transaction = models.OneToOneField(
+        'Transaction',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    amortization = models.ForeignKey(
+        'Amortization',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='transactions'
+    )
+    prefill = models.ForeignKey(
+        'Prefill',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True
+    )
 
     objects = TransactionManager()
 
     def __str__(self):
-        return str(self.date) + ' ' + self.account.name + ' ' + self.description + ' $' + str(self.amount)
+        return (
+            str(self.date) + ' ' +
+            self.account.name + ' ' +
+            self.description + ' $' +
+            str(self.amount)
+        )
 
     def close(self, date=datetime.date.today()):
         self.is_closed = True
@@ -217,19 +285,20 @@ class Transaction(models.Model):
         self.save()
         transaction.close()
 
+
 class TaxCharge(models.Model):
     class Type(models.TextChoices):
         PROPERTY = 'property', _('Property')
         FEDERAL = 'federal', _('Federal')
         STATE = 'state', _('State')
 
-    type = models.CharField(max_length=25,choices=Type.choices)
-    transaction = models.OneToOneField('Transaction',on_delete=models.PROTECT)
+    type = models.CharField(max_length=25, choices=Type.choices)
+    transaction = models.OneToOneField('Transaction', on_delete=models.PROTECT)
     date = models.DateField()
-    amount = models.DecimalField(decimal_places=2,max_digits=12)
+    amount = models.DecimalField(decimal_places=2, max_digits=12)
 
     class Meta:
-        unique_together = [['type','date']]
+        unique_together = [['type', 'date']]
 
     def __str__(self):
         return str(self.date) + ' ' + self.type
@@ -237,19 +306,31 @@ class TaxCharge(models.Model):
     def _get_tax_accounts(self):
         tax_accounts = {
             self.Type.STATE: {
-                'expense': Account.objects.get(special_type=Account.SpecialType.STATE_TAXES),
-                'liability': Account.objects.get(special_type=Account.SpecialType.STATE_TAXES_PAYABLE),
+                'expense': Account.objects.get(
+                    special_type=Account.SpecialType.STATE_TAXES
+                ),
+                'liability': Account.objects.get(
+                    special_type=Account.SpecialType.STATE_TAXES_PAYABLE
+                ),
                 'description': 'State Income Tax'
             },
             self.Type.FEDERAL: {
-                'expense': Account.objects.get(special_type=Account.SpecialType.FEDERAL_TAXES),
-                'liability': Account.objects.get(special_type=Account.SpecialType.FEDERAL_TAXES_PAYABLE),
+                'expense': Account.objects.get(
+                    special_type=Account.SpecialType.FEDERAL_TAXES
+                ),
+                'liability': Account.objects.get(
+                    special_type=Account.SpecialType.FEDERAL_TAXES_PAYABLE
+                ),
                 'description': 'Federal Income Tax'
 
             },
             self.Type.PROPERTY: {
-                'expense': Account.objects.get(special_type=Account.SpecialType.PROPERTY_TAXES),
-                'liability': Account.objects.get(special_type=Account.SpecialType.PROPERTY_TAXES_PAYABLE),
+                'expense': Account.objects.get(
+                    special_type=Account.SpecialType.PROPERTY_TAXES
+                ),
+                'liability': Account.objects.get(
+                    special_type=Account.SpecialType.PROPERTY_TAXES_PAYABLE
+                ),
                 'description': 'Property Tax'
             }
         }
@@ -283,13 +364,13 @@ class TaxCharge(models.Model):
             )
         journal_entry.delete_journal_entry_items()
 
-        debit = JournalEntryItem.objects.create(
+        JournalEntryItem.objects.create(
             journal_entry=journal_entry,
             type=JournalEntryItem.JournalEntryType.DEBIT,
             amount=self.transaction.amount,
             account=accounts['expense']
         )
-        credit = JournalEntryItem.objects.create(
+        JournalEntryItem.objects.create(
             journal_entry=journal_entry,
             type=JournalEntryItem.JournalEntryType.CREDIT,
             amount=self.transaction.amount,
@@ -300,7 +381,10 @@ class TaxCharge(models.Model):
         liability_account = accounts['liability']
         liability_balance = liability_account.get_balance(self.date)
         try:
-            reconciliation = Reconciliation.objects.get(date=self.date, account=accounts['liability'])
+            reconciliation = Reconciliation.objects.get(
+                date=self.date,
+                account=accounts['liability']
+            )
             reconciliation.amount = liability_balance
             reconciliation.save()
         except Reconciliation.DoesNotExist:
@@ -308,13 +392,20 @@ class TaxCharge(models.Model):
 
         super().save(*args, **kwargs)
 
+
 class Account(models.Model):
 
     class SpecialType(models.TextChoices):
-        UNREALIZED_GAINS_AND_LOSSES = 'unrealized_gains_and_losses', _('Unrealized Gains and Losses')
+        UNREALIZED_GAINS_AND_LOSSES = (
+            'unrealized_gains_and_losses', _('Unrealized Gains and Losses')
+        )
         STATE_TAXES_PAYABLE = 'state_taxes_payable', _('State Taxes Payable')
-        FEDERAL_TAXES_PAYABLE = 'federal_taxes_payable', _('Federal Taxes Payable')
-        PROPERTY_TAXES_PAYABLE = 'property_taxes_payable', _('Property Taxes Payable')
+        FEDERAL_TAXES_PAYABLE = (
+            'federal_taxes_payable', _('Federal Taxes Payable')
+        )
+        PROPERTY_TAXES_PAYABLE = (
+            'property_taxes_payable', _('Property Taxes Payable')
+        )
         STATE_TAXES = 'state_taxes', _('State Taxes')
         FEDERAL_TAXES = 'federal_taxes', _('Federal Taxes')
         PROPERTY_TAXES = 'property_taxes', _('Property Taxes')
@@ -336,17 +427,27 @@ class Account(models.Model):
         # Asset types
         CASH = 'cash', _('Cash')
         ACCOUNTS_RECEIVABLE = 'accounts_receivable', _('Accounts Receivable')
-        SECURITIES_UNRESTRICTED = 'securities_unrestricted', _('Securities-Unrestricted')
-        SECURITIES_RETIREMENT = 'securities_retirement', _('Securities-Retirement')
+        SECURITIES_UNRESTRICTED = (
+            'securities_unrestricted', _('Securities-Unrestricted')
+        )
+        SECURITIES_RETIREMENT = (
+            'securities_retirement', _('Securities-Retirement')
+        )
         REAL_ESTATE = 'real_estate', _('Real Estate')
         # Equity types
         RETAINED_EARNINGS = 'retained_earnings', _('Retained Earnings')
         # Income types
         SALARY = 'salary', _('Salary')
-        DIVIDENDS_AND_INTEREST = 'dividends_and_interest', _('Dividends & Interest')
-        REALIZED_INVESTMENT_GAINS = 'realized_investment_gains', _('Realized Investment Gains')
+        DIVIDENDS_AND_INTEREST = (
+            'dividends_and_interest', _('Dividends & Interest')
+        )
+        REALIZED_INVESTMENT_GAINS = (
+            'realized_investment_gains', _('Realized Investment Gains')
+        )
         OTHER_INCOME = 'other_income', _('Other Income')
-        UNREALIZED_INVESTMENT_GAINS = 'unrealized_investment_gains', _('Unrealized Investment Gains')
+        UNREALIZED_INVESTMENT_GAINS = (
+            'unrealized_investment_gains', _('Unrealized Investment Gains')
+        )
         # Expense Types
         PURCHASES = 'purchases', _('Purchases')
         TAX = 'tax', _('Tax')
@@ -354,8 +455,18 @@ class Account(models.Model):
 
     # TODO: Add a test that makes sure every type/subtype is represented here
     SUBTYPE_TO_TYPE_MAP = {
-        Type.LIABILITY: [SubType.SHORT_TERM_DEBT,SubType.LONG_TERM_DEBT,SubType.TAXES_PAYABLE],
-        Type.ASSET: [SubType.CASH,SubType.REAL_ESTATE,SubType.SECURITIES_RETIREMENT,SubType.SECURITIES_UNRESTRICTED,SubType.ACCOUNTS_RECEIVABLE],
+        Type.LIABILITY: [
+            SubType.SHORT_TERM_DEBT,
+            SubType.LONG_TERM_DEBT,
+            SubType.TAXES_PAYABLE
+        ],
+        Type.ASSET: [
+            SubType.CASH,
+            SubType.REAL_ESTATE,
+            SubType.SECURITIES_RETIREMENT,
+            SubType.SECURITIES_UNRESTRICTED,
+            SubType.ACCOUNTS_RECEIVABLE
+        ],
         Type.EQUITY: [SubType.RETAINED_EARNINGS],
         Type.INCOME: [
             SubType.SALARY,
@@ -364,14 +475,26 @@ class Account(models.Model):
             SubType.OTHER_INCOME,
             SubType.UNREALIZED_INVESTMENT_GAINS
         ],
-        Type.EXPENSE: [SubType.PURCHASES,SubType.TAX,SubType.INTEREST]
+        Type.EXPENSE: [SubType.PURCHASES, SubType.TAX, SubType.INTEREST]
     }
 
-    name = models.CharField(max_length=200,unique=True)
-    type = models.CharField(max_length=9,choices=Type.choices)
-    sub_type = models.CharField(max_length=30,choices=SubType.choices)
-    csv_profile = models.ForeignKey('CSVProfile',related_name='accounts',on_delete=models.PROTECT,null=True,blank=True)
-    special_type = models.CharField(max_length=30,choices=SpecialType.choices, null=True, blank=True, unique=True)
+    name = models.CharField(max_length=200, unique=True)
+    type = models.CharField(max_length=9, choices=Type.choices)
+    sub_type = models.CharField(max_length=30, choices=SubType.choices)
+    csv_profile = models.ForeignKey(
+        'CSVProfile',
+        related_name='accounts',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True
+    )
+    special_type = models.CharField(
+        max_length=30,
+        choices=SpecialType.choices,
+        null=True,
+        blank=True,
+        unique=True
+    )
     is_closed = models.BooleanField(default=False)
 
     class Meta:
@@ -389,7 +512,7 @@ class Account(models.Model):
             return credits - debits
 
     def get_balance(self, end_date, start_date=None):
-        INCOME_STATEMENT_ACCOUNT_TYPES = ['income','expense']
+        INCOME_STATEMENT_ACCOUNT_TYPES = ['income', 'expense']
 
         journal_entry_items = JournalEntryItem.objects.filter(
             journal_entry__date__lte=end_date,
@@ -405,24 +528,39 @@ class Account(models.Model):
         credits = 0
         for journal_entry_item in journal_entry_items:
             amount = journal_entry_item.amount
-            if journal_entry_item.type == JournalEntryItem.JournalEntryType.DEBIT:
+
+            journal_entry_type = JournalEntryItem.JournalEntryType.DEBIT
+            if journal_entry_item.type == journal_entry_type:
+
                 debits += amount
             else:
                 credits += amount
 
-        return Account.get_balance_from_debit_and_credit(account_type=self.type,debits=debits,credits=credits)
+        return Account.get_balance_from_debit_and_credit(
+            account_type=self.type,
+            debits=debits,
+            credits=credits
+        )
+
 
 class JournalEntry(models.Model):
     date = models.DateField()
-    description = models.CharField(max_length=200,blank=True)
-    transaction = models.OneToOneField('Transaction',related_name='journal_entry',on_delete=models.CASCADE)
+    description = models.CharField(max_length=200, blank=True)
+    transaction = models.OneToOneField(
+        'Transaction',
+        related_name='journal_entry',
+        on_delete=models.CASCADE
+    )
 
     def __str__(self):
         return str(self.pk) + ': ' + str(self.date) + ' ' + self.description
 
     def delete_journal_entry_items(self):
-        journal_entry_items = JournalEntryItem.objects.filter(journal_entry=self)
+        journal_entry_items = JournalEntryItem.objects.filter(
+            journal_entry=self
+        )
         journal_entry_items.delete()
+
 
 class JournalEntryItem(models.Model):
 
@@ -430,22 +568,45 @@ class JournalEntryItem(models.Model):
         DEBIT = 'debit', _('Debit')
         CREDIT = 'credit', _('Credit')
 
-    journal_entry = models.ForeignKey('JournalEntry',related_name='journal_entry_items',on_delete=models.CASCADE)
-    type = models.CharField(max_length=6,choices=JournalEntryType.choices)
-    amount = models.DecimalField(decimal_places=2,max_digits=12)
-    account = models.ForeignKey('Account',on_delete=models.PROTECT)
+    journal_entry = models.ForeignKey(
+        'JournalEntry',
+        related_name='journal_entry_items',
+        on_delete=models.CASCADE
+    )
+    type = models.CharField(max_length=6, choices=JournalEntryType.choices)
+    amount = models.DecimalField(decimal_places=2, max_digits=12)
+    account = models.ForeignKey('Account', on_delete=models.PROTECT)
 
     def __str__(self):
-        return str(self.journal_entry.id) + ' ' + self.type + ' $' + str(self.amount)
+        return (
+            str(self.journal_entry.id) + ' ' + self.type +
+            ' $' + str(self.amount)
+        )
+
 
 class AutoTag(models.Model):
     search_string = models.CharField(max_length=20)
-    account = models.ForeignKey('Account',on_delete=models.CASCADE,null=True,blank=True)
-    transaction_type = models.CharField(max_length=25,choices=Transaction.TransactionType.choices,blank=True)
-    prefill = models.ForeignKey('Prefill',on_delete=models.CASCADE,null=True,blank=True)
+    account = models.ForeignKey(
+        'Account',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+    transaction_type = models.CharField(
+        max_length=25,
+        choices=Transaction.TransactionType.choices,
+        blank=True
+    )
+    prefill = models.ForeignKey(
+        'Prefill',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
 
     def __str__(self):
-        return '"' + self.search_string +  '": ' + str(self.account)
+        return '"' + self.search_string + '": ' + str(self.account)
+
 
 class Prefill(models.Model):
     name = models.CharField(max_length=200)
@@ -453,15 +614,21 @@ class Prefill(models.Model):
     def __str__(self):
         return self.name
 
+
 class PrefillItem(models.Model):
-    prefill = models.ForeignKey('Prefill',on_delete=models.CASCADE)
-    account = models.ForeignKey('Account',on_delete=models.CASCADE)
-    journal_entry_item_type = models.CharField(max_length=25,choices=JournalEntryItem.JournalEntryType.choices)
+    prefill = models.ForeignKey('Prefill', on_delete=models.CASCADE)
+    account = models.ForeignKey('Account', on_delete=models.CASCADE)
+    journal_entry_item_type = models.CharField(
+        max_length=25,
+        choices=JournalEntryItem.JournalEntryType.choices
+    )
     order = models.PositiveSmallIntegerField()
+
 
 class CSVColumnValuePair(models.Model):
     column = models.CharField(max_length=200)
     value = models.CharField(max_length=200)
+
 
 class CSVProfile(models.Model):
     name = models.CharField(max_length=200)
@@ -469,7 +636,11 @@ class CSVProfile(models.Model):
     description = models.CharField(max_length=200)
     category = models.CharField(max_length=200)
     clear_prepended_until_value = models.CharField(max_length=200, blank=True)
-    clear_values_column_pairs = models.ManyToManyField(CSVColumnValuePair, null=True, blank=True)
+    clear_values_column_pairs = models.ManyToManyField(
+        CSVColumnValuePair,
+        null=True,
+        blank=True
+    )
     inflow = models.CharField(max_length=200)
     outflow = models.CharField(max_length=200)
     date_format = models.CharField(max_length=200, default='%Y-%m-%d')
@@ -491,15 +662,19 @@ class CSVProfile(models.Model):
             transaction_type = Transaction.TransactionType.PURCHASE
             suggested_account = None
             prefill = None
-            # Loop through AutoTags to find the first match with the description
+            # Loop through AutoTags to find
+            # the first match with the description
             for tag in AutoTag.objects.all():
                 if tag.search_string.lower() in row[self.description].lower():
                     suggested_account = tag.account
                     prefill = tag.prefill
-                    # Only override the transaction type if it's specified in the tag
-                    transaction_type = tag.transaction_type if tag.transaction_type else transaction_type
+                    # Only override the transaction type
+                    # if it's specified in the tag
+                    tag_type = tag.transaction_type
+                    transaction_type = (
+                        tag_type if tag_type else transaction_type
+                    )
                     break
-
 
             transactions_list.append(
                 Transaction(
@@ -520,7 +695,10 @@ class CSVProfile(models.Model):
 
     def _get_formatted_date(self, date_string):
         # Parse the original date using the input format
-        original_date = datetime.datetime.strptime(date_string, self.date_format)
+        original_date = datetime.datetime.strptime(
+            date_string,
+            self.date_format
+        )
 
         # Format the date to the desired output format
         formatted_date = original_date.strftime('%Y-%m-%d')
@@ -552,7 +730,9 @@ class CSVProfile(models.Model):
     def _list_of_lists_to_list_of_dicts(self, list_of_lists):
         column_headings = list_of_lists[0]
         trimmed_headings = [heading.strip() for heading in column_headings]
-        list_of_dicts = [dict(zip(trimmed_headings, row)) for row in list_of_lists[1:]]
+        list_of_dicts = [
+            dict(zip(trimmed_headings, row)) for row in list_of_lists[1:]
+        ]
         return list_of_dicts
 
     def _clear_extraneous_rows(self, rows_list):
