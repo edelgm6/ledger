@@ -6,9 +6,13 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.forms import modelformset_factory
 from django.urls import reverse
-from api.models import  Transaction, JournalEntry, JournalEntryItem, Account
-from api.forms import TransactionLinkForm, TransactionFilterForm, JournalEntryItemForm, BaseJournalEntryItemFormset, TransactionForm
+from api.models import Transaction, JournalEntry, JournalEntryItem, Account
+from api.forms import (
+    TransactionLinkForm, TransactionFilterForm, JournalEntryItemForm,
+    BaseJournalEntryItemFormset, TransactionForm
+)
 from api import utils
+
 
 class TransactionsViewMixin:
     filter_form_template = 'api/filter_forms/transactions-filter-form.html'
@@ -43,9 +47,14 @@ class TransactionsViewMixin:
             'get_url': get_url
         }
 
-        return render_to_string(self.filter_form_template, context), transactions
+        return (
+            render_to_string(self.filter_form_template, context),
+            transactions
+        )
 
-    def get_table_html(self, transactions, index=0, no_highlight=False, row_url=None):
+    def get_table_html(
+            self, transactions, index=0, no_highlight=False, row_url=None
+    ):
 
         context = {
             'transactions': transactions,
@@ -57,7 +66,9 @@ class TransactionsViewMixin:
         table_template = 'api/tables/transactions-table-new.html'
         return render_to_string(table_template, context)
 
-    def get_transaction_form_html(self, transaction=None, created_transaction=None, change=None):
+    def get_transaction_form_html(
+            self, transaction=None, created_transaction=None, change=None
+    ):
         form_template = 'api/entry_forms/transaction-form.html'
         if transaction:
             form = TransactionForm(instance=transaction)
@@ -74,7 +85,9 @@ class TransactionsViewMixin:
         )
         return form_html
 
-    def get_journal_entry_form_html(self, transaction, index=0, debit_formset=None, credit_formset=None, is_debit=True, form_errors=None):
+    def get_journal_entry_form_html(
+            self, transaction, index=0, debit_formset=None,
+            credit_formset=None, is_debit=True, form_errors=None):
         if not transaction:
             return ''
 
@@ -83,9 +96,15 @@ class TransactionsViewMixin:
         if not (debit_formset and credit_formset):
             try:
                 journal_entry = transaction.journal_entry
-                journal_entry_items = JournalEntryItem.objects.filter(journal_entry=journal_entry)
-                journal_entry_debits = journal_entry_items.filter(type=JournalEntryItem.JournalEntryType.DEBIT)
-                journal_entry_credits = journal_entry_items.filter(type=JournalEntryItem.JournalEntryType.CREDIT)
+                journal_entry_items = JournalEntryItem.objects.filter(
+                    journal_entry=journal_entry
+                )
+                journal_entry_debits = journal_entry_items.filter(
+                    type=JournalEntryItem.JournalEntryType.DEBIT
+                )
+                journal_entry_credits = journal_entry_items.filter(
+                    type=JournalEntryItem.JournalEntryType.CREDIT
+                )
                 bound_debits_count = journal_entry_debits.count()
                 bound_credits_count = journal_entry_credits.count()
             except JournalEntry.DoesNotExist:
@@ -122,14 +141,16 @@ class TransactionsViewMixin:
                     prefill_items = transaction.prefill.prefillitem_set.all().order_by('order')
                     for item in prefill_items:
                         if item.journal_entry_item_type == JournalEntryItem.JournalEntryType.DEBIT:
-                            debits_initial_data.append({'account': item.account.name, 'amount': 0})
+                            debits_initial_data.append(
+                                {'account': item.account.name, 'amount': 0}
+                            )
                             prefill_debits_count += 1
                         else:
                             credits_initial_data.append({'account': item.account.name, 'amount': 0})
                             prefill_credits_count += 1
 
-            debit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=max((9-bound_debits_count),prefill_debits_count))
-            credit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=max((9-bound_credits_count),prefill_credits_count))
+            debit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=max((9-bound_debits_count), prefill_debits_count))
+            credit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=max((9-bound_credits_count), prefill_credits_count))
 
             debit_formset = debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits')
             credit_formset = credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
@@ -162,6 +183,7 @@ class TransactionsViewMixin:
 
 # ------------------Transactions View-----------------------
 
+
 # Called by the filter form
 class TransactionContentView(TransactionsViewMixin, LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
@@ -186,6 +208,7 @@ class TransactionContentView(TransactionsViewMixin, LoginRequiredMixin, View):
             html = render_to_string(content_template, context)
             return HttpResponse(html)
 
+
 # Called by table rows
 class TransactionFormView(TransactionsViewMixin, LoginRequiredMixin, View):
     login_url = '/login/'
@@ -196,16 +219,19 @@ class TransactionFormView(TransactionsViewMixin, LoginRequiredMixin, View):
         form_html = self.get_transaction_form_html(transaction=transaction)
         return HttpResponse(form_html)
 
+
 # Called to load page or POST new objects
 class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
-    content_template  = 'api/content/transactions-content.html'
+    content_template = 'api/content/transactions-content.html'
 
     def get(self, request):
         last_two_months_last_days = utils.get_last_days_of_month_tuples()[0:2]
         last_day_of_last_month = last_two_months_last_days[0][0]
-        first_day_of_last_month = last_two_months_last_days[1][0] + timedelta(days=1)
+        first_day_of_last_month = (
+            last_two_months_last_days[1][0] + timedelta(days=1)
+        )
 
         filter_form_html, transactions = self.get_filter_form_html_and_objects(
             date_from=first_day_of_last_month,
@@ -224,7 +250,8 @@ class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
         context = {
             'filter_form': filter_form_html,
             'table_and_form': render_to_string(
-                self.content_template,{
+                self.content_template,
+                {
                     'table': table_html,
                     'transactions_form': transaction_form_html
                 }
@@ -280,8 +307,11 @@ class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
 
 # ------------------Linking View-----------------------
 
+
 # Called on filter
-class LinkTransactionsContentView(TransactionsViewMixin, LoginRequiredMixin, View):
+class LinkTransactionsContentView(
+    TransactionsViewMixin, LoginRequiredMixin, View
+):
 
     def get(self, request):
         form = TransactionFilterForm(request.GET, prefix='filter')
@@ -294,10 +324,11 @@ class LinkTransactionsContentView(TransactionsViewMixin, LoginRequiredMixin, Vie
                 'table': table_html,
                 'link_form': link_form_html
             }
-            content_template  = 'api/content/transactions-link-content.html'
+            content_template = 'api/content/transactions-link-content.html'
 
             html = render_to_string(content_template, context)
             return HttpResponse(html)
+
 
 # Called to load page and link transactions
 class LinkTransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
@@ -309,7 +340,10 @@ class LinkTransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
         filter_form_html, transactions = self.get_filter_form_html_and_objects(
             is_closed=False,
             has_linked_transaction=False,
-            transaction_type=[Transaction.TransactionType.TRANSFER,Transaction.TransactionType.PAYMENT],
+            transaction_type=[
+                Transaction.TransactionType.TRANSFER,
+                Transaction.TransactionType.PAYMENT
+            ],
             get_url=reverse('link-transactions-content')
         )
         table_html = self.get_table_html(transactions, no_highlight=True)
@@ -318,7 +352,8 @@ class LinkTransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
         context = {
             'filter_form': filter_form_html,
             'table_and_form': render_to_string(
-                self.content_template,{
+                self.content_template,
+                {
                     'table': table_html,
                     'link_form': link_form_html
                 }
@@ -338,7 +373,10 @@ class LinkTransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
 
             if form.is_valid():
                 form.save()
-                table_html = self.get_table_html(transactions=transactions, no_highlight=True)
+                table_html = self.get_table_html(
+                    transactions=transactions,
+                    no_highlight=True
+                )
                 link_form_html = self.get_link_form_html()
                 context = {
                     'table': table_html,
@@ -353,6 +391,7 @@ class LinkTransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
 
 # ------------------Journal Entries View-----------------------
 
+
 # Called every time the page is filtered
 class JournalEntryTableView(TransactionsViewMixin, LoginRequiredMixin, View):
     login_url = '/login/'
@@ -362,12 +401,17 @@ class JournalEntryTableView(TransactionsViewMixin, LoginRequiredMixin, View):
         form = TransactionFilterForm(request.GET, prefix='filter')
         if form.is_valid():
             transactions = form.get_transactions()
-            table_html = self.get_table_html(transactions=transactions, row_url=reverse('journal-entries'))
+            table_html = self.get_table_html(
+                transactions=transactions,
+                row_url=reverse('journal-entries')
+            )
             try:
-                transaction=transactions[0]
+                transaction = transactions[0]
             except IndexError:
-                transaction=None
-            entry_form_html = self.get_journal_entry_form_html(transaction=transaction)
+                transaction = None
+            entry_form_html = self.get_journal_entry_form_html(
+                transaction=transaction
+            )
             content_template = 'api/content/journal-entry-content.html'
             context = {
                 'entry_form': entry_form_html,
@@ -377,6 +421,7 @@ class JournalEntryTableView(TransactionsViewMixin, LoginRequiredMixin, View):
             html = render_to_string(content_template, context)
             return HttpResponse(html)
 
+
 # Called every time a table row is clicked
 class JournalEntryFormView(TransactionsViewMixin, LoginRequiredMixin, View):
     login_url = '/login/'
@@ -385,21 +430,28 @@ class JournalEntryFormView(TransactionsViewMixin, LoginRequiredMixin, View):
 
     def get(self, request, transaction_id):
         transaction = Transaction.objects.get(pk=transaction_id)
-        entry_form_html = self.get_journal_entry_form_html(transaction=transaction, index=request.GET.get('row_index'))
+        entry_form_html = self.get_journal_entry_form_html(
+            transaction=transaction,
+            index=request.GET.get('row_index')
+        )
 
         return HttpResponse(entry_form_html)
+
 
 # Called as the main page
 class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
     view_template = 'api/views/journal-entry-view.html'
-    content_template  = 'api/content/journal-entry-content.html'
+    content_template = 'api/content/journal-entry-content.html'
 
     def get(self, request):
         filter_form_html, transactions = self.get_filter_form_html_and_objects(
             is_closed=False,
-            transaction_type=[Transaction.TransactionType.INCOME,Transaction.TransactionType.PURCHASE],
+            transaction_type=[
+                Transaction.TransactionType.INCOME,
+                Transaction.TransactionType.PURCHASE
+            ],
             get_url=reverse('journal-entries-table')
         )
         table_html = self.get_table_html(
@@ -407,32 +459,32 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
             row_url=reverse('journal-entries')
         )
         try:
-            transaction=transactions[0]
+            transaction = transactions[0]
         except IndexError:
             transaction = None
-        entry_form_html = self.get_journal_entry_form_html(transaction=transaction)
+        entry_form_html = self.get_journal_entry_form_html(
+            transaction=transaction
+        )
 
         context = {
             'filter_form': filter_form_html,
             'table_and_form': render_to_string(
                 self.content_template,
-                {'table': table_html,'entry_form': entry_form_html}
+                {'table': table_html, 'entry_form': entry_form_html}
             )
         }
 
         html = render_to_string(self.view_template, context)
         return HttpResponse(html)
 
-    def _get_combined_formset_errors(self, debit_formset, credit_formset, transaction):
+    def _get_combined_formset_errors(
+            self, debit_formset, credit_formset, transaction
+            ):
         form_errors = []
         debit_total = debit_formset.get_entry_total()
         credit_total = credit_formset.get_entry_total()
         if debit_total != credit_total:
             form_errors.append('Debits ($' + str(debit_total) + ') and Credits ($' + str(credit_total) + ') must balance.')
-
-        # account_amount = credit_formset.get_account_amount(transaction.account) if transaction.amount < 0 else debit_formset.get_account_amount(transaction.account)
-        # if account_amount != abs(transaction.amount):
-            # form_errors.append('At least one JEI must have the same account and amount as the transaction.')
 
         prepaid_account = Account.objects.get(special_type=Account.SpecialType.PREPAID_EXPENSES)
         prepaid_amount = credit_formset.get_account_amount(prepaid_account)
@@ -443,12 +495,18 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
         print(form_errors)
         return form_errors
 
-
     def post(self, request, transaction_id):
-        JournalEntryItemFormset = modelformset_factory(JournalEntryItem, formset=BaseJournalEntryItemFormset, form=JournalEntryItemForm)
+        JournalEntryItemFormset = modelformset_factory(
+            JournalEntryItem,
+            formset=BaseJournalEntryItemFormset,
+            form=JournalEntryItemForm
+        )
         debit_formset = JournalEntryItemFormset(request.POST, prefix='debits')
-        credit_formset = JournalEntryItemFormset(request.POST, prefix='credits')
-        transaction = get_object_or_404(Transaction,pk=transaction_id)
+        credit_formset = JournalEntryItemFormset(
+            request.POST,
+            prefix='credits'
+        )
+        transaction = get_object_or_404(Transaction, pk=transaction_id)
 
         # First check if the forms are valid and create JEIs if so
         has_errors = False
@@ -465,23 +523,35 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
             has_errors = True
 
         if not has_errors:
-            debit_formset.save(transaction, JournalEntryItem.JournalEntryType.DEBIT)
-            credit_formset.save(transaction, JournalEntryItem.JournalEntryType.CREDIT)
+            debit_formset.save(
+                transaction,
+                JournalEntryItem.JournalEntryType.DEBIT
+            )
+            credit_formset.save(
+                transaction,
+                JournalEntryItem.JournalEntryType.CREDIT
+            )
             transaction.close()
 
-        # Build the transactions table — use the filter settings if valid, else return all transactions
+        # Build the transactions table — use the filter settings if valid,
+        # else return all transactions
         filter_form = TransactionFilterForm(request.POST, prefix='filter')
         if filter_form.is_valid():
             transactions = filter_form.get_transactions()
-            index = int(request.POST.get('index', 0))  # Default to 0 if 'index' is not provided
+            # Default to 0 if 'index' is not provided
+            index = int(request.POST.get('index', 0))
         else:
             _, transactions = self.get_filter_form_html_and_objects(
                 is_closed=False,
-                transaction_type=[Transaction.TransactionType.INCOME,Transaction.TransactionType.PURCHASE]
+                transaction_type=[
+                    Transaction.TransactionType.INCOME,
+                    Transaction.TransactionType.PURCHASE
+                ]
             )
             index = 0
 
-        # If either form has errors, return the forms to render the errors, else build it
+        # If either form has errors, return the forms to render the errors,
+        # else build it
         if has_errors:
             entry_form_html = self.get_journal_entry_form_html(
                 transaction=transaction,
@@ -496,15 +566,23 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
             if len(transactions) == 0:
                 entry_form_html = None
             else:
-                # Need to check an index error in case user chose the last entry
+                # Need to check an index error in case
+                # user chose the last entry
                 try:
                     highlighted_transaction = transactions[index]
                 except IndexError:
                     index = 0
                     highlighted_transaction = transactions[index]
-                entry_form_html = self.get_journal_entry_form_html(transaction=highlighted_transaction, index=index)
+                entry_form_html = self.get_journal_entry_form_html(
+                    transaction=highlighted_transaction,
+                    index=index
+                )
 
-        table_html = self.get_table_html(transactions=transactions, index=index, row_url=reverse('journal-entries'))
+        table_html = self.get_table_html(
+            transactions=transactions,
+            index=index,
+            row_url=reverse('journal-entries')
+        )
         context = {
             'table': table_html,
             'entry_form': entry_form_html
