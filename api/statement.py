@@ -286,6 +286,7 @@ class CashFlowStatement(Statement):
 
         return sorted_balances
 
+
 class IncomeStatement(Statement):
 
     def __init__(self, end_date, start_date):
@@ -298,7 +299,7 @@ class IncomeStatement(Statement):
         self.balances.append(
             Balance(
                 'Realized Net Income',
-                self.net_income - self.investment_gains,
+                self._get_non_investment_gains_net_income(),
                 Account.Type.EQUITY,
                 Account.SubType.RETAINED_EARNINGS,
                 self.end_date
@@ -313,17 +314,7 @@ class IncomeStatement(Statement):
                 self.end_date
             )
         )
-        self.metrics = self.get_metrics()
         self.summaries = self.get_summaries()
-
-    def get_metrics(self):
-        metrics = [
-            Metric('Non-Gains Net Income', self.get_non_investment_gains_net_income()),
-            Metric('Tax Rate', self.get_tax_rate(), 'ratio'),
-            Metric('Savings Rate', self.get_savings_rate(), 'ratio'),
-            Metric('Taxable Income', self.get_taxable_income())
-        ]
-        return metrics
 
     def get_net_income(self):
         net_income = 0
@@ -341,7 +332,7 @@ class IncomeStatement(Statement):
     def get_unrealized_gains_and_losses(self):
         return sum([balance.amount for balance in self.balances if balance.account_sub_type == Account.SubType.UNREALIZED_INVESTMENT_GAINS])
 
-    def get_non_investment_gains_net_income(self):
+    def _get_non_investment_gains_net_income(self):
         return self.net_income - self.investment_gains
 
     def get_tax_rate(self):
@@ -352,11 +343,13 @@ class IncomeStatement(Statement):
         return taxes / taxable_income
 
     def get_savings_rate(self):
-        non_gains_net_income = self.get_non_investment_gains_net_income()
+        non_gains_net_income = self._get_non_investment_gains_net_income()
         non_gains_income = sum([balance.amount for balance in self.balances if balance.account_sub_type != Account.SubType.UNREALIZED_INVESTMENT_GAINS and balance.account_type == Account.Type.INCOME])
+        print(non_gains_income)
         if non_gains_income == 0:
             return None
         return non_gains_net_income / non_gains_income
+
 
 class BalanceSheet(Statement):
 
