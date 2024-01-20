@@ -9,6 +9,7 @@ from api.models import Account
 from api.forms import FromToDateForm
 from api import utils
 
+
 class StatementMixIn:
 
     def _get_statement_summary_dict(self, statement):
