@@ -1,3 +1,4 @@
+import time
 from datetime import timedelta
 from django.http import HttpResponse
 from django.template.loader import render_to_string
@@ -85,14 +86,19 @@ class StatementMixIn:
         return render_to_string(template, context)
 
     def get_cash_flow_html(self, from_date, to_date):
+        start_of_cash_flow_html = time.time()
         income_statement = IncomeStatement(end_date=to_date, start_date=from_date)
+        income_statement_built = time.time()
         end_balance_sheet = BalanceSheet(end_date=to_date)
+        first_balance_sheet_built = time.time()
         start_balance_sheet = BalanceSheet(end_date=from_date + timedelta(days=-1))
+        second_balance_sheet_built = time.time()
         cash_statement = CashFlowStatement(
             income_statement=income_statement,
             start_balance_sheet=start_balance_sheet,
             end_balance_sheet=end_balance_sheet
         )
+        statements_built = time.time()
 
         context = {
             'operations_flows': cash_statement.cash_from_operations_balances,
@@ -105,16 +111,17 @@ class StatementMixIn:
             'levered_cash_flow': cash_statement.get_levered_after_tax_cash_flow(),
             'levered_cash_flow_post_retirement': cash_statement.get_levered_after_tax_after_retirement_cash_flow()
         }
+        context_built = time.time()
 
         template = 'api/content/cash-flow-content.html'
-        return render_to_string(template, context)
+        return render_to_string(template, context), start_of_cash_flow_html, income_statement_built, first_balance_sheet_built, second_balance_sheet_built, statements_built, context_built
 
 class StatementView(StatementMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
 
     def get(self, request, statement_type, *args, **kwargs):
-
+        start_time = time.time()
         form = FromToDateForm(request.GET)
         if form.is_valid():
             from_date = form.cleaned_data['date_from']
@@ -133,7 +140,7 @@ class StatementView(StatementMixIn, LoginRequiredMixin, View):
             statement_html = self.get_balance_sheet_html(to_date=to_date)
             title = 'Balance Sheet'
         elif statement_type == 'cash':
-            statement_html = self.get_cash_flow_html(from_date=from_date,to_date=to_date)
+            statement_html, start_of_cash_flow_html, income_statement_built, first_balance_sheet_built, second_balance_sheet_built, statements_built, context_built = self.get_cash_flow_html(from_date=from_date,to_date=to_date)
             title = 'Cash Flow Statement'
 
         context = {
@@ -143,4 +150,14 @@ class StatementView(StatementMixIn, LoginRequiredMixin, View):
         }
 
         template = 'api/views/statement.html'
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+
+        context['elapsed_time'] = elapsed_time
+        context['start_to_start_of_cash_function'] = start_of_cash_flow_html - start_time
+        context['start_of_cash_function_to_is_built'] = income_statement_built - start_of_cash_flow_html
+        context['is_built_to_bs_built'] = first_balance_sheet_built - income_statement_built
+        context['bs_built_to_second_bs_built'] = second_balance_sheet_built - first_balance_sheet_built
+        context['second_bs_built_to_cash'] = statements_built - second_balance_sheet_built
+        context['statements_built_to_context_built'] = context_built - statements_built
         return HttpResponse(render_to_string(template, context))
