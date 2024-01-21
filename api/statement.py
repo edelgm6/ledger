@@ -161,9 +161,6 @@ class Statement:
 
         return summaries
 
-    def get_summary_value(self, search):
-        value = sum([summary.value for summary in self.summaries if summary.name in search])
-        return value
 
 class CashFlowStatement(Statement):
 
@@ -339,7 +336,6 @@ class IncomeStatement(Statement):
     def get_savings_rate(self):
         non_gains_net_income = self._get_non_investment_gains_net_income()
         non_gains_income = sum([balance.amount for balance in self.balances if balance.account_sub_type != Account.SubType.UNREALIZED_INVESTMENT_GAINS and balance.account_type == Account.Type.INCOME])
-        print(non_gains_income)
         if non_gains_income == 0:
             return None
         return non_gains_net_income / non_gains_income
