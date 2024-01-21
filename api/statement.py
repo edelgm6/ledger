@@ -2,7 +2,8 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from collections import namedtuple
 from django.db.models import Sum, Case, When, Value, DecimalField
-from api.models import JournalEntryItem, Account, JournalEntry, JournalEntryItem
+from api.models import JournalEntryItem, Account, JournalEntryItem
+
 
 class Trend:
 
@@ -32,7 +33,7 @@ class Trend:
 
         balances = []
         for range in ranges:
-            income_statement = IncomeStatement(end_date=range.end,start_date=range.start)
+            income_statement = IncomeStatement(end_date=range.end, start_date=range.start)
             balance_sheet = BalanceSheet(end_date=range.end)
 
             balance_sheet_start_date = range.start - timedelta(days=1)
@@ -167,11 +168,11 @@ class Statement:
 class CashFlowStatement(Statement):
 
     def __init__(self, income_statement, start_balance_sheet, end_balance_sheet):
+
         self.income_statement = income_statement
         self.start_balance_sheet = start_balance_sheet
         self.end_balance_sheet = end_balance_sheet
         self.balance_sheet_deltas = self.get_balance_sheet_account_deltas()
-
         self.net_income_less_gains_and_losses = self.income_statement.net_income - self.income_statement.investment_gains
 
         # TODO: Can definitely combine finding the balances and getting the totals
@@ -192,6 +193,7 @@ class CashFlowStatement(Statement):
             Metric('Cash Flow From Financing', self.get_cash_flow(self.cash_from_financing_balances)),
             Metric('Net Cash Flow', self.net_cash_flow)
         ]
+
         self.metrics = [
             Metric('Levered post-tax Free Cash Flow', self.get_levered_after_tax_cash_flow()),
             Metric('Levered post-tax post-retirement Free Cash Flow', self.get_levered_after_tax_after_retirement_cash_flow())
@@ -220,7 +222,7 @@ class CashFlowStatement(Statement):
         return levered_after_tax_cash_flow + retirement_cash_flow
 
     def get_balance_sheet_account_deltas(self):
-        accounts = Account.objects.filter(type__in=[Account.Type.ASSET,Account.Type.LIABILITY,Account.Type.EQUITY])
+        accounts = Account.objects.filter(type__in=[Account.Type.ASSET, Account.Type.LIABILITY, Account.Type.EQUITY])
         account_deltas = []
         for account in accounts:
             starting_balance = sum([balance.amount for balance in self.start_balance_sheet.balances if balance.account == account.name])
@@ -253,39 +255,31 @@ class CashFlowStatement(Statement):
     def get_cash_from_investing_balances(self):
         start_date = self.income_statement.start_date
         end_date = self.income_statement.end_date
-        account_sub_types = [Account.SubType.SECURITIES_RETIREMENT,Account.SubType.SECURITIES_UNRESTRICTED]
+        account_sub_types = [Account.SubType.SECURITIES_RETIREMENT, Account.SubType.SECURITIES_UNRESTRICTED]
         exclude_journal_entries_with_sub_types = [Account.SubType.UNREALIZED_INVESTMENT_GAINS]
 
-        journal_entries = JournalEntry.objects.all()
-        journal_entries = journal_entries.filter(date__gte=start_date, date__lte=end_date)
-        journal_entries = journal_entries.exclude(journal_entry_items__account__sub_type__in=exclude_journal_entries_with_sub_types)
+        # Use select_related to fetch related Account objects
+        journal_entry_items = JournalEntryItem.objects.filter(
+            journal_entry__date__gte=start_date,
+            journal_entry__date__lte=end_date,
+            account__sub_type__in=account_sub_types
+        ).exclude(journal_entry__journal_entry_items__account__sub_type__in=exclude_journal_entries_with_sub_types).select_related('account')
 
-        journal_entry_items = JournalEntryItem.objects.filter(journal_entry__in=journal_entries)
-        journal_entry_items = journal_entry_items.filter(account__sub_type__in=account_sub_types)
-
+        # Efficient processing of items
         account_adjustments = {}
         for item in journal_entry_items:
-            if not account_adjustments.get(item.account):
-                account_adjustments[item.account] = 0
+            account = item.account
+            adjustment = item.amount if account.type in [Account.Type.LIABILITY, Account.Type.INCOME] else -item.amount
+            adjustment *= -1 if item.type == JournalEntryItem.JournalEntryType.CREDIT else 1
+            account_adjustments.setdefault(account, 0)
+            account_adjustments[account] += adjustment
 
-            if item.account.type in [Account.Type.ASSET, Account.Type.EXPENSE]:
-                if item.type == JournalEntryItem.JournalEntryType.DEBIT:
-                    account_adjustments[item.account] -= item.amount
-                else:
-                    account_adjustments[item.account] += item.amount
-            else:
-                if item.type == JournalEntryItem.JournalEntryType.DEBIT:
-                    account_adjustments[item.account] += item.amount
-                else:
-                    account_adjustments[item.account] -= item.amount
-
-        balances = []
-        for key, value in account_adjustments.items():
-            balances.append(Balance(key.name,value,key.type,key.sub_type,self.end_balance_sheet.end_date))
+        # Constructing balances
+        balances = [Balance(key.name, value, key.type, key.sub_type, self.end_balance_sheet.end_date)
+                    for key, value in account_adjustments.items()]
         sorted_balances = sorted(balances, key=lambda k: k.account)
 
         return sorted_balances
-
 
 class IncomeStatement(Statement):
 

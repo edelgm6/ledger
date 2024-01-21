@@ -109,12 +109,12 @@ class StatementMixIn:
         template = 'api/content/cash-flow-content.html'
         return render_to_string(template, context)
 
+
 class StatementView(StatementMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
 
     def get(self, request, statement_type, *args, **kwargs):
-
         form = FromToDateForm(request.GET)
         if form.is_valid():
             from_date = form.cleaned_data['date_from']
