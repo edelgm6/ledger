@@ -62,9 +62,10 @@ class TaxChargeMixIn:
 
     def get_tax_table_html(self, tax_charges):
 
-        tax_charges = tax_charges.order_by('date','type')
+        tax_charges = tax_charges.select_related('transaction','transaction__account').order_by('date','type')
         for tax_charge in tax_charges:
             self._add_tax_rate_and_charge(tax_charge)
+            tax_charge.transaction_string = str(tax_charge.transaction)
 
         tax_charge_table_html = render_to_string(
             'api/tables/tax-table.html',
