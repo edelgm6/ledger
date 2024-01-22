@@ -2,13 +2,12 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from collections import namedtuple
 from django.db.models import Sum, Case, When, Value, DecimalField
-from api.models import JournalEntryItem, Account, JournalEntryItem
+from api.models import JournalEntryItem, Account
 
 
 class Trend:
 
     def __init__(self, start_date, end_date):
-        # self.type = type
         self.start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
         self.end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
 
@@ -38,13 +37,14 @@ class Trend:
 
             balance_sheet_start_date = range.start - timedelta(days=1)
             balance_sheet_start = BalanceSheet(end_date=balance_sheet_start_date)
-            cash_flow_statement = CashFlowStatement(income_statement,balance_sheet_start,balance_sheet)
+            cash_flow_statement = CashFlowStatement(income_statement, balance_sheet_start, balance_sheet)
 
             balances += income_statement.get_balances()
             balances += balance_sheet.get_balances()
             balances += cash_flow_statement.get_balances()
 
         return balances
+
 
 class Balance:
 
@@ -56,12 +56,14 @@ class Balance:
         self.date = date
         self.type = type
 
+
 class Metric:
 
     def __init__(self, name, value, metric_type='total'):
         self.name = name
         self.value = value
         self.metric_type = metric_type
+
 
 class Statement:
 
@@ -77,22 +79,22 @@ class Statement:
             debits = aggregate['debit_total']
             credits = aggregate['credit_total']
 
-            balance = Account.get_balance_from_debit_and_credit(account_type,debits=debits,credits=credits)
-            account_balance_list.append(Balance(aggregate['account__name'],balance,account_type,aggregate['account__sub_type'],end_date,balance_type))
+            balance = Account.get_balance_from_debit_and_credit(account_type, debits=debits, credits=credits)
+            account_balance_list.append(Balance(aggregate['account__name'], balance, account_type, aggregate['account__sub_type'], end_date, balance_type))
 
         sorted_list = sorted(account_balance_list, key=lambda k: k.account)
         return sorted_list
 
     def get_balances(self):
         if type(self) == IncomeStatement:
-            ACCOUNT_TYPES = ['income','expense']
+            ACCOUNT_TYPES = ['income', 'expense']
             aggregates = JournalEntryItem.objects.filter(
                 account__type__in=ACCOUNT_TYPES,
                 journal_entry__date__gte=self.start_date,
                 journal_entry__date__lte=self.end_date
             )
         else:
-            ACCOUNT_TYPES = ['asset','liability','equity']
+            ACCOUNT_TYPES = ['asset', 'liability', 'equity']
             aggregates = JournalEntryItem.objects.filter(
                 account__type__in=ACCOUNT_TYPES,
                 journal_entry__date__lte=self.end_date
@@ -121,7 +123,7 @@ class Statement:
         if type(self) == BalanceSheet:
             balance_type = 'stock'
 
-        balances = self._get_balance_from_aggregates(aggregates,self.end_date,balance_type)
+        balances = self._get_balance_from_aggregates(aggregates, self.end_date, balance_type)
 
         # Add accounts without any activity
         represented_accounts_names = [balance.account for balance in balances]
@@ -178,7 +180,7 @@ class CashFlowStatement(Statement):
         self.cash_from_financing_balances = self.get_cash_from_financing_balances()
         self.cash_from_investing_balances = self.get_cash_from_investing_balances()
         self.net_cash_flow = 0
-        for balances_list in [self.cash_from_operations_balances,self.cash_from_financing_balances,self.cash_from_investing_balances]:
+        for balances_list in [self.cash_from_operations_balances, self.cash_from_financing_balances, self.cash_from_investing_balances]:
             self.balances += balances_list
             self.net_cash_flow += self.get_cash_flow(balances_list)
 
@@ -227,7 +229,7 @@ class CashFlowStatement(Statement):
             delta = ending_balance - starting_balance
             if account.type == Account.Type.ASSET:
                 delta = delta * -1
-            account_deltas.append(Balance(account.name,delta,account.type,account.sub_type,self.end_balance_sheet.end_date))
+            account_deltas.append(Balance(account.name, delta, account.type, account.sub_type, self.end_balance_sheet.end_date))
 
         return account_deltas
 
@@ -236,7 +238,8 @@ class CashFlowStatement(Statement):
             Balance(
                 'Realized Net Income',
                 self.net_income_less_gains_and_losses,
-                Account.Type.EQUITY,Account.SubType.RETAINED_EARNINGS,
+                Account.Type.EQUITY,
+                Account.SubType.RETAINED_EARNINGS,
                 self.end_balance_sheet.end_date
             )
         ]
@@ -278,6 +281,7 @@ class CashFlowStatement(Statement):
 
         return sorted_balances
 
+
 class IncomeStatement(Statement):
 
     def __init__(self, end_date, start_date):
@@ -318,7 +322,7 @@ class IncomeStatement(Statement):
         return net_income
 
     def get_taxable_income(self):
-        return sum([balance.amount for balance in self.balances if balance.account_type == Account.Type.INCOME and balance.account_sub_type not in [Account.SubType.UNREALIZED_INVESTMENT_GAINS,Account.SubType.OTHER_INCOME]])
+        return sum([balance.amount for balance in self.balances if balance.account_type == Account.Type.INCOME and balance.account_sub_type not in [Account.SubType.UNREALIZED_INVESTMENT_GAINS, Account.SubType.OTHER_INCOME]])
 
     def get_unrealized_gains_and_losses(self):
         return sum([balance.amount for balance in self.balances if balance.account_sub_type == Account.SubType.UNREALIZED_INVESTMENT_GAINS])
@@ -348,14 +352,14 @@ class BalanceSheet(Statement):
         self.balances = self.get_balances()
         investment_gains_losses, net_retained_earnings = self.get_retained_earnings_values()
         self.balances += [
-            Balance('9000-Net Retained Earnings', net_retained_earnings, Account.Type.EQUITY, Account.SubType.RETAINED_EARNINGS,self.end_date),
-            Balance('9100-Investment Gains/Losses', investment_gains_losses, Account.Type.EQUITY, Account.SubType.RETAINED_EARNINGS,self.end_date)
+            Balance('9000-Net Retained Earnings', net_retained_earnings, Account.Type.EQUITY, Account.SubType.RETAINED_EARNINGS, self.end_date),
+            Balance('9100-Investment Gains/Losses', investment_gains_losses, Account.Type.EQUITY, Account.SubType.RETAINED_EARNINGS, self.end_date)
         ]
         self.summaries = self.get_summaries()
         self.metrics = self.get_metrics()
 
     def get_retained_earnings_values(self):
-        income_statement = IncomeStatement(end_date=self.end_date,start_date='1970-01-01')
+        income_statement = IncomeStatement(end_date=self.end_date, start_date='1970-01-01')
         retained_earnings = income_statement.get_net_income()
 
         investment_gains_losses = sum([balance.amount for balance in income_statement.balances if balance.account_sub_type == Account.SubType.UNREALIZED_INVESTMENT_GAINS])
@@ -366,7 +370,8 @@ class BalanceSheet(Statement):
     def get_balance(self, account):
         try:
             balance = [balance.amount for balance in self.balances if balance.account == account.name][0]
-        except IndexError: # Need this when there is no balance for a given account
+        # Need this when there is no balance for a given account
+        except IndexError:
             balance = 0
         return balance
 
