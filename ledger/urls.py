@@ -1,6 +1,8 @@
+import debug_toolbar
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from django.contrib.auth.views import LoginView
+from django.conf import settings
 from api.views.frontend_views import TrendView,  UploadTransactionsView, IndexView
 from api.views.transaction_views import LinkTransactionsContentView, TransactionContentView, TransactionFormView, JournalEntryView, LinkTransactionsView, JournalEntryFormView, JournalEntryTableView, TransactionsView
 from api.views.tax_views import TaxChargeTableView,TaxChargeFormView, TaxesView
@@ -50,3 +52,9 @@ urlpatterns = [
     path('amortization/amortization-form/<int:transaction_id>/', AmortizationFormView.as_view(), name='amortization-form'),
     path('amortization/amortize-form/<int:amortization_id>/', AmortizeFormView.as_view(), name='amortize-form'),
 ]
+
+if settings.DEBUG:
+
+    urlpatterns = [
+        path('__debug__/', include(debug_toolbar.urls)),
+    ] + urlpatterns
