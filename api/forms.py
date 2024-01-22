@@ -408,7 +408,7 @@ class TransactionFilterForm(forms.Form):
             accounts=data['account'],
             date_from=data.get('date_from'),
             date_to=data.get('date_to')
-        )
+        ).select_related('account')
         return queryset
 
 

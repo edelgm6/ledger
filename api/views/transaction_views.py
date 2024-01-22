@@ -40,7 +40,7 @@ class TransactionsViewMixin:
             transaction_types=transaction_type,
             date_from=date_from,
             date_to=date_to
-        )
+        ).select_related('account')
 
         context = {
             'filter_form': form,
