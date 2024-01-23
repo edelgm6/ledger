@@ -4,11 +4,12 @@ from django.template.loader import render_to_string
 from django.views import View
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
-from api.models import  TaxCharge
+from api.models import TaxCharge
 from api.forms import TaxChargeFilterForm, TaxChargeForm
 from api.statement import IncomeStatement
 from api.factories import TaxChargeFactory
 from api import utils
+
 
 class TaxChargeMixIn:
 
@@ -44,7 +45,7 @@ class TaxChargeMixIn:
 
         current_taxable_income = income_statement.get_taxable_income()
 
-        for latest_tax_charge in [latest_federal_tax_charge,latest_state_tax_charge]:
+        for latest_tax_charge in [latest_federal_tax_charge, latest_state_tax_charge]:
             if latest_tax_charge:
                 self._add_tax_rate_and_charge(latest_tax_charge, current_taxable_income)
 
@@ -62,7 +63,7 @@ class TaxChargeMixIn:
 
     def get_tax_table_html(self, tax_charges):
 
-        tax_charges = tax_charges.select_related('transaction','transaction__account').order_by('date','type')
+        tax_charges = tax_charges.select_related('transaction', 'transaction__account').order_by('date', 'type')
         for tax_charge in tax_charges:
             self._add_tax_rate_and_charge(tax_charge)
             tax_charge.transaction_string = str(tax_charge.transaction)
@@ -73,6 +74,7 @@ class TaxChargeMixIn:
         )
 
         return tax_charge_table_html
+
 
 class TaxChargeTableView(TaxChargeMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
@@ -93,6 +95,7 @@ class TaxChargeTableView(TaxChargeMixIn, LoginRequiredMixin, View):
 
             return HttpResponse(html)
 
+
 class TaxChargeFormView(TaxChargeMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
@@ -107,6 +110,7 @@ class TaxChargeFormView(TaxChargeMixIn, LoginRequiredMixin, View):
 
         return HttpResponse(form_html)
 
+
 # Loads full page
 class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
     login_url = '/login/'
@@ -118,7 +122,7 @@ class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
         TaxChargeFactory.create_bulk_tax_charges(date=initial_end_date)
 
         six_months_ago = utils.get_last_days_of_month_tuples()[5][0]
-        tax_charges = TaxCharge.objects.filter(date__gte=six_months_ago,date__lte=initial_end_date)
+        tax_charges = TaxCharge.objects.filter(date__gte=six_months_ago, date__lte=initial_end_date)
 
         context = {
             'tax_charge_table': self.get_tax_table_html(tax_charges),
