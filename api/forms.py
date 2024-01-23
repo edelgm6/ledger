@@ -271,6 +271,12 @@ class TransactionLinkForm(forms.Form):
 
 class BaseJournalEntryItemFormset(BaseModelFormSet):
 
+    def __init__(self, *args, **kwargs):
+        open_accounts = Account.objects.filter(is_closed=False)
+        open_accounts_choices = [(account.name, account.name) for account in open_accounts]
+        kwargs['form_kwargs'] = {'open_accounts_choices': open_accounts_choices}
+        super(BaseJournalEntryItemFormset, self).__init__(*args, **kwargs)
+
     def get_entry_total(self):
         total = 0
         for form in self.forms:
@@ -322,12 +328,10 @@ class JournalEntryItemForm(forms.ModelForm):
         fields = ('account', 'amount')
 
     def __init__(self, *args, **kwargs):
+        open_accounts_choices = kwargs.pop('open_accounts_choices', [])
         super(JournalEntryItemForm, self).__init__(*args, **kwargs)
         self.fields['amount'].localize = True
-        closed_accounts = Account.objects.filter(is_closed=False)
-        self.fields['account'].choices = [
-            (account.name, account.name) for account in closed_accounts
-        ]
+        self.fields['account'].choices = open_accounts_choices
 
         # Resolve the account name for the bound form
         if self.instance.pk and self.instance.account:
