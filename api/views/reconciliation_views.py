@@ -12,16 +12,16 @@ from api import utils
 
 class ReconciliationTableMixin:
 
-    def _get_current_balance(self, reconciliation):
-        balance_sheet = BalanceSheet(reconciliation.date)
-        balance = balance_sheet.get_balance(reconciliation.account)
+    def _get_current_balance(self, balance_sheet, account):
+        balance = balance_sheet.get_balance(account)
         return balance
 
-    def get_reconciliation_html(self, reconciliations):
-        reconciliations = reconciliations.order_by('account')
+    def get_reconciliation_html(self, reconciliations, date):
+        reconciliations = reconciliations.select_related('account').order_by('account')
 
+        balance_sheet = BalanceSheet(date)
         for reconciliation in reconciliations:
-            reconciliation.current_balance = self._get_current_balance(reconciliation)
+            reconciliation.current_balance = self._get_current_balance(balance_sheet, reconciliation.account)
 
         ReconciliationFormset = modelformset_factory(Reconciliation, ReconciliationForm, extra=0)
 
@@ -59,7 +59,7 @@ class ReconciliationTableView(ReconciliationTableMixin, LoginRequiredMixin, View
             ReconciliationFactory.create_bulk_reconciliations(date=form.cleaned_data['date'])
             reconciliations = form.get_reconciliations()
 
-            reconciliations_table = self.get_reconciliation_html(reconciliations)
+            reconciliations_table = self.get_reconciliation_html(reconciliations, date=form.cleaned_data['date'])
             return HttpResponse(reconciliations_table)
 
 # Loads full page
@@ -74,7 +74,7 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
         ReconciliationFactory.create_bulk_reconciliations(date=initial_date)
 
         reconciliations = Reconciliation.objects.filter(date=initial_date)
-        reconciliation_table = self.get_reconciliation_html(reconciliations)
+        reconciliation_table = self.get_reconciliation_html(reconciliations, date=initial_date)
         context = {
             'reconciliation_table': reconciliation_table,
             'filter_form': render_to_string(
@@ -101,6 +101,6 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
         if filter_form.is_valid():
             reconciliations = filter_form.get_reconciliations()
 
-        reconciliation_table = self.get_reconciliation_html(reconciliations)
+        reconciliation_table = self.get_reconciliation_html(reconciliations, date=filter_form.cleaned_data['date'])
 
         return HttpResponse(reconciliation_table)
