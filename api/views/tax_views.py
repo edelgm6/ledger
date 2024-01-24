@@ -13,10 +13,12 @@ from api import utils
 
 class TaxChargeMixIn:
 
-    def _add_tax_rate_and_charge(self, tax_charge, current_taxable_income=None):
-        last_day_of_month = tax_charge.date
-        first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
-        taxable_income = IncomeStatement(tax_charge.date, first_day_of_month).get_taxable_income()
+    def _get_taxable_income(self, end_date):
+        first_day_of_month = date(end_date.year, end_date.month, 1)
+        taxable_income = IncomeStatement(end_date, first_day_of_month).get_taxable_income()
+        return taxable_income
+
+    def _add_tax_rate_and_charge(self, tax_charge, taxable_income, current_taxable_income=None):
         tax_charge.taxable_income = taxable_income
         tax_charge.tax_rate = None if taxable_income == 0 else tax_charge.amount / taxable_income
         if current_taxable_income and tax_charge.tax_rate:
@@ -61,11 +63,16 @@ class TaxChargeMixIn:
         form_html = render_to_string(form_template, context)
         return form_html
 
-    def get_tax_table_html(self, tax_charges):
+    def get_tax_table_html(self, tax_charges, end_date):
 
         tax_charges = tax_charges.select_related('transaction', 'transaction__account').order_by('date', 'type')
+        tax_dates = []
+        taxable_income = None
         for tax_charge in tax_charges:
-            self._add_tax_rate_and_charge(tax_charge)
+            # Limit the number of IncomeStatement objects we need to make
+            if tax_charge.date not in tax_dates:
+                taxable_income = self._get_taxable_income(tax_charge.date)
+            self._add_tax_rate_and_charge(tax_charge=tax_charge, taxable_income=taxable_income)
             tax_charge.transaction_string = str(tax_charge.transaction)
 
         tax_charge_table_html = render_to_string(
@@ -125,7 +132,7 @@ class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
         tax_charges = TaxCharge.objects.filter(date__gte=six_months_ago, date__lte=initial_end_date)
 
         context = {
-            'tax_charge_table': self.get_tax_table_html(tax_charges),
+            'tax_charge_table': self.get_tax_table_html(tax_charges=tax_charges, end_date=initial_end_date),
             'form': self.get_tax_form_html(last_day_of_month=utils.get_last_day_of_last_month()),
             'filter_form': self.get_tax_filter_form_html()
         }
