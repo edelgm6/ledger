@@ -251,15 +251,15 @@ class CashFlowStatement(Statement):
     def get_levered_after_tax_after_retirement_cash_flow(self):
         levered_after_tax_cash_flow = self.get_levered_after_tax_cash_flow()
         cash_from_investing_balances = self.get_cash_from_investing_balances()
-        retirement_cash_flow = sum([balance.amount for balance in cash_from_investing_balances if balance.account_sub_type == Account.SubType.SECURITIES_RETIREMENT])
+        retirement_cash_flow = sum([balance.amount for balance in cash_from_investing_balances if balance.account.sub_type == Account.SubType.SECURITIES_RETIREMENT])
         return levered_after_tax_cash_flow + retirement_cash_flow
 
     def get_balance_sheet_account_deltas(self):
         accounts = Account.objects.filter(type__in=[Account.Type.ASSET, Account.Type.LIABILITY, Account.Type.EQUITY])
         account_deltas = []
         for account in accounts:
-            starting_balance = sum([balance.amount for balance in self.start_balance_sheet.balances if balance.account == account.name])
-            ending_balance = sum([balance.amount for balance in self.end_balance_sheet.balances if balance.account == account.name])
+            starting_balance = sum([balance.amount for balance in self.start_balance_sheet.balances if balance.account == account])
+            ending_balance = sum([balance.amount for balance in self.end_balance_sheet.balances if balance.account == account])
             delta = ending_balance - starting_balance
             if account.type == Account.Type.ASSET:
                 delta = delta * -1
@@ -319,7 +319,12 @@ class CashFlowStatement(Statement):
             account_adjustments[account] += adjustment
 
         # Constructing balances
-        balances = [Balance(key.name, value, key.type, key.sub_type, self.end_balance_sheet.end_date)
+        balances = [
+            Balance(
+                account=key,
+                amount=value,
+                date=self.end_balance_sheet.end_date
+            )
                     for key, value in account_adjustments.items()]
         sorted_balances = sorted(balances, key=lambda k: k.account)
 
