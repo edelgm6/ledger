@@ -7,6 +7,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from api.forms import UploadTransactionsForm, WalletForm
 from api.statement import Trend
 
+
 class UploadTransactionsView(View):
 
     form = UploadTransactionsForm
@@ -14,7 +15,7 @@ class UploadTransactionsView(View):
     form_template = 'api/entry_forms/upload-form.html'
 
     def get(self, request):
-        form_html = render_to_string(self.form_template, {'form': self.form})
+        form_html = render_to_string(self.form_template, {'form': self.form()})
         return render(request, self.template, {'form': form_html})
 
     def post(self, request):
@@ -42,7 +43,7 @@ class IndexView(LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
         context = {
-            'form': render_to_string(self.form_template, {'form': self.form_class})
+            'form': render_to_string(self.form_template, {'form': self.form_class()})
         }
         return render(request, self.template, context)
 
@@ -52,7 +53,7 @@ class IndexView(LoginRequiredMixin, View):
             transaction = form.save()
             success_template = 'api/content/wallet-content.html'
             context = {
-                'form': render_to_string(self.form_template, {'form': self.form_class}),
+                'form': render_to_string(self.form_template, {'form': self.form_class()}),
                 'created_transaction': transaction
             }
             html = render_to_string(success_template, context)
