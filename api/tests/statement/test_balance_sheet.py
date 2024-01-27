@@ -323,7 +323,7 @@ class BalanceSheetTest(TestCase):
     def test_creates_balances(self):
         balance_sheet = BalanceSheet('2023-01-31')
         chase_balance = [
-            balance.amount for balance in balance_sheet.balances if balance.account == '1200-Chase'
+            balance.amount for balance in balance_sheet.balances if balance.account.name == '1200-Chase'
         ][0]
         self.assertEqual(len(balance_sheet.balances), 6)
         self.assertEqual(chase_balance, 100)

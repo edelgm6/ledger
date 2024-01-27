@@ -241,14 +241,14 @@ class IncomeStatementTest(TestCase):
     def test_creates_balances(self):
         income_statement = IncomeStatement('2023-01-31', '2023-01-01')
         net_income = [
-            balance.amount for balance in income_statement.balances if balance.account == 'Realized Net Income'
+            balance.amount for balance in income_statement.balances if balance.account.name == 'Realized Net Income'
         ][0]
         self.assertEqual(len(income_statement.balances), 8)
         self.assertEqual(net_income, 340)
 
     def test_net_income(self):
         income_statement = IncomeStatement('2023-01-31', '2023-01-01')
-        realized_net_income = [balance.amount for balance in income_statement.balances if balance.account == 'Realized Net Income'][0]
+        realized_net_income = [balance.amount for balance in income_statement.balances if balance.account.name == 'Realized Net Income'][0]
         self.assertEqual(len(income_statement.balances), 8)
         self.assertEqual(realized_net_income, 340)
         self.assertEqual(income_statement.net_income, 540)

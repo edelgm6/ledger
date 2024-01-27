@@ -333,10 +333,14 @@ class CashFlowTest(TestCase):
         balance_names = [
             (balance.account, balance.amount) for balance in balances
         ]
-        self.assertIn(('1200-Chase', 100), balance_names)
-        self.assertIn(('Realized Net Income', 340), balance_names)
-        self.assertIn(('7000-Vanguard', 150), balance_names)
-        self.assertIn(('Mortgage', 50), balance_names)
+        account = Account.objects.get(name='1200-Chase')
+        self.assertIn((account, 100), balance_names)
+        account = Account.objects.get(name='7000-Vanguard')
+        self.assertIn((account, 150), balance_names)
+        account = Account.objects.get(name='Mortgage')
+        self.assertIn((account, 50), balance_names)
+        realized_net_income_balance = sum([tuple[1] for tuple in balance_names if tuple[0].name == 'Realized Net Income'])
+        self.assertEqual(realized_net_income_balance, 340)
 
     def test_levered_cash_flow(self):
         cash_flow_statement = CashFlowStatement(
@@ -370,10 +374,14 @@ class CashFlowTest(TestCase):
         balance_names = [
             (balance.account, balance.amount) for balance in balances
         ]
-        self.assertIn(('1200-Chase', 100), balance_names)
-        self.assertIn(('900-Ally', -440), balance_names)
-        self.assertIn(('7000-Vanguard', 150), balance_names)
-        self.assertIn(('Mortgage', 50), balance_names)
+        account = Account.objects.get(name='1200-Chase')
+        self.assertIn((account, 100), balance_names)
+        account = Account.objects.get(name='7000-Vanguard')
+        self.assertIn((account, 150), balance_names)
+        account = Account.objects.get(name='Mortgage')
+        self.assertIn((account, 50), balance_names)
+        account = Account.objects.get(name='900-Ally')
+        self.assertIn((account, -440), balance_names)
 
     def test_get_cash_from_operations_balances(self):
         cash_flow_statement = CashFlowStatement(
@@ -385,8 +393,10 @@ class CashFlowTest(TestCase):
         balance_names = [
             (balance.account, balance.amount) for balance in balances
         ]
-        self.assertIn(('1200-Chase', 100), balance_names)
-        self.assertIn(('Realized Net Income', 340), balance_names)
+        account = Account.objects.get(name='1200-Chase')
+        self.assertIn((account, 100), balance_names)
+        realized_net_income_balance = sum([tuple[1] for tuple in balance_names if tuple[0].name == 'Realized Net Income'])
+        self.assertEqual(realized_net_income_balance, 340)
 
     def test_get_cash_from_financing_balances(self):
         cash_flow_statement = CashFlowStatement(
@@ -398,7 +408,8 @@ class CashFlowTest(TestCase):
         balance_names = [
             (balance.account, balance.amount) for balance in balances
         ]
-        self.assertIn(('Mortgage', 50), balance_names)
+        account = Account.objects.get(name='Mortgage')
+        self.assertIn((account, 50), balance_names)
 
     def test_get_cash_from_investing_balances(self):
         cash_flow_statement = CashFlowStatement(
@@ -410,4 +421,5 @@ class CashFlowTest(TestCase):
         balance_names = [
             (balance.account, balance.amount) for balance in balances
         ]
-        self.assertIn(('7000-Vanguard', 150), balance_names)
+        account = Account.objects.get(name='7000-Vanguard')
+        self.assertIn((account, 150), balance_names)
