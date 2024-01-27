@@ -12,6 +12,14 @@ from api import utils
 
 class StatementMixIn:
 
+    def _clear_closed_accounts(self, balances):
+        new_balances = []
+        for balance in balances:
+            if balance.account.is_closed and balance.amount == 0:
+                continue
+            new_balances.append(balance)
+        return new_balances
+
     def _get_statement_summary_dict(self, statement):
 
         type_dict = dict(Account.Type.choices)
@@ -25,7 +33,7 @@ class StatementMixIn:
                 account_balances.append(
                     {
                         'name': sub_type.label,
-                        'balances': balances,
+                        'balances': self._clear_closed_accounts(balances),
                         'total': sub_type_total
                     }
                 )
@@ -95,9 +103,9 @@ class StatementMixIn:
         )
 
         context = {
-            'operations_flows': cash_statement.cash_from_operations_balances,
-            'financing_flows': cash_statement.cash_from_financing_balances,
-            'investing_flows': cash_statement.cash_from_investing_balances,
+            'operations_flows': self._clear_closed_accounts(cash_statement.cash_from_operations_balances),
+            'financing_flows': self._clear_closed_accounts(cash_statement.cash_from_financing_balances),
+            'investing_flows': self._clear_closed_accounts(cash_statement.cash_from_investing_balances),
             'cash_from_operations': sum([metric.value for metric in cash_statement.summaries if metric.name == 'Cash Flow From Operations']),
             'cash_from_financing': sum([metric.value for metric in cash_statement.summaries if metric.name == 'Cash Flow From Financing']),
             'cash_from_investing': sum([metric.value for metric in cash_statement.summaries if metric.name == 'Cash Flow From Investing']),
