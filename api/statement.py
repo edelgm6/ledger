@@ -326,7 +326,7 @@ class CashFlowStatement(Statement):
                 date=self.end_balance_sheet.end_date
             )
                     for key, value in account_adjustments.items()]
-        sorted_balances = sorted(balances, key=lambda k: k.account)
+        sorted_balances = sorted(balances, key=lambda k: k.account.name)
 
         return sorted_balances
 
