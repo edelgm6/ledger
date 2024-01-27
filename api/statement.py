@@ -438,7 +438,7 @@ class BalanceSheet(Statement):
 
     def get_balance(self, account):
         try:
-            balance = [balance.amount for balance in self.balances if balance.account == account.name][0]
+            balance = [balance.amount for balance in self.balances if balance.account == account][0]
         # Need this when there is no balance for a given account
         except IndexError:
             balance = 0
