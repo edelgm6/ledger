@@ -37,7 +37,7 @@ class TransactionResource(resources.ModelResource):
 
 # Admin definitions
 class AccountAdmin(admin.ModelAdmin):
-    list_display = ('name', 'type', 'sub_type', 'csv_profile')
+    list_display = ('name', 'type', 'sub_type', 'csv_profile', 'is_closed')
 
 class AutoTagAdmin(admin.ModelAdmin):
     list_display = ('account', 'search_string', 'transaction_type')

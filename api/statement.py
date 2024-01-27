@@ -119,6 +119,7 @@ class Statement:
                     )
                 )
             )
+        # TODO: Set this further up
         balance_type = 'flow'
         if type(self) == BalanceSheet:
             balance_type = 'stock'
@@ -130,7 +131,7 @@ class Statement:
         represented_accounts = set(Account.objects.filter(name__in=represented_accounts_names))
 
         type_objects = [Account.Type[type_value.upper()] for type_value in ACCOUNT_TYPES]
-        eligible_accounts = set(Account.objects.filter(type__in=type_objects, is_closed=False))
+        eligible_accounts = set(Account.objects.filter(type__in=type_objects))
 
         unrepresented_accounts = eligible_accounts - represented_accounts
         for account in unrepresented_accounts:
