@@ -20,7 +20,7 @@ class StatementMixIn:
             type_total = 0
             account_balances = []
             for sub_type in Account.SUBTYPE_TO_TYPE_MAP[account_type]:
-                balances = [balance for balance in statement.balances if balance.account_sub_type == sub_type]
+                balances = [balance for balance in statement.balances if balance.account.sub_type == sub_type]
                 sub_type_total = sum([balance.amount for balance in balances])
                 account_balances.append(
                     {
