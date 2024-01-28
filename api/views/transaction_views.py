@@ -236,6 +236,7 @@ class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
         filter_form_html, transactions = self.get_filter_form_html_and_objects(
             date_from=first_day_of_last_month,
             date_to=last_day_of_last_month,
+            is_closed=False,
             get_url=reverse('transactions-content')
         )
 
