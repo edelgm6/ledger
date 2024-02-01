@@ -95,7 +95,6 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
 
             if formset.is_valid():
                 reconciliations = formset.save()
-            print(formset.errors)
 
         filter_form = ReconciliationFilterForm(request.POST)
         if filter_form.is_valid():
