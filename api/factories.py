@@ -21,9 +21,9 @@ class ReconciliationFactory:
         new_reconciliation_list = [
             Reconciliation(
                 account=Account.objects.get(
-                    name=account_name,
-                    date=date
-                )
+                    name=account_name
+                ),
+                date=date
             )
             for account_name in new_reconciliations
         ]
@@ -41,6 +41,8 @@ class TaxChargeFactory:
     def create_bulk_tax_charges(date):
         tax_charges = TaxCharge.objects.filter(date=date)
         for value, _ in TaxCharge.Type.choices:
-            existing_tax_charge = [charge for charge in tax_charges if charge.type == value]
+            existing_tax_charge = [
+                charge for charge in tax_charges if charge.type == value
+            ]
             if len(existing_tax_charge) == 0:
                 TaxCharge.objects.create(date=date, type=value, amount=0)
