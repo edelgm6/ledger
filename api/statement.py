@@ -9,7 +9,7 @@ class Trend:
 
     def __init__(self, start_date, end_date):
         self.start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-        self.end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        self.end_date = end_date
 
     def _get_month_ranges(self):
         current_date = self.start_date

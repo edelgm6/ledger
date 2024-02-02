@@ -6,6 +6,7 @@ from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
 from api.forms import UploadTransactionsForm, WalletForm
 from api.statement import Trend
+from api import utils
 
 
 class UploadTransactionsView(View):
@@ -66,7 +67,7 @@ class TrendView(LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
         start_date = '2022-12-01'
-        end_date = '2023-12-31'
+        end_date = utils.get_last_day_of_last_month()
 
         trends = Trend(start_date,end_date).get_balances()
 
