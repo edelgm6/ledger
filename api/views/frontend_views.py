@@ -80,8 +80,8 @@ class TrendView(LoginRequiredMixin, View):
                 trend.account,
                 trend.type,
                 str(trend.amount),
-                trend.account_type,
-                trend.account_sub_type
+                trend.account.type,
+                trend.account.sub_type
             ])
 
         # Create the HttpResponse object with the appropriate CSV header.
