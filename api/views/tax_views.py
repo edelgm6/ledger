@@ -154,8 +154,12 @@ class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
             if tax_charges_form.is_valid():
                 tax_charges = tax_charges_form.get_tax_charges()
 
+            end_date = request.POST.get('date_to')
             context = {
-                'tax_charge_table': self.get_tax_table_html(tax_charges),
+                'tax_charge_table': self.get_tax_table_html(
+                    tax_charges=tax_charges,
+                    end_date=end_date
+                ),
                 'form': self.get_tax_form_html()
             }
             template = 'api/content/taxes-content.html'
