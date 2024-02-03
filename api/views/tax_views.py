@@ -18,7 +18,9 @@ class TaxChargeMixIn:
         taxable_income = IncomeStatement(end_date, first_day_of_month).get_taxable_income()
         return taxable_income
 
-    def _add_tax_rate_and_charge(self, tax_charge, taxable_income, current_taxable_income=None):
+    def _add_tax_rate_and_charge(self, tax_charge, taxable_income=None, current_taxable_income=None):
+        if not taxable_income:
+            taxable_income = self._get_taxable_income(end_date=tax_charge.date)
         tax_charge.taxable_income = taxable_income
         tax_charge.tax_rate = None if taxable_income == 0 else tax_charge.amount / taxable_income
         if current_taxable_income and tax_charge.tax_rate:
@@ -41,14 +43,21 @@ class TaxChargeMixIn:
         income_statement = IncomeStatement(last_day_of_month, first_day_of_month)
 
         # Get latest charge that has a positive value to account for auto-created tax charges
+        # This charge will be used to fill out the recommended charges table
         latest_federal_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.FEDERAL, amount__gt=0).order_by('-date').first()
         latest_state_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.STATE, amount__gt=0).order_by('-date').first()
         latest_property_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.PROPERTY, amount__gt=0).order_by('-date').first()
 
         current_taxable_income = income_statement.get_taxable_income()
-        for latest_tax_charge in [latest_federal_tax_charge, latest_state_tax_charge]:
-            if latest_tax_charge:
-                self._add_tax_rate_and_charge(latest_tax_charge, current_taxable_income)
+        for latest_tax_charge in [
+            latest_federal_tax_charge,
+            latest_state_tax_charge
+        ]:
+            self._add_tax_rate_and_charge(
+                tax_charge=latest_tax_charge,
+                taxable_income=self._get_taxable_income(latest_tax_charge.date),
+                current_taxable_income=current_taxable_income
+            )
 
         context = {
             'form': form,
@@ -72,7 +81,10 @@ class TaxChargeMixIn:
             if tax_charge.date not in tax_dates:
                 taxable_income = self._get_taxable_income(tax_charge.date)
                 tax_dates.append(tax_charge.date)
-            self._add_tax_rate_and_charge(tax_charge=tax_charge, taxable_income=taxable_income)
+            self._add_tax_rate_and_charge(
+                tax_charge=tax_charge,
+                taxable_income=taxable_income
+            )
             tax_charge.transaction_string = str(tax_charge.transaction)
 
         tax_charge_table_html = render_to_string(
