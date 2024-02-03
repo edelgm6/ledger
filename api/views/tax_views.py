@@ -46,7 +46,6 @@ class TaxChargeMixIn:
         latest_property_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.PROPERTY, amount__gt=0).order_by('-date').first()
 
         current_taxable_income = income_statement.get_taxable_income()
-
         for latest_tax_charge in [latest_federal_tax_charge, latest_state_tax_charge]:
             if latest_tax_charge:
                 self._add_tax_rate_and_charge(latest_tax_charge, current_taxable_income)
@@ -72,6 +71,7 @@ class TaxChargeMixIn:
             # Limit the number of IncomeStatement objects we need to make
             if tax_charge.date not in tax_dates:
                 taxable_income = self._get_taxable_income(tax_charge.date)
+                tax_dates.append(tax_charge.date)
             self._add_tax_rate_and_charge(tax_charge=tax_charge, taxable_income=taxable_income)
             tax_charge.transaction_string = str(tax_charge.transaction)
 
