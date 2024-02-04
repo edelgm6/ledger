@@ -192,7 +192,8 @@ class TransactionQuerySet(models.QuerySet):
         transaction_types=None,
         accounts=None,
         date_from=None,
-        date_to=None
+        date_to=None,
+        related_accounts=None
     ):
         queryset = self
         if is_closed is not None:
@@ -209,7 +210,10 @@ class TransactionQuerySet(models.QuerySet):
             queryset = queryset.filter(date__gte=date_from)
         if date_to:
             queryset = queryset.filter(date__lte=date_to)
-
+        if related_accounts:
+            queryset = queryset.filter(
+                journal_entry__journal_entry_items__account__in=related_accounts
+            ).distinct()
         return queryset.order_by('date', 'account', 'pk')
 
 
