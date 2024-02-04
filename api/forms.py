@@ -389,6 +389,10 @@ class TransactionFilterForm(forms.Form):
         required=False,
         choices=LINKED_TRANSACTION_CHOICES
     )
+    related_account = forms.ModelMultipleChoiceField(
+        queryset=Account.objects.all(),
+        required=False
+    )
 
     def clean_is_closed(self):
         is_closed = self.cleaned_data.get('is_closed', None)
@@ -410,7 +414,8 @@ class TransactionFilterForm(forms.Form):
             transaction_types=data['transaction_type'],
             accounts=data['account'],
             date_from=data.get('date_from'),
-            date_to=data.get('date_to')
+            date_to=data.get('date_to'),
+            related_accounts=data['related_account'],
         ).select_related('account')
         return queryset
 

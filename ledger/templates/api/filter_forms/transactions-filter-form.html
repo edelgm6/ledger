@@ -51,6 +51,20 @@
             </div>
         </div>
 
+        <!-- Related Account Field -->
+        <div class="col-md-2">
+            <div class="form-group">
+                <label for="id_related_account">Related Account</label>
+                <select name="{{ filter_form.related_account.html_name }}" id="{{ filter_form.related_account.auto_id }}" class="form-control" multiple="multiple">
+                    {% for account in filter_form.related_account.field.queryset %}
+                        <option value="{{ account.pk }}" {% if account.pk|stringformat:"s" in filter_form.account.value %}selected{% endif %}>
+                            {{ account }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
         <!-- Type Field -->
         <div class="col-md-2">
             <div class="form-group">
