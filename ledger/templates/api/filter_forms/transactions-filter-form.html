@@ -6,42 +6,25 @@
     hx-trigger="submit"
     class="mb-3 form-sm"
 >
-    <div class="row">
-        <!-- Date From Field -->
+    <div class="row g-3">
+        <!-- Stacked Date From and Date To Fields -->
         <div class="col-md-2">
             <div class="form-group">
                 <label for="id_date_from">Date From</label>
-                <input type="date" name="{{ filter_form.date_from.html_name }}" id="{{ filter_form.date_from.auto_id }}" class="form-control"
-                       value="{{ filter_form.date_from.value|default_if_none:'' }}" placeholder="Start Date">
-            </div>
-        </div>
+                <input type="date" name="{{ filter_form.date_from.html_name }}" id="{{ filter_form.date_from.auto_id }}" class="form-control mb-2"
+                       value="{{ filter_form.date_from.value|default_if_none:'' }}">
 
-        <!-- Date To Field -->
-        <div class="col-md-2">
-            <div class="form-group">
                 <label for="id_date_to">Date To</label>
                 <input type="date" name="{{ filter_form.date_to.html_name }}" id="{{ filter_form.date_to.auto_id }}" class="form-control"
-                       value="{{ filter_form.date_to.value|default_if_none:'' }}" placeholder="End Date">
-            </div>
-        </div>
-
-        <!-- Is Closed Field -->
-        <div class="col-md-2">
-            <div class="form-group">
-                <label for="id_is_closed">Is Closed</label>
-                <select name="{{ filter_form.is_closed.html_name }}" id="{{ filter_form.is_closed.auto_id }}" class="form-control">
-                    {% for option in filter_form.is_closed %}
-                        {{ option }}
-                    {% endfor %}
-                </select>
+                       value="{{ filter_form.date_to.value|default_if_none:'' }}">
             </div>
         </div>
 
         <!-- Account Field -->
-        <div class="col-md-2">
+        <div class="col-md-3">
             <div class="form-group">
                 <label for="id_account">Account</label>
-                <select name="{{ filter_form.account.html_name }}" id="{{ filter_form.account.auto_id }}" class="form-control" multiple="multiple">
+                <select name="{{ filter_form.account.html_name }}" id="{{ filter_form.account.auto_id }}" class="form-control" multiple>
                     {% for account in filter_form.account.field.queryset %}
                         <option value="{{ account.pk }}" {% if account.pk|stringformat:"s" in filter_form.account.value %}selected{% endif %}>
                             {{ account }}
@@ -52,12 +35,12 @@
         </div>
 
         <!-- Related Account Field -->
-        <div class="col-md-2">
+        <div class="col-md-3">
             <div class="form-group">
                 <label for="id_related_account">Related Account</label>
-                <select name="{{ filter_form.related_account.html_name }}" id="{{ filter_form.related_account.auto_id }}" class="form-control" multiple="multiple">
+                <select name="{{ filter_form.related_account.html_name }}" id="{{ filter_form.related_account.auto_id }}" class="form-control" multiple>
                     {% for account in filter_form.related_account.field.queryset %}
-                        <option value="{{ account.pk }}" {% if account.pk|stringformat:"s" in filter_form.account.value %}selected{% endif %}>
+                        <option value="{{ account.pk }}" {% if account.pk|stringformat:"s" in filter_form.related_account.value %}selected{% endif %}>
                             {{ account }}
                         </option>
                     {% endfor %}
@@ -69,7 +52,7 @@
         <div class="col-md-2">
             <div class="form-group">
                 <label for="id_transaction_type">Type</label>
-                <select name="{{ filter_form.transaction_type.html_name }}" id="{{ filter_form.transaction_type.auto_id }}" class="form-control" multiple="multiple">
+                <select name="{{ filter_form.transaction_type.html_name }}" id="{{ filter_form.transaction_type.auto_id }}" class="form-control" multiple>
                     {% for choice in filter_form.transaction_type.field.choices %}
                         <option value="{{ choice.0 }}" {% if choice.0 in filter_form.transaction_type.value %}selected{% endif %}>
                             {{ choice.1 }}
@@ -79,7 +62,17 @@
             </div>
         </div>
 
+        <!-- Stacked Is Closed and Linked Fields -->
         <div class="col-md-2">
+            <div class="form-group mb-2">
+                <label for="id_is_closed">Is Closed</label>
+                <select name="{{ filter_form.is_closed.html_name }}" id="{{ filter_form.is_closed.auto_id }}" class="form-control">
+                    {% for option in filter_form.is_closed %}
+                        {{ option }}
+                    {% endfor %}
+                </select>
+            </div>
+
             <div class="form-group">
                 <label for="id_has_linked_transaction">Linked</label>
                 <select name="{{ filter_form.has_linked_transaction.html_name }}" id="{{ filter_form.has_linked_transaction.auto_id }}" class="form-control">
@@ -92,8 +85,8 @@
             </div>
         </div>
 
-        <div class="col-md-2">
-            <!-- Submit Button -->
+        <!-- Submit Button -->
+        <div class="col-md-1">
             <div class="form-group">
                 <button type="submit" class="btn btn-primary">Filter</button>
             </div>
