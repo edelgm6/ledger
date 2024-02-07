@@ -270,6 +270,15 @@ class Transaction(models.Model):
 
     objects = TransactionManager()
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['date'], name='date_idx'),
+            models.Index(fields=['account'], name='account_idx'),
+            models.Index(fields=['type'], name='type_idx'),
+            models.Index(fields=['is_closed'], name='is_closed_idx'),
+            models.Index(fields=['linked_transaction'], name='linked_transaction_idx'),
+        ]
+
     def __str__(self):
         return (
             str(self.date) + ' ' +
