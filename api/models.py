@@ -590,6 +590,12 @@ class JournalEntryItem(models.Model):
     amount = models.DecimalField(decimal_places=2, max_digits=12)
     account = models.ForeignKey('Account', on_delete=models.PROTECT)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['type'], name='jei_date_idx'),
+            models.Index(fields=['account'], name='jei_account_idx'),
+        ]
+
     def __str__(self):
         return (
             str(self.journal_entry.id) + ' ' + self.type +
