@@ -250,7 +250,7 @@ class CashFlowStatement(Statement):
 
     def get_levered_after_tax_after_retirement_cash_flow(self):
         levered_after_tax_cash_flow = self.get_levered_after_tax_cash_flow()
-        cash_from_investing_balances = self.get_cash_from_investing_balances()
+        cash_from_investing_balances = self.cash_from_investing_balances
         retirement_cash_flow = sum([balance.amount for balance in cash_from_investing_balances if balance.account.sub_type == Account.SubType.SECURITIES_RETIREMENT])
         return levered_after_tax_cash_flow + retirement_cash_flow
 
