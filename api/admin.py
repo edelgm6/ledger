@@ -1,67 +1,48 @@
 from django.contrib import admin
-from import_export import resources, fields
-from import_export.widgets import ForeignKeyWidget
 from import_export.admin import ImportExportModelAdmin
+from .resources import AccountResource, JournalEntryResource, JournalEntryItemResource, TransactionResource
 from .models import (
     PrefillItem, Prefill, Amortization, TaxCharge, Account, Transaction,
     JournalEntry, JournalEntryItem, AutoTag, CSVProfile, Reconciliation,
     CSVColumnValuePair
 )
 
-# Resource definitions for django-import-export
-class JournalEntryItemResource(resources.ModelResource):
-    journal_entry = fields.Field(
-        column_name='journal_entry',
-        attribute='journal_entry',
-        widget=ForeignKeyWidget(JournalEntry, 'id'))
-
-    class Meta:
-        model = JournalEntryItem
-        fields = ('journal_entry', 'type', 'amount', 'account')
-
-class JournalEntryResource(resources.ModelResource):
-    transaction = fields.Field(
-        column_name='transaction',
-        attribute='transaction',
-        widget=ForeignKeyWidget(Transaction, 'id'))
-
-    class Meta:
-        model = JournalEntry
-        fields = ('id', 'date', 'description', 'transaction')
-        export_order = ('id', 'date', 'description', 'transaction')
-
-class TransactionResource(resources.ModelResource):
-    class Meta:
-        model = Transaction
-        fields = ('id', 'date', 'account', 'amount', 'description', 'category', 'is_closed', 'linked_transaction')
 
 # Admin definitions
-class AccountAdmin(admin.ModelAdmin):
+class AccountAdmin(ImportExportModelAdmin):
     list_display = ('name', 'type', 'sub_type', 'csv_profile', 'is_closed')
+    resource_class = AccountResource
+
 
 class AutoTagAdmin(admin.ModelAdmin):
     list_display = ('account', 'search_string', 'transaction_type')
 
+
 class CSVProfileAdmin(admin.ModelAdmin):
     list_display = ('name', 'date', 'description', 'category')
+
 
 class JournalEntryItemAdmin(ImportExportModelAdmin):
     resource_class = JournalEntryItemResource
     list_display = ('journal_entry', 'type', 'amount', 'account')
 
+
 class JournalEntryItemInline(admin.TabularInline):
     model = JournalEntryItem
     extra = 1
+
 
 class JournalEntryAdmin(ImportExportModelAdmin):
     resource_class = JournalEntryResource
     list_display = ('pk', 'date', 'description', 'transaction')
     inlines = [JournalEntryItemInline]
 
+
 class JournalEntryInline(admin.StackedInline):
     model = JournalEntry
     extra = 1
     inlines = [JournalEntryItemInline]
+
 
 class TransactionAdmin(ImportExportModelAdmin):
     resource_class = TransactionResource
@@ -69,9 +50,11 @@ class TransactionAdmin(ImportExportModelAdmin):
     list_filter = ('account__name', 'date', 'is_closed')
     inlines = [JournalEntryInline]
 
+
 class PrefillItemInline(admin.TabularInline):
     model = PrefillItem
     extra = 8
+
 
 class PrefillAdmin(admin.ModelAdmin):
     inlines = [PrefillItemInline]
@@ -79,6 +62,7 @@ class PrefillAdmin(admin.ModelAdmin):
 
     def description(self, obj):
         return obj.name
+
 
 # Register your models here
 admin.site.register(Prefill, PrefillAdmin)
