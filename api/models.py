@@ -488,7 +488,7 @@ class Account(models.Model):
             SubType.OTHER_INCOME,
             SubType.UNREALIZED_INVESTMENT_GAINS
         ],
-        Type.EXPENSE: [SubType.PURCHASES, SubType.TAX, SubType.INTEREST]
+        Type.EXPENSE: [SubType.PURCHASES, SubType.INTEREST, SubType.TAX]
     }
 
     name = models.CharField(max_length=200, unique=True)
