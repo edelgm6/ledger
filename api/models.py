@@ -66,27 +66,6 @@ class Amortization(models.Model):
             amortization=self
         )
 
-        journal_entry = JournalEntry.objects.create(
-            date=date,
-            transaction=transaction
-        )
-
-        JournalEntryItem.objects.create(
-            journal_entry=journal_entry,
-            type=JournalEntryItem.JournalEntryType.DEBIT,
-            amount=amortization_amount,
-            account=self.suggested_account
-        )
-
-        JournalEntryItem.objects.create(
-            journal_entry=journal_entry,
-            type=JournalEntryItem.JournalEntryType.CREDIT,
-            amount=amortization_amount,
-            account=prepaid_account
-        )
-
-        transaction.close()
-
         if is_final_amortization:
             self.is_closed = True
             self.save()
