@@ -387,7 +387,7 @@ class IncomeStatement(Statement):
         return self.net_income - self.investment_gains
 
     def get_tax_rate(self):
-        taxable_income = sum([balance.amount for balance in self.balances if balance.account.sub_type in [Account.SubType.SALARY, Account.SubType.DIVIDENDS_AND_INTEREST]])
+        taxable_income = sum([balance.amount for balance in self.balances if balance.account.sub_type in [Account.SubType.SALARY, Account.SubType.DIVIDENDS_AND_INTEREST, Account.SubType.REALIZED_INVESTMENT_GAINS]])
         taxes = sum([balance.amount for balance in self.balances if balance.account.sub_type == Account.SubType.TAX])
         if taxable_income == 0:
             return None
