@@ -487,12 +487,6 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
         if debit_total != credit_total:
             form_errors.append('Debits ($' + str(debit_total) + ') and Credits ($' + str(credit_total) + ') must balance.')
 
-        prepaid_account = Account.objects.get(special_type=Account.SpecialType.PREPAID_EXPENSES)
-        prepaid_amount = credit_formset.get_account_amount(prepaid_account)
-        print(prepaid_amount)
-        if prepaid_amount:
-            form_errors.append('Cannot credit prepaid expenses.')
-
         print(form_errors)
         return form_errors
 
