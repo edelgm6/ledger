@@ -103,7 +103,7 @@ class TaxChargeTableView(TaxChargeMixIn, LoginRequiredMixin, View):
         form = TaxChargeFilterForm(request.GET)
         if form.is_valid():
             tax_charges = form.get_tax_charges()
-            tax_table_charge_table_html = self.get_tax_table_html(tax_charges)
+            tax_table_charge_table_html = self.get_tax_table_html(tax_charges, end_date=form.cleaned_data['date_to'])
 
             template = 'api/content/taxes-content.html'
             context = {
