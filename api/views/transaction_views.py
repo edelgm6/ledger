@@ -6,10 +6,10 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.forms import modelformset_factory
 from django.urls import reverse
-from api.models import Transaction, JournalEntry, JournalEntryItem, Account
+from api.models import Transaction, JournalEntry, JournalEntryItem
 from api.forms import (
     TransactionLinkForm, TransactionFilterForm, JournalEntryItemForm,
-    BaseJournalEntryItemFormset, TransactionForm
+    BaseJournalEntryItemFormset, TransactionForm, DocumentForm
 )
 from api import utils
 
@@ -17,6 +17,11 @@ from api import utils
 class TransactionsViewMixin:
     filter_form_template = 'api/filter_forms/transactions-filter-form.html'
     entry_form_template = 'api/entry_forms/journal-entry-item-form.html'
+    textract_form_template = 'api/entry_forms/textract-form.html'
+
+    def get_textract_form_html(self):
+        form = DocumentForm()
+        return render_to_string(self.textract_form_template, {'form': form})
 
     def get_filter_form_html_and_objects(
         self,
@@ -455,6 +460,7 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
             ],
             get_url=reverse('journal-entries-table')
         )
+        textract_form_html = self.get_textract_form_html()
         table_html = self.get_table_html(
             transactions=transactions,
             row_url=reverse('journal-entries')
@@ -471,7 +477,11 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
             'filter_form': filter_form_html,
             'table_and_form': render_to_string(
                 self.content_template,
-                {'table': table_html, 'entry_form': entry_form_html}
+                {
+                    'table': table_html, 
+                    'entry_form': entry_form_html,
+                    'textract_form': textract_form_html
+                }
             )
         }
 

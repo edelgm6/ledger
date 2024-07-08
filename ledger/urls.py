@@ -9,6 +9,7 @@ from api.views.tax_views import TaxChargeTableView,TaxChargeFormView, TaxesView
 from api.views.reconciliation_views import ReconciliationTableView, ReconciliationView
 from api.views.amortization_views import AmortizationFormView, AmortizationView, AmortizeFormView
 from api.views.statement_views import StatementView
+from api.views.aws_views import upload_document
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -51,6 +52,8 @@ urlpatterns = [
     path('amortization/', AmortizationView.as_view(), name='amortization'),
     path('amortization/amortization-form/<int:transaction_id>/', AmortizationFormView.as_view(), name='amortization-form'),
     path('amortization/amortize-form/<int:amortization_id>/', AmortizeFormView.as_view(), name='amortize-form'),
+
+    path('upload/', upload_document, name='textract'),
 ]
 
 if settings.DEBUG:
