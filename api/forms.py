@@ -14,6 +14,9 @@ from api import utils
 from api.factories import ReconciliationFactory
 
 
+class DocumentForm(forms.Form):
+    document = forms.FileField()
+
 class CommaDecimalField(DecimalField):
     def to_python(self, value):
         if value is None or '':

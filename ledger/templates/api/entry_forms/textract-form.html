@@ -1,0 +1,18 @@
+<div class="row">
+    <div class="col-md-4">
+        <form
+            method="post"
+            enctype="multipart/form-data"
+            hx-post="{% url 'textract' %}"
+            hx-trigger="submit"
+        >
+        {% csrf_token %}
+            <!-- Render the 'transaction_csv' field -->
+            <div class="mb-3">
+                <label for="id_document" class="form-label">CSV</label>
+                <input type="file" name="document" id="id_document" class="form-control-file">
+            </div>
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+</div>
