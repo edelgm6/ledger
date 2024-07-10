@@ -25,42 +25,108 @@ def upload_document(request):
             with open(output_path, 'w') as f:
                 json.dump(combined_response, f)
             print('saved output')
-
-            # Load the Textract response from the JSON file using textractor
-            document = Document.open(output_path)
-            print('opened doc')
-
-            # # Extract key-value pairs
-            # key_value_pairs = document.key_values
-
-            # # Print the key-value pairs
-            # for kv in key_value_pairs:
-            #     print(f"Key: {kv.key}, Value: {kv.value}")
-
-            tables = document.tables
-            for table in tables:
-                # print(table.page)
-                try:
-                    title = table.title.text
-                except:
-                    title = None
-
-                if title == 'Employee Taxes':
-                    csv = table.to_csv(config=TextLinearizationConfig(
-                        max_number_of_consecutive_spaces=1,
-                        add_prefixes_and_suffixes_in_text=False
-                    ))
-                    # cells = table.get_text_and_words()
-                    print(csv)
-                    # for row in cells['Description']:
-                        # print(row.text)
-                
-                # print(table.get_text_and_words())
-
+            extract_relevant_data(output_path)
             return JsonResponse()
     else:
         form = DocumentForm()
     return render(request, 'upload.html', {'form': form})
+
+def clean_string(input_string):
+    # Remove commas
+    cleaned_string = input_string.replace(',', '')
+    
+    # Remove starting/trailing whitespace and ensure only one space between words
+    cleaned_string = ' '.join(cleaned_string.split())
+    
+    return cleaned_string
+
+def extract_relevant_data(document_location):
+    
+    # Load the Textract response from the JSON file using textractor
+    document = Document.open(document_location)
+    print('opened doc')
+
+    # Step 1: Build pages data structure
+    page_ids = []
+    data = {}
+    for page in document.pages:
+        page_id = page.id
+        page_ids.append(page_id)
+        data[page_id] = {}
+
+    # Step 2: Name each page and create a data structure
+    # Extract key-value pairs
+    key_value_pairs = document.key_values
+    # print(f"Key: {kv.key}, Value: {kv.value}")
+
+    # Print the key-value pairs and create data object
+    for page_id in page_ids:
+        for kv in key_value_pairs:
+            if kv.page_id == page_id:
+                key = clean_string(kv.key.text)
+                value = clean_string(kv.value.text)
+                if key == 'Company':
+                    company = value
+                if key == 'Pay Period End':
+                    end_period = value
+                if key == 'Pay Period Begin':
+                    begin_period = value
+        page_title = company + ' ' + begin_period + '-' + end_period
+        data[page_id]['title'] = page_title
+
+    # Step 3: Grab table data from unnamed tables
+    unnamed_tables = [table for table in document.tables if table.title is None]
+    for page_id in page_ids:
+        for table in unnamed_tables:
+            if table.page_id == page_id:
+                pandas_table = table.to_pandas()
+
+                # Set the first row as the header
+                pandas_table.columns = pandas_table.iloc[0]
+                pandas_table = pandas_table[1:]
+
+                # Set the first column as the index
+                pandas_table.set_index(pandas_table.columns[0], inplace=True)
+
+                # Strip whitespace from column names and index
+                pandas_table.columns = pandas_table.columns.str.strip()
+                pandas_table.index = pandas_table.index.str.strip()
+                try:
+                    gross_pay_current = pandas_table.loc['Current', 'Gross Pay']
+                    data[page_id]['gross'] = gross_pay_current.strip()
+                except KeyError:
+                    continue
+
+    # Step 4: Grab taxes
+    search_keys = [
+        'Gross Pay'
+    ]
+    print(data)
+    print(wtf)
+
+    tables = document.tables
+    for table in tables:
+        print(table.page_id)
+        
+        try:
+            title = table.title.text
+        except:
+            title = None
+        print(title)
+        
+        
+        # if title == 'Employee Taxes':
+        csv = table.to_csv(config=TextLinearizationConfig(
+            max_number_of_consecutive_spaces=1,
+            add_prefixes_and_suffixes_in_text=False
+        ))
+        # cells = table.get_text_and_words()
+        print(csv)
+        # for row in cells['Description']:
+            # print(row.text)
+        
+        # print(table.get_text_and_words())
+
 
 def upload_to_s3(file):
     s3_client = boto3.client(
