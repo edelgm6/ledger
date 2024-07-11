@@ -79,28 +79,103 @@ def extract_relevant_data(document_location):
     for page_id in page_ids:
         for table in unnamed_tables:
             if table.page_id == page_id:
-                pandas_table = table.to_pandas()
-
-                # Set the first row as the header
-                pandas_table.columns = pandas_table.iloc[0]
-                pandas_table = pandas_table[1:]
-
-                # Set the first column as the index
-                pandas_table.set_index(pandas_table.columns[0], inplace=True)
-
-                # Strip whitespace from column names and index
-                pandas_table.columns = pandas_table.columns.str.strip()
-                pandas_table.index = pandas_table.index.str.strip()
+                pandas_table = convert_table_to_cleaned_dataframe(table)
                 try:
                     gross_pay_current = pandas_table.loc['Current', 'Gross Pay']
                     data[page_id]['gross'] = gross_pay_current.strip()
                 except KeyError:
                     continue
 
-    # Step 4: Grab taxes
-    search_keys = [
-        'Gross Pay'
+    # Step 4: Grab data from named tables
+    # Step 4a: Grab taxes
+    table_data_collection = [
+        {
+            'table_title': 'Employee Taxes',
+            'row': 'OASDI',
+            'column': 'Amount'
+        },
+        {
+            'table_title': 'Employee Taxes',
+            'row': 'Medicare',
+            'column': 'Amount'
+        },
+        {
+            'table_title': 'Employee Taxes',
+            'row': 'Federal Withholding',
+            'column': 'Amount'
+        },
+        {
+            'table_title': 'Employee Taxes',
+            'row': 'State Tax GA', #TODO: This should actually have a dash — for some reason textract removes it
+            'column': 'Amount'
+        },
+        {
+            'table_title': 'Deductions',
+            'row': '401K',
+            'column': 'Amount'
+        },
+        {
+            'table_title': 'Deductions',
+            'row': 'Dental Pre Tax',
+            'column': 'Amount'
+        },
+        {
+            'table_title': 'Deductions',
+            'row': 'HSA',
+            'column': 'Amount'
+        },
+        {
+            'table_title': 'Deductions',
+            'row': 'Medical Pre Tax',
+            'column': 'Amount'
+        },
+        {
+            'table_title': 'Deductions',
+            'row': 'Vision Pre Tax',
+            'column': 'Amount'
+        },
+        {
+            'table_title': 'Employee Post Tax Deductions',
+            'row': 'Employee Stock Purchase Plan',
+            'column': 'Amount'
+        },
+        {
+            'table_title': 'Employee Post Tax Deductions',
+            'row': 'Voluntary Accident',
+            'column': 'Amount'
+        },
+        {
+            'table_title': 'Employee Post Tax Deductions',
+            'row': 'Voluntary Critical Illness',
+            'column': 'Amount'
+        },
+        {
+            'table_title': 'Employee Post Tax Deductions',
+            'row': 'Voluntary Hospital',
+            'column': 'Amount'
+        },
+        {
+            'table_title': 'Payment Information',
+            'row': 'Ally Bank',
+            'column': 'Amount'
+        },
+        {
+            'table_title': 'Payment Information',
+            'row': 'FIRST REPUBLIC BANK',
+            'column': 'Amount'
+        }
     ]
+    
+    for page_id in page_ids:
+        named_tables = [table for table in document.tables if table.title is not None and table.page_id == page_id]
+    for table in named_tables:
+        collection_dicts = [dict for dict in table_data_collection if dict['table_title'] == table.title.text]
+        # Clean the table per the pandas notes above
+        pandas_table = convert_table_to_cleaned_dataframe(table)
+        for dict in collection_dicts:
+            value = pandas_table.loc[dict['row'], dict['column']]
+            data[page_id][dict['row']] = value.strip()
+
     print(data)
     print(wtf)
 
@@ -127,6 +202,23 @@ def extract_relevant_data(document_location):
         
         # print(table.get_text_and_words())
 
+def convert_table_to_cleaned_dataframe(table):
+    no_titles_table = table.strip_headers(column_headers=False, in_table_title=True, section_titles=True)
+    
+    pandas_table = no_titles_table.to_pandas()
+
+    # Set the first row as the header
+    pandas_table.columns = pandas_table.iloc[0]
+    pandas_table = pandas_table[1:]
+
+    # Set the first column as the index
+    pandas_table.set_index(pandas_table.columns[0], inplace=True)
+
+    # Strip whitespace from column names and index
+    pandas_table.columns = pandas_table.columns.str.strip()
+    pandas_table.index = pandas_table.index.str.strip()
+
+    return pandas_table
 
 def upload_to_s3(file):
     s3_client = boto3.client(
