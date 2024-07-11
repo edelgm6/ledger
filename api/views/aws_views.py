@@ -5,7 +5,6 @@ from django.http import JsonResponse
 from api.forms import DocumentForm
 from django.conf import settings
 from textractor.entities.document import Document
-from textractor.data.text_linearization_config import TextLinearizationConfig
 
 def upload_document(request):
     if request.method == 'POST':

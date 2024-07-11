@@ -4,7 +4,7 @@ from django.template.loader import render_to_string
 from django.views import View
 from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
-from api.forms import UploadTransactionsForm, WalletForm
+from api.forms import UploadTransactionsForm, WalletForm, DocumentForm
 from api.statement import Trend
 from api import utils
 
@@ -14,10 +14,16 @@ class UploadTransactionsView(View):
     form = UploadTransactionsForm
     template = 'api/views/upload-transactions.html'
     form_template = 'api/entry_forms/upload-form.html'
+    textract_form_template = 'api/entry_forms/textract-form.html'
+
+    def get_textract_form_html(self):
+        form = DocumentForm()
+        return render_to_string(self.textract_form_template, {'form': form})
 
     def get(self, request):
         form_html = render_to_string(self.form_template, {'form': self.form()})
-        return render(request, self.template, {'form': form_html})
+        textract_form_html = self.get_textract_form_html()
+        return render(request, self.template, {'form': form_html, 'textract_form': textract_form_html})
 
     def post(self, request):
         form = self.form(request.POST, request.FILES)
