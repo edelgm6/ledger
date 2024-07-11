@@ -57,34 +57,29 @@ def extract_relevant_data(document_location):
     # Step 2: Name each page and create a data structure
     # Extract key-value pairs
     key_value_pairs = document.key_values
-    # print(f"Key: {kv.key}, Value: {kv.value}")
 
     # Print the key-value pairs and create data object
-    for page_id in page_ids:
-        for kv in key_value_pairs:
-            if kv.page_id == page_id:
-                key = clean_string(kv.key.text)
-                value = clean_string(kv.value.text)
-                if key == 'Company':
-                    company = value
-                if key == 'Pay Period End':
-                    end_period = value
-                if key == 'Pay Period Begin':
-                    begin_period = value
-        page_title = company + ' ' + begin_period + '-' + end_period
-        data[page_id]['title'] = page_title
+    for kv in key_value_pairs:
+        key = clean_string(kv.key.text)
+        if key == 'Company':
+            company = kv.value.text
+            data[kv.page_id]['Company'] = company
+        if key == 'Pay Period End':
+            end_period = kv.value.text
+            data[kv.page_id]['End Period'] = end_period
+        if key == 'Pay Period Begin':
+            begin_period = kv.value.text
+            data[kv.page_id]['Begin Period'] = begin_period
 
     # Step 3: Grab table data from unnamed tables
     unnamed_tables = [table for table in document.tables if table.title is None]
-    for page_id in page_ids:
-        for table in unnamed_tables:
-            if table.page_id == page_id:
-                pandas_table = convert_table_to_cleaned_dataframe(table)
-                try:
-                    gross_pay_current = pandas_table.loc['Current', 'Gross Pay']
-                    data[page_id]['gross'] = gross_pay_current.strip()
-                except KeyError:
-                    continue
+    for table in unnamed_tables:
+        pandas_table = convert_table_to_cleaned_dataframe(table)
+        try:
+            gross_pay_current = pandas_table.loc['Current', 'Gross Pay']
+            data[page_id]['gross'] = gross_pay_current.strip()
+        except KeyError:
+            continue
 
     # Step 4: Grab data from named tables
     # Step 4a: Grab taxes
@@ -166,8 +161,7 @@ def extract_relevant_data(document_location):
         }
     ]
     
-    for page_id in page_ids:
-        named_tables = [table for table in document.tables if table.title is not None and table.page_id == page_id]
+    named_tables = [table for table in document.tables if table.title is not None]
     for table in named_tables:
         collection_dicts = [dict for dict in table_data_collection if dict['table_title'] == table.title.text]
         # Clean the table per the pandas notes above
@@ -177,30 +171,6 @@ def extract_relevant_data(document_location):
             data[page_id][dict['row']] = value.strip()
 
     print(data)
-    print(wtf)
-
-    tables = document.tables
-    for table in tables:
-        print(table.page_id)
-        
-        try:
-            title = table.title.text
-        except:
-            title = None
-        print(title)
-        
-        
-        # if title == 'Employee Taxes':
-        csv = table.to_csv(config=TextLinearizationConfig(
-            max_number_of_consecutive_spaces=1,
-            add_prefixes_and_suffixes_in_text=False
-        ))
-        # cells = table.get_text_and_words()
-        print(csv)
-        # for row in cells['Description']:
-            # print(row.text)
-        
-        # print(table.get_text_and_words())
 
 def convert_table_to_cleaned_dataframe(table):
     no_titles_table = table.strip_headers(column_headers=False, in_table_title=True, section_titles=True)
