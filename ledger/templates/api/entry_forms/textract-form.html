@@ -1,10 +1,11 @@
 <div class="row">
     <div class="col">
-        <h3>Upload transaction Paystubs</h3>
+        <h3>Upload paystubs</h3>
         <form
             method="post"
             enctype="multipart/form-data"
-            hx-post="{% url 'textract' %}"
+            hx-post="{% url 'upload-transactions' %}"
+            hx-target="#textract"
             hx-trigger="submit"
         >
         {% csrf_token %}

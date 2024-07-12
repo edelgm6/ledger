@@ -11,19 +11,17 @@
             hx-trigger="submit"
         >
         {% csrf_token %}
+            <!-- Render the 'transaction_csv' field -->
+            <div class="mb-3">
+                <input type="file" name="transaction_csv" id="id_transaction_csv" class="form-control-file">
+            </div>
             <!-- Render the 'account' field -->
             <div class="mb-3">
-                <label for="id_account" class="form-label">Account</label>
                 <select name="account" id="id_account" class="form-control">
                     {% for account in form.account.field.queryset %}
                         <option value="{{ account.pk }}">{{ account }}</option>
                     {% endfor %}
                 </select>
-            </div>
-
-            <!-- Render the 'transaction_csv' field -->
-            <div class="mb-3">
-                <input type="file" name="transaction_csv" id="id_transaction_csv" class="form-control-file">
             </div>
 
             <button type="submit" name="transactions" class="btn btn-primary">Submit</button>

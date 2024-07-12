@@ -1,21 +1,42 @@
 import csv
+import boto3
 from decimal import Decimal, InvalidOperation
 from django import forms
 from django.forms import BaseModelFormSet, DecimalField
 from django.utils import timezone
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
+from django.conf import settings
 from api.models import (
     Amortization, Transaction, Account, JournalEntryItem,
     TaxCharge, Reconciliation, JournalEntry
 )
-
 from api import utils
 from api.factories import ReconciliationFactory
 
 
 class DocumentForm(forms.Form):
     document = forms.FileField()
+
+    def upload_to_s3(self):
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_REGION_NAME
+        )
+        file = self.cleaned_data['document']
+        try:
+            s3_client.upload_fileobj(
+                file,
+                settings.AWS_STORAGE_BUCKET_NAME,
+                file.name,
+                ExtraArgs={'ContentType': file.content_type}
+            )
+            file_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{file.name}"
+            return {'file_url': file_url, 'message': 'Upload successful'}
+        except Exception as e:
+            return {'error': str(e), 'message': 'Upload failed'}      
 
 class CommaDecimalField(DecimalField):
     def to_python(self, value):
