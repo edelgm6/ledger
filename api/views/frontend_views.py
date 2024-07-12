@@ -29,15 +29,15 @@ class UploadTransactionsView(View):
         form = self.form(request.POST, request.FILES)
         if form.is_valid():
             transactions_count = form.save()
-            form_html = render_to_string(self.form_template, {'form': form})
-            success_html = render_to_string(
-                'api/components/upload-success.html',
+            form_html = render_to_string(
+                self.form_template, 
                 {
+                    'form': form,
                     'count': transactions_count,
                     'account': form.cleaned_data['account']
                 }
             )
-            return render(request, self.template, {'form': form_html, 'success': success_html})
+            return HttpResponse(form_html)
 
 # ------------------Wallet Transactions View-----------------------
 
