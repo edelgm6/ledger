@@ -8,36 +8,46 @@ from api.forms import UploadTransactionsForm, WalletForm, DocumentForm
 from api.statement import Trend
 from api import utils
 
-
 class UploadTransactionsView(View):
-
-    form = UploadTransactionsForm
-    template = 'api/views/upload-transactions.html'
-    form_template = 'api/entry_forms/upload-form.html'
-    textract_form_template = 'api/entry_forms/textract-form.html'
 
     def get_textract_form_html(self):
         form = DocumentForm()
-        return render_to_string(self.textract_form_template, {'form': form})
+        template = 'api/entry_forms/textract-form.html'
+        return render_to_string(template, {'form': form})
+    
+    def get_csv_form_html(self, transactions_count=None, account=None):
+        form = UploadTransactionsForm()
+        template = 'api/entry_forms/upload-form.html'    
+        return render_to_string(
+            template, 
+            {
+                'form': form,
+                'count': transactions_count,
+                'account': account
+            }
+        )
 
     def get(self, request):
-        form_html = render_to_string(self.form_template, {'form': self.form()})
+        template = 'api/views/upload-transactions.html'
+        csv_form_html = self.get_csv_form_html()
         textract_form_html = self.get_textract_form_html()
-        return render(request, self.template, {'form': form_html, 'textract_form': textract_form_html})
+        return render(request, template, {'form': csv_form_html, 'textract_form': textract_form_html})
 
-    def post(self, request):
-        form = self.form(request.POST, request.FILES)
+    def handle_transactions_form(self, request):
+        form = UploadTransactionsForm(request.POST, request.FILES)
         if form.is_valid():
             transactions_count = form.save()
-            form_html = render_to_string(
-                self.form_template, 
-                {
-                    'form': form,
-                    'count': transactions_count,
-                    'account': form.cleaned_data['account']
-                }
-            )
-            return HttpResponse(form_html)
+        return self.get_csv_form_html(transactions_count=transactions_count, account=form.cleaned_data['account'])
+
+    def post(self, request):
+        
+        if 'transactions' in request.POST:
+            form_html = self.handle_transactions_form(request)
+        elif 'paystubs' in request.POST:
+            form = DocumentForm(request.POST, request.FILES)
+        
+        
+        return HttpResponse(form_html)
 
 # ------------------Wallet Transactions View-----------------------
 
