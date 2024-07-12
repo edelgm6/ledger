@@ -1,0 +1,34 @@
+{% load humanize %}
+<div class="row">
+    <div class="col-md-6">
+        {% if change == "create" %}
+        <div class="alert alert-success" role="alert">
+            <small>Added transaction</small>
+        </div>
+        {% elif change == "update" %}
+        <div class="alert alert-success" role="alert">
+            <small>Updated transaction</small>
+        </div>
+        {% elif change == "delete" %}
+        <div class="alert alert-danger" role="alert">
+            <small>Deleted transaction</small>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-body">
+                <p class="card-text small" style="margin-bottom: 10px;"><strong>Date:</strong> {{ created_transaction.date }}</p>
+                <p class="card-text small" style="margin-bottom: 10px;">
+                    <strong>Amount:</strong>
+                    {% if transaction.amount < 0 %}
+                        -${{ created_transaction.amount|floatformat:2|intcomma|cut:"-" }}
+                    {% else %}
+                        ${{ created_transaction.amount|floatformat:2|intcomma }}
+                    {% endif %}
+                </p>
+                <p class="card-text small" style="margin-bottom: 10px;"><strong>Description:</strong> {{ created_transaction.description }}</p>
+                <p class="card-text small" style="margin-bottom: 10px;"><strong>Account:</strong> {{ created_transaction.account }}</p>
+            </div>
+        </div>
+    </div>
+</div>
