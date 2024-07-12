@@ -36,7 +36,7 @@ class S3File(models.Model):
         self.textract_job_id = response.get('JobId')
         self.save()
         
-        return response
+        return self.textract_job_id
 
 class Amortization(models.Model):
     accrued_transaction = models.OneToOneField(
