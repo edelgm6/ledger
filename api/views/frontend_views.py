@@ -1,5 +1,5 @@
 import csv
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.template.loader import render_to_string
 from django.views import View
 from django.shortcuts import render
@@ -38,14 +38,20 @@ class UploadTransactionsView(View):
         if form.is_valid():
             transactions_count = form.save()
         return self.get_csv_form_html(transactions_count=transactions_count, account=form.cleaned_data['account'])
+    
+    def handle_paystubs_form(self, request):
+        form = DocumentForm(request.POST, request.FILES)
+        if form.is_valid():
+            response = form.upload_to_s3()
+        return response
 
     def post(self, request):
         
         if 'transactions' in request.POST:
             form_html = self.handle_transactions_form(request)
         elif 'paystubs' in request.POST:
-            form = DocumentForm(request.POST, request.FILES)
-        
+            form_html = self.handle_paystubs_form(request)
+            return JsonResponse(form_html)
         
         return HttpResponse(form_html)
 
