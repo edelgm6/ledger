@@ -10,10 +10,11 @@ def upload_document(request):
     if request.method == 'POST':
         form = DocumentForm(request.POST, request.FILES)
         if form.is_valid():
-            # document = request.FILES['document']
-            # response = upload_to_s3(document)
+            document = request.FILES['document']
+            response = upload_to_s3(document)
             # response = process_document_with_textract('block pay.pdf')
             # return JsonResponse(response)
+            return render_to_string('')
             responses = get_textract_results('7832f55c93c6b71f5e2372e32ef7814798e9b1a2ffd91f8c87f860d655c140df')
             print('got all responses')
             combined_response = combine_responses(responses)
