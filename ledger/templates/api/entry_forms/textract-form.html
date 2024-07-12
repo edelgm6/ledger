@@ -16,3 +16,13 @@
         </form>
     </div>
 </div>
+<br>
+{% if filename %}
+<div class="row">
+    <div class="col">
+        <div class="alert alert-success" role="alert">
+            Uploaded {{ filename }}
+        </div>
+    </div>
+</div>
+{% endif %}
