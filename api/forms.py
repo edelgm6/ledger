@@ -1,5 +1,6 @@
 import csv
 import boto3
+import uuid
 from decimal import Decimal, InvalidOperation
 from django import forms
 from django.forms import BaseModelFormSet, DecimalField
@@ -9,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.conf import settings
 from api.models import (
     Amortization, Transaction, Account, JournalEntryItem,
-    TaxCharge, Reconciliation, JournalEntry
+    TaxCharge, Reconciliation, JournalEntry, S3File
 )
 from api import utils
 from api.factories import ReconciliationFactory
@@ -26,17 +27,31 @@ class DocumentForm(forms.Form):
             region_name=settings.AWS_REGION_NAME
         )
         file = self.cleaned_data['document']
+        unique_name = self.generate_unique_filename()
         try:
             s3_client.upload_fileobj(
                 file,
                 settings.AWS_STORAGE_BUCKET_NAME,
-                file.name,
+                unique_name,
                 ExtraArgs={'ContentType': file.content_type}
             )
-            file_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{file.name}"
-            return {'file_url': file_url, 'message': 'Upload successful'}
+            file_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{unique_name}"
+            s3file = S3File.objects.create(
+                url=file_url,
+                user_filename=file.name,
+                s3_filename=unique_name
+            )
+            return s3file
         except Exception as e:
-            return {'error': str(e), 'message': 'Upload failed'}      
+            print(str(e))
+            print(wtf)
+            return {'error': str(e), 'message': 'Upload failed'}
+        
+    def generate_unique_filename(self):
+        file = self.cleaned_data['document']
+        ext = file.name.split('.')[-1]
+        unique_filename = f"{uuid.uuid4()}.{ext}"
+        return unique_filename
 
 class CommaDecimalField(DecimalField):
     def to_python(self, value):

@@ -4,6 +4,11 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+class S3File(models.Model):
+    url = models.URLField(max_length=200, unique=True)
+    user_filename = models.CharField(max_length=200)
+    s3_filename = models.CharField(max_length=200)
+
 class Amortization(models.Model):
     accrued_transaction = models.OneToOneField(
         'Transaction',

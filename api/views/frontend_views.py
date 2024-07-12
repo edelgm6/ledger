@@ -10,10 +10,16 @@ from api import utils
 
 class UploadTransactionsView(View):
 
-    def get_textract_form_html(self):
+    def get_textract_form_html(self, filename=None):
         form = DocumentForm()
         template = 'api/entry_forms/textract-form.html'
-        return render_to_string(template, {'form': form})
+        return render_to_string(
+            template, 
+            {
+                'form': form,
+                'filename': filename
+            }
+        )
     
     def get_csv_form_html(self, transactions_count=None, account=None):
         form = UploadTransactionsForm()
@@ -42,8 +48,8 @@ class UploadTransactionsView(View):
     def handle_paystubs_form(self, request):
         form = DocumentForm(request.POST, request.FILES)
         if form.is_valid():
-            response = form.upload_to_s3()
-        return response
+            s3file = form.upload_to_s3()
+        return self.get_textract_form_html(filename=s3file.user_filename)
 
     def post(self, request):
         
@@ -51,7 +57,6 @@ class UploadTransactionsView(View):
             form_html = self.handle_transactions_form(request)
         elif 'paystubs' in request.POST:
             form_html = self.handle_paystubs_form(request)
-            return JsonResponse(form_html)
         
         return HttpResponse(form_html)
 
