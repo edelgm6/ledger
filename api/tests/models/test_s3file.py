@@ -10,6 +10,5 @@ class S3FileTests(TestCase):
             s3_filename='03378dc8-1957-4ebe-b15e-f43893a5cf45.pdf'
         )
         response = s3file.process_document_with_textract()
-        print(response)
         s3file.refresh_from_db()
-        self.assertEqual(response.get('JobId'), s3file.textract_job_id)
+        self.assertEqual(response, s3file.textract_job_id)
