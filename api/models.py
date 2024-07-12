@@ -1,13 +1,42 @@
 import math
 import datetime
+import boto3
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from django.conf import settings
 
 class S3File(models.Model):
     url = models.URLField(max_length=200, unique=True)
     user_filename = models.CharField(max_length=200)
     s3_filename = models.CharField(max_length=200)
+    textract_job_id = models.CharField(max_length=200, null=True, blank=True)
+
+    def process_document_with_textract(self):
+        # Boto3 client for Textract
+        client = boto3.client(
+            'textract',
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_REGION_NAME
+        )
+
+        # Process file
+        response = client.start_document_analysis(
+            DocumentLocation={
+                'S3Object': {
+                    'Bucket': settings.AWS_STORAGE_BUCKET_NAME,
+                    'Name': self.s3_filename
+                }
+            },
+            FeatureTypes=[
+                'FORMS','TABLES'
+            ]
+        )
+        self.textract_job_id = response.get('JobId')
+        self.save()
+        
+        return response
 
 class Amortization(models.Model):
     accrued_transaction = models.OneToOneField(
