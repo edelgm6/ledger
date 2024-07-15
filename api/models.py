@@ -5,7 +5,42 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
+from decimal import Decimal
 from textractor.entities.document import Document
+
+class DocSearch(models.Model):
+    keyword = models.CharField(max_length=200, null=True, blank=True)
+    table_name = models.CharField(max_length=200, null=True, blank=True)
+    row = models.CharField(max_length=200, null=True, blank=True)
+    column = models.CharField(max_length=200, null=True, blank=True)
+    account = models.ForeignKey('Account', null=True, blank=True, on_delete=models.SET_NULL)
+    
+    STRING_CHOICES = [
+        ('Company', 'Company'),
+        ('Begin Period', 'Begin Period'),
+        ('End Period', 'End Period'),
+    ]
+    selection = models.CharField(max_length=20, choices=STRING_CHOICES, null=True, blank=True)
+
+    def clean(self):
+        super().clean()
+
+        # Check the existing conditions
+        if not self.keyword and (self.row is None or self.column is None):
+            raise ValidationError("Either 'keyword' must be provided, or both 'row' and 'column' must be provided.")
+        
+        # Ensure either account or selection is set
+        if not self.account and not self.selection:
+            raise ValidationError("Either 'account' must be provided, or 'selection' must be one of the specified choices.")
+        
+        if self.account and self.selection:
+            raise ValidationError("Both 'account' and 'selection' cannot be set at the same time.")
+        
+    def get_selection_or_account(self):
+        if self.selection:
+            return self.selection
+        return self.account
+
 
 class S3File(models.Model):
     url = models.URLField(max_length=200, unique=True)
@@ -87,6 +122,13 @@ class S3File(models.Model):
         cleaned_string = ' '.join(cleaned_string.split())
         
         return cleaned_string
+    
+    @staticmethod
+    def clean_and_convert_string_to_decimal(input_string):
+        cleaned_string = S3File.clean_string(input_string)
+        cleaned_string = cleaned_string.replace(',', '').replace('$', '')
+        print(cleaned_string)
+        return Decimal(cleaned_string).quantize(Decimal('0.00'))
 
     @staticmethod
     def extract_data(textract_job_response):
@@ -107,27 +149,38 @@ class S3File(models.Model):
         key_value_pairs = document.key_values
 
         # Print the key-value pairs and create data object
+        keyword_searches = DocSearch.objects.filter(keyword__isnull=False)
+
         for kv in key_value_pairs:
             key = S3File.clean_string(kv.key.text)
-            if key == 'Company':
-                company = kv.value.text
-                data[kv.page_id]['Company'] = company
-            if key == 'Pay Period End':
-                end_period = kv.value.text
-                data[kv.page_id]['End Period'] = end_period
-            if key == 'Pay Period Begin':
-                begin_period = kv.value.text
-                data[kv.page_id]['Begin Period'] = begin_period
+            for keyword_search in keyword_searches:
+                if key == keyword_search.keyword:
+                    identifier = keyword_search.get_selection_or_account()
+                    data[kv.page_id][identifier] = S3File.clean_string(kv.value.text)
 
         # Step 3: Grab table data from unnamed tables
         unnamed_tables = [table for table in document.tables if table.title is None]
+        unnamed_table_searches = DocSearch.objects.filter(
+            keyword__isnull=True,
+            table_name__isnull=True
+        )
+
         for table in unnamed_tables:
             pandas_table = S3File.convert_table_to_cleaned_dataframe(table)
-            try:
-                gross_pay_current = pandas_table.loc['Current', 'Gross Pay']
-                data[page_id]['gross'] = gross_pay_current.strip()
-            except KeyError:
-                continue
+            for unnamed_table_search in unnamed_table_searches:
+                try:
+                    value = pandas_table.loc[unnamed_table_search.row, unnamed_table_search.column]
+                except KeyError:
+                    continue
+
+                value = S3File.clean_and_convert_string_to_decimal(value)
+                identifier = unnamed_table_search.get_selection_or_account()
+                if identifier in data[table.page_id]:
+                    data[table.page_id][identifier] += value
+                else:
+                    data[table.page_id][identifier] = value
+        print(data)
+        print(stop)
 
         # Step 4: Grab data from named tables
         # Step 4a: Grab taxes

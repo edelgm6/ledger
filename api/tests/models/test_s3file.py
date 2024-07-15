@@ -1,5 +1,6 @@
 from django.test import TestCase
-from api.models import S3File
+from decimal import Decimal
+from api.models import S3File, DocSearch, Account
 
 class S3FileTests(TestCase):
 
@@ -25,6 +26,40 @@ class S3FileTests(TestCase):
         print(combined_response)
         self.assertEqual(combined_response['DocumentMetadata']['Pages'], 1)
 
+# class DocSearch(models.Model):
+#     keyword = models.CharField(max_length=200, null=True, blank=True)
+#     table_name = models.CharField(max_length=200, null=True, blank=True)
+#     row = models.CharField(max_length=200, null=True, blank=True)
+#     column = models.CharField(max_length=200, null=True, blank=True)
+#     account = models.ForeignKey('Account', null=True, blank=True, on_delete=models.SET_NULL)
+    
+#     STRING_CHOICES = [
+#         ('Company', 'Company'),
+#         ('Begin Period', 'Begin Period'),
+#         ('End Period', 'End Period'),
+#     ]
+#     selection = models.CharField(max_length=20, choices=STRING_CHOICES, null=True, blank=True)
+
+
+    # name = models.CharField(max_length=200, unique=True)
+    # type = models.CharField(max_length=9, choices=Type.choices)
+    # sub_type = models.CharField(max_length=30, choices=SubType.choices)
+    # csv_profile = models.ForeignKey(
+    #     'CSVProfile',
+    #     related_name='accounts',
+    #     on_delete=models.PROTECT,
+    #     null=True,
+    #     blank=True
+    # )
+    # special_type = models.CharField(
+    #     max_length=30,
+    #     choices=SpecialType.choices,
+    #     null=True,
+    #     blank=True,
+    #     unique=True
+    # )
+    # is_closed = models.BooleanField(default=False)
+
     def test_extract_data(self):
         s3file = S3File.objects.create(
             url='https://google.com',
@@ -32,8 +67,32 @@ class S3FileTests(TestCase):
             s3_filename='block pay.pdf',
             textract_job_id='37244276228a8ce27b25063cb6da1a02fb6b2166a4c6a960c286b20cc8a669a9'
         )
+        DocSearch.objects.create(
+            keyword='Company',
+            selection='Company'
+        )
+        DocSearch.objects.create(
+            keyword='Pay Period End',
+            selection='Begin Period'
+        )
+        DocSearch.objects.create(
+            keyword='Pay Period Begin',
+            selection='End Period'
+        )
+        salary_account = Account.objects.create(
+            name='1000-Salary',
+            type=Account.Type.INCOME,
+            sub_type=Account.SubType.SALARY
+        )
+        DocSearch.objects.create(
+            row='Current',
+            column='Gross Pay',
+            account=salary_account
+        )
+
         responses = s3file.get_textract_results()
         combined_response = s3file.combine_responses(responses)
         data = s3file.extract_data(combined_response)
 
-        self.assertEqual(data['66d467aa-4c6c-4961-bbfb-60bd27607814']['gross'], '8,801.47')
+        self.assertEqual(data['66d467aa-4c6c-4961-bbfb-60bd27607814']['Company'], 'Opendoor Labs Inc.')
+        self.assertEqual(data['66d467aa-4c6c-4961-bbfb-60bd27607814'][salary_account], Decimal('8801.47'))

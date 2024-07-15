@@ -1,5 +1,5 @@
 import csv
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.views import View
 from django.shortcuts import render
