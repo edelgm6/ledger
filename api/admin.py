@@ -4,7 +4,7 @@ from .resources import AccountResource, JournalEntryResource, JournalEntryItemRe
 from .models import (
     PrefillItem, Prefill, Amortization, TaxCharge, Account, Transaction,
     JournalEntry, JournalEntryItem, AutoTag, CSVProfile, Reconciliation,
-    CSVColumnValuePair
+    CSVColumnValuePair, S3File
 )
 
 
@@ -77,3 +77,4 @@ admin.site.register(TaxCharge)
 admin.site.register(CSVColumnValuePair)
 admin.site.register(Amortization)
 admin.site.register(PrefillItem)
+admin.site.register(S3File)

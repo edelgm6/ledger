@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
+from textractor.entities.document import Document
 
 class S3File(models.Model):
     url = models.URLField(max_length=200, unique=True)
@@ -33,10 +34,210 @@ class S3File(models.Model):
                 'FORMS','TABLES'
             ]
         )
-        self.textract_job_id = response.get('JobId')
+        job_id = response.get('JobId')
+        self.textract_job_id = job_id
         self.save()
+        return job_id
         
-        return self.textract_job_id
+    # Get all responses, paginated
+    def get_textract_results(self):
+        client = boto3.client(
+            'textract',
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_REGION_NAME
+        )
+
+        responses = []
+        next_token = None
+        while True:
+            if next_token:
+                response = client.get_document_analysis(JobId=self.textract_job_id, NextToken=next_token)
+            else:
+                response = client.get_document_analysis(JobId=self.textract_job_id)
+            
+            responses.append(response)
+            next_token = response.get('NextToken')
+            if not next_token:
+                break
+        return responses
+
+    # Combine responses
+    @staticmethod
+    def combine_responses(responses):
+        combined_response = {
+            "DocumentMetadata": {
+                "Pages": ""
+            },
+            "Blocks": []
+        }
+
+        for response in responses:
+            combined_response["DocumentMetadata"]["Pages"] = response["DocumentMetadata"]["Pages"]
+            combined_response["Blocks"].extend(response["Blocks"])
+
+        return combined_response
+    
+    @staticmethod
+    def clean_string(input_string):
+        # Remove commas
+        cleaned_string = input_string.replace(',', '')
+        
+        # Remove starting/trailing whitespace and ensure only one space between words
+        cleaned_string = ' '.join(cleaned_string.split())
+        
+        return cleaned_string
+
+    @staticmethod
+    def extract_data(textract_job_response):
+        
+        # Load the Textract response from the JSON file using textractor
+        document = Document.open(textract_job_response)
+
+        # Step 1: Build pages data structure
+        page_ids = []
+        data = {}
+        for page in document.pages:
+            page_id = page.id
+            page_ids.append(page_id)
+            data[page_id] = {}
+
+        # Step 2: Name each page and create a data structure
+        # Extract key-value pairs
+        key_value_pairs = document.key_values
+
+        # Print the key-value pairs and create data object
+        for kv in key_value_pairs:
+            key = S3File.clean_string(kv.key.text)
+            if key == 'Company':
+                company = kv.value.text
+                data[kv.page_id]['Company'] = company
+            if key == 'Pay Period End':
+                end_period = kv.value.text
+                data[kv.page_id]['End Period'] = end_period
+            if key == 'Pay Period Begin':
+                begin_period = kv.value.text
+                data[kv.page_id]['Begin Period'] = begin_period
+
+        # Step 3: Grab table data from unnamed tables
+        unnamed_tables = [table for table in document.tables if table.title is None]
+        for table in unnamed_tables:
+            pandas_table = S3File.convert_table_to_cleaned_dataframe(table)
+            try:
+                gross_pay_current = pandas_table.loc['Current', 'Gross Pay']
+                data[page_id]['gross'] = gross_pay_current.strip()
+            except KeyError:
+                continue
+
+        # Step 4: Grab data from named tables
+        # Step 4a: Grab taxes
+        table_data_collection = [
+            {
+                'table_title': 'Employee Taxes',
+                'row': 'OASDI',
+                'column': 'Amount'
+            },
+            {
+                'table_title': 'Employee Taxes',
+                'row': 'Medicare',
+                'column': 'Amount'
+            },
+            {
+                'table_title': 'Employee Taxes',
+                'row': 'Federal Withholding',
+                'column': 'Amount'
+            },
+            {
+                'table_title': 'Employee Taxes',
+                'row': 'State Tax GA', #TODO: This should actually have a dash — for some reason textract removes it
+                'column': 'Amount'
+            },
+            {
+                'table_title': 'Deductions',
+                'row': '401K',
+                'column': 'Amount'
+            },
+            {
+                'table_title': 'Deductions',
+                'row': 'Dental Pre Tax',
+                'column': 'Amount'
+            },
+            {
+                'table_title': 'Deductions',
+                'row': 'HSA',
+                'column': 'Amount'
+            },
+            {
+                'table_title': 'Deductions',
+                'row': 'Medical Pre Tax',
+                'column': 'Amount'
+            },
+            {
+                'table_title': 'Deductions',
+                'row': 'Vision Pre Tax',
+                'column': 'Amount'
+            },
+            {
+                'table_title': 'Employee Post Tax Deductions',
+                'row': 'Employee Stock Purchase Plan',
+                'column': 'Amount'
+            },
+            {
+                'table_title': 'Employee Post Tax Deductions',
+                'row': 'Voluntary Accident',
+                'column': 'Amount'
+            },
+            {
+                'table_title': 'Employee Post Tax Deductions',
+                'row': 'Voluntary Critical Illness',
+                'column': 'Amount'
+            },
+            {
+                'table_title': 'Employee Post Tax Deductions',
+                'row': 'Voluntary Hospital',
+                'column': 'Amount'
+            },
+            {
+                'table_title': 'Payment Information',
+                'row': 'Ally Bank',
+                'column': 'Amount'
+            },
+            {
+                'table_title': 'Payment Information',
+                'row': 'FIRST REPUBLIC BANK',
+                'column': 'Amount'
+            }
+        ]
+        
+        named_tables = [table for table in document.tables if table.title is not None]
+        for table in named_tables:
+            collection_dicts = [dict for dict in table_data_collection if dict['table_title'] == table.title.text]
+            # Clean the table per the pandas notes above
+            pandas_table = S3File.convert_table_to_cleaned_dataframe(table)
+            for dict in collection_dicts:
+                value = pandas_table.loc[dict['row'], dict['column']]
+                data[page_id][dict['row']] = value.strip()
+
+        return data
+
+    @staticmethod
+    def convert_table_to_cleaned_dataframe(table):
+        no_titles_table = table.strip_headers(column_headers=False, in_table_title=True, section_titles=True)
+        
+        pandas_table = no_titles_table.to_pandas()
+
+        # Set the first row as the header
+        pandas_table.columns = pandas_table.iloc[0]
+        pandas_table = pandas_table[1:]
+
+        # Set the first column as the index
+        pandas_table.set_index(pandas_table.columns[0], inplace=True)
+
+        # Strip whitespace from column names and index
+        pandas_table.columns = pandas_table.columns.str.strip()
+        pandas_table.index = pandas_table.index.str.strip()
+
+        return pandas_table
 
 class Amortization(models.Model):
     accrued_transaction = models.OneToOneField(
