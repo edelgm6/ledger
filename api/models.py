@@ -194,98 +194,29 @@ class S3File(models.Model):
                     data[table.page_id][identifier] += value
                 else:
                     data[table.page_id][identifier] = value
-        print(data)
-        print(stop)
-
-        # Step 4: Grab data from named tables
-        # Step 4a: Grab taxes
-        table_data_collection = [
-            {
-                'table_title': 'Employee Taxes',
-                'row': 'OASDI',
-                'column': 'Amount'
-            },
-            {
-                'table_title': 'Employee Taxes',
-                'row': 'Medicare',
-                'column': 'Amount'
-            },
-            {
-                'table_title': 'Employee Taxes',
-                'row': 'Federal Withholding',
-                'column': 'Amount'
-            },
-            {
-                'table_title': 'Employee Taxes',
-                'row': 'State Tax GA', #TODO: This should actually have a dash — for some reason textract removes it
-                'column': 'Amount'
-            },
-            {
-                'table_title': 'Deductions',
-                'row': '401K',
-                'column': 'Amount'
-            },
-            {
-                'table_title': 'Deductions',
-                'row': 'Dental Pre Tax',
-                'column': 'Amount'
-            },
-            {
-                'table_title': 'Deductions',
-                'row': 'HSA',
-                'column': 'Amount'
-            },
-            {
-                'table_title': 'Deductions',
-                'row': 'Medical Pre Tax',
-                'column': 'Amount'
-            },
-            {
-                'table_title': 'Deductions',
-                'row': 'Vision Pre Tax',
-                'column': 'Amount'
-            },
-            {
-                'table_title': 'Employee Post Tax Deductions',
-                'row': 'Employee Stock Purchase Plan',
-                'column': 'Amount'
-            },
-            {
-                'table_title': 'Employee Post Tax Deductions',
-                'row': 'Voluntary Accident',
-                'column': 'Amount'
-            },
-            {
-                'table_title': 'Employee Post Tax Deductions',
-                'row': 'Voluntary Critical Illness',
-                'column': 'Amount'
-            },
-            {
-                'table_title': 'Employee Post Tax Deductions',
-                'row': 'Voluntary Hospital',
-                'column': 'Amount'
-            },
-            {
-                'table_title': 'Payment Information',
-                'row': 'Ally Bank',
-                'column': 'Amount'
-            },
-            {
-                'table_title': 'Payment Information',
-                'row': 'FIRST REPUBLIC BANK',
-                'column': 'Amount'
-            }
-        ]
         
         named_tables = [table for table in document.tables if table.title is not None]
+        named_table_searches = DocSearch.objects.filter(
+            keyword__isnull=True,
+            table_name__isnull=False
+        )
         for table in named_tables:
-            collection_dicts = [dict for dict in table_data_collection if dict['table_title'] == table.title.text]
+            matching_table_searches = [search for search in named_table_searches if search.table_name == S3File.clean_string(table.title.text)]
             # Clean the table per the pandas notes above
             pandas_table = S3File.convert_table_to_cleaned_dataframe(table)
-            for dict in collection_dicts:
-                value = pandas_table.loc[dict['row'], dict['column']]
-                data[page_id][dict['row']] = value.strip()
-
+            for search in matching_table_searches:
+                print(pandas_table)
+                try:
+                    value = pandas_table.loc[search.row, search.column]
+                except KeyError:
+                    continue
+                
+                value = S3File.clean_and_convert_string_to_decimal(value)
+                identifier = search.get_selection_or_account()
+                if identifier in data[table.page_id]:
+                    data[table.page_id][identifier] += value
+                else:
+                    data[table.page_id][identifier] = value
         return data
 
     @staticmethod
