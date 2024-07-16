@@ -96,6 +96,18 @@ class S3FileTests(TestCase):
             column='Gross Pay',
             account=salary_account
         )
+        tax_account = Account.objects.create(
+            name='2000-Taxes',
+            type=Account.Type.LIABILITY,
+            sub_type=Account.SubType.TAXES_PAYABLE
+        )
+        DocSearch.objects.create(
+            prefill=prefill,
+            row='Federal Withholding',
+            column='Amount',
+            table_name='Employee Taxes',
+            account=tax_account
+        )
 
         responses = s3file.get_textract_results()
         combined_response = s3file.combine_responses(responses)
@@ -103,3 +115,85 @@ class S3FileTests(TestCase):
 
         self.assertEqual(data['66d467aa-4c6c-4961-bbfb-60bd27607814']['Company'], 'Opendoor Labs Inc.')
         self.assertEqual(data['66d467aa-4c6c-4961-bbfb-60bd27607814'][salary_account], Decimal('8801.47'))
+        self.assertEqual(data['66d467aa-4c6c-4961-bbfb-60bd27607814'][tax_account], Decimal('1447.36'))
+
+
+
+        # Step 4: Grab data from named tables
+        # table_data_collection = [
+        #     {
+        #         'table_title': 'Employee Taxes',
+        #         'row': 'OASDI',
+        #         'column': 'Amount'
+        #     },
+        #     {
+        #         'table_title': 'Employee Taxes',
+        #         'row': 'Medicare',
+        #         'column': 'Amount'
+        #     },
+        #     {
+        #         'table_title': 'Employee Taxes',
+        #         'row': 'Federal Withholding',
+        #         'column': 'Amount'
+        #     },
+        #     {
+        #         'table_title': 'Employee Taxes',
+        #         'row': 'State Tax GA', #TODO: This should actually have a dash — for some reason textract removes it
+        #         'column': 'Amount'
+        #     },
+        #     {
+        #         'table_title': 'Deductions',
+        #         'row': '401K',
+        #         'column': 'Amount'
+        #     },
+        #     {
+        #         'table_title': 'Deductions',
+        #         'row': 'Dental Pre Tax',
+        #         'column': 'Amount'
+        #     },
+        #     {
+        #         'table_title': 'Deductions',
+        #         'row': 'HSA',
+        #         'column': 'Amount'
+        #     },
+        #     {
+        #         'table_title': 'Deductions',
+        #         'row': 'Medical Pre Tax',
+        #         'column': 'Amount'
+        #     },
+        #     {
+        #         'table_title': 'Deductions',
+        #         'row': 'Vision Pre Tax',
+        #         'column': 'Amount'
+        #     },
+        #     {
+        #         'table_title': 'Employee Post Tax Deductions',
+        #         'row': 'Employee Stock Purchase Plan',
+        #         'column': 'Amount'
+        #     },
+        #     {
+        #         'table_title': 'Employee Post Tax Deductions',
+        #         'row': 'Voluntary Accident',
+        #         'column': 'Amount'
+        #     },
+        #     {
+        #         'table_title': 'Employee Post Tax Deductions',
+        #         'row': 'Voluntary Critical Illness',
+        #         'column': 'Amount'
+        #     },
+        #     {
+        #         'table_title': 'Employee Post Tax Deductions',
+        #         'row': 'Voluntary Hospital',
+        #         'column': 'Amount'
+        #     },
+        #     {
+        #         'table_title': 'Payment Information',
+        #         'row': 'Ally Bank',
+        #         'column': 'Amount'
+        #     },
+        #     {
+        #         'table_title': 'Payment Information',
+        #         'row': 'FIRST REPUBLIC BANK',
+        #         'column': 'Amount'
+        #     }
+        # ]
