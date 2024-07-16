@@ -199,8 +199,27 @@ class S3File(models.Model):
                 else:
                     data[table.page_id][identifier] = value
 
-        print(data)
         return data
+
+    def create_paystubs_from_textract_data(self, textract_data):
+        for page_id, page_data in textract_data.items():
+            paystub = Paystub.objects.create(
+                document=self,
+                page_id=page_id,
+                title=page_data['Company'] + ' ' + page_data['Begin Period'] + '-' + page_data['End Period']
+            )
+            paystub_values = []
+            for account, value in page_data.items():
+                if not isinstance(account, Account):
+                    continue
+                paystub_values.append(
+                    PaystubValue(
+                        paystub=paystub,
+                        account=account,
+                        amount=value
+                    )
+                )
+            PaystubValue.objects.bulk_create(paystub_values)
 
     @staticmethod
     def convert_table_to_cleaned_dataframe(table):

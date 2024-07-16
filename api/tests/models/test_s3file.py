@@ -1,6 +1,6 @@
 from django.test import TestCase
 from decimal import Decimal
-from api.models import S3File, DocSearch, Account, Prefill
+from api.models import S3File, DocSearch, Account, Prefill, Paystub, PaystubValue
 
 class S3FileTests(TestCase):
 
@@ -112,88 +112,14 @@ class S3FileTests(TestCase):
         responses = s3file.get_textract_results()
         combined_response = s3file.combine_responses(responses)
         data = s3file.extract_data(combined_response)
+        print(data)
 
         self.assertEqual(data['66d467aa-4c6c-4961-bbfb-60bd27607814']['Company'], 'Opendoor Labs Inc.')
         self.assertEqual(data['66d467aa-4c6c-4961-bbfb-60bd27607814'][salary_account], Decimal('8801.47'))
         self.assertEqual(data['66d467aa-4c6c-4961-bbfb-60bd27607814'][tax_account], Decimal('1447.36'))
 
+        s3file.create_paystubs_from_textract_data(data)
 
-
-        # Step 4: Grab data from named tables
-        # table_data_collection = [
-        #     {
-        #         'table_title': 'Employee Taxes',
-        #         'row': 'OASDI',
-        #         'column': 'Amount'
-        #     },
-        #     {
-        #         'table_title': 'Employee Taxes',
-        #         'row': 'Medicare',
-        #         'column': 'Amount'
-        #     },
-        #     {
-        #         'table_title': 'Employee Taxes',
-        #         'row': 'Federal Withholding',
-        #         'column': 'Amount'
-        #     },
-        #     {
-        #         'table_title': 'Employee Taxes',
-        #         'row': 'State Tax GA', #TODO: This should actually have a dash — for some reason textract removes it
-        #         'column': 'Amount'
-        #     },
-        #     {
-        #         'table_title': 'Deductions',
-        #         'row': '401K',
-        #         'column': 'Amount'
-        #     },
-        #     {
-        #         'table_title': 'Deductions',
-        #         'row': 'Dental Pre Tax',
-        #         'column': 'Amount'
-        #     },
-        #     {
-        #         'table_title': 'Deductions',
-        #         'row': 'HSA',
-        #         'column': 'Amount'
-        #     },
-        #     {
-        #         'table_title': 'Deductions',
-        #         'row': 'Medical Pre Tax',
-        #         'column': 'Amount'
-        #     },
-        #     {
-        #         'table_title': 'Deductions',
-        #         'row': 'Vision Pre Tax',
-        #         'column': 'Amount'
-        #     },
-        #     {
-        #         'table_title': 'Employee Post Tax Deductions',
-        #         'row': 'Employee Stock Purchase Plan',
-        #         'column': 'Amount'
-        #     },
-        #     {
-        #         'table_title': 'Employee Post Tax Deductions',
-        #         'row': 'Voluntary Accident',
-        #         'column': 'Amount'
-        #     },
-        #     {
-        #         'table_title': 'Employee Post Tax Deductions',
-        #         'row': 'Voluntary Critical Illness',
-        #         'column': 'Amount'
-        #     },
-        #     {
-        #         'table_title': 'Employee Post Tax Deductions',
-        #         'row': 'Voluntary Hospital',
-        #         'column': 'Amount'
-        #     },
-        #     {
-        #         'table_title': 'Payment Information',
-        #         'row': 'Ally Bank',
-        #         'column': 'Amount'
-        #     },
-        #     {
-        #         'table_title': 'Payment Information',
-        #         'row': 'FIRST REPUBLIC BANK',
-        #         'column': 'Amount'
-        #     }
-        # ]
+        paystub = Paystub.objects.get(pk=1)
+        paystub_values = PaystubValue.objects.filter(paystub=paystub)
+        self.assertEqual(paystub_values.count(), 2)
