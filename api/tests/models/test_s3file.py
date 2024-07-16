@@ -1,6 +1,6 @@
 from django.test import TestCase
 from decimal import Decimal
-from api.models import S3File, DocSearch, Account
+from api.models import S3File, DocSearch, Account, Prefill
 
 class S3FileTests(TestCase):
 
@@ -61,21 +61,27 @@ class S3FileTests(TestCase):
     # is_closed = models.BooleanField(default=False)
 
     def test_extract_data(self):
+        prefill = Prefill.objects.create(name='Opendoor')
+        
         s3file = S3File.objects.create(
+            prefill=prefill,
             url='https://google.com',
             user_filename='block pay.pdf',
             s3_filename='block pay.pdf',
             textract_job_id='37244276228a8ce27b25063cb6da1a02fb6b2166a4c6a960c286b20cc8a669a9'
         )
         DocSearch.objects.create(
+            prefill=prefill,
             keyword='Company',
             selection='Company'
         )
         DocSearch.objects.create(
+            prefill=prefill,
             keyword='Pay Period End',
             selection='Begin Period'
         )
         DocSearch.objects.create(
+            prefill=prefill,
             keyword='Pay Period Begin',
             selection='End Period'
         )
@@ -85,6 +91,7 @@ class S3FileTests(TestCase):
             sub_type=Account.SubType.SALARY
         )
         DocSearch.objects.create(
+            prefill=prefill,
             row='Current',
             column='Gross Pay',
             account=salary_account

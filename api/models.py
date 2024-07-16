@@ -8,7 +8,21 @@ from django.conf import settings
 from decimal import Decimal
 from textractor.entities.document import Document
 
+class Paystub(models.Model):
+    document = models.ForeignKey('S3File', on_delete=models.CASCADE)
+    page_id = models.CharField(max_length=200)
+    title = models.CharField(max_length=200)
+    journal_entry = models.OneToOneField('Prefill', null=True, blank=True, on_delete=models.SET_NULL)
+
+
+class PaystubValue(models.Model):
+    paystub = models.ForeignKey('Paystub', on_delete=models.CASCADE)
+    account = models.ForeignKey('Account', on_delete=models.PROTECT)
+    amount = models.DecimalField(decimal_places=2, max_digits=12)
+
+
 class DocSearch(models.Model):
+    prefill = models.ForeignKey('Prefill', on_delete=models.PROTECT)
     keyword = models.CharField(max_length=200, null=True, blank=True)
     table_name = models.CharField(max_length=200, null=True, blank=True)
     row = models.CharField(max_length=200, null=True, blank=True)
@@ -43,6 +57,7 @@ class DocSearch(models.Model):
 
 
 class S3File(models.Model):
+    prefill = models.OneToOneField('Prefill', on_delete=models.PROTECT)
     url = models.URLField(max_length=200, unique=True)
     user_filename = models.CharField(max_length=200)
     s3_filename = models.CharField(max_length=200)
