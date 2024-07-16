@@ -1,4 +1,4 @@
-from api.models import Reconciliation, Account, TaxCharge
+from api.models import Reconciliation, Account, TaxCharge, Paystub, PaystubValue
 
 
 class ReconciliationFactory:
@@ -46,3 +46,4 @@ class TaxChargeFactory:
             ]
             if len(existing_tax_charge) == 0:
                 TaxCharge.objects.create(date=date, type=value, amount=0)
+                
