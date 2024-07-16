@@ -130,6 +130,8 @@ class S3File(models.Model):
     
     @staticmethod
     def clean_string(input_string):
+        if input_string is None:
+            return None
         # Remove commas
         cleaned_string = input_string.replace(',', '')
         
@@ -173,50 +175,31 @@ class S3File(models.Model):
                     identifier = keyword_search.get_selection_or_account()
                     data[kv.page_id][identifier] = S3File.clean_string(kv.value.text)
 
-        # Step 3: Grab table data from unnamed tables
-        unnamed_tables = [table for table in document.tables if table.title is None]
-        unnamed_table_searches = DocSearch.objects.filter(
-            keyword__isnull=True,
-            table_name__isnull=True
-        )
+        # Step 3: Grab table data from tables
+        table_searches = DocSearch.objects.filter(keyword__isnull=True)
+        for table in document.tables:
+            for table_search in table_searches:
+                table_title = table.title if table.title is None else table.title.text
+                both_table_names_none_condition = table_search.table_name is None and table_title is None
+                table_names_equal_condition = table_search.table_name == S3File.clean_string(table_title)
 
-        for table in unnamed_tables:
-            pandas_table = S3File.convert_table_to_cleaned_dataframe(table)
-            for unnamed_table_search in unnamed_table_searches:
+                if not (both_table_names_none_condition or table_names_equal_condition):
+                    continue
+
+                pandas_table = S3File.convert_table_to_cleaned_dataframe(table)
                 try:
-                    value = pandas_table.loc[unnamed_table_search.row, unnamed_table_search.column]
+                    value = pandas_table.loc[table_search.row, table_search.column]
                 except KeyError:
                     continue
 
                 value = S3File.clean_and_convert_string_to_decimal(value)
-                identifier = unnamed_table_search.get_selection_or_account()
+                identifier = table_search.get_selection_or_account()
                 if identifier in data[table.page_id]:
                     data[table.page_id][identifier] += value
                 else:
                     data[table.page_id][identifier] = value
-        
-        named_tables = [table for table in document.tables if table.title is not None]
-        named_table_searches = DocSearch.objects.filter(
-            keyword__isnull=True,
-            table_name__isnull=False
-        )
-        for table in named_tables:
-            matching_table_searches = [search for search in named_table_searches if search.table_name == S3File.clean_string(table.title.text)]
-            # Clean the table per the pandas notes above
-            pandas_table = S3File.convert_table_to_cleaned_dataframe(table)
-            for search in matching_table_searches:
-                print(pandas_table)
-                try:
-                    value = pandas_table.loc[search.row, search.column]
-                except KeyError:
-                    continue
-                
-                value = S3File.clean_and_convert_string_to_decimal(value)
-                identifier = search.get_selection_or_account()
-                if identifier in data[table.page_id]:
-                    data[table.page_id][identifier] += value
-                else:
-                    data[table.page_id][identifier] = value
+
+        print(data)
         return data
 
     @staticmethod
