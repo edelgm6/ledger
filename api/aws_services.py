@@ -14,7 +14,7 @@ def get_boto3_client(service='textract'):
 
 def upload_file_to_s3(file):
     s3_client = get_boto3_client(service='s3')
-    unique_name = generate_unique_filename()
+    unique_name = generate_unique_filename(file)
     try:
         s3_client.upload_fileobj(
             file,
@@ -27,8 +27,7 @@ def upload_file_to_s3(file):
         print(str(e))
         return {'error': str(e), 'message': 'Upload failed'}
     
-def generate_unique_filename(self):
-    file = self.cleaned_data['document']
+def generate_unique_filename(file):
     ext = file.name.split('.')[-1]
     unique_filename = f"{uuid.uuid4()}.{ext}"
     return unique_filename

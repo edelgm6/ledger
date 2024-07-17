@@ -9,8 +9,18 @@
             hx-trigger="submit"
         >
         {% csrf_token %}
+
             <div class="mb-3">
                 <input type="file" name="document" id="id_document" class="form-control-file">
+            </div>
+            <div class="mb-3">
+                <select name="{{ form.prefill.name }}" id="id_prefill" class="form-control">
+                    {% for choice in form.prefill.field.queryset %}
+                        <option value="{{ choice.pk }}">
+                            {{ choice }}
+                        </option>
+                    {% endfor %}
+                </select>
             </div>
             <button type="submit" name="paystubs" class="btn btn-primary">Submit</button>
         </form>

@@ -49,6 +49,7 @@ class UploadTransactionsView(View):
         form = DocumentForm(request.POST, request.FILES)
         if form.is_valid():
             s3file = form.create_s3_file()
+            s3file.create_textract_job()
         return self.get_textract_form_html(filename=s3file.user_filename)
 
     def post(self, request):
