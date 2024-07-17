@@ -1,12 +1,10 @@
 import math
 import datetime
-import boto3
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from django.conf import settings
-from decimal import Decimal
 from textractor.entities.document import Document
+from api.aws_services import create_textract_job, get_textract_results, clean_and_convert_string_to_decimal, clean_string, convert_table_to_cleaned_dataframe
 
 class Paystub(models.Model):
     document = models.ForeignKey('S3File', on_delete=models.CASCADE)
@@ -61,94 +59,39 @@ class S3File(models.Model):
     url = models.URLField(max_length=200, unique=True)
     user_filename = models.CharField(max_length=200)
     s3_filename = models.CharField(max_length=200)
-    textract_job_id = models.CharField(max_length=200, null=True, blank=True)
+    textract_job_id = models.CharField(max_length=200)
 
-    def process_document_with_textract(self):
-        # Boto3 client for Textract
-        client = boto3.client(
-            'textract',
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-            region_name=settings.AWS_REGION_NAME
-        )
-
-        # Process file
-        response = client.start_document_analysis(
-            DocumentLocation={
-                'S3Object': {
-                    'Bucket': settings.AWS_STORAGE_BUCKET_NAME,
-                    'Name': self.s3_filename
-                }
-            },
-            FeatureTypes=[
-                'FORMS','TABLES'
-            ]
-        )
-        job_id = response.get('JobId')
+    def create_textract_job(self):
+        job_id = create_textract_job(filename=self.s3_filename)
         self.textract_job_id = job_id
         self.save()
         return job_id
-        
-    # Get all responses, paginated
-    def get_textract_results(self):
-        client = boto3.client(
-            'textract',
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-            region_name=settings.AWS_REGION_NAME
-        )
 
-        responses = []
-        next_token = None
-        while True:
-            if next_token:
-                response = client.get_document_analysis(JobId=self.textract_job_id, NextToken=next_token)
-            else:
-                response = client.get_document_analysis(JobId=self.textract_job_id)
-            
-            responses.append(response)
-            next_token = response.get('NextToken')
-            if not next_token:
-                break
-        return responses
+    def create_paystubs_from_textract_data(self):
 
-    # Combine responses
-    @staticmethod
-    def combine_responses(responses):
-        combined_response = {
-            "DocumentMetadata": {
-                "Pages": ""
-            },
-            "Blocks": []
-        }
+        textract_data = self.extract_data()
+        for page_id, page_data in textract_data.items():
+            paystub = Paystub.objects.create(
+                document=self,
+                page_id=page_id,
+                title=page_data['Company'] + ' ' + page_data['Begin Period'] + '-' + page_data['End Period']
+            )
+            paystub_values = []
+            for account, value in page_data.items():
+                if not isinstance(account, Account):
+                    continue
+                paystub_values.append(
+                    PaystubValue(
+                        paystub=paystub,
+                        account=account,
+                        amount=value
+                    )
+                )
+            PaystubValue.objects.bulk_create(paystub_values)
 
-        for response in responses:
-            combined_response["DocumentMetadata"]["Pages"] = response["DocumentMetadata"]["Pages"]
-            combined_response["Blocks"].extend(response["Blocks"])
+    def extract_data(self):
 
-        return combined_response
-    
-    @staticmethod
-    def clean_string(input_string):
-        if input_string is None:
-            return None
-        # Remove commas
-        cleaned_string = input_string.replace(',', '')
-        
-        # Remove starting/trailing whitespace and ensure only one space between words
-        cleaned_string = ' '.join(cleaned_string.split())
-        
-        return cleaned_string
-    
-    @staticmethod
-    def clean_and_convert_string_to_decimal(input_string):
-        cleaned_string = S3File.clean_string(input_string)
-        cleaned_string = cleaned_string.replace(',', '').replace('$', '')
-        print(cleaned_string)
-        return Decimal(cleaned_string).quantize(Decimal('0.00'))
-
-    @staticmethod
-    def extract_data(textract_job_response):
+        textract_job_response = get_textract_results(job_id=self.textract_job_id)
         
         # Load the Textract response from the JSON file using textractor
         document = Document.open(textract_job_response)
@@ -169,11 +112,11 @@ class S3File(models.Model):
         keyword_searches = DocSearch.objects.filter(keyword__isnull=False)
 
         for kv in key_value_pairs:
-            key = S3File.clean_string(kv.key.text)
+            key = clean_string(kv.key.text)
             for keyword_search in keyword_searches:
                 if key == keyword_search.keyword:
                     identifier = keyword_search.get_selection_or_account()
-                    data[kv.page_id][identifier] = S3File.clean_string(kv.value.text)
+                    data[kv.page_id][identifier] = clean_string(kv.value.text)
 
         # Step 3: Grab table data from tables
         table_searches = DocSearch.objects.filter(keyword__isnull=True)
@@ -181,18 +124,18 @@ class S3File(models.Model):
             for table_search in table_searches:
                 table_title = table.title if table.title is None else table.title.text
                 both_table_names_none_condition = table_search.table_name is None and table_title is None
-                table_names_equal_condition = table_search.table_name == S3File.clean_string(table_title)
+                table_names_equal_condition = table_search.table_name == clean_string(table_title)
 
                 if not (both_table_names_none_condition or table_names_equal_condition):
                     continue
 
-                pandas_table = S3File.convert_table_to_cleaned_dataframe(table)
+                pandas_table = convert_table_to_cleaned_dataframe(table)
                 try:
                     value = pandas_table.loc[table_search.row, table_search.column]
                 except KeyError:
                     continue
 
-                value = S3File.clean_and_convert_string_to_decimal(value)
+                value = clean_and_convert_string_to_decimal(value)
                 identifier = table_search.get_selection_or_account()
                 if identifier in data[table.page_id]:
                     data[table.page_id][identifier] += value
@@ -200,45 +143,7 @@ class S3File(models.Model):
                     data[table.page_id][identifier] = value
 
         return data
-
-    def create_paystubs_from_textract_data(self, textract_data):
-        for page_id, page_data in textract_data.items():
-            paystub = Paystub.objects.create(
-                document=self,
-                page_id=page_id,
-                title=page_data['Company'] + ' ' + page_data['Begin Period'] + '-' + page_data['End Period']
-            )
-            paystub_values = []
-            for account, value in page_data.items():
-                if not isinstance(account, Account):
-                    continue
-                paystub_values.append(
-                    PaystubValue(
-                        paystub=paystub,
-                        account=account,
-                        amount=value
-                    )
-                )
-            PaystubValue.objects.bulk_create(paystub_values)
-
-    @staticmethod
-    def convert_table_to_cleaned_dataframe(table):
-        no_titles_table = table.strip_headers(column_headers=False, in_table_title=True, section_titles=True)
         
-        pandas_table = no_titles_table.to_pandas()
-
-        # Set the first row as the header
-        pandas_table.columns = pandas_table.iloc[0]
-        pandas_table = pandas_table[1:]
-
-        # Set the first column as the index
-        pandas_table.set_index(pandas_table.columns[0], inplace=True)
-
-        # Strip whitespace from column names and index
-        pandas_table.columns = pandas_table.columns.str.strip()
-        pandas_table.index = pandas_table.index.str.strip()
-
-        return pandas_table
 
 class Amortization(models.Model):
     accrued_transaction = models.OneToOneField(
