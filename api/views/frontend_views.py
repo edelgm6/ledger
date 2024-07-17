@@ -48,7 +48,7 @@ class UploadTransactionsView(View):
     def handle_paystubs_form(self, request):
         form = DocumentForm(request.POST, request.FILES)
         if form.is_valid():
-            s3file = form.upload_to_s3()
+            s3file = form.create_s3_file()
         return self.get_textract_form_html(filename=s3file.user_filename)
 
     def post(self, request):

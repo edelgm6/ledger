@@ -1,6 +1,4 @@
 import csv
-import boto3
-import uuid
 from decimal import Decimal, InvalidOperation
 from django import forms
 from django.forms import BaseModelFormSet, DecimalField
@@ -14,44 +12,22 @@ from api.models import (
 )
 from api import utils
 from api.factories import ReconciliationFactory
+from api.aws_services import upload_file_to_s3
 
 
 class DocumentForm(forms.Form):
     document = forms.FileField()
 
-    def upload_to_s3(self):
-        s3_client = boto3.client(
-            's3',
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-            region_name=settings.AWS_REGION_NAME
+    def create_s3_file(self):
+        file = self.cleaned_data['document']
+        unique_name = upload_file_to_s3(file=file)
+        file_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{unique_name}"
+        s3file = S3File.objects.create(
+            url=file_url,
+            user_filename=file.name,
+            s3_filename=unique_name
         )
-        file = self.cleaned_data['document']
-        unique_name = self.generate_unique_filename()
-        try:
-            s3_client.upload_fileobj(
-                file,
-                settings.AWS_STORAGE_BUCKET_NAME,
-                unique_name,
-                ExtraArgs={'ContentType': file.content_type}
-            )
-            file_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{unique_name}"
-            s3file = S3File.objects.create(
-                url=file_url,
-                user_filename=file.name,
-                s3_filename=unique_name
-            )
-            return s3file
-        except Exception as e:
-            print(str(e))
-            print(wtf)
-            return {'error': str(e), 'message': 'Upload failed'}
-        
-    def generate_unique_filename(self):
-        file = self.cleaned_data['document']
-        ext = file.name.split('.')[-1]
-        unique_filename = f"{uuid.uuid4()}.{ext}"
-        return unique_filename
+        return s3file
 
 class CommaDecimalField(DecimalField):
     def to_python(self, value):
