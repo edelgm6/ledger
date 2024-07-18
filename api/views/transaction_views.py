@@ -558,8 +558,6 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
                 credit_formset=credit_formset,
                 form_errors=form_errors
             )
-            # for form in debit_formset[0]:
-            #     print(form)
         else:
             if len(transactions) == 0:
                 entry_form_html = None

@@ -5,6 +5,7 @@ from django.views import View
 from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
 from api.forms import UploadTransactionsForm, WalletForm, DocumentForm
+from api.models import S3File
 from api.statement import Trend
 from api import utils
 
@@ -34,6 +35,11 @@ class UploadTransactionsView(View):
         )
 
     def get(self, request):
+        # Retrieve job info for non paystub-created jobs
+        unprocessed_files = S3File.objects.filter(paystub__isnull=True).distinct()
+        for file in unprocessed_files:
+            file.create_paystubs_from_textract_data()
+        
         template = 'api/views/upload-transactions.html'
         csv_form_html = self.get_csv_form_html()
         textract_form_html = self.get_textract_form_html()
