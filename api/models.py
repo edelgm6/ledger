@@ -6,53 +6,6 @@ from django.utils.translation import gettext_lazy as _
 from textractor.entities.document import Document
 from api.aws_services import create_textract_job, get_textract_results, clean_and_convert_string_to_decimal, clean_string, convert_table_to_cleaned_dataframe
 
-class Paystub(models.Model):
-    document = models.ForeignKey('S3File', on_delete=models.CASCADE)
-    page_id = models.CharField(max_length=200)
-    title = models.CharField(max_length=200)
-    journal_entry = models.OneToOneField('Prefill', null=True, blank=True, on_delete=models.SET_NULL)
-
-
-class PaystubValue(models.Model):
-    paystub = models.ForeignKey('Paystub', on_delete=models.CASCADE)
-    account = models.ForeignKey('Account', on_delete=models.PROTECT)
-    amount = models.DecimalField(decimal_places=2, max_digits=12)
-
-
-class DocSearch(models.Model):
-    prefill = models.ForeignKey('Prefill', on_delete=models.PROTECT)
-    keyword = models.CharField(max_length=200, null=True, blank=True)
-    table_name = models.CharField(max_length=200, null=True, blank=True)
-    row = models.CharField(max_length=200, null=True, blank=True)
-    column = models.CharField(max_length=200, null=True, blank=True)
-    account = models.ForeignKey('Account', null=True, blank=True, on_delete=models.SET_NULL)
-    
-    STRING_CHOICES = [
-        ('Company', 'Company'),
-        ('Begin Period', 'Begin Period'),
-        ('End Period', 'End Period'),
-    ]
-    selection = models.CharField(max_length=20, choices=STRING_CHOICES, null=True, blank=True)
-
-    def clean(self):
-        super().clean()
-
-        # Check the existing conditions
-        if not self.keyword and (self.row is None or self.column is None):
-            raise ValidationError("Either 'keyword' must be provided, or both 'row' and 'column' must be provided.")
-        
-        # Ensure either account or selection is set
-        if not self.account and not self.selection:
-            raise ValidationError("Either 'account' must be provided, or 'selection' must be one of the specified choices.")
-        
-        if self.account and self.selection:
-            raise ValidationError("Both 'account' and 'selection' cannot be set at the same time.")
-        
-    def get_selection_or_account(self):
-        if self.selection:
-            return self.selection
-        return self.account
-
 
 class S3File(models.Model):
     prefill = models.OneToOneField('Prefill', on_delete=models.PROTECT)
@@ -84,7 +37,8 @@ class S3File(models.Model):
                     PaystubValue(
                         paystub=paystub,
                         account=account,
-                        amount=value
+                        amount=value['value'],
+                        journal_entry_item_type=value['entry_type']
                     )
                 )
             PaystubValue.objects.bulk_create(paystub_values)
@@ -109,7 +63,7 @@ class S3File(models.Model):
         key_value_pairs = document.key_values
 
         # Print the key-value pairs and create data object
-        keyword_searches = DocSearch.objects.filter(keyword__isnull=False)
+        keyword_searches = DocSearch.objects.filter(keyword__isnull=False, prefill=self.prefill)
 
         for kv in key_value_pairs:
             key = clean_string(kv.key.text)
@@ -119,7 +73,7 @@ class S3File(models.Model):
                     data[kv.page_id][identifier] = clean_string(kv.value.text)
 
         # Step 3: Grab table data from tables
-        table_searches = DocSearch.objects.filter(keyword__isnull=True)
+        table_searches = DocSearch.objects.filter(keyword__isnull=True, prefill=self.prefill)
         for table in document.tables:
             for table_search in table_searches:
                 table_title = table.title if table.title is None else table.title.text
@@ -138,9 +92,11 @@ class S3File(models.Model):
                 value = clean_and_convert_string_to_decimal(value)
                 identifier = table_search.get_selection_or_account()
                 if identifier in data[table.page_id]:
-                    data[table.page_id][identifier] += value
+                    data[table.page_id][identifier]['value'] += value
                 else:
-                    data[table.page_id][identifier] = value
+                    data[table.page_id][identifier] = {}
+                    data[table.page_id][identifier]['value'] = value
+                    data[table.page_id][identifier]['entry_type'] = table_search.journal_entry_item_type
 
         return data
         
@@ -761,6 +717,61 @@ class PrefillItem(models.Model):
         choices=JournalEntryItem.JournalEntryType.choices
     )
     order = models.PositiveSmallIntegerField()
+
+
+class Paystub(models.Model):
+    document = models.ForeignKey('S3File', on_delete=models.CASCADE)
+    page_id = models.CharField(max_length=200)
+    title = models.CharField(max_length=200)
+    journal_entry = models.OneToOneField('Prefill', null=True, blank=True, on_delete=models.SET_NULL)
+
+
+class PaystubValue(models.Model):
+    paystub = models.ForeignKey('Paystub', on_delete=models.CASCADE)
+    account = models.ForeignKey('Account', on_delete=models.PROTECT)
+    amount = models.DecimalField(decimal_places=2, max_digits=12)
+    journal_entry_item_type = models.CharField(
+        max_length=25,
+        choices=JournalEntryItem.JournalEntryType.choices
+    )
+
+class DocSearch(models.Model):
+    prefill = models.ForeignKey('Prefill', on_delete=models.PROTECT)
+    keyword = models.CharField(max_length=200, null=True, blank=True)
+    table_name = models.CharField(max_length=200, null=True, blank=True)
+    row = models.CharField(max_length=200, null=True, blank=True)
+    column = models.CharField(max_length=200, null=True, blank=True)
+    account = models.ForeignKey('Account', null=True, blank=True, on_delete=models.SET_NULL)
+    journal_entry_item_type = models.CharField(
+        max_length=25,
+        choices=JournalEntryItem.JournalEntryType.choices
+    )
+    
+    STRING_CHOICES = [
+        ('Company', 'Company'),
+        ('Begin Period', 'Begin Period'),
+        ('End Period', 'End Period'),
+    ]
+    selection = models.CharField(max_length=20, choices=STRING_CHOICES, null=True, blank=True)
+
+    def clean(self):
+        super().clean()
+
+        # Check the existing conditions
+        if not self.keyword and (self.row is None or self.column is None):
+            raise ValidationError("Either 'keyword' must be provided, or both 'row' and 'column' must be provided.")
+        
+        # Ensure either account or selection is set
+        if not (self.account and self.journal_entry_item_type) and not self.selection:
+            raise ValidationError("Either 'account' must be provided, or 'selection' must be one of the specified choices.")
+        
+        if self.account and self.selection:
+            raise ValidationError("Both 'account' and 'selection' cannot be set at the same time.")
+        
+    def get_selection_or_account(self):
+        if self.selection:
+            return self.selection
+        return self.account
 
 
 class CSVColumnValuePair(models.Model):
