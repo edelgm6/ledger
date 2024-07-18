@@ -69,7 +69,7 @@ class S3File(models.Model):
 
     def create_paystubs_from_textract_data(self):
 
-        textract_data = self.extract_data()
+        textract_data = self._extract_data()
         for page_id, page_data in textract_data.items():
             paystub = Paystub.objects.create(
                 document=self,
@@ -89,7 +89,7 @@ class S3File(models.Model):
                 )
             PaystubValue.objects.bulk_create(paystub_values)
 
-    def extract_data(self):
+    def _extract_data(self):
 
         textract_job_response = get_textract_results(job_id=self.textract_job_id)
         
