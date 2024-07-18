@@ -469,13 +469,8 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
 
         context = {
             'filter_form': filter_form_html,
-            'table_and_form': render_to_string(
-                self.content_template,
-                {
-                    'table': table_html, 
-                    'entry_form': entry_form_html
-                }
-            )
+            'table': table_html, 
+            'entry_form': entry_form_html
         }
 
         html = render_to_string(self.view_template, context)
