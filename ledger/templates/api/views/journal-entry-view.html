@@ -1,8 +1,28 @@
-    <h2>Journal Entries</h2>
+{% include "api/components/clickable-row-script.html" %}
+{% include "api/components/transactions-scroll.html" %}
+<h2>Journal Entries</h2>
 
-    {{ filter_form }}
+{{ filter_form }}
 
-    <div id="table-and-form">
-        {{ table_and_form }}
+<div id="table-and-form">
+    <div class="row">
+        <div class="col-md-12">
+            <div id="table">
+                {{ table }}
+            </div>
+        </div>
     </div>
+    <div class="row">
+        <div class="col-md-8">
+            <div id="form-div">
+                {{ entry_form }}
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div id="paystubs">
+                paystub placeholder
+            </div>
+        </div>
+    </div>
+</div>
 
