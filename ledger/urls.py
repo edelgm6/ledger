@@ -4,7 +4,7 @@ from django.urls import path, include
 from django.contrib.auth.views import LoginView
 from django.conf import settings
 from api.views.frontend_views import TrendView,  UploadTransactionsView, IndexView
-from api.views.transaction_views import LinkTransactionsContentView, TransactionContentView, TransactionFormView, JournalEntryView, LinkTransactionsView, JournalEntryFormView, JournalEntryTableView, TransactionsView
+from api.views.transaction_views import LinkTransactionsContentView, TransactionContentView, TransactionFormView, JournalEntryView, LinkTransactionsView, JournalEntryFormView, JournalEntryTableView, TransactionsView, PaystubDetailView
 from api.views.tax_views import TaxChargeTableView,TaxChargeFormView, TaxesView
 from api.views.reconciliation_views import ReconciliationTableView, ReconciliationView
 from api.views.amortization_views import AmortizationFormView, AmortizationView, AmortizeFormView
@@ -25,6 +25,7 @@ urlpatterns = [
     path('journal-entries/<int:transaction_id>/', JournalEntryView.as_view(), name='journal-entries'),
     path('journal-entries/form/<int:transaction_id>/', JournalEntryFormView.as_view(), name='journal-entry-form'),
     path('journal-entries/table/', JournalEntryTableView.as_view(), name='journal-entries-table'),
+    path('paystubs/<int:paystub_id>/', PaystubDetailView.as_view(), name='paystub-detail'),
 
     # Link page
     path('transactions-linking/', LinkTransactionsView.as_view(), name='link-transactions'),
