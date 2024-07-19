@@ -1,4 +1,7 @@
 {% load humanize %}
+{% if paystubs %}
+<br>
+<h5>Paystubs</h5>
 <div class="row">
     <div class="col-md-12">
         <div id="paystubs-table" class="table-responsive">
@@ -14,7 +17,7 @@
                     <tr
                         class="clickable-row"
                         hx-get="{% url 'paystub-detail' paystub.id %}"
-                        hx-target="#paystubs-table"
+                        hx-target="#paystubs-detail"
                     >
                         <td>{{ paystub.title }}</td>
                         <td>{{ paystub.document.user_filename }}</td>
@@ -25,7 +28,30 @@
         </div>
     </div>
 </div>
-
-{% block extra_js %}
-{% include "api/components/clickable-row-script.html" %}
-{% endblock %}
+{% endif %}
+{% if paystub_values %}
+<div id="paystubs-detail">
+    <div class="row">
+        <div class="col-md-12">
+            <table class="table table-sm">
+                <thead>
+                    <tr class="clickable-row">
+                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Account</th>
+                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Value</th>
+                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Type</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for paystub_value in paystub_values %}
+                    <tr>
+                        <td>{{ paystub_value.account }}</td>
+                        <td>{{ paystub_value.value }}</td>
+                        <td>{{ paystub_value.journal_entry_item_type }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}

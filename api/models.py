@@ -727,7 +727,7 @@ class Paystub(models.Model):
 
 
 class PaystubValue(models.Model):
-    paystub = models.ForeignKey('Paystub', on_delete=models.CASCADE)
+    paystub = models.ForeignKey('Paystub', on_delete=models.CASCADE, related_name='paystub_values')
     account = models.ForeignKey('Account', on_delete=models.PROTECT)
     amount = models.DecimalField(decimal_places=2, max_digits=12)
     journal_entry_item_type = models.CharField(

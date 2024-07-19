@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.forms import modelformset_factory
 from django.urls import reverse
-from api.models import Transaction, JournalEntry, JournalEntryItem
+from api.models import Transaction, JournalEntry, JournalEntryItem, Paystub, PaystubValue
 from api.forms import (
     TransactionLinkForm, TransactionFilterForm, JournalEntryItemForm,
     BaseJournalEntryItemFormset, TransactionForm
@@ -17,6 +17,11 @@ from api import utils
 class TransactionsViewMixin:
     filter_form_template = 'api/filter_forms/transactions-filter-form.html'
     entry_form_template = 'api/entry_forms/journal-entry-item-form.html'
+
+    def get_paystubs_table_html(self):
+        paystubs = Paystub.objects.filter(journal_entry__isnull=True).prefetch_related('paystub_values')
+        paystubs_template = 'api/tables/paystubs-table.html'
+        return render_to_string(paystubs_template, {'paystubs': paystubs})
 
     def get_filter_form_html_and_objects(
         self,
@@ -438,6 +443,13 @@ class JournalEntryFormView(TransactionsViewMixin, LoginRequiredMixin, View):
 
         return HttpResponse(entry_form_html)
 
+class PaystubDetailView(TransactionsViewMixin, LoginRequiredMixin, View):
+
+    def get(self, request, paystub_id):
+        paystub_values = PaystubValue.objects.get(pk=paystub_id)
+        template = 'api/view/paystubs-table.html'
+        html = render_to_string(template, {'paystub_values': paystub_values})
+        return HttpResponse(html)
 
 # Called as the main page
 class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
@@ -466,11 +478,12 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
         entry_form_html = self.get_journal_entry_form_html(
             transaction=transaction
         )
-
+        paystubs_table_html = self.get_paystubs_table_html()
         context = {
             'filter_form': filter_form_html,
             'table': table_html, 
-            'entry_form': entry_form_html
+            'entry_form': entry_form_html,
+            'paystubs_table': paystubs_table_html
         }
 
         html = render_to_string(self.view_template, context)
