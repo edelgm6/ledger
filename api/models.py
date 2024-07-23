@@ -8,7 +8,7 @@ from api.aws_services import create_textract_job, get_textract_results, clean_an
 
 
 class S3File(models.Model):
-    prefill = models.OneToOneField('Prefill', on_delete=models.PROTECT)
+    prefill = models.ForeignKey('Prefill', on_delete=models.PROTECT)
     url = models.URLField(max_length=200, unique=True)
     user_filename = models.CharField(max_length=200)
     s3_filename = models.CharField(max_length=200)
