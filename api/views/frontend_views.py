@@ -36,7 +36,7 @@ class UploadTransactionsView(View):
 
     def get(self, request):
         # Retrieve job info for non paystub-created jobs
-        unprocessed_files = S3File.objects.filter(paystub__isnull=True).distinct()
+        unprocessed_files = S3File.objects.filter(documents__isnull=True).distinct()
         for file in unprocessed_files:
             file.create_paystubs_from_textract_data()
         
