@@ -80,7 +80,10 @@ def combine_responses(responses):
     }
 
     for response in responses:
-        combined_response["DocumentMetadata"]["Pages"] = response["DocumentMetadata"]["Pages"]
+        try:
+            combined_response["DocumentMetadata"]["Pages"] = response["DocumentMetadata"]["Pages"]
+        except KeyError:
+            pass
         combined_response["Blocks"].extend(response["Blocks"])
 
     return combined_response
@@ -115,6 +118,8 @@ def clean_string(input_string):
     return cleaned_string
 
 def clean_and_convert_string_to_decimal(input_string):
+    if not input_string:
+        return Decimal('0.00')
     cleaned_string = clean_string(input_string)
     cleaned_string = cleaned_string.replace(',', '').replace('$', '')
     return Decimal(cleaned_string).quantize(Decimal('0.00'))
