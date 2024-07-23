@@ -513,7 +513,8 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
             'entry_form': entry_form_html,
             'paystubs_table': paystubs_table_html,
             'index': 0,
-            'transaction_id': transactions[0].pk
+            'transaction_id': transactions[0].pk,
+            'is_initial_load': True
         }
 
         html = render_to_string(self.view_template, context)
