@@ -92,7 +92,8 @@ class TransactionsViewMixin:
 
     def get_journal_entry_form_html(
             self, transaction, index=0, debit_formset=None,
-            credit_formset=None, is_debit=True, form_errors=None):
+            credit_formset=None, is_debit=True, form_errors=None,
+            paystub_id=None):
         if not transaction:
             return ''
 
@@ -129,6 +130,7 @@ class TransactionsViewMixin:
             prefill_debits_count = 0
             prefill_credits_count = 0
             if bound_debits_count + bound_credits_count == 0:
+                # TODO: Here's where I would insert the paystub prefills
                 primary_account, secondary_account = (transaction.account, transaction.suggested_account) \
                     if is_debit else (transaction.suggested_account, transaction.account)
 
@@ -154,12 +156,30 @@ class TransactionsViewMixin:
                             credits_initial_data.append({'account': item.account.name, 'amount': 0})
                             prefill_credits_count += 1
 
+                if paystub_id:
+                    paystub_values = PaystubValue.objects.filter(paystub__pk=paystub_id).select_related('account')
+                    debits_initial_data = []
+                    credits_initial_data = []
+                    prefill_debits_count = 0
+                    prefill_credits_count = 0
+                    for paystub_value in paystub_values:
+                        if paystub_value.journal_entry_item_type == JournalEntryItem.JournalEntryType.DEBIT:
+                            debits_initial_data.append(
+                                {'account': paystub_value.account.name, 'amount': paystub_value.amount}
+                            )
+                            prefill_debits_count += 1
+                        else:
+                            credits_initial_data.append({'account': item.account.name, 'amount': 0})
+                            prefill_credits_count += 1
+
+
             debit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=max((10-bound_debits_count), prefill_debits_count))
             credit_formset = modelformset_factory(JournalEntryItem, form=JournalEntryItemForm, formset=BaseJournalEntryItemFormset, extra=max((10-bound_credits_count), prefill_credits_count))
 
             debit_formset = debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits')
             credit_formset = credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
 
+        # Set the total amounts for the debit and credits
         prefilled_total = 0
         for form in debit_formset:
             try:
@@ -173,7 +193,8 @@ class TransactionsViewMixin:
             'index': index,
             'autofocus_debit': is_debit,
             'form_errors': form_errors,
-            'prefilled_total': prefilled_total
+            'prefilled_total': prefilled_total,
+            'paystub_id': paystub_id
         }
 
         return render_to_string(self.entry_form_template, context)
@@ -373,7 +394,6 @@ class LinkTransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
     def post(self, request):
         form = TransactionLinkForm(request.POST)
         filter_form = TransactionFilterForm(request.POST, prefix='filter')
-        print(request.POST)
         if filter_form.is_valid():
             transactions = filter_form.get_transactions()
 
@@ -436,9 +456,11 @@ class JournalEntryFormView(TransactionsViewMixin, LoginRequiredMixin, View):
 
     def get(self, request, transaction_id):
         transaction = Transaction.objects.get(pk=transaction_id)
+        paystub_id = None if 'paystub_id' not in request.GET else request.GET.get('paystub_id')
         entry_form_html = self.get_journal_entry_form_html(
             transaction=transaction,
-            index=request.GET.get('row_index')
+            index=request.GET.get('row_index'),
+            paystub_id=paystub_id
         )
 
         return HttpResponse(entry_form_html)
@@ -446,9 +468,15 @@ class JournalEntryFormView(TransactionsViewMixin, LoginRequiredMixin, View):
 class PaystubDetailView(TransactionsViewMixin, LoginRequiredMixin, View):
 
     def get(self, request, paystub_id):
-        paystub_values = PaystubValue.objects.get(pk=paystub_id)
-        template = 'api/view/paystubs-table.html'
-        html = render_to_string(template, {'paystub_values': paystub_values})
+        paystub_values = PaystubValue.objects.filter(paystub__pk=paystub_id)
+        template = 'api/tables/paystubs-table.html'
+        html = render_to_string(
+            template, 
+            {
+                'paystub_values': paystub_values,
+                'paystub_id': paystub_id
+            }
+        )
         return HttpResponse(html)
 
 # Called as the main page
@@ -483,7 +511,9 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
             'filter_form': filter_form_html,
             'table': table_html, 
             'entry_form': entry_form_html,
-            'paystubs_table': paystubs_table_html
+            'paystubs_table': paystubs_table_html,
+            'index': 0,
+            'transaction_id': transactions[0].pk
         }
 
         html = render_to_string(self.view_template, context)
@@ -538,6 +568,13 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
                 JournalEntryItem.JournalEntryType.CREDIT
             )
             transaction.close()
+            paystub_id = request.POST.get('paystub_id')
+            try:
+                paystub = Paystub.objects.get(pk=paystub_id)
+                paystub.journal_entry = transaction.journal_entry
+                paystub.save()
+            except ValueError:
+                pass
 
         # Build the transactions table — use the filter settings if valid,
         # else return all transactions
@@ -589,7 +626,9 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
         )
         context = {
             'table': table_html,
-            'entry_form': entry_form_html
+            'entry_form': entry_form_html,
+            'index': index,
+            'transaction_id': transactions[index].pk
         }
-        html = render_to_string(self.content_template, context)
+        html = render_to_string(self.view_template, context)
         return HttpResponse(html)
