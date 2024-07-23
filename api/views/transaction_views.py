@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.forms import modelformset_factory
 from django.urls import reverse
-from api.models import Transaction, JournalEntry, JournalEntryItem, Paystub, PaystubValue
+from api.models import Transaction, JournalEntry, JournalEntryItem, Paystub, PaystubValue, S3File
 from api.forms import (
     TransactionLinkForm, TransactionFilterForm, JournalEntryItemForm,
     BaseJournalEntryItemFormset, TransactionForm
@@ -19,6 +19,10 @@ class TransactionsViewMixin:
     entry_form_template = 'api/entry_forms/journal-entry-item-form.html'
 
     def get_paystubs_table_html(self):
+        oustanding_textract_job_files = S3File.objects.filter(documents__isnull=True)
+        for outstanding_textract_job_file in oustanding_textract_job_files:
+            outstanding_textract_job_file.create_paystubs_from_textract_data()
+
         paystubs = Paystub.objects.filter(journal_entry__isnull=True).prefetch_related('paystub_values')
         paystubs_template = 'api/tables/paystubs-table.html'
         return render_to_string(paystubs_template, {'paystubs': paystubs})
