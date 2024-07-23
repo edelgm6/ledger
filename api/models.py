@@ -723,7 +723,7 @@ class Paystub(models.Model):
     document = models.ForeignKey('S3File', on_delete=models.CASCADE)
     page_id = models.CharField(max_length=200)
     title = models.CharField(max_length=200)
-    journal_entry = models.OneToOneField('Prefill', null=True, blank=True, on_delete=models.SET_NULL)
+    journal_entry = models.OneToOneField('JournalEntry', null=True, blank=True, on_delete=models.SET_NULL)
 
 
 class PaystubValue(models.Model):

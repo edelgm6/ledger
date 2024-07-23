@@ -18,6 +18,7 @@
                         class="clickable-row"
                         hx-get="{% url 'paystub-detail' paystub.id %}"
                         hx-target="#paystubs-detail"
+                        :data-transaction-id="selectedRowId"
                     >
                         <td>{{ paystub.title }}</td>
                         <td>{{ paystub.document.user_filename }}</td>
@@ -29,8 +30,9 @@
     </div>
 </div>
 {% endif %}
-{% if paystub_values %}
+
 <div id="paystubs-detail">
+{% if paystub_values %}
     <div class="row">
         <div class="col-md-12">
             <table class="table table-sm">
@@ -45,7 +47,7 @@
                     {% for paystub_value in paystub_values %}
                     <tr>
                         <td>{{ paystub_value.account }}</td>
-                        <td>{{ paystub_value.value }}</td>
+                        <td>${{ paystub_value.amount }}</td>
                         <td>{{ paystub_value.journal_entry_item_type }}</td>
                     </tr>
                     {% endfor %}
@@ -53,5 +55,18 @@
             </table>
         </div>
     </div>
-</div>
+
+    <!-- Add button here -->
+    <div class="row">
+        <div class="col-md-12">
+            <button
+                class="btn btn-primary"
+                x-bind:hx-get="`journal-entries/form/${selectedRowId}/?row_index=${rowIndex}&paystub_id={{ paystub_id }}`"
+                hx-target="#form-div"
+            >
+                Fill Paystub<br>
+            </button>
+        </div>
+    </div>
 {% endif %}
+</div>
