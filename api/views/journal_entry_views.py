@@ -105,11 +105,6 @@ class JournalEntryViewMixin:
 
         # Set the total amounts for the debit and credits
         prefilled_total = debit_formset.get_entry_total()
-        # for form in debit_formset:
-        #     try:
-        #         prefilled_total += form.initial['amount']
-        #     except KeyError:
-        #         pass
         context = {
             'debit_formset': debit_formset,
             'credit_formset': credit_formset,
@@ -251,7 +246,9 @@ class JournalEntryView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequir
             has_errors = bool(form_errors)
         else:
             print(debit_formset.errors)
+            print(credit_formset.errors)
             has_errors = True
+
 
         if not has_errors:
             return False, None
