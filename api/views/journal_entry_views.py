@@ -349,11 +349,13 @@ class JournalEntryView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequir
             index=index,
             row_url=reverse('journal-entries')
         )
+        paystubs_table_html = self.get_paystubs_table_html()
         context = {
             'table': table_html,
             'entry_form': entry_form_html,
             'index': index,
-            'transaction_id': transactions[index].pk
+            'transaction_id': transactions[index].pk,
+            'paystubs_table': paystubs_table_html
         }
         html = render_to_string(self.view_template, context)
         return HttpResponse(html)
