@@ -93,7 +93,9 @@ class JournalEntryViewMixin:
                             )
                             prefill_debits_count += 1
                         else:
-                            credits_initial_data.append({'account': item.account.name, 'amount': 0})
+                            credits_initial_data.append(
+                                {'account': paystub_value.account.name, 'amount': paystub_value.amount}
+                            )
                             prefill_credits_count += 1
 
 
