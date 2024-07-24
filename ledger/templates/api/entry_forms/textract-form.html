@@ -1,0 +1,38 @@
+<div class="row">
+    <div class="col">
+        <h3>Upload paystubs</h3>
+        <form
+            method="post"
+            enctype="multipart/form-data"
+            hx-post="{% url 'upload-transactions' %}"
+            hx-target="#textract"
+            hx-trigger="submit"
+        >
+        {% csrf_token %}
+
+            <div class="mb-3">
+                <input type="file" name="document" id="id_document" class="form-control-file">
+            </div>
+            <div class="mb-3">
+                <select name="{{ form.prefill.name }}" id="id_prefill" class="form-control">
+                    {% for choice in form.prefill.field.queryset %}
+                        <option value="{{ choice.pk }}">
+                            {{ choice }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" name="paystubs" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+</div>
+<br>
+{% if filename %}
+<div class="row">
+    <div class="col">
+        <div class="alert alert-success" role="alert">
+            Uploaded {{ filename }}
+        </div>
+    </div>
+</div>
+{% endif %}

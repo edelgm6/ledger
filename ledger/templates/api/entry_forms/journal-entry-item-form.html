@@ -11,6 +11,7 @@
 >
     {% csrf_token %}
     <input type="hidden" name="index" value="{{ index }}">
+    <input type="hidden" name="paystub_id" value="{{ paystub_id }}">
     <div class="row">
         <div class="col-12">
             <input type="submit" value="Submit" class="btn btn-primary mt-3" />
@@ -31,7 +32,7 @@
             <small>Total Debits: $<span id="totalDebits">{{ prefilled_total|floatformat:2|intcomma }}</span></small>
             {% for form in debit_formset %}
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-8">
                     {{ form.id }}
                     <input
                         class="form-control {% if form.account.errors %}is-invalid{% endif %}"
@@ -54,7 +55,7 @@
                         {% endfor %}
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <input
                         type="text"
                         class="form-control {% if form.amount.errors %}is-invalid{% endif %}"
@@ -84,7 +85,7 @@
             <small>Total Credits: $<span id="totalCredits">{{ prefilled_total|floatformat:2|intcomma }}</span></small>
             {% for form in credit_formset %}
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-8">
                     {{ form.id }}
                     <input
                         class="form-control {% if form.account.errors %}is-invalid{% endif %}"
@@ -107,7 +108,7 @@
                         {% endfor %}
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <input
                         type="text"
                         class="form-control {% if form.amount.errors %}is-invalid{% endif %}"

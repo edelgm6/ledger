@@ -4,7 +4,7 @@ from .resources import AccountResource, JournalEntryResource, JournalEntryItemRe
 from .models import (
     PrefillItem, Prefill, Amortization, TaxCharge, Account, Transaction,
     JournalEntry, JournalEntryItem, AutoTag, CSVProfile, Reconciliation,
-    CSVColumnValuePair
+    CSVColumnValuePair, S3File, DocSearch, Paystub, PaystubValue
 )
 
 
@@ -56,8 +56,13 @@ class PrefillItemInline(admin.TabularInline):
     extra = 8
 
 
+class DocSearchInline(admin.TabularInline):
+    model = DocSearch
+    extra = 8
+
+
 class PrefillAdmin(admin.ModelAdmin):
-    inlines = [PrefillItemInline]
+    inlines = [PrefillItemInline, DocSearchInline]
     list_display = ('description',)
 
     def description(self, obj):
@@ -77,3 +82,7 @@ admin.site.register(TaxCharge)
 admin.site.register(CSVColumnValuePair)
 admin.site.register(Amortization)
 admin.site.register(PrefillItem)
+admin.site.register(S3File)
+admin.site.register(DocSearch)
+admin.site.register(Paystub)
+admin.site.register(PaystubValue)
