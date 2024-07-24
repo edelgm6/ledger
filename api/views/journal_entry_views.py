@@ -6,13 +6,24 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.forms import modelformset_factory
 from django.urls import reverse
 from api.views.transaction_views import TransactionsViewMixin
-from api.models import Transaction, JournalEntryItem, Paystub, PaystubValue, JournalEntry
+from api.models import Transaction, JournalEntryItem, Paystub, PaystubValue, JournalEntry, S3File
 from api.forms import (
     TransactionFilterForm, JournalEntryItemForm,
     BaseJournalEntryItemFormset
 )
 
 class JournalEntryViewMixin:
+    entry_form_template = 'api/entry_forms/journal-entry-item-form.html'
+
+    def get_paystubs_table_html(self):
+        oustanding_textract_job_files = S3File.objects.filter(documents__isnull=True)
+        for outstanding_textract_job_file in oustanding_textract_job_files:
+            outstanding_textract_job_file.create_paystubs_from_textract_data()
+
+        paystubs = Paystub.objects.filter(journal_entry__isnull=True).prefetch_related('paystub_values').select_related('document')
+        paystubs_template = 'api/tables/paystubs-table.html'
+        return render_to_string(paystubs_template, {'paystubs': paystubs})
+
     def get_journal_entry_form_html(
         self, transaction, index=0, debit_formset=None,
         credit_formset=None, is_debit=True, form_errors=None,
@@ -171,7 +182,7 @@ class JournalEntryFormView(TransactionsViewMixin, JournalEntryViewMixin, LoginRe
 class PaystubDetailView(TransactionsViewMixin, LoginRequiredMixin, View):
 
     def get(self, request, paystub_id):
-        paystub_values = PaystubValue.objects.filter(paystub__pk=paystub_id)
+        paystub_values = PaystubValue.objects.filter(paystub__pk=paystub_id).select_related('account')
         template = 'api/tables/paystubs-table.html'
         html = render_to_string(
             template, 
