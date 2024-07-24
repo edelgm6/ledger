@@ -1,3 +1,4 @@
+import re
 import boto3
 import uuid
 from django.conf import settings
@@ -122,4 +123,5 @@ def clean_and_convert_string_to_decimal(input_string):
         return Decimal('0.00')
     cleaned_string = clean_string(input_string)
     cleaned_string = cleaned_string.replace(',', '').replace('$', '')
+    cleaned_string = re.sub(r'[^\d.]', '', cleaned_string)
     return Decimal(cleaned_string).quantize(Decimal('0.00'))

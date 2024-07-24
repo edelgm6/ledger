@@ -14,6 +14,9 @@ class S3File(models.Model):
     s3_filename = models.CharField(max_length=200)
     textract_job_id = models.CharField(max_length=200)
 
+    def __str__(self):
+        return self.prefill.name + ' ' + self.s3_filename
+
     def create_textract_job(self):
         job_id = create_textract_job(filename=self.s3_filename)
         self.textract_job_id = job_id
@@ -84,6 +87,7 @@ class S3File(models.Model):
                     continue
 
                 pandas_table = convert_table_to_cleaned_dataframe(table)
+                print(pandas_table)
                 try:
                     value = pandas_table.loc[table_search.row, table_search.column]
                 except KeyError:
@@ -725,6 +729,9 @@ class Paystub(models.Model):
     title = models.CharField(max_length=200)
     journal_entry = models.OneToOneField('JournalEntry', null=True, blank=True, on_delete=models.SET_NULL)
 
+    def __str__(self):
+        return self.title
+
 
 class PaystubValue(models.Model):
     paystub = models.ForeignKey('Paystub', on_delete=models.CASCADE, related_name='paystub_values')
@@ -734,6 +741,9 @@ class PaystubValue(models.Model):
         max_length=25,
         choices=JournalEntryItem.JournalEntryType.choices
     )
+
+    def __str__(self):
+        return self.paystub.title + '-' + self.account.name + '-' + str(self.amount)
 
 class DocSearch(models.Model):
     prefill = models.ForeignKey('Prefill', on_delete=models.PROTECT)
@@ -753,6 +763,11 @@ class DocSearch(models.Model):
         ('End Period', 'End Period'),
     ]
     selection = models.CharField(max_length=20, choices=STRING_CHOICES, null=True, blank=True)
+
+    def __str__(self):
+        account_name = self.account.name if self.account is not None else None
+        selection_value = self.selection if self.selection is not None else ''
+        return self.prefill.name + ' ' + (account_name or selection_value)
 
     def clean(self):
         super().clean()
