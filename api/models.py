@@ -27,10 +27,14 @@ class S3File(models.Model):
 
         textract_data = self._extract_data()
         for page_id, page_data in textract_data.items():
+            try:
+                company_name = page_data['Company']
+            except KeyError:
+                company_name = self.prefill.name
             paystub = Paystub.objects.create(
                 document=self,
                 page_id=page_id,
-                title=page_data['Company'] + ' ' + page_data['Begin Period'] + '-' + page_data['End Period']
+                title=company_name + ' ' + page_data['Begin Period'] + '-' + page_data['End Period']
             )
             paystub_values = []
             for account, value in page_data.items():
@@ -87,7 +91,6 @@ class S3File(models.Model):
                     continue
 
                 pandas_table = convert_table_to_cleaned_dataframe(table)
-                print(pandas_table)
                 try:
                     value = pandas_table.loc[table_search.row, table_search.column]
                 except KeyError:
@@ -754,7 +757,9 @@ class DocSearch(models.Model):
     account = models.ForeignKey('Account', null=True, blank=True, on_delete=models.SET_NULL)
     journal_entry_item_type = models.CharField(
         max_length=25,
-        choices=JournalEntryItem.JournalEntryType.choices
+        choices=JournalEntryItem.JournalEntryType.choices,
+        blank=True,
+        null=True
     )
     
     STRING_CHOICES = [
