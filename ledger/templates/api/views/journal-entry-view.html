@@ -1,8 +1,8 @@
 {% if is_initial_load %}
     {% include "api/components/clickable-row-script.html" %}
     {% include "api/components/transactions-scroll.html" %}
-{% endif %}
 <h2>Journal Entries</h2>
+{% endif %}
 
 {{ filter_form }}
 <div x-data="{ selectedRowId: {{transaction_id}}, rowIndex: {{index}} }">
