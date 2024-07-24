@@ -16,16 +16,6 @@ from api import utils
 
 class TransactionsViewMixin:
     filter_form_template = 'api/filter_forms/transactions-filter-form.html'
-    entry_form_template = 'api/entry_forms/journal-entry-item-form.html'
-
-    def get_paystubs_table_html(self):
-        oustanding_textract_job_files = S3File.objects.filter(documents__isnull=True)
-        for outstanding_textract_job_file in oustanding_textract_job_files:
-            outstanding_textract_job_file.create_paystubs_from_textract_data()
-
-        paystubs = Paystub.objects.filter(journal_entry__isnull=True).prefetch_related('paystub_values')
-        paystubs_template = 'api/tables/paystubs-table.html'
-        return render_to_string(paystubs_template, {'paystubs': paystubs})
 
     def get_filter_form_html_and_objects(
         self,
