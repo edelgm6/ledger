@@ -3,7 +3,110 @@ import datetime
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from textractor.entities.document import Document
+from api.aws_services import create_textract_job, get_textract_results, clean_and_convert_string_to_decimal, clean_string, convert_table_to_cleaned_dataframe
 
+
+class S3File(models.Model):
+    prefill = models.ForeignKey('Prefill', on_delete=models.PROTECT)
+    url = models.URLField(max_length=200, unique=True)
+    user_filename = models.CharField(max_length=200)
+    s3_filename = models.CharField(max_length=200)
+    textract_job_id = models.CharField(max_length=200)
+
+    def __str__(self):
+        return self.prefill.name + ' ' + self.s3_filename
+
+    def create_textract_job(self):
+        job_id = create_textract_job(filename=self.s3_filename)
+        self.textract_job_id = job_id
+        self.save()
+        return job_id
+
+    def create_paystubs_from_textract_data(self):
+
+        textract_data = self._extract_data()
+        for page_id, page_data in textract_data.items():
+            try:
+                company_name = page_data['Company']
+            except KeyError:
+                company_name = self.prefill.name
+            paystub = Paystub.objects.create(
+                document=self,
+                page_id=page_id,
+                title=company_name + ' ' + page_data['Begin Period'] + '-' + page_data['End Period']
+            )
+            paystub_values = []
+            for account, value in page_data.items():
+                if not isinstance(account, Account):
+                    continue
+                paystub_values.append(
+                    PaystubValue(
+                        paystub=paystub,
+                        account=account,
+                        amount=value['value'],
+                        journal_entry_item_type=value['entry_type']
+                    )
+                )
+            PaystubValue.objects.bulk_create(paystub_values)
+
+    def _extract_data(self):
+
+        textract_job_response = get_textract_results(job_id=self.textract_job_id)
+        
+        # Load the Textract response from the JSON file using textractor
+        document = Document.open(textract_job_response)
+
+        # Step 1: Build pages data structure
+        page_ids = []
+        data = {}
+        for page in document.pages:
+            page_id = page.id
+            page_ids.append(page_id)
+            data[page_id] = {}
+
+        # Step 2: Name each page and create a data structure
+        # Extract key-value pairs
+        key_value_pairs = document.key_values
+
+        # Print the key-value pairs and create data object
+        keyword_searches = DocSearch.objects.filter(keyword__isnull=False, prefill=self.prefill)
+
+        for kv in key_value_pairs:
+            key = clean_string(kv.key.text)
+            for keyword_search in keyword_searches:
+                if key == keyword_search.keyword:
+                    identifier = keyword_search.get_selection_or_account()
+                    data[kv.page_id][identifier] = clean_string(kv.value.text)
+
+        # Step 3: Grab table data from tables
+        table_searches = DocSearch.objects.filter(keyword__isnull=True, prefill=self.prefill)
+        for table in document.tables:
+            for table_search in table_searches:
+                table_title = table.title if table.title is None else table.title.text
+                both_table_names_none_condition = table_search.table_name is None and table_title is None
+                table_names_equal_condition = table_search.table_name == clean_string(table_title)
+
+                if not (both_table_names_none_condition or table_names_equal_condition):
+                    continue
+
+                pandas_table = convert_table_to_cleaned_dataframe(table)
+                try:
+                    value = pandas_table.loc[table_search.row, table_search.column]
+                except KeyError:
+                    continue
+
+                value = clean_and_convert_string_to_decimal(value)
+                identifier = table_search.get_selection_or_account()
+                if identifier in data[table.page_id]:
+                    data[table.page_id][identifier]['value'] += value
+                else:
+                    data[table.page_id][identifier] = {}
+                    data[table.page_id][identifier]['value'] = value
+                    data[table.page_id][identifier]['entry_type'] = table_search.journal_entry_item_type
+
+        return data
+        
 
 class Amortization(models.Model):
     accrued_transaction = models.OneToOneField(
@@ -621,6 +724,74 @@ class PrefillItem(models.Model):
         choices=JournalEntryItem.JournalEntryType.choices
     )
     order = models.PositiveSmallIntegerField()
+
+
+class Paystub(models.Model):
+    document = models.ForeignKey('S3File', on_delete=models.CASCADE, related_name='documents')
+    page_id = models.CharField(max_length=200)
+    title = models.CharField(max_length=200)
+    journal_entry = models.OneToOneField('JournalEntry', null=True, blank=True, on_delete=models.SET_NULL)
+
+    def __str__(self):
+        return self.title
+
+
+class PaystubValue(models.Model):
+    paystub = models.ForeignKey('Paystub', on_delete=models.CASCADE, related_name='paystub_values')
+    account = models.ForeignKey('Account', on_delete=models.PROTECT)
+    amount = models.DecimalField(decimal_places=2, max_digits=12)
+    journal_entry_item_type = models.CharField(
+        max_length=25,
+        choices=JournalEntryItem.JournalEntryType.choices
+    )
+
+    def __str__(self):
+        return self.paystub.title + '-' + self.account.name + '-' + str(self.amount)
+
+class DocSearch(models.Model):
+    prefill = models.ForeignKey('Prefill', on_delete=models.PROTECT)
+    keyword = models.CharField(max_length=200, null=True, blank=True)
+    table_name = models.CharField(max_length=200, null=True, blank=True)
+    row = models.CharField(max_length=200, null=True, blank=True)
+    column = models.CharField(max_length=200, null=True, blank=True)
+    account = models.ForeignKey('Account', null=True, blank=True, on_delete=models.SET_NULL)
+    journal_entry_item_type = models.CharField(
+        max_length=25,
+        choices=JournalEntryItem.JournalEntryType.choices,
+        blank=True,
+        null=True
+    )
+    
+    STRING_CHOICES = [
+        ('Company', 'Company'),
+        ('Begin Period', 'Begin Period'),
+        ('End Period', 'End Period'),
+    ]
+    selection = models.CharField(max_length=20, choices=STRING_CHOICES, null=True, blank=True)
+
+    def __str__(self):
+        account_name = self.account.name if self.account is not None else None
+        selection_value = self.selection if self.selection is not None else ''
+        return self.prefill.name + ' ' + (account_name or selection_value)
+
+    def clean(self):
+        super().clean()
+
+        # Check the existing conditions
+        if not self.keyword and (self.row is None or self.column is None):
+            raise ValidationError("Either 'keyword' must be provided, or both 'row' and 'column' must be provided.")
+        
+        # Ensure either account or selection is set
+        if not (self.account and self.journal_entry_item_type) and not self.selection:
+            raise ValidationError("Either 'account' must be provided, or 'selection' must be one of the specified choices.")
+        
+        if self.account and self.selection:
+            raise ValidationError("Both 'account' and 'selection' cannot be set at the same time.")
+        
+    def get_selection_or_account(self):
+        if self.selection:
+            return self.selection
+        return self.account
 
 
 class CSVColumnValuePair(models.Model):

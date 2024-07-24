@@ -5,14 +5,34 @@ from django.forms import BaseModelFormSet, DecimalField
 from django.utils import timezone
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
+from django.conf import settings
 from api.models import (
     Amortization, Transaction, Account, JournalEntryItem,
-    TaxCharge, Reconciliation, JournalEntry
+    TaxCharge, Reconciliation, JournalEntry, S3File, Prefill
 )
-
 from api import utils
 from api.factories import ReconciliationFactory
+from api.aws_services import upload_file_to_s3
 
+
+class DocumentForm(forms.Form):
+    document = forms.FileField()
+    prefill = forms.ModelChoiceField(
+        queryset=Prefill.objects.filter(docsearch__isnull=False).distinct(),
+        required=True
+    )
+
+    def create_s3_file(self):
+        file = self.cleaned_data['document']
+        unique_name = upload_file_to_s3(file=file)
+        file_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{unique_name}"
+        s3file = S3File.objects.create(
+            prefill=self.cleaned_data['prefill'],
+            url=file_url,
+            user_filename=file.name,
+            s3_filename=unique_name
+        )
+        return s3file
 
 class CommaDecimalField(DecimalField):
     def to_python(self, value):

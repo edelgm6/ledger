@@ -1,16 +1,22 @@
+{% load humanize %}
+
 <div class="row">
-    <div class="col-md-4">
+    <div class="col">
+        <h3>Upload transaction CSVs</h3>
         <form
             method="post"
             enctype="multipart/form-data"
             hx-post="{% url 'upload-transactions' %}"
-            hx-target="#container"
+            hx-target="#csv-upload"
             hx-trigger="submit"
         >
         {% csrf_token %}
+            <!-- Render the 'transaction_csv' field -->
+            <div class="mb-3">
+                <input type="file" name="transaction_csv" id="id_transaction_csv" class="form-control-file">
+            </div>
             <!-- Render the 'account' field -->
             <div class="mb-3">
-                <label for="id_account" class="form-label">Account</label>
                 <select name="account" id="id_account" class="form-control">
                     {% for account in form.account.field.queryset %}
                         <option value="{{ account.pk }}">{{ account }}</option>
@@ -18,13 +24,17 @@
                 </select>
             </div>
 
-            <!-- Render the 'transaction_csv' field -->
-            <div class="mb-3">
-                <label for="id_transaction_csv" class="form-label">CSV</label>
-                <input type="file" name="transaction_csv" id="id_transaction_csv" class="form-control-file">
-            </div>
-
-            <button type="submit" class="btn btn-primary">Submit</button>
+            <button type="submit" name="transactions" class="btn btn-primary">Submit</button>
         </form>
     </div>
 </div>
+<br>
+{% if count %}
+<div class="row">
+    <div class="col">
+        <div class="alert alert-success" role="alert">
+            Uploaded {{ count }} transactions to {{ account.name }}
+        </div>
+    </div>
+</div>
+{% endif %}

@@ -4,34 +4,68 @@ from django.template.loader import render_to_string
 from django.views import View
 from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
-from api.forms import UploadTransactionsForm, WalletForm
+from api.forms import UploadTransactionsForm, WalletForm, DocumentForm
+from api.models import S3File
 from api.statement import Trend
 from api import utils
 
-
 class UploadTransactionsView(View):
 
-    form = UploadTransactionsForm
-    template = 'api/views/upload-transactions.html'
-    form_template = 'api/entry_forms/upload-form.html'
+    def get_textract_form_html(self, filename=None):
+        form = DocumentForm()
+        template = 'api/entry_forms/textract-form.html'
+        return render_to_string(
+            template, 
+            {
+                'form': form,
+                'filename': filename
+            }
+        )
+    
+    def get_csv_form_html(self, transactions_count=None, account=None):
+        form = UploadTransactionsForm()
+        template = 'api/entry_forms/upload-form.html'    
+        return render_to_string(
+            template, 
+            {
+                'form': form,
+                'count': transactions_count,
+                'account': account
+            }
+        )
 
     def get(self, request):
-        form_html = render_to_string(self.form_template, {'form': self.form()})
-        return render(request, self.template, {'form': form_html})
+        # Retrieve job info for non paystub-created jobs
+        unprocessed_files = S3File.objects.filter(documents__isnull=True).distinct()
+        for file in unprocessed_files:
+            file.create_paystubs_from_textract_data()
+        
+        template = 'api/views/upload-transactions.html'
+        csv_form_html = self.get_csv_form_html()
+        textract_form_html = self.get_textract_form_html()
+        return render(request, template, {'form': csv_form_html, 'textract_form': textract_form_html})
 
-    def post(self, request):
-        form = self.form(request.POST, request.FILES)
+    def handle_transactions_form(self, request):
+        form = UploadTransactionsForm(request.POST, request.FILES)
         if form.is_valid():
             transactions_count = form.save()
-            form_html = render_to_string(self.form_template, {'form': form})
-            success_html = render_to_string(
-                'api/components/upload-success.html',
-                {
-                    'count': transactions_count,
-                    'account': form.cleaned_data['account']
-                }
-            )
-            return render(request, self.template, {'form': form_html, 'success': success_html})
+        return self.get_csv_form_html(transactions_count=transactions_count, account=form.cleaned_data['account'])
+    
+    def handle_paystubs_form(self, request):
+        form = DocumentForm(request.POST, request.FILES)
+        if form.is_valid():
+            s3file = form.create_s3_file()
+            s3file.create_textract_job()
+        return self.get_textract_form_html(filename=s3file.user_filename)
+
+    def post(self, request):
+        
+        if 'transactions' in request.POST:
+            form_html = self.handle_transactions_form(request)
+        elif 'paystubs' in request.POST:
+            form_html = self.handle_paystubs_form(request)
+        
+        return HttpResponse(form_html)
 
 # ------------------Wallet Transactions View-----------------------
 
