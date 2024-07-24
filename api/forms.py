@@ -299,7 +299,10 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
     def get_entry_total(self):
         total = 0
         for form in self.forms:
-            amount = form.cleaned_data.get('amount')
+            try:
+                amount = form.cleaned_data.get('amount')
+            except AttributeError:
+                amount = form.initial.get('amount', None)
             total += (amount if amount is not None else 0)
 
         return total
@@ -330,7 +333,6 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
                     instance.save()
 
         return instances
-
 
 class JournalEntryItemForm(forms.ModelForm):
     amount = CommaDecimalField(
