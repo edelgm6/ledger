@@ -137,7 +137,7 @@ class JournalEntryViewMixin:
 
 
 # Called every time the page is filtered
-class JournalEntryTableView(TransactionsViewMixin, LoginRequiredMixin, View):
+class JournalEntryTableView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
 
@@ -156,13 +156,13 @@ class JournalEntryTableView(TransactionsViewMixin, LoginRequiredMixin, View):
             entry_form_html = self.get_journal_entry_form_html(
                 transaction=transaction
             )
-            content_template = 'api/content/journal-entry-content.html'
+            view_template = 'api/views/journal-entry-view.html'
             context = {
                 'entry_form': entry_form_html,
                 'table': table_html
             }
 
-            html = render_to_string(content_template, context)
+            html = render_to_string(view_template, context)
             return HttpResponse(html)
 
 
