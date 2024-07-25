@@ -122,14 +122,16 @@ class JournalEntryViewMixin:
         }
         metadata_form = JournalEntryMetadataForm(initial=metadata)
         # Set the total amounts for the debit and credits
-        prefilled_total = debit_formset.get_entry_total()
+        debit_prefilled_total = debit_formset.get_entry_total()
+        credit_prefilled_total = credit_formset.get_entry_total()
         context = {
             'debit_formset': debit_formset,
             'credit_formset': credit_formset,
             'transaction_id': transaction.id,
             'autofocus_debit': is_debit,
             'form_errors': form_errors,
-            'prefilled_total': prefilled_total,
+            'debit_prefilled_total': debit_prefilled_total,
+            'credit_prefilled_total': credit_prefilled_total,
             'metadata_form': metadata_form
         }
 
@@ -277,6 +279,8 @@ class JournalEntryView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequir
             'autofocus_debit': True,
             'form_errors': form_errors,
             'prefilled_total': debit_formset.get_entry_total(),
+            'debit_prefilled_total': debit_formset.get_entry_total(),
+            'credit_prefilled_total': credit_formset.get_entry_total(),
             'metadata_form': metadata_form
         }
 
