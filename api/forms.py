@@ -288,7 +288,7 @@ class TransactionLinkForm(forms.Form):
         return hero_transaction
 
 class JournalEntryMetadataForm(forms.Form):
-    index = forms.CharField(widget=forms.HiddenInput())
+    index = forms.IntegerField(min_value=0, widget=forms.HiddenInput())
     paystub_id = forms.CharField(widget=forms.HiddenInput(), required=False)
 
 

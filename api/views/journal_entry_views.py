@@ -158,10 +158,14 @@ class JournalEntryTableView(TransactionsViewMixin, JournalEntryViewMixin, LoginR
             entry_form_html = self.get_journal_entry_form_html(
                 transaction=transaction
             )
+            paystubs_table_html = self.get_paystubs_table_html()
             view_template = 'api/views/journal-entry-view.html'
             context = {
                 'entry_form': entry_form_html,
-                'table': table_html
+                'table': table_html,
+                'paystubs_table': paystubs_table_html,
+                'transaction_id': transaction.id,
+                'index': 0
             }
 
             html = render_to_string(view_template, context)
@@ -169,6 +173,7 @@ class JournalEntryTableView(TransactionsViewMixin, JournalEntryViewMixin, LoginR
 
 
 # Called every time a table row is clicked
+# TODO: WTF shoudl I do here
 class JournalEntryFormView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
