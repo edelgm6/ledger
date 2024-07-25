@@ -9,7 +9,7 @@ from api.views.transaction_views import TransactionsViewMixin
 from api.models import Transaction, JournalEntryItem, Paystub, PaystubValue, JournalEntry, S3File
 from api.forms import (
     TransactionFilterForm, JournalEntryItemForm,
-    BaseJournalEntryItemFormset
+    BaseJournalEntryItemFormset, JournalEntryMetadataForm
 )
 
 class JournalEntryViewMixin:
@@ -116,17 +116,21 @@ class JournalEntryViewMixin:
             debit_formset = debit_formset(queryset=journal_entry_debits, initial=debits_initial_data, prefix='debits')
             credit_formset = credit_formset(queryset=journal_entry_credits, initial=credits_initial_data, prefix='credits')
 
+        metadata = {
+            'index': index,
+            'paystub_id': paystub_id
+        }
+        metadata_form = JournalEntryMetadataForm(initial=metadata)
         # Set the total amounts for the debit and credits
         prefilled_total = debit_formset.get_entry_total()
         context = {
             'debit_formset': debit_formset,
             'credit_formset': credit_formset,
             'transaction_id': transaction.id,
-            'index': index,
             'autofocus_debit': is_debit,
             'form_errors': form_errors,
             'prefilled_total': prefilled_total,
-            'paystub_id': paystub_id
+            'metadata_form': metadata_form
         }
 
         return render_to_string(self.entry_form_template, context)
@@ -170,7 +174,7 @@ class JournalEntryFormView(TransactionsViewMixin, JournalEntryViewMixin, LoginRe
 
     def get(self, request, transaction_id):
         transaction = Transaction.objects.get(pk=transaction_id)
-        paystub_id = None if 'paystub_id' not in request.GET else request.GET.get('paystub_id')
+        paystub_id = request.GET.get('paystub_id')
         entry_form_html = self.get_journal_entry_form_html(
             transaction=transaction,
             index=request.GET.get('row_index'),
@@ -246,12 +250,12 @@ class JournalEntryView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequir
         print(form_errors)
         return form_errors
 
-    def _check_for_errors(self, request, debit_formset, credit_formset, transaction):
+    def _check_for_errors(self, request, debit_formset, credit_formset, metadata_form, transaction):
         has_errors = False
         form_errors = []
         # Check if formsets have errors on their own, then check if they have errors
         # in the aggregate (e.g., don't have balanced credits/debits)
-        if debit_formset.is_valid() and credit_formset.is_valid():
+        if debit_formset.is_valid() and credit_formset.is_valid() and metadata_form.is_valid():
             form_errors = self._get_combined_formset_errors(
                 debit_formset=debit_formset,
                 credit_formset=credit_formset
@@ -260,8 +264,8 @@ class JournalEntryView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequir
         else:
             print(debit_formset.errors)
             print(credit_formset.errors)
+            print(metadata_form.errors)
             has_errors = True
-
 
         if not has_errors:
             return False, None
@@ -270,11 +274,10 @@ class JournalEntryView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequir
             'debit_formset': debit_formset,
             'credit_formset': credit_formset,
             'transaction_id': transaction.id,
-            'index': request.POST.get('index'),
             'autofocus_debit': True,
             'form_errors': form_errors,
             'prefilled_total': debit_formset.get_entry_total(),
-            'paystub_id': request.POST.get('paystub_id')
+            'metadata_form': metadata_form
         }
 
         html = render_to_string(self.entry_form_template, context)
@@ -294,6 +297,7 @@ class JournalEntryView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequir
             request.POST,
             prefix='credits'
         )
+        metadata_form = JournalEntryMetadataForm(request.POST)
         transaction = get_object_or_404(Transaction, pk=transaction_id)
 
         # First check if the forms are valid and create JEIs if so
@@ -301,7 +305,8 @@ class JournalEntryView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequir
             debit_formset=debit_formset,
             credit_formset=credit_formset,
             request=request,
-            transaction=transaction
+            transaction=transaction,
+            metadata_form=metadata_form
         )
         if has_errors:
             return response
@@ -317,7 +322,7 @@ class JournalEntryView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequir
         transaction.close()
         
         # If there's an attached paystub in the GET request, close it out
-        paystub_id = request.POST.get('paystub_id')
+        paystub_id = metadata_form.cleaned_data.get('paystub_id')
         try:
             paystub = Paystub.objects.get(pk=paystub_id)
             paystub.journal_entry = transaction.journal_entry
@@ -331,7 +336,7 @@ class JournalEntryView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequir
         if filter_form.is_valid():
             transactions = filter_form.get_transactions()
             # Default to 0 if 'index' is not provided
-            index = int(request.POST.get('index', 0))
+            index = metadata_form.cleaned_data['index']
         else:
             _, transactions = self.get_filter_form_html_and_objects(
                 is_closed=False,
