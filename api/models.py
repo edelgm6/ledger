@@ -647,6 +647,9 @@ class JournalEntry(models.Model):
         on_delete=models.CASCADE
     )
 
+    class Meta:
+        verbose_name_plural = 'journal entries'
+
     def __str__(self):
         return str(self.pk) + ': ' + str(self.date) + ' ' + self.description
 
@@ -768,6 +771,9 @@ class DocSearch(models.Model):
         ('End Period', 'End Period'),
     ]
     selection = models.CharField(max_length=20, choices=STRING_CHOICES, null=True, blank=True)
+
+    class Meta:
+        verbose_name_plural = 'doc searches'
 
     def __str__(self):
         account_name = self.account.name if self.account is not None else None

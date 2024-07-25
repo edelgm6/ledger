@@ -287,6 +287,10 @@ class TransactionLinkForm(forms.Form):
         hero_transaction.create_link(linked_transaction)
         return hero_transaction
 
+class JournalEntryMetadataForm(forms.Form):
+    index = forms.IntegerField(min_value=0, widget=forms.HiddenInput())
+    paystub_id = forms.CharField(widget=forms.HiddenInput(), required=False)
+
 
 class BaseJournalEntryItemFormset(BaseModelFormSet):
 
@@ -299,7 +303,10 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
     def get_entry_total(self):
         total = 0
         for form in self.forms:
-            amount = form.cleaned_data.get('amount')
+            try:
+                amount = form.cleaned_data.get('amount')
+            except AttributeError:
+                amount = form.initial.get('amount', None)
             total += (amount if amount is not None else 0)
 
         return total
@@ -330,7 +337,6 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
                     instance.save()
 
         return instances
-
 
 class JournalEntryItemForm(forms.ModelForm):
     amount = CommaDecimalField(
