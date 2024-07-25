@@ -287,6 +287,10 @@ class TransactionLinkForm(forms.Form):
         hero_transaction.create_link(linked_transaction)
         return hero_transaction
 
+class JournalEntryMetadataForm(forms.Form):
+    index = forms.CharField(widget=forms.HiddenInput())
+    paystub_id = forms.CharField(widget=forms.HiddenInput(), required=False)
+
 
 class BaseJournalEntryItemFormset(BaseModelFormSet):
 
