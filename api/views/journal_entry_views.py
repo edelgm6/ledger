@@ -24,6 +24,55 @@ class JournalEntryViewMixin:
         paystubs_template = 'api/tables/paystubs-table.html'
         return render_to_string(paystubs_template, {'paystubs': paystubs})
 
+    def get_combined_formset_errors(
+            self, debit_formset, credit_formset
+        ):
+        form_errors = []
+        debit_total = debit_formset.get_entry_total()
+        credit_total = credit_formset.get_entry_total()
+        if debit_total != credit_total:
+            form_errors.append('Debits ($' + str(debit_total) + ') and Credits ($' + str(credit_total) + ') must balance.')
+
+        print(form_errors)
+        return form_errors
+
+    def check_for_errors(self, request, debit_formset, credit_formset, metadata_form, transaction):
+        has_errors = False
+        form_errors = []
+        # Check if formsets have errors on their own, then check if they have errors
+        # in the aggregate (e.g., don't have balanced credits/debits)
+        if debit_formset.is_valid() and credit_formset.is_valid() and metadata_form.is_valid():
+            form_errors = self.get_combined_formset_errors(
+                debit_formset=debit_formset,
+                credit_formset=credit_formset
+            )
+            has_errors = bool(form_errors)
+        else:
+            print(debit_formset.errors)
+            print(credit_formset.errors)
+            print(metadata_form.errors)
+            has_errors = True
+
+        if not has_errors:
+            return False, None
+
+        context = {
+            'debit_formset': debit_formset,
+            'credit_formset': credit_formset,
+            'transaction_id': transaction.id,
+            'autofocus_debit': True,
+            'form_errors': form_errors,
+            'prefilled_total': debit_formset.get_entry_total(),
+            'debit_prefilled_total': debit_formset.get_entry_total(),
+            'credit_prefilled_total': credit_formset.get_entry_total(),
+            'metadata_form': metadata_form
+        }
+
+        html = render_to_string(self.entry_form_template, context)
+        response = HttpResponse(html)
+        response.headers['HX-Retarget'] = '#form-div'
+        return True, response
+
     def get_journal_entry_form_html(
         self, transaction, index=0, debit_formset=None,
         credit_formset=None, is_debit=True, form_errors=None,
@@ -245,57 +294,9 @@ class JournalEntryView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequir
         html = render_to_string(self.view_template, context)
         return HttpResponse(html)
 
-    def _get_combined_formset_errors(
-            self, debit_formset, credit_formset
-        ):
-        form_errors = []
-        debit_total = debit_formset.get_entry_total()
-        credit_total = credit_formset.get_entry_total()
-        if debit_total != credit_total:
-            form_errors.append('Debits ($' + str(debit_total) + ') and Credits ($' + str(credit_total) + ') must balance.')
-
-        print(form_errors)
-        return form_errors
-
-    def _check_for_errors(self, request, debit_formset, credit_formset, metadata_form, transaction):
-        has_errors = False
-        form_errors = []
-        # Check if formsets have errors on their own, then check if they have errors
-        # in the aggregate (e.g., don't have balanced credits/debits)
-        if debit_formset.is_valid() and credit_formset.is_valid() and metadata_form.is_valid():
-            form_errors = self._get_combined_formset_errors(
-                debit_formset=debit_formset,
-                credit_formset=credit_formset
-            )
-            has_errors = bool(form_errors)
-        else:
-            print(debit_formset.errors)
-            print(credit_formset.errors)
-            print(metadata_form.errors)
-            has_errors = True
-
-        if not has_errors:
-            return False, None
-
-        context = {
-            'debit_formset': debit_formset,
-            'credit_formset': credit_formset,
-            'transaction_id': transaction.id,
-            'autofocus_debit': True,
-            'form_errors': form_errors,
-            'prefilled_total': debit_formset.get_entry_total(),
-            'debit_prefilled_total': debit_formset.get_entry_total(),
-            'credit_prefilled_total': credit_formset.get_entry_total(),
-            'metadata_form': metadata_form
-        }
-
-        html = render_to_string(self.entry_form_template, context)
-        response = HttpResponse(html)
-        response.headers['HX-Retarget'] = '#form-div'
-        return True, response
-
     def post(self, request, transaction_id):
         # Build formsets for the credit and debit side of the JE and get transaction
+        # and metadata form
         JournalEntryItemFormset = modelformset_factory(
             JournalEntryItem,
             formset=BaseJournalEntryItemFormset,
@@ -309,8 +310,8 @@ class JournalEntryView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequir
         metadata_form = JournalEntryMetadataForm(request.POST)
         transaction = get_object_or_404(Transaction, pk=transaction_id)
 
-        # First check if the forms are valid and create JEIs if so
-        has_errors, response = self._check_for_errors(
+        # First check if the forms are valid and return errors if not
+        has_errors, response = self.check_for_errors(
             debit_formset=debit_formset,
             credit_formset=credit_formset,
             request=request,
@@ -339,12 +340,11 @@ class JournalEntryView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequir
         except ValueError:
             pass
 
-        # Build the transactions table — use the filter settings if valid,
+        # Build the transactions table — use the existing filter settings if valid,
         # else return all transactions
         filter_form = TransactionFilterForm(request.POST, prefix='filter')
         if filter_form.is_valid():
             transactions = filter_form.get_transactions()
-            # Default to 0 if 'index' is not provided
             index = metadata_form.cleaned_data['index']
         else:
             _, transactions = self.get_filter_form_html_and_objects(
@@ -357,7 +357,7 @@ class JournalEntryView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequir
             index = 0
 
         if len(transactions) == 0:
-            entry_form_html = None
+            entry_form_html = ''
         else:
             # Need to check an index error in case
             # user chose the last entry
