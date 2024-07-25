@@ -68,6 +68,8 @@ class PrefillAdmin(admin.ModelAdmin):
     def description(self, obj):
         return obj.name
 
+class PaystubAdmin(admin.ModelAdmin):
+    list_display = ('title', 'journal_entry')
 
 # Register your models here
 admin.site.register(Prefill, PrefillAdmin)
@@ -84,5 +86,5 @@ admin.site.register(Amortization)
 admin.site.register(PrefillItem)
 admin.site.register(S3File)
 admin.site.register(DocSearch)
-admin.site.register(Paystub)
+admin.site.register(Paystub, PaystubAdmin)
 admin.site.register(PaystubValue)
