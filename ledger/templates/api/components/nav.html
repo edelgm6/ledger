@@ -27,6 +27,9 @@
                 <li class="nav-item {% if request.resolver_match.url_name == 'upload-transactions' %}active{% endif %}">
                     <a class="nav-link" href="{% url 'upload-transactions' %}" hx-get="{% url 'upload-transactions' %}" hx-target="#container">Upload/Download</a>
                 </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'tag-entities' %}active{% endif %}">
+                    <a class="nav-link" href="{% url 'tag-entities' %}" hx-get="{% url 'tag-entities' %}" hx-target="#container">Receivables/Payables</a>
+                </li>
                 <!-- Dropdown Menu for Financial Statements -->
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
