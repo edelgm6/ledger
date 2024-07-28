@@ -4,7 +4,8 @@ from .resources import AccountResource, JournalEntryResource, JournalEntryItemRe
 from .models import (
     PrefillItem, Prefill, Amortization, TaxCharge, Account, Transaction,
     JournalEntry, JournalEntryItem, AutoTag, CSVProfile, Reconciliation,
-    CSVColumnValuePair, S3File, DocSearch, Paystub, PaystubValue
+    CSVColumnValuePair, S3File, DocSearch, Paystub, PaystubValue,
+    Entity
 )
 
 
@@ -88,3 +89,4 @@ admin.site.register(S3File)
 admin.site.register(DocSearch)
 admin.site.register(Paystub, PaystubAdmin)
 admin.site.register(PaystubValue)
+admin.site.register(Entity)

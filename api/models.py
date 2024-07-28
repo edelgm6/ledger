@@ -7,6 +7,15 @@ from textractor.entities.document import Document
 from api.aws_services import create_textract_job, get_textract_results, clean_and_convert_string_to_decimal, clean_string, convert_table_to_cleaned_dataframe
 
 
+class Entity(models.Model):
+    name = models.CharField(max_length=200, unique=True)
+
+    class Meta:
+        verbose_name_plural = 'entities'
+
+    def __str__(self):
+        return self.name
+
 class S3File(models.Model):
     prefill = models.ForeignKey('Prefill', on_delete=models.PROTECT)
     url = models.URLField(max_length=200, unique=True)
@@ -674,6 +683,7 @@ class JournalEntryItem(models.Model):
     type = models.CharField(max_length=6, choices=JournalEntryType.choices)
     amount = models.DecimalField(decimal_places=2, max_digits=12)
     account = models.ForeignKey('Account', on_delete=models.PROTECT)
+    entity = models.ForeignKey('Entity', on_delete=models.SET_NULL, null=True, blank=True, related_name='journal_entry_items')
 
     class Meta:
         indexes = [
