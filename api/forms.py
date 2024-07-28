@@ -8,12 +8,25 @@ from django.core.exceptions import ValidationError
 from django.conf import settings
 from api.models import (
     Amortization, Transaction, Account, JournalEntryItem,
-    TaxCharge, Reconciliation, JournalEntry, S3File, Prefill
+    TaxCharge, Reconciliation, JournalEntry, S3File, Prefill,
+    Entity
 )
 from api import utils
 from api.factories import ReconciliationFactory
 from api.aws_services import upload_file_to_s3
 
+
+class JournalEntryItemEntityForm(forms.ModelForm):
+    entity = forms.ModelChoiceField(
+        queryset=Entity.objects.all(),
+        required=True
+    )
+
+    class Meta:
+        model = JournalEntryItem
+        fields = [
+            'entity',
+        ]
 
 class DocumentForm(forms.Form):
     document = forms.FileField()

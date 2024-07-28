@@ -1,0 +1,35 @@
+{% load humanize %}
+<div class="row">
+    <div class="col-md-12">
+        <div id="payables-receivables-table" class="table-responsive">
+            <table class="table table-hover table-sm">
+                <thead>
+                    <tr class="clickable-row">
+                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Date</th>
+                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Entry Type</th>
+                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Amount</th>
+                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payable_receivable in payables_receivables %}
+                    <tr
+                        class="clickable-row"
+                        hx-get="{% url 'tag-entities' %}"
+                        hx-target="#amortize-form"
+                    >
+                        <td>{{ payable_receivable.journal_entry.transaction.date }}</td>
+                        <td>{{ payable_receivable.type }}</td>
+                        <td>{{ payable_receivable.amount }}</td>
+                        <td>{{ payable_receivable.journal_entry.transaction.description }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+{% include "api/components/clickable-row-script.html" %}
+{% endblock %}
