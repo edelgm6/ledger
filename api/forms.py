@@ -18,7 +18,7 @@ from api.aws_services import upload_file_to_s3
 
 class JournalEntryItemEntityForm(forms.ModelForm):
     entity = forms.ModelChoiceField(
-        queryset=Entity.objects.all(),
+        queryset=Entity.objects.all().order_by('name'),
         required=True
     )
 

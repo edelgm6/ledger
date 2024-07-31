@@ -15,8 +15,8 @@
                     {% for payable_receivable in payables_receivables %}
                     <tr
                         class="clickable-row"
-                        hx-get="{% url 'tag-entities' %}"
-                        hx-target="#amortize-form"
+                        hx-get="{% url 'tag-entities-form' payable_receivable.pk %}"
+                        hx-target="#form"
                     >
                         <td>{{ payable_receivable.journal_entry.transaction.date }}</td>
                         <td>{{ payable_receivable.type }}</td>
