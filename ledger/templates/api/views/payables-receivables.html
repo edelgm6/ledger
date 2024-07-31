@@ -2,8 +2,6 @@
 <h2>Payables/Receivables</h2>
 {% endif %}
 
-{{ filter_form }}
-
 <div id="table-and-form">
     <div x-data="{ selectedRowId: {{transaction_id}}, rowIndex: {{index}} }">
         <div class="row">
@@ -13,7 +11,9 @@
                 </div>
             </div>
             <div class="col-md-4">
-                {{ form}}
+                <div id="form">
+                    {{ form}}
+                </div>
             </div>
         </div>
     </div>

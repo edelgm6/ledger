@@ -10,7 +10,7 @@ from api.views.tax_views import TaxChargeTableView,TaxChargeFormView, TaxesView
 from api.views.reconciliation_views import ReconciliationTableView, ReconciliationView
 from api.views.amortization_views import AmortizationFormView, AmortizationView, AmortizeFormView
 from api.views.statement_views import StatementView
-from api.views.entity_views import TagEntitiesView
+from api.views.entity_views import TagEntitiesView, TagEntitiesForm
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -56,6 +56,7 @@ urlpatterns = [
     path('amortization/amortize-form/<int:amortization_id>/', AmortizeFormView.as_view(), name='amortize-form'),
 
     path('tag/', TagEntitiesView.as_view(), name='tag-entities'),
+    path('tag/form/<int:journal_entry_item_id>/', TagEntitiesForm.as_view(), name='tag-entities-form'),
 ]
 
 if settings.DEBUG:

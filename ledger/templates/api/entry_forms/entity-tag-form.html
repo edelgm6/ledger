@@ -3,10 +3,9 @@
     <div class="col-md-12">
         <form
             method="post"
-            hx-post="{% url 'tag-entities' %}"
-            hx-swap="innerHTML"
+            hx-post="{% url 'tag-entities-form' journal_entry_item_id %}"
+            hx-swap="outerHTML"
             hx-target="#table-and-form"
-            hx-include="#transactions-filter-form"
             class="form-group form-sm"
         >
         {% csrf_token %}
