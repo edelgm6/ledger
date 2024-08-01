@@ -34,7 +34,7 @@ class EntityTagMixin:
         # Need to create a new account sub type for payables
         relevant_account_types = [
             Account.SubType.ACCOUNTS_RECEIVABLE,
-            Account.SubType.LONG_TERM_DEBT
+            Account.SubType.ACCOUNTS_PAYABLE
         ]
 
         untagged_journal_entry_items = JournalEntryItem.objects.filter(
