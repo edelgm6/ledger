@@ -11,7 +11,11 @@
         </thead>
         <tbody>
             {% for balance in entities_balances %}
-                <tr>
+                <tr
+                    class="clickable-row"
+                    hx-get="{% url 'entity-history' balance.entity__id %}"
+                    hx-target="#history-table" 
+                >
                     <td>{{ balance.entity__name }}</td>
                     <td>${{ balance.total_debits|floatformat:2|intcomma }}</td>
                     <td>${{ balance.total_credits|floatformat:2|intcomma }}</td>
