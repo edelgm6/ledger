@@ -4,8 +4,7 @@ from django.views import View
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Sum, Case, When, F, Value, DecimalField
-from django.db.models.functions import Round
-from api.models import Account, JournalEntryItem
+from api.models import Account, JournalEntryItem, Entity
 from api.forms import JournalEntryItemEntityForm
 
 # TODO: Create a mixin to handle common logic
@@ -27,7 +26,7 @@ class EntityTagMixin:
                     output_field=DecimalField()
                 )
             ),
-            balance=F('total_debits') - F('total_credits')
+            balance=F('total_credits') - F('total_debits')
         )
         return entities_balances
 
@@ -72,6 +71,22 @@ class EntityTagMixin:
             }
         )
         return html
+
+
+class EntityHistoryTable(LoginRequiredMixin, EntityTagMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'    
+
+    def get(self, request, entity_id):
+        journal_entry_items = JournalEntryItem.objects.filter(entity__pk=entity_id).select_related('journal_entry__transaction').order_by('journal_entry__date')
+        html = render_to_string(
+            'api/tables/entity-history-table.html',
+            {
+                'journal_entry_items': journal_entry_items
+            }
+        )
+        return HttpResponse(html)
+
 
 class TagEntitiesForm(LoginRequiredMixin, EntityTagMixin, View):
     login_url = '/login/'
