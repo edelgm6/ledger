@@ -213,7 +213,7 @@ class JournalEntryTableView(TransactionsViewMixin, JournalEntryViewMixin, LoginR
                 'entry_form': entry_form_html,
                 'table': table_html,
                 'paystubs_table': paystubs_table_html,
-                'transaction_id': transaction.id,
+                'transaction_id': transaction.id if transaction else None,
                 'index': 0
             }
 
