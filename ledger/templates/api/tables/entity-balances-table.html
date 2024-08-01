@@ -1,0 +1,23 @@
+{% load humanize %}
+<div id="payables-receivables-table" class="table-responsive">
+    <table class="table table-hover table-sm">
+        <thead>
+            <tr>
+                <th>Entity Name</th>
+                <th>Total Debits</th>
+                <th>Total Credits</th>
+                <th>Balance</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for balance in entities_balances %}
+                <tr>
+                    <td>{{ balance.entity__name }}</td>
+                    <td>${{ balance.total_debits|floatformat:2|intcomma }}</td>
+                    <td>${{ balance.total_credits|floatformat:2|intcomma }}</td>
+                    <td>${{ balance.balance|floatformat:2|intcomma }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
