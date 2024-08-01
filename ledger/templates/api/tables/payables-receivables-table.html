@@ -14,7 +14,7 @@
                 <tbody>
                     {% for payable_receivable in payables_receivables %}
                     <tr
-                        class="clickable-row"
+                        class="clickable-row{% if forloop.first %} table-active{% endif %}"
                         hx-get="{% url 'tag-entities-form' payable_receivable.pk %}"
                         hx-target="#form"
                     >
