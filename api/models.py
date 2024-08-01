@@ -532,6 +532,7 @@ class Account(models.Model):
         # Asset types
         CASH = 'cash', _('Cash')
         ACCOUNTS_RECEIVABLE = 'accounts_receivable', _('Accounts Receivable')
+        PREPAID_EXPENSES = 'prepaid_expenses', _('Prepaid Expenses')
         SECURITIES_UNRESTRICTED = (
             'securities_unrestricted', _('Securities-Unrestricted')
         )
@@ -571,7 +572,8 @@ class Account(models.Model):
             SubType.REAL_ESTATE,
             SubType.SECURITIES_RETIREMENT,
             SubType.SECURITIES_UNRESTRICTED,
-            SubType.ACCOUNTS_RECEIVABLE
+            SubType.ACCOUNTS_RECEIVABLE,
+            SubType.PREPAID_EXPENSES
         ],
         Type.EQUITY: [SubType.RETAINED_EARNINGS],
         Type.INCOME: [
