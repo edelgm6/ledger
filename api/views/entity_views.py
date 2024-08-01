@@ -30,7 +30,7 @@ class EntityTagMixin:
         )
         return entities_balances
 
-    def get_total_page_html(self, is_initial_load=False):
+    def get_total_page_html(self, is_initial_load=False, preloaded_entity=None):
         # Need to create a new account sub type for payables
         relevant_account_types = [
             Account.SubType.ACCOUNTS_RECEIVABLE,
@@ -47,10 +47,14 @@ class EntityTagMixin:
             initial_journal_entry_item = untagged_journal_entry_items[0]
         except KeyError:
             initial_journal_entry_item = None
+        initial_data = {
+            'entity': preloaded_entity
+        }
+        entity_form = JournalEntryItemEntityForm(instance=initial_journal_entry_item, initial=initial_data)
         form_html = render_to_string(
             'api/entry_forms/entity-tag-form.html', 
             {
-                'form': JournalEntryItemEntityForm(instance=initial_journal_entry_item),
+                'form': entity_form,
                 'journal_entry_item_id': initial_journal_entry_item.pk
             }
         )
@@ -111,7 +115,7 @@ class TagEntitiesForm(LoginRequiredMixin, EntityTagMixin, View):
         if form.is_valid():
             form.save()
 
-        html = self.get_total_page_html()
+        html = self.get_total_page_html(preloaded_entity=form.cleaned_data['entity'])
         return HttpResponse(html)
 
 class TagEntitiesView(LoginRequiredMixin, EntityTagMixin, View):
