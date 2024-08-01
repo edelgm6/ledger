@@ -40,7 +40,7 @@ class EntityTagMixin:
         untagged_journal_entry_items = JournalEntryItem.objects.filter(
             entity__isnull=True,
             account__sub_type__in=relevant_account_types
-        ).select_related('journal_entry__transaction')
+        ).select_related('journal_entry__transaction').order_by('journal_entry__date')
 
         table_html = render_to_string('api/tables/payables-receivables-table.html', {'payables_receivables': untagged_journal_entry_items})
         try:
