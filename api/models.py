@@ -104,7 +104,7 @@ class S3File(models.Model):
                     value = pandas_table.loc[table_search.row, table_search.column]
                 except KeyError:
                     continue
-
+                
                 value = clean_and_convert_string_to_decimal(value)
                 identifier = table_search.get_selection_or_account()
                 if identifier in data[table.page_id]:
