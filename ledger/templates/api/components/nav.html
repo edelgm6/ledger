@@ -7,10 +7,10 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav">
                 <li class="nav-item {% if request.resolver_match.url_name == 'journal-entries' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'journal-entries' %}" hx-get="{% url 'journal-entries' %}" hx-target="#container">Journal Entries</a>
+                    <a class="nav-link" href="{% url 'journal-entries' %}" hx-get="{% url 'journal-entries' %}" hx-target="#container">Entries</a>
                 </li>
                 <li class="nav-item {% if request.resolver_match.url_name == 'link-transactions' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'link-transactions' %}" hx-get="{% url 'link-transactions' %}" hx-target="#container">Link Transactions</a>
+                    <a class="nav-link" href="{% url 'link-transactions' %}" hx-get="{% url 'link-transactions' %}" hx-target="#container">Links</a>
                 </li>
                 <li class="nav-item {% if request.resolver_match.url_name == 'transactions' %}active{% endif %}">
                     <a class="nav-link" href="{% url 'transactions' %}" hx-get="{% url 'transactions' %}" hx-target="#container">Transactions</a>
@@ -19,13 +19,13 @@
                     <a class="nav-link" href="{% url 'taxes' %}" hx-get="{% url 'taxes' %}" hx-target="#container">Taxes</a>
                 </li>
                 <li class="nav-item {% if request.resolver_match.url_name == 'reconciliation' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'reconciliation' %}" hx-get="{% url 'reconciliation' %}" hx-target="#container">Reconciliation</a>
+                    <a class="nav-link" href="{% url 'reconciliation' %}" hx-get="{% url 'reconciliation' %}" hx-target="#container">Reconciliations</a>
                 </li>
                 <li class="nav-item {% if request.resolver_match.url_name == 'amortization' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'amortization' %}" hx-get="{% url 'amortization' %}" hx-target="#container">Amortization</a>
+                    <a class="nav-link" href="{% url 'amortization' %}" hx-get="{% url 'amortization' %}" hx-target="#container">Amortizations</a>
                 </li>
                 <li class="nav-item {% if request.resolver_match.url_name == 'tag-entities' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'tag-entities' %}" hx-get="{% url 'tag-entities' %}" hx-target="#container">Receivables/Payables</a>
+                    <a class="nav-link" href="{% url 'tag-entities' %}" hx-get="{% url 'tag-entities' %}" hx-target="#container">Balances</a>
                 </li>
                 <li class="nav-item {% if request.resolver_match.url_name == 'upload-transactions' %}active{% endif %}">
                     <a class="nav-link" href="{% url 'upload-transactions' %}" hx-get="{% url 'upload-transactions' %}" hx-target="#container">Upload/Download</a>
@@ -33,7 +33,7 @@
                 <!-- Dropdown Menu for Financial Statements -->
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        Financial Statements
+                        Financials
                     </a>
                     <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
                         <!-- hx include to maintain filters between statements -->
