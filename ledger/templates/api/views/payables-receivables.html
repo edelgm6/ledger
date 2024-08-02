@@ -12,7 +12,9 @@
             </div>
             <div class="col-md-4">
                 <div id="form">
-                    {{ form}}
+                    {% if form %}
+                        {{ form}}
+                    {% endif %}
                 </div>
             </div>
         </div>
