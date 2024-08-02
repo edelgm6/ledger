@@ -3,30 +3,30 @@
 {% endif %}
 
 <div id="table-and-form">
-    <div x-data="{ selectedRowId: {{transaction_id}}, rowIndex: {{index}} }">
-        <div class="row">
-            <div class="col-md-6">
-                <div id="table">
-                    {{ table }}
-                </div>
+    <div class="row">
+        <div class="col-md-6">
+            {% if table %}
+            <div id="table">
+                {{ table }}
             </div>
-            <div class="col-md-4">
-                <div id="form">
-                    {% if form %}
-                        {{ form}}
-                    {% endif %}
-                </div>
+            {% endif %}
+        </div>
+        <div class="col-md-4">
+            <div id="form">
+                {% if form %}
+                    {{ form }}
+                {% endif %}
             </div>
         </div>
-        <div class="row">
-            <div class="col-md-6">
-                <div id="balances-table">
-                    {{ balances_table }}
-                </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6">
+            <div id="balances-table">
+                {{ balances_table }}
             </div>
-            <div class="col-md-6">
-                <div id="history-table">
-                </div>
+        </div>
+        <div class="col-md-6">
+            <div id="history-table">
             </div>
         </div>
     </div>

@@ -4,7 +4,8 @@ from django.views import View
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Sum, Case, When, F, Value, DecimalField
-from api.models import Account, JournalEntryItem, Entity
+from django.db.models.functions import Abs
+from api.models import Account, JournalEntryItem
 from api.forms import JournalEntryItemEntityForm
 
 # TODO: Create a mixin to handle common logic
@@ -27,7 +28,10 @@ class EntityTagMixin:
                 )
             ),
             balance=F('total_credits') - F('total_debits')
-        )
+        ).annotate(
+            abs_balance=Abs(F('balance'))  # Use Django's Abs function to calculate absolute value
+        ).order_by('-abs_balance')  # Sort by absolute balance in descending order
+
         return entities_balances
 
     def get_total_page_html(self, is_initial_load=False, preloaded_entity=None):
@@ -42,7 +46,7 @@ class EntityTagMixin:
             account__sub_type__in=relevant_account_types
         ).select_related('journal_entry__transaction').order_by('journal_entry__date')
 
-        table_html = render_to_string('api/tables/payables-receivables-table.html', {'payables_receivables': untagged_journal_entry_items})
+        table_html = None if not untagged_journal_entry_items.exists() else render_to_string('api/tables/payables-receivables-table.html', {'payables_receivables': untagged_journal_entry_items})
         try:
             initial_journal_entry_item = untagged_journal_entry_items[0]
         except IndexError:
