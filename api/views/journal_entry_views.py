@@ -20,7 +20,7 @@ class JournalEntryViewMixin:
         for outstanding_textract_job_file in oustanding_textract_job_files:
             outstanding_textract_job_file.create_paystubs_from_textract_data()
 
-        paystubs = Paystub.objects.filter(journal_entry__isnull=True).prefetch_related('paystub_values').select_related('document')
+        paystubs = Paystub.objects.filter(journal_entry__isnull=True).prefetch_related('paystub_values').select_related('document').order_by('title')
         paystubs_template = 'api/tables/paystubs-table.html'
         return render_to_string(paystubs_template, {'paystubs': paystubs})
 
