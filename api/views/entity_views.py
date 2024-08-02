@@ -4,7 +4,8 @@ from django.views import View
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Sum, Case, When, F, Value, DecimalField
-from api.models import Account, JournalEntryItem, Entity
+from django.db.models.functions import Abs
+from api.models import Account, JournalEntryItem
 from api.forms import JournalEntryItemEntityForm
 
 # TODO: Create a mixin to handle common logic
@@ -27,7 +28,10 @@ class EntityTagMixin:
                 )
             ),
             balance=F('total_credits') - F('total_debits')
-        )
+        ).annotate(
+            abs_balance=Abs(F('balance'))  # Use Django's Abs function to calculate absolute value
+        ).order_by('-abs_balance')  # Sort by absolute balance in descending order
+
         return entities_balances
 
     def get_total_page_html(self, is_initial_load=False, preloaded_entity=None):
