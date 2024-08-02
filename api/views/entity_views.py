@@ -45,13 +45,13 @@ class EntityTagMixin:
         table_html = render_to_string('api/tables/payables-receivables-table.html', {'payables_receivables': untagged_journal_entry_items})
         try:
             initial_journal_entry_item = untagged_journal_entry_items[0]
-        except KeyError:
+        except IndexError:
             initial_journal_entry_item = None
         initial_data = {
             'entity': preloaded_entity
         }
         entity_form = JournalEntryItemEntityForm(instance=initial_journal_entry_item, initial=initial_data)
-        form_html = render_to_string(
+        form_html = None if initial_journal_entry_item is None else render_to_string(
             'api/entry_forms/entity-tag-form.html', 
             {
                 'form': entity_form,
