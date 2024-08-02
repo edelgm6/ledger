@@ -343,11 +343,8 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
         instances = []
         for form in self.forms:
             if form.is_valid() and form.has_changed():
-                instance = form.save(journal_entry, type, commit=False)
+                instance = form.save(journal_entry, type)
                 instances.append(instance)
-
-                if commit:
-                    instance.save()
 
         return instances
 
@@ -385,7 +382,7 @@ class JournalEntryItemForm(forms.ModelForm):
         except Account.DoesNotExist:
             raise forms.ValidationError("This Account does not exist.")
 
-    def save(self, journal_entry, type, commit=True):
+    def save(self, journal_entry, type):
         instance = super(JournalEntryItemForm, self).save(commit=False)
 
         instance.journal_entry = journal_entry
