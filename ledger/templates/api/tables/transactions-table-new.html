@@ -35,5 +35,9 @@
         </div>
     </div>
 </div>
-{% include "api/components/clickable-row-script.html" %}
+{% if double_row_click %}
+    {% include "api/components/two-row-select-script.html" %}
+{% else %}
+    {% include "api/components/clickable-row-script.html" %}
+{% endif %}
 {% include "api/components/transactions-scroll.html" %}

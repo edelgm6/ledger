@@ -50,14 +50,15 @@ class TransactionsViewMixin:
         )
 
     def get_table_html(
-            self, transactions, index=0, no_highlight=False, row_url=None
+            self, transactions, index=0, no_highlight=False, row_url=None, double_row_click=False
     ):
 
         context = {
             'transactions': transactions,
             'index': index,
             'no_highlight': no_highlight,
-            'row_url': row_url
+            'row_url': row_url,
+            'double_row_click': double_row_click
         }
 
         table_template = 'api/tables/transactions-table-new.html'
@@ -228,7 +229,7 @@ class LinkTransactionsContentView(
         if form.is_valid():
             transactions = form.get_transactions()
 
-            table_html = self.get_table_html(transactions, no_highlight=True)
+            table_html = self.get_table_html(transactions, no_highlight=True, double_row_click=True)
             link_form_html = self.get_link_form_html()
             context = {
                 'table': table_html,
@@ -256,7 +257,7 @@ class LinkTransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
             ],
             get_url=reverse('link-transactions-content')
         )
-        table_html = self.get_table_html(transactions, no_highlight=True)
+        table_html = self.get_table_html(transactions, no_highlight=True, double_row_click=True)
         link_form_html = self.get_link_form_html()
 
         context = {
@@ -284,7 +285,8 @@ class LinkTransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
                 form.save()
                 table_html = self.get_table_html(
                     transactions=transactions,
-                    no_highlight=True
+                    no_highlight=True,
+                    double_row_click=True
                 )
                 link_form_html = self.get_link_form_html()
                 context = {
