@@ -46,7 +46,7 @@ class EntityTagMixin:
             account__sub_type__in=relevant_account_types
         ).select_related('journal_entry__transaction').order_by('journal_entry__date')
 
-        table_html = render_to_string('api/tables/payables-receivables-table.html', {'payables_receivables': untagged_journal_entry_items})
+        table_html = None if not untagged_journal_entry_items.exists() else render_to_string('api/tables/payables-receivables-table.html', {'payables_receivables': untagged_journal_entry_items})
         try:
             initial_journal_entry_item = untagged_journal_entry_items[0]
         except IndexError:
