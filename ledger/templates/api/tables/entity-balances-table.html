@@ -1,4 +1,5 @@
 {% load humanize %}
+<h4>Balances</h4>
 <div id="payables-receivables-table" class="table-responsive">
     <table class="table table-hover table-sm">
         <thead>
@@ -25,3 +26,6 @@
         </tbody>
     </table>
 </div>
+{% block extra_js %}
+{% include "api/components/clickable-row-script.html" %}
+{% endblock %}
