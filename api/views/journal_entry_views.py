@@ -287,7 +287,7 @@ class JournalEntryView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequir
             'entry_form': entry_form_html,
             'paystubs_table': paystubs_table_html,
             'index': 0,
-            'transaction_id': transactions[index].pk if transactions else None,
+            'transaction_id': transactions[0].pk if transactions else None,
             'is_initial_load': True
         }
 
