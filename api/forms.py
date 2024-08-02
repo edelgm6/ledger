@@ -8,12 +8,25 @@ from django.core.exceptions import ValidationError
 from django.conf import settings
 from api.models import (
     Amortization, Transaction, Account, JournalEntryItem,
-    TaxCharge, Reconciliation, JournalEntry, S3File, Prefill
+    TaxCharge, Reconciliation, JournalEntry, S3File, Prefill,
+    Entity
 )
 from api import utils
 from api.factories import ReconciliationFactory
 from api.aws_services import upload_file_to_s3
 
+
+class JournalEntryItemEntityForm(forms.ModelForm):
+    entity = forms.ModelChoiceField(
+        queryset=Entity.objects.all().order_by('name'),
+        required=True
+    )
+
+    class Meta:
+        model = JournalEntryItem
+        fields = [
+            'entity',
+        ]
 
 class DocumentForm(forms.Form):
     document = forms.FileField()
@@ -330,11 +343,8 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
         instances = []
         for form in self.forms:
             if form.is_valid() and form.has_changed():
-                instance = form.save(journal_entry, type, commit=False)
+                instance = form.save(journal_entry, type)
                 instances.append(instance)
-
-                if commit:
-                    instance.save()
 
         return instances
 
@@ -372,7 +382,7 @@ class JournalEntryItemForm(forms.ModelForm):
         except Account.DoesNotExist:
             raise forms.ValidationError("This Account does not exist.")
 
-    def save(self, journal_entry, type, commit=True):
+    def save(self, journal_entry, type):
         instance = super(JournalEntryItemForm, self).save(commit=False)
 
         instance.journal_entry = journal_entry

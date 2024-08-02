@@ -7,6 +7,15 @@ from textractor.entities.document import Document
 from api.aws_services import create_textract_job, get_textract_results, clean_and_convert_string_to_decimal, clean_string, convert_table_to_cleaned_dataframe
 
 
+class Entity(models.Model):
+    name = models.CharField(max_length=200, unique=True)
+
+    class Meta:
+        verbose_name_plural = 'entities'
+
+    def __str__(self):
+        return self.name
+
 class S3File(models.Model):
     prefill = models.ForeignKey('Prefill', on_delete=models.PROTECT)
     url = models.URLField(max_length=200, unique=True)
@@ -95,7 +104,7 @@ class S3File(models.Model):
                     value = pandas_table.loc[table_search.row, table_search.column]
                 except KeyError:
                     continue
-
+                
                 value = clean_and_convert_string_to_decimal(value)
                 identifier = table_search.get_selection_or_account()
                 if identifier in data[table.page_id]:
@@ -519,9 +528,11 @@ class Account(models.Model):
         SHORT_TERM_DEBT = 'short_term_debt', _('Short-term Debt')
         TAXES_PAYABLE = 'taxes_payable', _('Taxes Payable')
         LONG_TERM_DEBT = 'long_term_debt', _('Long-term Debt')
+        ACCOUNTS_PAYABLE = 'accounts_payable', _('Accounts Payable')
         # Asset types
         CASH = 'cash', _('Cash')
         ACCOUNTS_RECEIVABLE = 'accounts_receivable', _('Accounts Receivable')
+        PREPAID_EXPENSES = 'prepaid_expenses', _('Prepaid Expenses')
         SECURITIES_UNRESTRICTED = (
             'securities_unrestricted', _('Securities-Unrestricted')
         )
@@ -553,14 +564,16 @@ class Account(models.Model):
         Type.LIABILITY: [
             SubType.SHORT_TERM_DEBT,
             SubType.LONG_TERM_DEBT,
-            SubType.TAXES_PAYABLE
+            SubType.TAXES_PAYABLE,
+            SubType.ACCOUNTS_PAYABLE
         ],
         Type.ASSET: [
             SubType.CASH,
             SubType.REAL_ESTATE,
             SubType.SECURITIES_RETIREMENT,
             SubType.SECURITIES_UNRESTRICTED,
-            SubType.ACCOUNTS_RECEIVABLE
+            SubType.ACCOUNTS_RECEIVABLE,
+            SubType.PREPAID_EXPENSES
         ],
         Type.EQUITY: [SubType.RETAINED_EARNINGS],
         Type.INCOME: [
@@ -674,6 +687,7 @@ class JournalEntryItem(models.Model):
     type = models.CharField(max_length=6, choices=JournalEntryType.choices)
     amount = models.DecimalField(decimal_places=2, max_digits=12)
     account = models.ForeignKey('Account', on_delete=models.PROTECT)
+    entity = models.ForeignKey('Entity', on_delete=models.SET_NULL, null=True, blank=True, related_name='journal_entry_items')
 
     class Meta:
         indexes = [

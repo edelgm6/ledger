@@ -1,0 +1,32 @@
+{% load humanize %}
+<div class="row">
+    <div class="col-md-12">
+        <form
+            method="post"
+            hx-post="{% url 'tag-entities-form' journal_entry_item_id %}"
+            hx-swap="outerHTML"
+            hx-target="#table-and-form"
+            class="form-group form-sm"
+        >
+        {% csrf_token %}
+            <!-- Date Field -->
+            <div class="form-row mb-3">
+                <div class="col-md-12">
+                    <select class="form-control" name="entity" id="id_entity">
+                        {% for entity in form.entity.field.queryset %}
+                            <option value="{{ entity.pk }}" {% if form.entity.value == entity.pk %} selected {% endif %}>
+                                {{ entity }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <!-- Submit Button -->
+            <div class="form-row">
+                <div class="col-auto">
+                    <button type="submit" name="action" value="create" class="btn btn-primary mb-3">Add Entity</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>

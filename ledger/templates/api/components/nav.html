@@ -1,4 +1,4 @@
-<nav class="navbar navbar-expand-lg navbar-light bg-light">
+<nav class="navbar navbar-expand-lg navbar-light bg-light mb-3">
     <div class="container">
         <a class="navbar-brand" href="/">Ledger</a>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -23,6 +23,9 @@
                 </li>
                 <li class="nav-item {% if request.resolver_match.url_name == 'amortization' %}active{% endif %}">
                     <a class="nav-link" href="{% url 'amortization' %}" hx-get="{% url 'amortization' %}" hx-target="#container">Amortization</a>
+                </li>
+                <li class="nav-item {% if request.resolver_match.url_name == 'tag-entities' %}active{% endif %}">
+                    <a class="nav-link" href="{% url 'tag-entities' %}" hx-get="{% url 'tag-entities' %}" hx-target="#container">Receivables/Payables</a>
                 </li>
                 <li class="nav-item {% if request.resolver_match.url_name == 'upload-transactions' %}active{% endif %}">
                     <a class="nav-link" href="{% url 'upload-transactions' %}" hx-get="{% url 'upload-transactions' %}" hx-target="#container">Upload/Download</a>

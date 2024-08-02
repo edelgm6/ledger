@@ -20,7 +20,7 @@ class JournalEntryViewMixin:
         for outstanding_textract_job_file in oustanding_textract_job_files:
             outstanding_textract_job_file.create_paystubs_from_textract_data()
 
-        paystubs = Paystub.objects.filter(journal_entry__isnull=True).prefetch_related('paystub_values').select_related('document')
+        paystubs = Paystub.objects.filter(journal_entry__isnull=True).prefetch_related('paystub_values').select_related('document').order_by('title')
         paystubs_template = 'api/tables/paystubs-table.html'
         return render_to_string(paystubs_template, {'paystubs': paystubs})
 
@@ -213,7 +213,7 @@ class JournalEntryTableView(TransactionsViewMixin, JournalEntryViewMixin, LoginR
                 'entry_form': entry_form_html,
                 'table': table_html,
                 'paystubs_table': paystubs_table_html,
-                'transaction_id': transaction.id,
+                'transaction_id': transaction.id if transaction else None,
                 'index': 0
             }
 
@@ -287,7 +287,7 @@ class JournalEntryView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequir
             'entry_form': entry_form_html,
             'paystubs_table': paystubs_table_html,
             'index': 0,
-            'transaction_id': transactions[0].pk,
+            'transaction_id': transactions[0].pk if transactions else None,
             'is_initial_load': True
         }
 
@@ -381,7 +381,7 @@ class JournalEntryView(TransactionsViewMixin, JournalEntryViewMixin, LoginRequir
             'table': table_html,
             'entry_form': entry_form_html,
             'index': index,
-            'transaction_id': transactions[index].pk,
+            'transaction_id': transactions[index].pk if transactions else None,
             'paystubs_table': paystubs_table_html
         }
         html = render_to_string(self.view_template, context)
