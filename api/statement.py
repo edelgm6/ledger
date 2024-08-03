@@ -290,7 +290,9 @@ class CashFlowStatement(Statement):
         accounts_receivable_accounts = [balance for balance in self.balance_sheet_deltas if balance.account.sub_type == Account.SubType.ACCOUNTS_RECEIVABLE]
         short_term_debt_accounts = [balance for balance in self.balance_sheet_deltas if balance.account.sub_type == Account.SubType.SHORT_TERM_DEBT]
         taxes_payable_accounts = [balance for balance in self.balance_sheet_deltas if balance.account.sub_type == Account.SubType.TAXES_PAYABLE]
-        return net_income_less_gains_and_losses + accounts_receivable_accounts + short_term_debt_accounts + taxes_payable_accounts
+        prepaid_expenses_accounts = [balance for balance in self.balance_sheet_deltas if balance.account.sub_type == Account.SubType.PREPAID_EXPENSES]
+        accounts_payable_accounts = [balance for balance in self.balance_sheet_deltas if balance.account.sub_type == Account.SubType.ACCOUNTS_PAYABLE]
+        return net_income_less_gains_and_losses + accounts_receivable_accounts + prepaid_expenses_accounts + short_term_debt_accounts + accounts_payable_accounts + taxes_payable_accounts
 
     def get_cash_from_financing_balances(self):
         long_term_debt = [balance for balance in self.balance_sheet_deltas if balance.account.sub_type == Account.SubType.LONG_TERM_DEBT]
