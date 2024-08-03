@@ -563,17 +563,17 @@ class Account(models.Model):
     SUBTYPE_TO_TYPE_MAP = {
         Type.LIABILITY: [
             SubType.SHORT_TERM_DEBT,
-            SubType.LONG_TERM_DEBT,
+            SubType.ACCOUNTS_PAYABLE,
             SubType.TAXES_PAYABLE,
-            SubType.ACCOUNTS_PAYABLE
+            SubType.LONG_TERM_DEBT
         ],
         Type.ASSET: [
             SubType.CASH,
-            SubType.REAL_ESTATE,
-            SubType.SECURITIES_RETIREMENT,
-            SubType.SECURITIES_UNRESTRICTED,
             SubType.ACCOUNTS_RECEIVABLE,
-            SubType.PREPAID_EXPENSES
+            SubType.PREPAID_EXPENSES,
+            SubType.SECURITIES_UNRESTRICTED,
+            SubType.SECURITIES_RETIREMENT,
+            SubType.REAL_ESTATE
         ],
         Type.EQUITY: [SubType.RETAINED_EARNINGS],
         Type.INCOME: [
