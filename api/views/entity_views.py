@@ -87,6 +87,16 @@ class EntityHistoryTable(LoginRequiredMixin, EntityTagMixin, View):
 
     def get(self, request, entity_id):
         journal_entry_items = JournalEntryItem.objects.filter(entity__pk=entity_id).select_related('journal_entry__transaction').order_by('journal_entry__date')
+        
+        balance = 0
+        for journal_entry_item in journal_entry_items:
+            if journal_entry_item.type == JournalEntryItem.JournalEntryType.DEBIT:
+                balance -= journal_entry_item.amount
+            else:
+                balance += journal_entry_item.amount
+
+            journal_entry_item.balance = balance
+
         html = render_to_string(
             'api/tables/entity-history-table.html',
             {
