@@ -5,8 +5,8 @@
             <tr>
                 <th>Date</th>
                 <th>Transaction</th>
-                <th>Type</th>
                 <th>Amount</th>
+                <th>Balance</th>
             </tr>
         </thead>
         <tbody>
@@ -14,8 +14,8 @@
                 <tr>
                     <td>{{ entry.journal_entry.date }}</td>
                     <td>{{ entry.journal_entry.transaction.description }}</td>
-                    <td>{{ entry.type }}</td>
                     <td>{% if entry.type == "debit" %}-{% endif %}${{ entry.amount|floatformat:2|intcomma }}</td>
+                    <td>${{ entry.balance|floatformat:2|intcomma }}</td>
                 </tr>
             {% endfor %}
         </tbody>
