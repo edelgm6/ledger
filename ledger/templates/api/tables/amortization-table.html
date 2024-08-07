@@ -1,4 +1,6 @@
 {% load humanize %}
+{% if amortizations %}
+<h4>Open Amortizations</h4>
 <div class="row">
     <div class="col-md-12">
         <div id="amortization-table" class="table-responsive">
@@ -35,3 +37,4 @@
 {% block extra_js %}
 {% include "api/components/clickable-row-script.html" %}
 {% endblock %}
+{% endif %}
