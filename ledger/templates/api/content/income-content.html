@@ -51,7 +51,7 @@
                         <tbody>
                             {% for account in summary.income.balances %}
                                 {% for balance in account.balances %}
-                                <tr>
+                                <tr class="clickable-row">
                                     <td class="col-8">{{ balance.account }}</td>
                                     <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
                                 </tr>
@@ -71,7 +71,7 @@
                                 <td class="col-4"><strong>${{ account.total|floatformat:"0"|intcomma }}</strong></td>
                             </tr>
                             {% for balance in account.balances %}
-                            <tr>
+                            <tr class="clickable-row">
                                 <td class="col-8">{{ balance.account }}</td>
                                 <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
                             </tr>
