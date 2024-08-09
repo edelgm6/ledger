@@ -1,0 +1,21 @@
+{% load humanize %}
+<div id="statement-detail-table" class="table-responsive">
+    <table class="table table-hover table-sm">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Transaction</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in journal_entry_items %}
+                <tr>
+                    <td>{{ entry.journal_entry.date }}</td>
+                    <td>{{ entry.journal_entry.transaction.description }}</td>
+                    <td>{% if entry.type == "credit" %}-{% endif %}${{ entry.amount|floatformat:2|intcomma }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
