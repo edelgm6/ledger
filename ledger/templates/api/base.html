@@ -60,7 +60,9 @@
         /* Style to make the table container fixed and scrollable */
         .fixed-table-container {
             position: fixed;
-
+            top: 120px; /* Adjust as needed */
+            bottom: 20px; /* Adjust as needed */
+            width: 400px; /* Adjust as needed */
             max-height: 70vh; /* Adjust as needed */
             overflow-y: auto;
         }
@@ -69,6 +71,12 @@
             top: 0;
             background: white;
             z-index: 1;
+        }
+        .transaction-column {
+            max-width: 250px; /* Adjust as necessary */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
     </style>
