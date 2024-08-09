@@ -136,7 +136,14 @@ class StatementDetailView(LoginRequiredMixin, View):
             journal_entry__date__gte=from_date,
             journal_entry__date__lte=to_date,
             amount__gte=0
-        ).select_related('journal_entry__transaction').order_by('journal_entry__date')
+        ).select_related('journal_entry__transaction', 'account').order_by('journal_entry__date')
+
+        for entry in journal_entry_items:
+            entry.amount_signed = entry.amount
+            if entry.account.type == Account.Type.INCOME and entry.type == JournalEntryItem.JournalEntryType.DEBIT:
+                entry.amount_signed *= -1
+            if entry.account.type == Account.Type.EXPENSE and entry.type == JournalEntryItem.JournalEntryType.CREDIT:
+                entry.amount_signed *= -1
 
         html = render_to_string(
             template,
