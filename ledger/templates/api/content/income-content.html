@@ -24,58 +24,72 @@
         </div>
     </div>
 
-    <!-- Existing content -->
     <div class="row">
-        <div class="col-md-4">
-            <h4>Income: ${{ summary.income.total|floatformat:"0"|intcomma }}</h4>
-            <table class="table table-hover table-sm">
-                <tbody>
-                    {% for account in summary.income.balances %}
-                        {% for balance in account.balances %}
-                        <tr>
-                            <td class="col-8">{{ balance.account }}</td>
-                            <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
-                        </tr>
-                        {% endfor %}
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        <div class="col-md-8">
 
-        <div class="col-md-4">
-            <h4>Expenses: ${{ summary.expense.total|floatformat:"0"|intcomma }}</h4>
-            {% for account in summary.expense.balances %}
-            <table class="table table-hover table-sm">
-                <tbody>
-                    <tr>
-                        <td class="col-8"><strong>{{ account.name }}</strong></td>
-                        <td class="col-4"><strong>${{ account.total|floatformat:"0"|intcomma }}</strong></td>
-                    </tr>
-                    {% for balance in account.balances %}
-                    <tr>
-                        <td class="col-8">{{ balance.account }}</td>
-                        <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% endfor %}
-        </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <h4>Net Income: ${{ summary.equity.total|floatformat:"0"|intcomma }}</h4>
+                    <table class="table table-hover table-sm">
+                        <tbody>
+                            {% for account in summary.equity.balances %}
+                                {% for balance in account.balances %}
+                                <tr>
+                                    <td class="col-8">{{ balance.account }}</td>
+                                    <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <h4>Income: ${{ summary.income.total|floatformat:"0"|intcomma }}</h4>
+                    <table class="table table-hover table-sm">
+                        <tbody>
+                            {% for account in summary.income.balances %}
+                                {% for balance in account.balances %}
+                                <tr>
+                                    <td class="col-8">{{ balance.account }}</td>
+                                    <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
 
-        <div class="col-md-4">
-            <h4>Net Income: ${{ summary.equity.total|floatformat:"0"|intcomma }}</h4>
-            <table class="table table-hover table-sm">
-                <tbody>
-                    {% for account in summary.equity.balances %}
-                        {% for balance in account.balances %}
-                        <tr>
-                            <td class="col-8">{{ balance.account }}</td>
-                            <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
-                        </tr>
-                        {% endfor %}
+                <div class="col-md-6">
+                    <h4>Expenses: ${{ summary.expense.total|floatformat:"0"|intcomma }}</h4>
+                    {% for account in summary.expense.balances %}
+                    <table class="table table-hover table-sm">
+                        <tbody>
+                            <tr>
+                                <td class="col-8"><strong>{{ account.name }}</strong></td>
+                                <td class="col-4"><strong>${{ account.total|floatformat:"0"|intcomma }}</strong></td>
+                            </tr>
+                            {% for balance in account.balances %}
+                            <tr>
+                                <td class="col-8">{{ balance.account }}</td>
+                                <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                     {% endfor %}
-                </tbody>
-            </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="row">
+                <div class="col-md-12">
+                    <div id="detail">
+                        placeholder
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
