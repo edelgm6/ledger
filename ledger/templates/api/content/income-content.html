@@ -51,7 +51,11 @@
                         <tbody>
                             {% for account in summary.income.balances %}
                                 {% for balance in account.balances %}
-                                <tr class="clickable-row">
+                                <tr 
+                                    class="clickable-row"
+                                    hx-get="{% url 'statement-detail' balance.account.id %}?from_date={{ from_date|date:"Y-m-d" }}&to_date={{ to_date|date:"Y-m-d" }}"
+                                    hx-target="#detail"
+                                >
                                     <td class="col-8">{{ balance.account }}</td>
                                     <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
                                 </tr>
@@ -71,7 +75,11 @@
                                 <td class="col-4"><strong>${{ account.total|floatformat:"0"|intcomma }}</strong></td>
                             </tr>
                             {% for balance in account.balances %}
-                            <tr class="clickable-row">
+                            <tr 
+                                class="clickable-row"
+                                hx-get="{% url 'statement-detail' balance.account.id %}?from_date={{ from_date|date:"Y-m-d" }}&to_date={{ to_date|date:"Y-m-d" }}"
+                                hx-target="#detail"
+                            >
                                 <td class="col-8">{{ balance.account }}</td>
                                 <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
                             </tr>
@@ -86,7 +94,6 @@
             <div class="row">
                 <div class="col-md-12">
                     <div id="detail">
-                        placeholder
                     </div>
                 </div>
             </div>

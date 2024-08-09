@@ -9,7 +9,7 @@ from api.views.journal_entry_views import JournalEntryView, JournalEntryFormView
 from api.views.tax_views import TaxChargeTableView,TaxChargeFormView, TaxesView
 from api.views.reconciliation_views import ReconciliationTableView, ReconciliationView
 from api.views.amortization_views import AmortizationFormView, AmortizationView, AmortizeFormView
-from api.views.statement_views import StatementView
+from api.views.statement_views import StatementView, StatementDetailView
 from api.views.entity_views import TagEntitiesView, TagEntitiesForm, EntityHistoryTable
 
 urlpatterns = [
@@ -21,6 +21,7 @@ urlpatterns = [
 
     # Statements
     path('statements/<str:statement_type>/', StatementView.as_view(), name='statements'),
+    path('statements/detail/<int:account_id>', StatementDetailView.as_view(), name='statement-detail'),
 
     # JE page
     path('journal-entries/', JournalEntryView.as_view(), name='journal-entries'),
