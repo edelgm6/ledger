@@ -134,7 +134,8 @@ class StatementDetailView(LoginRequiredMixin, View):
         journal_entry_items = JournalEntryItem.objects.filter(
             account__pk=account_id, 
             journal_entry__date__gte=from_date,
-            journal_entry__date__lte=to_date
+            journal_entry__date__lte=to_date,
+            amount__gte=0
         ).select_related('journal_entry__transaction').order_by('journal_entry__date')
 
         html = render_to_string(
