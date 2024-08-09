@@ -13,7 +13,9 @@
                 <tr>
                     <td>{{ entry.journal_entry.date }}</td>
                     <td>{{ entry.journal_entry.transaction.description }}</td>
-                    <td>{% if entry.type == "credit" %}-{% endif %}${{ entry.amount|floatformat:2|intcomma }}</td>
+                    <td>
+                        ${{ entry.amount_signed|floatformat:2|intcomma }}
+                    </td>
                 </tr>
             {% endfor %}
         </tbody>
