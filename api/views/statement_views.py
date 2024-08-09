@@ -5,7 +5,7 @@ from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse
 from api.statement import IncomeStatement, BalanceSheet, CashFlowStatement
-from api.models import Account
+from api.models import Account, JournalEntryItem
 from api.forms import FromToDateForm
 from api import utils
 
@@ -72,7 +72,9 @@ class StatementMixIn:
         context = {
             'summary': summary,
             'tax_rate': 0 if not income_statement.get_tax_rate() else income_statement.get_tax_rate(),
-            'savings_rate': 0 if not income_statement.get_savings_rate() else income_statement.get_savings_rate()
+            'savings_rate': 0 if not income_statement.get_savings_rate() else income_statement.get_savings_rate(),
+            'from_date': from_date,
+            'to_date': to_date
         }
 
         template = 'api/content/income-content.html'
@@ -116,6 +118,38 @@ class StatementMixIn:
 
         template = 'api/content/cash-flow-content.html'
         return render_to_string(template, context)
+
+
+class StatementDetailView(LoginRequiredMixin, View):
+    login_url = '/login/'
+    redirect_field_name = 'next'
+
+    def get(self, request, account_id, *args, **kwargs):
+        from_date = request.GET.get('from_date')
+        to_date = request.GET.get('to_date')
+        print(from_date)
+
+        template = 'api/tables/statement-detail-table.html'
+
+        journal_entry_items = JournalEntryItem.objects.filter(
+            account__pk=account_id, 
+            journal_entry__date__gte=from_date,
+            journal_entry__date__lte=to_date,
+            amount__gte=0
+        ).select_related('journal_entry__transaction', 'account').order_by('journal_entry__date')
+
+        for entry in journal_entry_items:
+            entry.amount_signed = entry.amount
+            if entry.account.type == Account.Type.INCOME and entry.type == JournalEntryItem.JournalEntryType.DEBIT:
+                entry.amount_signed *= -1
+            if entry.account.type == Account.Type.EXPENSE and entry.type == JournalEntryItem.JournalEntryType.CREDIT:
+                entry.amount_signed *= -1
+
+        html = render_to_string(
+            template,
+            {'journal_entry_items': journal_entry_items}
+        )
+        return HttpResponse(html)
 
 
 class StatementView(StatementMixIn, LoginRequiredMixin, View):
