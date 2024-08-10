@@ -1,5 +1,6 @@
 import math
 import datetime
+import re
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -854,7 +855,8 @@ class CSVProfile(models.Model):
             # Loop through AutoTags to find
             # the first match with the description
             for tag in AutoTag.objects.all():
-                if tag.search_string.lower() in row[self.description].lower():
+                cleaned_description = re.sub(' +', ' ', row[self.description].strip().lower())
+                if tag.search_string.lower() in cleaned_description:
                     suggested_account = tag.account
                     prefill = tag.prefill
                     # Only override the transaction type
