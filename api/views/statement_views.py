@@ -135,7 +135,7 @@ class StatementDetailView(LoginRequiredMixin, View):
             account__pk=account_id, 
             journal_entry__date__gte=from_date,
             journal_entry__date__lte=to_date,
-            amount__gte=0
+            amount__gt=0
         ).select_related('journal_entry__transaction', 'account').order_by('journal_entry__date')
 
         for entry in journal_entry_items:
