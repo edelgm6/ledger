@@ -88,8 +88,8 @@ class DateForm(forms.Form):
 
 
 class AmortizationForm(forms.ModelForm):
-    accrued_transaction = forms.ModelChoiceField(
-        queryset=Transaction.objects.all(),
+    accrued_journal_entry_item = forms.ModelChoiceField(
+        queryset=JournalEntryItem.objects.all(),
         widget=forms.HiddenInput()
     )
     suggested_account = forms.ModelChoiceField(
@@ -99,7 +99,7 @@ class AmortizationForm(forms.ModelForm):
     class Meta:
         model = Amortization
         fields = [
-            'accrued_transaction',
+            'accrued_journal_entry_item',
             'periods',
             'description',
             'suggested_account'
@@ -115,8 +115,8 @@ class AmortizationForm(forms.ModelForm):
 
     def save(self, commit=True):
         instance = super(AmortizationForm, self).save(commit=False)
-        transaction = self.cleaned_data['accrued_transaction']
-        instance.amount = abs(transaction.amount)
+        journal_entry_item = self.cleaned_data['accrued_journal_entry_item']
+        instance.amount = abs(journal_entry_item.amount)
 
         if commit:
             instance.save()

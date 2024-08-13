@@ -8,20 +8,19 @@ from api.forms import AmortizationForm, DateForm
 
 class AmortizationTableMixin:
     def get_amortization_table_html(self):
-        amortizations = Amortization.objects.select_related('accrued_journal_entry_item').filter(is_closed=False)
+        amortizations = Amortization.objects.select_related('accrued_journal_entry_item__journal_entry__transaction','suggested_account').filter(is_closed=False)
         for amortization in amortizations:
-            amortization.remaining_balance = amortization.get_remaining_balance()
-            amortization.remaining_periods = amortization.get_remaining_periods()
+            remaining_balance, remaining_periods = amortization.get_remaining_balance_and_periods()
+            amortization.remaining_balance = remaining_balance
+            amortization.remaining_periods = remaining_periods
         return render_to_string('api/tables/amortization-table.html',{'amortizations': amortizations})
 
     def get_unattached_prepaids_table_html(self):
         prepaid_table_template = 'api/tables/unattached-prepaids.html'
         unattached_journal_entries = JournalEntryItem.objects.filter(
             account__special_type=Account.SpecialType.PREPAID_EXPENSES,
-            amortization__isnull=True
-        ).exclude(
-            accrued_journal_entry_items=False
-        ).select_related('journal_entry__transaction')
+            accrued_journal_entry_item__isnull=True
+        ).select_related('journal_entry__transaction','account')
         # unattached_transactions = Transaction.objects.filter(
         #     journal_entry__journal_entry_items__account__special_type=Account.SpecialType.PREPAID_EXPENSES,
         #     amortization__isnull=True
@@ -30,10 +29,10 @@ class AmortizationTableMixin:
         # )
         return render_to_string(prepaid_table_template,{'journal_entry_items': unattached_journal_entries})
 
-    def get_amortization_form_html(self, transaction=None):
+    def get_amortization_form_html(self, journal_entry_item=None):
         form = AmortizationForm()
-        if transaction:
-            form.initial['accrued_transaction'] = transaction
+        if journal_entry_item:
+            form.initial['accrued_journal_entry_item'] = journal_entry_item
         form_template = 'api/entry_forms/amortization-form.html'
         return render_to_string(form_template,{'form': form})
 
@@ -77,6 +76,7 @@ class AmortizationFormView(AmortizationTableMixin, LoginRequiredMixin, View):
 
     def get(self, request, journal_entry_item_id):
         journal_entry_item = get_object_or_404(JournalEntryItem, pk=journal_entry_item_id)
+        print(journal_entry_item)
         amortization_form_html = self.get_amortization_form_html(journal_entry_item)
         return HttpResponse(amortization_form_html)
 
@@ -114,6 +114,7 @@ class AmortizationView(AmortizationTableMixin, LoginRequiredMixin, View):
 
     def post(self, request):
         form = AmortizationForm(request.POST)
+
         if form.is_valid():
             form.save()
             unattached_transactions_html = self.get_unattached_prepaids_table_html()

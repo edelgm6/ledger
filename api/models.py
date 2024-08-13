@@ -127,7 +127,7 @@ class Amortization(models.Model):
     accrued_journal_entry_item = models.OneToOneField(
         'JournalEntryItem',
         on_delete=models.CASCADE,
-        related_name='accrued_journal_entry_items',
+        related_name='accrued_journal_entry_item',
         null=True
     )
     amount = models.DecimalField(decimal_places=2, max_digits=12)
@@ -142,18 +142,19 @@ class Amortization(models.Model):
         return math.floor(n * multiplier) / multiplier
 
     def get_related_transactions(self):
-        return self.transactions.all().order_by('-date')
+        return self.transactions.all()
 
-    def get_remaining_periods(self):
-        related_transactions_count = len(self.get_related_transactions())
-        return self.periods - related_transactions_count
-
-    def get_remaining_balance(self):
+    def get_remaining_balance_and_periods(self):
         related_transactions = self.get_related_transactions()
         total_amortized = sum(
             [transaction.amount for transaction in related_transactions]
         )
-        return self.amount + total_amortized
+        remaining_balance = self.amount + total_amortized
+
+        related_transactions_count = len(related_transactions)
+        remaining_periods = self.periods - related_transactions_count
+
+        return remaining_balance, remaining_periods
 
     def amortize(self, date):
         starting_amortization_count = len(self.get_related_transactions())
@@ -161,7 +162,7 @@ class Amortization(models.Model):
         if self.periods - starting_amortization_count == 0 or self.is_closed:
             raise ValidationError('Cannot further amortize')
         elif self.periods - starting_amortization_count == 1:
-            amortization_amount = self.get_remaining_balance()
+            amortization_amount, _ = self.get_remaining_balance_and_periods()
             is_final_amortization = True
         else:
             amortization_amount = self._round_down(self.amount / self.periods)
@@ -357,6 +358,13 @@ class Transaction(models.Model):
         on_delete=models.PROTECT,
         null=True,
         blank=True
+    )
+    amortization = models.ForeignKey(
+        'Amortization',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='transactions'
     )
 
     objects = TransactionManager()
@@ -688,13 +696,6 @@ class JournalEntryItem(models.Model):
     amount = models.DecimalField(decimal_places=2, max_digits=12)
     account = models.ForeignKey('Account', on_delete=models.PROTECT)
     entity = models.ForeignKey('Entity', on_delete=models.SET_NULL, null=True, blank=True, related_name='journal_entry_items')
-    amortization = models.ForeignKey(
-        'Amortization',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name='journal_entry_items'
-    )
 
     class Meta:
         indexes = [
