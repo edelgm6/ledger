@@ -136,6 +136,9 @@ class Amortization(models.Model):
     description = models.CharField(max_length=200)
     suggested_account = models.ForeignKey('Account', on_delete=models.PROTECT)
 
+    def __str__(self):
+        return self.description + ' $' + str(self.amount)
+
     @staticmethod
     def _round_down(n, decimals=2):
         multiplier = 10 ** decimals
@@ -178,7 +181,7 @@ class Amortization(models.Model):
             amount=amortization_amount * -1,
             description=(
                 self.description +
-                ' amorization #' +
+                ' amortization #' +
                 str(len(self.get_related_transactions()) + 1)
             ),
             suggested_account=self.suggested_account,
