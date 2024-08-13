@@ -17,9 +17,13 @@ class AmortizationTableMixin:
 
     def get_unattached_prepaids_table_html(self):
         prepaid_table_template = 'api/tables/unattached-prepaids.html'
+        
+        # Get all JEIs where it's a prepaid expense account, there is no
+        # existing amortization, and it's not part of an amortizing txn
         unattached_journal_entries = JournalEntryItem.objects.filter(
             account__special_type=Account.SpecialType.PREPAID_EXPENSES,
-            accrued_journal_entry_item__isnull=True
+            amortization__isnull=True,
+            journal_entry__transaction__amortization__isnull=True
         ).select_related('journal_entry__transaction','account')
         # unattached_transactions = Transaction.objects.filter(
         #     journal_entry__journal_entry_items__account__special_type=Account.SpecialType.PREPAID_EXPENSES,

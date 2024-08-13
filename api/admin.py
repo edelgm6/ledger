@@ -48,7 +48,7 @@ class JournalEntryInline(admin.StackedInline):
 
 class TransactionAdmin(ImportExportModelAdmin):
     resource_class = TransactionResource
-    list_display = ('date', 'account', 'amount', 'description', 'category', 'is_closed', 'linked_transaction')
+    list_display = ('date', 'account', 'amount', 'description', 'category', 'is_closed', 'linked_transaction', 'amortization')
     list_filter = ('account__name', 'date', 'is_closed')
     search_fields = ('description',)
     inlines = [JournalEntryInline]

@@ -127,7 +127,7 @@ class Amortization(models.Model):
     accrued_journal_entry_item = models.OneToOneField(
         'JournalEntryItem',
         on_delete=models.CASCADE,
-        related_name='accrued_journal_entry_item',
+        related_name='amortization',
         null=True
     )
     amount = models.DecimalField(decimal_places=2, max_digits=12)
