@@ -119,10 +119,16 @@ class S3File(models.Model):
         
 
 class Amortization(models.Model):
-    accrued_transaction = models.OneToOneField(
-        'Transaction',
+    # accrued_transaction = models.OneToOneField(
+    #     'Transaction',
+    #     on_delete=models.CASCADE,
+    #     related_name='accrued_amortizations'
+    # )
+    accrued_journal_entry_item = models.OneToOneField(
+        'JournalEntryItem',
         on_delete=models.CASCADE,
-        related_name='accrued_amortizations'
+        related_name='accrued_journal_entry_items',
+        null=True
     )
     amount = models.DecimalField(decimal_places=2, max_digits=12)
     periods = models.PositiveSmallIntegerField(null=True, blank=True)
@@ -345,13 +351,6 @@ class Transaction(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True
-    )
-    amortization = models.ForeignKey(
-        'Amortization',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name='transactions'
     )
     prefill = models.ForeignKey(
         'Prefill',
@@ -689,6 +688,13 @@ class JournalEntryItem(models.Model):
     amount = models.DecimalField(decimal_places=2, max_digits=12)
     account = models.ForeignKey('Account', on_delete=models.PROTECT)
     entity = models.ForeignKey('Entity', on_delete=models.SET_NULL, null=True, blank=True, related_name='journal_entry_items')
+    amortization = models.ForeignKey(
+        'Amortization',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='journal_entry_items'
+    )
 
     class Meta:
         indexes = [
