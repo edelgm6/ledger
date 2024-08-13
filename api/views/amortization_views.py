@@ -8,7 +8,10 @@ from api.forms import AmortizationForm, DateForm
 
 class AmortizationTableMixin:
     def get_amortization_table_html(self):
-        amortizations = Amortization.objects.select_related('accrued_journal_entry_item__journal_entry__transaction','suggested_account').filter(is_closed=False)
+        amortizations = Amortization.objects.select_related(
+            'accrued_journal_entry_item__journal_entry__transaction','suggested_account'
+        ).filter(is_closed=False)
+
         for amortization in amortizations:
             remaining_balance, remaining_periods = amortization.get_remaining_balance_and_periods()
             amortization.remaining_balance = remaining_balance
