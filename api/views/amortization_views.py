@@ -3,12 +3,12 @@ from django.template.loader import render_to_string
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
-from api.models import Amortization, Transaction, Account
+from api.models import Amortization, Transaction, Account, JournalEntryItem
 from api.forms import AmortizationForm, DateForm
 
 class AmortizationTableMixin:
     def get_amortization_table_html(self):
-        amortizations = Amortization.objects.select_related('accrued_transaction').filter(is_closed=False)
+        amortizations = Amortization.objects.select_related('accrued_journal_entry_item').filter(is_closed=False)
         for amortization in amortizations:
             amortization.remaining_balance = amortization.get_remaining_balance()
             amortization.remaining_periods = amortization.get_remaining_periods()
@@ -16,13 +16,19 @@ class AmortizationTableMixin:
 
     def get_unattached_prepaids_table_html(self):
         prepaid_table_template = 'api/tables/unattached-prepaids.html'
-        unattached_transactions = Transaction.objects.filter(
-            journal_entry__journal_entry_items__account__special_type=Account.SpecialType.PREPAID_EXPENSES,
+        unattached_journal_entries = JournalEntryItem.objects.filter(
+            account__special_type=Account.SpecialType.PREPAID_EXPENSES,
             amortization__isnull=True
         ).exclude(
-            accrued_amortizations__isnull=False
-        )
-        return render_to_string(prepaid_table_template,{'transactions': unattached_transactions})
+            accrued_journal_entry_items=False
+        ).select_related('journal_entry__transaction')
+        # unattached_transactions = Transaction.objects.filter(
+        #     journal_entry__journal_entry_items__account__special_type=Account.SpecialType.PREPAID_EXPENSES,
+        #     amortization__isnull=True
+        # ).exclude(
+        #     accrued_amortizations__isnull=False
+        # )
+        return render_to_string(prepaid_table_template,{'journal_entry_items': unattached_journal_entries})
 
     def get_amortization_form_html(self, transaction=None):
         form = AmortizationForm()
