@@ -145,7 +145,7 @@ class Amortization(models.Model):
         return math.floor(n * multiplier) / multiplier
 
     def get_related_transactions(self):
-        return self.transactions.all()
+        return self.transactions.all().order_by('-date')
 
     def get_remaining_balance_and_periods(self):
         related_transactions = self.get_related_transactions()
