@@ -53,7 +53,7 @@ urlpatterns = [
 
     # Amortizations
     path('amortization/', AmortizationView.as_view(), name='amortization'),
-    path('amortization/amortization-form/<int:transaction_id>/', AmortizationFormView.as_view(), name='amortization-form'),
+    path('amortization/amortization-form/<int:journal_entry_item_id>/', AmortizationFormView.as_view(), name='amortization-form'),
     path('amortization/amortize-form/<int:amortization_id>/', AmortizeFormView.as_view(), name='amortize-form'),
 
     path('tag/', TagEntitiesView.as_view(), name='tag-entities'),

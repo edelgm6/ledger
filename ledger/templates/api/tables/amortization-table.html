@@ -21,7 +21,7 @@
                         hx-get="{% url 'amortize-form' amortization.id %}"
                         hx-target="#amortize-form"
                     >
-                        <td>{{ amortization.accrued_transaction.date }}</td>
+                        <td>{{ amortization.accrued_journal_entry_item.journal_entry.transaction.date }}</td>
                         <td>{{ amortization.suggested_account }}</td>
                         <td>{{ amortization.description }}</td>
                         <td>${{ amortization.amount|floatformat:2|intcomma }} (${{ amortization.remaining_balance|floatformat:2|intcomma }})</td>
