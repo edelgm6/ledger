@@ -1,5 +1,5 @@
 {% load humanize %}
-{% if transactions %}
+{% if journal_entry_items %}
 <h4>Unattached Prepaid Expenses</h4>
 <div id="transactions-table" class="table-responsive" style="max-height: 200px; overflow-y: auto;">
     <table class="table table-hover table-sm">
@@ -12,16 +12,16 @@
             </tr>
         </thead>
         <tbody>
-            {% for transaction in transactions %}
+            {% for journal_entry_item in journal_entry_items %}
             <tr
                 class="clickable-row{% if forloop.counter0 == index and not no_highlight %} table-active{% endif %}"
-                hx-get="{% url 'amortization-form' transaction.id %}"
+                hx-get="{% url 'amortization-form' journal_entry_item.id %}"
                 hx-target="#amortization-form"
             >
-                <td>{{ transaction.date }}</td>
-                <td>{{ transaction.account }}</td>
-                <td>${{ transaction.amount|floatformat:2|intcomma }}</td>
-                <td>{{ transaction.description }}</td>
+                <td>{{ journal_entry_item.journal_entry.transaction.date }}</td>
+                <td>{{ journal_entry_item.account }}</td>
+                <td>${{ journal_entry_item.amount|floatformat:2|intcomma }}</td>
+                <td>{{ journal_entry_item.journal_entry.transaction.description }}</td>
             </tr>
             {% endfor %}
         </tbody>

@@ -1,5 +1,5 @@
 <form
-    class="form-sm"
+    class="form-sm mt-3"
     id="amortization-form"
     method="post"
     hx-post="{% url 'amortization' %}"
@@ -8,7 +8,7 @@
 >
     <div class="form-row">
 
-        {{ form.accrued_transaction }}
+        {{ form.accrued_journal_entry_item }}
         <!-- Form group for 'periods' field -->
         <div class="col-md-2">
             <input type="text" class="form-control" placeholder="Periods" id="id_periods" name="periods"
