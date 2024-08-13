@@ -75,9 +75,9 @@ class AmortizationFormView(AmortizationTableMixin, LoginRequiredMixin, View):
     login_url = '/login/'
     redirect_field_name = 'next'
 
-    def get(self, request, transaction_id):
-        transaction = get_object_or_404(Transaction, pk=transaction_id)
-        amortization_form_html = self.get_amortization_form_html(transaction)
+    def get(self, request, journal_entry_item_id):
+        journal_entry_item = get_object_or_404(JournalEntryItem, pk=journal_entry_item_id)
+        amortization_form_html = self.get_amortization_form_html(journal_entry_item)
         return HttpResponse(amortization_form_html)
 
 class AmortizationView(AmortizationTableMixin, LoginRequiredMixin, View):
