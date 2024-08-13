@@ -28,12 +28,6 @@ class AmortizationTableMixin:
             amortization__isnull=True,
             journal_entry__transaction__amortization__isnull=True
         ).select_related('journal_entry__transaction','account')
-        # unattached_transactions = Transaction.objects.filter(
-        #     journal_entry__journal_entry_items__account__special_type=Account.SpecialType.PREPAID_EXPENSES,
-        #     amortization__isnull=True
-        # ).exclude(
-        #     accrued_amortizations__isnull=False
-        # )
         return render_to_string(prepaid_table_template,{'journal_entry_items': unattached_journal_entries})
 
     def get_amortization_form_html(self, journal_entry_item=None):

@@ -119,16 +119,10 @@ class S3File(models.Model):
         
 
 class Amortization(models.Model):
-    # accrued_transaction = models.OneToOneField(
-    #     'Transaction',
-    #     on_delete=models.CASCADE,
-    #     related_name='accrued_amortizations'
-    # )
     accrued_journal_entry_item = models.OneToOneField(
         'JournalEntryItem',
         on_delete=models.CASCADE,
-        related_name='amortization',
-        null=True
+        related_name='amortization'
     )
     amount = models.DecimalField(decimal_places=2, max_digits=12)
     periods = models.PositiveSmallIntegerField(null=True, blank=True)

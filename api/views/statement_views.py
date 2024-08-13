@@ -127,7 +127,6 @@ class StatementDetailView(LoginRequiredMixin, View):
     def get(self, request, account_id, *args, **kwargs):
         from_date = request.GET.get('from_date')
         to_date = request.GET.get('to_date')
-        print(from_date)
 
         template = 'api/tables/statement-detail-table.html'
 
