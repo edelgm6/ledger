@@ -1,19 +1,28 @@
 import csv
 from decimal import Decimal, InvalidOperation
+
 from django import forms
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.forms import BaseModelFormSet, DecimalField
 from django.utils import timezone
-from django.core.validators import MinValueValidator
-from django.core.exceptions import ValidationError
-from django.conf import settings
-from api.models import (
-    Amortization, Transaction, Account, JournalEntryItem,
-    TaxCharge, Reconciliation, JournalEntry, S3File, Prefill,
-    Entity
-)
+
 from api import utils
-from api.factories import ReconciliationFactory
 from api.aws_services import upload_file_to_s3
+from api.factories import ReconciliationFactory
+from api.models import (
+    Account,
+    Amortization,
+    Entity,
+    JournalEntry,
+    JournalEntryItem,
+    Prefill,
+    Reconciliation,
+    S3File,
+    TaxCharge,
+    Transaction,
+)
 
 
 class JournalEntryItemEntityForm(forms.ModelForm):
@@ -342,7 +351,7 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
 
         instances = []
         for form in self.forms:
-            if form.is_valid() and form.has_changed():
+            if form.is_valid() and form.has_changed() and form.cleaned_data['amount'] > 0:
                 instance = form.save(journal_entry, type)
                 instances.append(instance)
 
