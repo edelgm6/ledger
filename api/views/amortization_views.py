@@ -1,10 +1,12 @@
-from django.http import HttpResponse
-from django.template.loader import render_to_string
-from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, render
+from django.template.loader import render_to_string
 from django.views import View
-from api.models import Amortization, Transaction, Account, JournalEntryItem
+
 from api.forms import AmortizationForm, DateForm
+from api.models import Account, Amortization, JournalEntryItem
+
 
 class AmortizationTableMixin:
     def get_amortization_table_html(self):
