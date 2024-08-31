@@ -1,11 +1,30 @@
 from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
-from .resources import AccountResource, JournalEntryResource, JournalEntryItemResource, TransactionResource
+
 from .models import (
-    PrefillItem, Prefill, Amortization, TaxCharge, Account, Transaction,
-    JournalEntry, JournalEntryItem, AutoTag, CSVProfile, Reconciliation,
-    CSVColumnValuePair, S3File, DocSearch, Paystub, PaystubValue,
-    Entity
+    Account,
+    Amortization,
+    AutoTag,
+    CSVColumnValuePair,
+    CSVProfile,
+    DocSearch,
+    Entity,
+    JournalEntry,
+    JournalEntryItem,
+    Paystub,
+    PaystubValue,
+    Prefill,
+    PrefillItem,
+    Reconciliation,
+    S3File,
+    TaxCharge,
+    Transaction,
+)
+from .resources import (
+    AccountResource,
+    JournalEntryItemResource,
+    JournalEntryResource,
+    TransactionResource,
 )
 
 
@@ -48,7 +67,7 @@ class JournalEntryInline(admin.StackedInline):
 
 class TransactionAdmin(ImportExportModelAdmin):
     resource_class = TransactionResource
-    list_display = ('date', 'account', 'amount', 'description', 'category', 'is_closed', 'linked_transaction', 'amortization')
+    list_display = ('date', 'account', 'amount', 'description', 'category', 'is_closed', 'linked_transaction', 'amortization', 'journal_entry')
     list_filter = ('account__name', 'date', 'is_closed')
     search_fields = ('description',)
     inlines = [JournalEntryInline]
