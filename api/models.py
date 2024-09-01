@@ -1,11 +1,19 @@
-import math
 import datetime
+import math
 import re
+
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from textractor.entities.document import Document
-from api.aws_services import create_textract_job, get_textract_results, clean_and_convert_string_to_decimal, clean_string, convert_table_to_cleaned_dataframe
+
+from api.aws_services import (
+    clean_and_convert_string_to_decimal,
+    clean_string,
+    convert_table_to_cleaned_dataframe,
+    create_textract_job,
+    get_textract_results,
+)
 
 
 class Entity(models.Model):
@@ -44,7 +52,7 @@ class S3File(models.Model):
             paystub = Paystub.objects.create(
                 document=self,
                 page_id=page_id,
-                title=company_name + ' ' + page_data['Begin Period'] + '-' + page_data['End Period']
+                title=company_name + ' ' + page_data['End Period']
             )
             paystub_values = []
             for account, value in page_data.items():
@@ -84,14 +92,24 @@ class S3File(models.Model):
 
         for kv in key_value_pairs:
             key = clean_string(kv.key.text)
+            # print(key)
+            # print(kv.value.text)
             for keyword_search in keyword_searches:
                 if key == keyword_search.keyword:
                     identifier = keyword_search.get_selection_or_account()
-                    data[kv.page_id][identifier] = clean_string(kv.value.text)
+                    # Keyword searches can look for dollars or strings and need
+                    # to be treated differently for each
+                    if isinstance(identifier, Account):
+                        data[kv.page_id][identifier] = {}
+                        data[kv.page_id][identifier]['value'] = clean_and_convert_string_to_decimal(kv.value.text)
+                        data[kv.page_id][identifier]['entry_type'] = keyword_search.journal_entry_item_type
+                    else:
+                        data[kv.page_id][identifier] = clean_string(kv.value.text)
 
         # Step 3: Grab table data from tables
         table_searches = DocSearch.objects.filter(keyword__isnull=True, prefill=self.prefill)
         for table in document.tables:
+            # print(table.get_text_and_words())
             for table_search in table_searches:
                 table_title = table.title if table.title is None else table.title.text
                 both_table_names_none_condition = table_search.table_name is None and table_title is None
@@ -808,7 +826,7 @@ class DocSearch(models.Model):
         
         # Ensure either account or selection is set
         if not (self.account and self.journal_entry_item_type) and not self.selection:
-            raise ValidationError("Either 'account' must be provided, or 'selection' must be one of the specified choices.")
+            raise ValidationError("Either 'account' and 'type' must be provided, or 'selection' must be one of the specified choices.")
         
         if self.account and self.selection:
             raise ValidationError("Both 'account' and 'selection' cannot be set at the same time.")
