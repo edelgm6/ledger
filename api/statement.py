@@ -1,8 +1,10 @@
-from datetime import datetime, timedelta, date
-from dateutil.relativedelta import relativedelta
 from collections import namedtuple
-from django.db.models import Sum, Case, When, Value, DecimalField
-from api.models import JournalEntryItem, Account
+from datetime import date, datetime, timedelta
+
+from dateutil.relativedelta import relativedelta
+from django.db.models import Case, DecimalField, Sum, Value, When
+
+from api.models import Account, JournalEntryItem
 
 
 class Trend:
@@ -105,7 +107,7 @@ class Statement:
         return sorted_list
 
     def get_balances(self):
-        if type(self) == IncomeStatement:
+        if isinstance(self, IncomeStatement):
             ACCOUNT_TYPES = ['income', 'expense']
             aggregates = JournalEntryItem.objects.filter(
                 account__type__in=ACCOUNT_TYPES,
@@ -160,21 +162,9 @@ class Statement:
                     }
                 )
 
-        # unrepresented_accounts = eligible_accounts - represented_accounts
-        # for account in unrepresented_accounts:
-        #     new_balance = Balance(
-        #         account=account.name,
-        #         amount=0,
-        #         account_type=account.type,
-        #         account_sub_type=account.sub_type,
-        #         date=self.end_date,
-        #         type=balance_type)
-        #     balances.append(new_balance)
-
-
         # TODO: Set this further up
         balance_type = 'flow'
-        if type(self) == BalanceSheet:
+        if isinstance(self, BalanceSheet):
             balance_type = 'stock'
 
         balances = self._get_balance_from_aggregates(aggregates, self.end_date, balance_type)
