@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 
 
 def format_datetime_to_string(form_date):
-    return form_date.strftime('%Y-%m-%d')
+    return form_date.strftime("%Y-%m-%d")
 
 
 def get_first_day_of_month_from_date(original_date):
@@ -29,10 +29,9 @@ def get_last_days_of_month_tuples():
     # For previous years, include all months.
     year_range = range(2023, current_year + 1)
     year_month_tuples = [
-        (year, month) for year in year_range
-        for month in range(
-            1, current_month + 1 if year == current_year else 13
-        )
+        (year, month)
+        for year in year_range
+        for month in range(1, current_month + 1 if year == current_year else 13)
     ]
 
     final_days_of_month = []
@@ -43,7 +42,7 @@ def get_last_days_of_month_tuples():
 
         # Calculate the last day of the current month
         last_day = date(next_month_year, next_month, 1) - timedelta(days=1)
-        final_days_of_month.append((last_day, last_day.strftime('%B %d, %Y')))
+        final_days_of_month.append((last_day, last_day.strftime("%B %d, %Y")))
 
     final_days_of_month.reverse()
     return final_days_of_month

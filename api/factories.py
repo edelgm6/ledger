@@ -1,4 +1,4 @@
-from api.models import Reconciliation, Account, TaxCharge, Paystub, PaystubValue
+from api.models import Account, Reconciliation, TaxCharge
 
 
 class ReconciliationFactory:
@@ -6,25 +6,19 @@ class ReconciliationFactory:
     @staticmethod
     def create_bulk_reconciliations(date):
         existing_reconciliations = set(
-            Reconciliation.objects.filter(
-                date=date
-            ).values_list('account__name', flat=True)
-        )
-        balance_sheet_account_names = set(Account.objects.filter(
-            type__in=[Account.Type.ASSET, Account.Type.LIABILITY],
-            is_closed=False
-        ).values_list('name', flat=True))
-
-        new_reconciliations = (
-            balance_sheet_account_names - existing_reconciliations
-        )
-        new_reconciliation_list = [
-            Reconciliation(
-                account=Account.objects.get(
-                    name=account_name
-                ),
-                date=date
+            Reconciliation.objects.filter(date=date).values_list(
+                "account__name", flat=True
             )
+        )
+        balance_sheet_account_names = set(
+            Account.objects.filter(
+                type__in=[Account.Type.ASSET, Account.Type.LIABILITY], is_closed=False
+            ).values_list("name", flat=True)
+        )
+
+        new_reconciliations = balance_sheet_account_names - existing_reconciliations
+        new_reconciliation_list = [
+            Reconciliation(account=Account.objects.get(name=account_name), date=date)
             for account_name in new_reconciliations
         ]
 
@@ -46,4 +40,3 @@ class TaxChargeFactory:
             ]
             if len(existing_tax_charge) == 0:
                 TaxCharge.objects.create(date=date, type=value, amount=0)
-                
