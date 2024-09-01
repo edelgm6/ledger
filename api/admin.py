@@ -30,22 +30,22 @@ from .resources import (
 
 # Admin definitions
 class AccountAdmin(ImportExportModelAdmin):
-    list_display = ('name', 'type', 'sub_type', 'csv_profile', 'is_closed')
+    list_display = ("name", "type", "sub_type", "csv_profile", "is_closed")
     resource_class = AccountResource
 
 
 class AutoTagAdmin(admin.ModelAdmin):
-    list_display = ('account', 'search_string', 'transaction_type')
+    list_display = ("account", "search_string", "transaction_type")
 
 
 class CSVProfileAdmin(admin.ModelAdmin):
-    list_display = ('name', 'date', 'description', 'category')
+    list_display = ("name", "date", "description", "category")
 
 
 class JournalEntryItemAdmin(ImportExportModelAdmin):
     resource_class = JournalEntryItemResource
-    list_display = ('journal_entry', 'type', 'amount', 'account')
-    list_filter = ('type', 'account')
+    list_display = ("journal_entry", "type", "amount", "account")
+    list_filter = ("type", "account")
 
 
 class JournalEntryItemInline(admin.TabularInline):
@@ -55,7 +55,7 @@ class JournalEntryItemInline(admin.TabularInline):
 
 class JournalEntryAdmin(ImportExportModelAdmin):
     resource_class = JournalEntryResource
-    list_display = ('pk', 'date', 'description', 'transaction')
+    list_display = ("pk", "date", "description", "transaction")
     inlines = [JournalEntryItemInline]
 
 
@@ -67,9 +67,19 @@ class JournalEntryInline(admin.StackedInline):
 
 class TransactionAdmin(ImportExportModelAdmin):
     resource_class = TransactionResource
-    list_display = ('date', 'account', 'amount', 'description', 'category', 'is_closed', 'linked_transaction', 'amortization', 'journal_entry')
-    list_filter = ('account__name', 'date', 'is_closed')
-    search_fields = ('description',)
+    list_display = (
+        "date",
+        "account",
+        "amount",
+        "description",
+        "category",
+        "is_closed",
+        "linked_transaction",
+        "amortization",
+        "journal_entry",
+    )
+    list_filter = ("account__name", "date", "is_closed")
+    search_fields = ("description",)
     inlines = [JournalEntryInline]
 
 
@@ -85,13 +95,15 @@ class DocSearchInline(admin.TabularInline):
 
 class PrefillAdmin(admin.ModelAdmin):
     inlines = [PrefillItemInline, DocSearchInline]
-    list_display = ('description',)
+    list_display = ("description",)
 
     def description(self, obj):
         return obj.name
 
+
 class PaystubAdmin(admin.ModelAdmin):
-    list_display = ('title', 'journal_entry')
+    list_display = ("title", "journal_entry")
+
 
 # Register your models here
 admin.site.register(Prefill, PrefillAdmin)
