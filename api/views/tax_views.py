@@ -1,34 +1,42 @@
 from datetime import date
+
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.views import View
-from django.shortcuts import get_object_or_404
-from django.contrib.auth.mixins import LoginRequiredMixin
-from api.models import TaxCharge
-from api.forms import TaxChargeFilterForm, TaxChargeForm
-from api.statement import IncomeStatement
-from api.factories import TaxChargeFactory
+
 from api import utils
+from api.factories import TaxChargeFactory
+from api.forms import TaxChargeFilterForm, TaxChargeForm
+from api.models import TaxCharge
+from api.statement import IncomeStatement
 
 
 class TaxChargeMixIn:
 
     def _get_taxable_income(self, end_date):
         first_day_of_month = date(end_date.year, end_date.month, 1)
-        taxable_income = IncomeStatement(end_date, first_day_of_month).get_taxable_income()
+        taxable_income = IncomeStatement(
+            end_date, first_day_of_month
+        ).get_taxable_income()
         return taxable_income
 
-    def _add_tax_rate_and_charge(self, tax_charge, taxable_income=None, current_taxable_income=None):
+    def _add_tax_rate_and_charge(
+        self, tax_charge, taxable_income=None, current_taxable_income=None
+    ):
         if not taxable_income:
             taxable_income = self._get_taxable_income(end_date=tax_charge.date)
         tax_charge.taxable_income = taxable_income
-        tax_charge.tax_rate = None if taxable_income == 0 else tax_charge.amount / taxable_income
+        tax_charge.tax_rate = (
+            None if taxable_income == 0 else tax_charge.amount / taxable_income
+        )
         if current_taxable_income and tax_charge.tax_rate:
             tax_charge.current_tax = tax_charge.tax_rate * current_taxable_income
 
     def get_tax_filter_form_html(self):
-        filter_template = 'api/filter_forms/tax-charge-filter-form.html'
-        html = render_to_string(filter_template, {'filter_form': TaxChargeFilterForm()})
+        filter_template = "api/filter_forms/tax-charge-filter-form.html"
+        html = render_to_string(filter_template, {"filter_form": TaxChargeFilterForm()})
         return html
 
     def get_tax_form_html(self, tax_charge=None, last_day_of_month=None):
@@ -38,42 +46,58 @@ class TaxChargeMixIn:
         else:
             form = TaxChargeForm()
 
-        last_day_of_month = last_day_of_month if last_day_of_month else utils.get_last_day_of_last_month()
+        last_day_of_month = (
+            last_day_of_month
+            if last_day_of_month
+            else utils.get_last_day_of_last_month()
+        )
         first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
         income_statement = IncomeStatement(last_day_of_month, first_day_of_month)
 
-        # Get latest charge that has a positive value to account for auto-created tax charges
+        # Get latest charge that has a positive value to account for auto-created
+        # tax charges
         # This charge will be used to fill out the recommended charges table
-        latest_federal_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.FEDERAL, amount__gt=0).order_by('-date').first()
-        latest_state_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.STATE, amount__gt=0).order_by('-date').first()
-        latest_property_tax_charge = TaxCharge.objects.filter(type=TaxCharge.Type.PROPERTY, amount__gt=0).order_by('-date').first()
+        latest_federal_tax_charge = (
+            TaxCharge.objects.filter(type=TaxCharge.Type.FEDERAL, amount__gt=0)
+            .order_by("-date")
+            .first()
+        )
+        latest_state_tax_charge = (
+            TaxCharge.objects.filter(type=TaxCharge.Type.STATE, amount__gt=0)
+            .order_by("-date")
+            .first()
+        )
+        latest_property_tax_charge = (
+            TaxCharge.objects.filter(type=TaxCharge.Type.PROPERTY, amount__gt=0)
+            .order_by("-date")
+            .first()
+        )
 
         current_taxable_income = income_statement.get_taxable_income()
-        for latest_tax_charge in [
-            latest_federal_tax_charge,
-            latest_state_tax_charge
-        ]:
+        for latest_tax_charge in [latest_federal_tax_charge, latest_state_tax_charge]:
             self._add_tax_rate_and_charge(
                 tax_charge=latest_tax_charge,
                 taxable_income=self._get_taxable_income(latest_tax_charge.date),
-                current_taxable_income=current_taxable_income
+                current_taxable_income=current_taxable_income,
             )
 
         context = {
-            'form': form,
-            'taxable_income': current_taxable_income,
-            'latest_federal_tax_charge': latest_federal_tax_charge,
-            'latest_state_tax_charge': latest_state_tax_charge,
-            'latest_property_tax_charge': latest_property_tax_charge,
-            'tax_charge': tax_charge
+            "form": form,
+            "taxable_income": current_taxable_income,
+            "latest_federal_tax_charge": latest_federal_tax_charge,
+            "latest_state_tax_charge": latest_state_tax_charge,
+            "latest_property_tax_charge": latest_property_tax_charge,
+            "tax_charge": tax_charge,
         }
-        form_template = 'api/entry_forms/edit-tax-charge-form.html'
+        form_template = "api/entry_forms/edit-tax-charge-form.html"
         form_html = render_to_string(form_template, context)
         return form_html
 
     def get_tax_table_html(self, tax_charges, end_date):
 
-        tax_charges = tax_charges.select_related('transaction', 'transaction__account').order_by('date', 'type')
+        tax_charges = tax_charges.select_related(
+            "transaction", "transaction__account"
+        ).order_by("date", "type")
         tax_dates = []
         taxable_income = None
         for tax_charge in tax_charges:
@@ -82,33 +106,33 @@ class TaxChargeMixIn:
                 taxable_income = self._get_taxable_income(tax_charge.date)
                 tax_dates.append(tax_charge.date)
             self._add_tax_rate_and_charge(
-                tax_charge=tax_charge,
-                taxable_income=taxable_income
+                tax_charge=tax_charge, taxable_income=taxable_income
             )
             tax_charge.transaction_string = str(tax_charge.transaction)
 
         tax_charge_table_html = render_to_string(
-            'api/tables/tax-table.html',
-            {'tax_charges': tax_charges}
+            "api/tables/tax-table.html", {"tax_charges": tax_charges}
         )
 
         return tax_charge_table_html
 
 
 class TaxChargeTableView(TaxChargeMixIn, LoginRequiredMixin, View):
-    login_url = '/login/'
-    redirect_field_name = 'next'
+    login_url = "/login/"
+    redirect_field_name = "next"
 
     def get(self, request, *args, **kwargs):
         form = TaxChargeFilterForm(request.GET)
         if form.is_valid():
             tax_charges = form.get_tax_charges()
-            tax_table_charge_table_html = self.get_tax_table_html(tax_charges, end_date=form.cleaned_data['date_to'])
+            tax_table_charge_table_html = self.get_tax_table_html(
+                tax_charges, end_date=form.cleaned_data["date_to"]
+            )
 
-            template = 'api/content/taxes-content.html'
+            template = "api/content/taxes-content.html"
             context = {
-                'tax_charge_table': tax_table_charge_table_html,
-                'form': self.get_tax_form_html(),
+                "tax_charge_table": tax_table_charge_table_html,
+                "form": self.get_tax_form_html(),
             }
             html = render_to_string(template, context)
 
@@ -116,8 +140,8 @@ class TaxChargeTableView(TaxChargeMixIn, LoginRequiredMixin, View):
 
 
 class TaxChargeFormView(TaxChargeMixIn, LoginRequiredMixin, View):
-    login_url = '/login/'
-    redirect_field_name = 'next'
+    login_url = "/login/"
+    redirect_field_name = "next"
 
     def get(self, request, pk=None, *args, **kwargs):
         if pk:
@@ -132,8 +156,8 @@ class TaxChargeFormView(TaxChargeMixIn, LoginRequiredMixin, View):
 
 # Loads full page
 class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
-    login_url = '/login/'
-    redirect_field_name = 'next'
+    login_url = "/login/"
+    redirect_field_name = "next"
 
     def get(self, request, *args, **kwargs):
 
@@ -141,14 +165,20 @@ class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
         TaxChargeFactory.create_bulk_tax_charges(date=initial_end_date)
 
         six_months_ago = utils.get_last_days_of_month_tuples()[5][0]
-        tax_charges = TaxCharge.objects.filter(date__gte=six_months_ago, date__lte=initial_end_date)
+        tax_charges = TaxCharge.objects.filter(
+            date__gte=six_months_ago, date__lte=initial_end_date
+        )
 
         context = {
-            'tax_charge_table': self.get_tax_table_html(tax_charges=tax_charges, end_date=initial_end_date),
-            'form': self.get_tax_form_html(last_day_of_month=utils.get_last_day_of_last_month()),
-            'filter_form': self.get_tax_filter_form_html()
+            "tax_charge_table": self.get_tax_table_html(
+                tax_charges=tax_charges, end_date=initial_end_date
+            ),
+            "form": self.get_tax_form_html(
+                last_day_of_month=utils.get_last_day_of_last_month()
+            ),
+            "filter_form": self.get_tax_filter_form_html(),
         }
-        template = 'api/views/taxes.html'
+        template = "api/views/taxes.html"
         html = render_to_string(template, context)
         return HttpResponse(html)
 
@@ -166,14 +196,13 @@ class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
             if tax_charges_form.is_valid():
                 tax_charges = tax_charges_form.get_tax_charges()
 
-            end_date = request.POST.get('date_to')
+            end_date = request.POST.get("date_to")
             context = {
-                'tax_charge_table': self.get_tax_table_html(
-                    tax_charges=tax_charges,
-                    end_date=end_date
+                "tax_charge_table": self.get_tax_table_html(
+                    tax_charges=tax_charges, end_date=end_date
                 ),
-                'form': self.get_tax_form_html()
+                "form": self.get_tax_form_html(),
             }
-            template = 'api/content/taxes-content.html'
+            template = "api/content/taxes-content.html"
             html = render_to_string(template, context)
             return HttpResponse(html)

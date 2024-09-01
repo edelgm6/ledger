@@ -27,42 +27,45 @@ from api.models import (
 
 class JournalEntryItemEntityForm(forms.ModelForm):
     entity = forms.ModelChoiceField(
-        queryset=Entity.objects.all().order_by('name'),
-        required=True
+        queryset=Entity.objects.all().order_by("name"), required=True
     )
 
     class Meta:
         model = JournalEntryItem
         fields = [
-            'entity',
+            "entity",
         ]
+
 
 class DocumentForm(forms.Form):
     document = forms.FileField()
     prefill = forms.ModelChoiceField(
         queryset=Prefill.objects.filter(docsearch__isnull=False).distinct(),
-        required=True
+        required=True,
     )
 
     def create_s3_file(self):
-        file = self.cleaned_data['document']
+        file = self.cleaned_data["document"]
         unique_name = upload_file_to_s3(file=file)
-        file_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{unique_name}"
+        file_url = (
+            f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{unique_name}"
+        )
         s3file = S3File.objects.create(
-            prefill=self.cleaned_data['prefill'],
+            prefill=self.cleaned_data["prefill"],
             url=file_url,
             user_filename=file.name,
-            s3_filename=unique_name
+            s3_filename=unique_name,
         )
         return s3file
 
+
 class CommaDecimalField(DecimalField):
     def to_python(self, value):
-        if value is None or '':
+        if value is None or "":
             return value
         try:
-            value = str(value).replace(',', '')
-            value = str(value).replace('$', '')
+            value = str(value).replace(",", "")
+            value = str(value).replace("$", "")
             value = Decimal(value)
         except InvalidOperation:
             return None
@@ -78,10 +81,10 @@ class FromToDateForm(forms.Form):
         last_days_of_month_tuples = utils.get_last_days_of_month_tuples()
         last_day_of_last_month = last_days_of_month_tuples[0][0]
 
-        self.fields['date_from'].initial = utils.format_datetime_to_string(
+        self.fields["date_from"].initial = utils.format_datetime_to_string(
             utils.get_first_day_of_month_from_date(last_day_of_last_month)
         )
-        self.fields['date_to'].initial = utils.format_datetime_to_string(
+        self.fields["date_to"].initial = utils.format_datetime_to_string(
             last_day_of_last_month
         )
 
@@ -92,14 +95,13 @@ class DateForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super(DateForm, self).__init__(*args, **kwargs)
         last_days_of_month_tuples = utils.get_last_days_of_month_tuples()
-        self.fields['date'].choices = last_days_of_month_tuples
-        self.fields['date'].initial = last_days_of_month_tuples[0][0]
+        self.fields["date"].choices = last_days_of_month_tuples
+        self.fields["date"].initial = last_days_of_month_tuples[0][0]
 
 
 class AmortizationForm(forms.ModelForm):
     accrued_journal_entry_item = forms.ModelChoiceField(
-        queryset=JournalEntryItem.objects.all(),
-        widget=forms.HiddenInput()
+        queryset=JournalEntryItem.objects.all(), widget=forms.HiddenInput()
     )
     suggested_account = forms.ModelChoiceField(
         queryset=Account.objects.filter(type=Account.Type.EXPENSE)
@@ -108,23 +110,23 @@ class AmortizationForm(forms.ModelForm):
     class Meta:
         model = Amortization
         fields = [
-            'accrued_journal_entry_item',
-            'periods',
-            'description',
-            'suggested_account'
+            "accrued_journal_entry_item",
+            "periods",
+            "description",
+            "suggested_account",
         ]
 
     def clean_periods(self):
-        periods = self.cleaned_data['periods']
+        periods = self.cleaned_data["periods"]
 
         if periods < 1:
-            raise ValidationError('Periods must be >= 1')
+            raise ValidationError("Periods must be >= 1")
 
         return periods
 
     def save(self, commit=True):
         instance = super(AmortizationForm, self).save(commit=False)
-        journal_entry_item = self.cleaned_data['accrued_journal_entry_item']
+        journal_entry_item = self.cleaned_data["accrued_journal_entry_item"]
         instance.amount = abs(journal_entry_item.amount)
 
         if commit:
@@ -140,20 +142,19 @@ class UploadTransactionsForm(forms.Form):
 
     def _csv_to_list_of_lists(self, csvfile):
         # Open the file in text mode with the correct encoding
-        decoded_file = csvfile.read().decode('utf-8').splitlines()
+        decoded_file = csvfile.read().decode("utf-8").splitlines()
         csv_reader = csv.reader(decoded_file)
         list_of_lists = list(csv_reader)
         return list_of_lists
 
     def save(self):
-        account = self.cleaned_data['account']
+        account = self.cleaned_data["account"]
         csv_profile = account.csv_profile
         transaction_list = self._csv_to_list_of_lists(
-            self.cleaned_data['transaction_csv']
+            self.cleaned_data["transaction_csv"]
         )
         transactions = csv_profile.create_transactions_from_csv(
-            transaction_list,
-            account
+            transaction_list, account
         )
         return transactions
 
@@ -163,13 +164,13 @@ class ReconciliationFilterForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super(ReconciliationFilterForm, self).__init__(*args, **kwargs)
-        self.fields['date'].choices = utils.get_last_days_of_month_tuples()
+        self.fields["date"].choices = utils.get_last_days_of_month_tuples()
 
     def get_reconciliations(self):
-        return Reconciliation.objects.filter(date=self.cleaned_data['date'])
+        return Reconciliation.objects.filter(date=self.cleaned_data["date"])
 
     def generate_reconciliations(self, create_date=None):
-        create_date = create_date if create_date else self.cleaned_data['date']
+        create_date = create_date if create_date else self.cleaned_data["date"]
         reconciliations = ReconciliationFactory.create_bulk_reconciliations(
             date=create_date
         )
@@ -181,105 +182,91 @@ class ReconciliationForm(forms.ModelForm):
         initial=0.00,
         decimal_places=2,
         max_digits=12,
-        widget=forms.NumberInput(attrs={'step': '0.01'}),
-        required=False
+        widget=forms.NumberInput(attrs={"step": "0.01"}),
+        required=False,
     )
 
     class Meta:
         model = Reconciliation
-        fields = ['amount']
+        fields = ["amount"]
 
 
 class TaxChargeFilterForm(forms.Form):
 
-    date_from = forms.ChoiceField(
-        required=False,
-        choices=[]
-    )
-    date_to = forms.ChoiceField(
-        required=False,
-        choices=[]
-    )
+    date_from = forms.ChoiceField(required=False, choices=[])
+    date_to = forms.ChoiceField(required=False, choices=[])
     TAX_TYPE_CHOICES = (
-        (None, '---------'),
-        (TaxCharge.Type.FEDERAL, 'Federal'),
-        (TaxCharge.Type.STATE, 'State'),
-        (TaxCharge.Type.PROPERTY, 'Property')
+        (None, "---------"),
+        (TaxCharge.Type.FEDERAL, "Federal"),
+        (TaxCharge.Type.STATE, "State"),
+        (TaxCharge.Type.PROPERTY, "Property"),
     )
-    tax_type = forms.ChoiceField(
-        required=False,
-        choices=TAX_TYPE_CHOICES
-    )
+    tax_type = forms.ChoiceField(required=False, choices=TAX_TYPE_CHOICES)
 
     def __init__(self, *args, **kwargs):
         super(TaxChargeFilterForm, self).__init__(*args, **kwargs)
         # Restrict both fields to only allow last days of months
         last_days_of_month_tuples = utils.get_last_days_of_month_tuples()
-        for field_name in ['date_from', 'date_to']:
+        for field_name in ["date_from", "date_to"]:
             field = self.fields[field_name]
             field.choices = last_days_of_month_tuples
 
         six_months_ago_date_string = last_days_of_month_tuples[5][0]
-        self.fields['date_from'].initial = six_months_ago_date_string
+        self.fields["date_from"].initial = six_months_ago_date_string
 
     def get_tax_charges(self):
         queryset = TaxCharge.objects.all()
-        if self.cleaned_data.get('date_to'):
-            queryset = queryset.filter(
-                date__gte=self.cleaned_data['date_from']
-            )
-        if self.cleaned_data.get('date_from'):
-            queryset = queryset.filter(date__lte=self.cleaned_data['date_to'])
-        if self.cleaned_data['tax_type']:
-            queryset = queryset.filter(type=self.cleaned_data['tax_type'])
+        if self.cleaned_data.get("date_to"):
+            queryset = queryset.filter(date__gte=self.cleaned_data["date_from"])
+        if self.cleaned_data.get("date_from"):
+            queryset = queryset.filter(date__lte=self.cleaned_data["date_to"])
+        if self.cleaned_data["tax_type"]:
+            queryset = queryset.filter(type=self.cleaned_data["tax_type"])
 
-        return queryset.order_by('date')
+        return queryset.order_by("date")
 
 
 class TaxChargeForm(forms.ModelForm):
-    date = forms.ChoiceField(
-        required=False,
-        choices=[]
-    )
+    date = forms.ChoiceField(required=False, choices=[])
     amount = CommaDecimalField(
         initial=0.00,
         decimal_places=2,
         max_digits=12,
-        validators=[MinValueValidator(Decimal('0.00'))],
-        widget=forms.NumberInput(attrs={'step': '0.01'})
+        validators=[MinValueValidator(Decimal("0.00"))],
+        widget=forms.NumberInput(attrs={"step": "0.01"}),
     )
 
     class Meta:
         model = TaxCharge
-        fields = ['type', 'date', 'amount']
+        fields = ["type", "date", "amount"]
 
     def __init__(self, *args, **kwargs):
         super(TaxChargeForm, self).__init__(*args, **kwargs)
         last_days_of_month_tuples = utils.get_last_days_of_month_tuples()
-        self.fields['date'].choices = last_days_of_month_tuples
+        self.fields["date"].choices = last_days_of_month_tuples
         last_day_of_last_month = last_days_of_month_tuples[0][0]
-        self.fields['date'].initial = last_day_of_last_month
+        self.fields["date"].initial = last_day_of_last_month
 
 
 class TransactionLinkForm(forms.Form):
     first_transaction = forms.ModelChoiceField(
         queryset=Transaction.objects.all(),
         required=True,
-        label='Base Transaction',
-        widget=forms.HiddenInput()
+        label="Base Transaction",
+        widget=forms.HiddenInput(),
     )
     second_transaction = forms.ModelChoiceField(
         queryset=Transaction.objects.all(),
         required=True,
-        label='Linked Transaction',
-        widget=forms.HiddenInput()
+        label="Linked Transaction",
+        widget=forms.HiddenInput(),
     )
 
     def clean(self):
         cleaned_data = super().clean()
 
-        amount1 = self.cleaned_data.get('first_transaction').amount
-        amount2 = self.cleaned_data.get('second_transaction').amount
+        amount1 = self.cleaned_data.get("first_transaction").amount
+        amount2 = self.cleaned_data.get("second_transaction").amount
 
         # Validate that amount1 is the negative of amount2
         if amount1 != amount2 * -1:
@@ -290,8 +277,8 @@ class TransactionLinkForm(forms.Form):
         return cleaned_data
 
     def save(self):
-        first_transaction = self.cleaned_data.get('first_transaction')
-        second_transaction = self.cleaned_data.get('second_transaction')
+        first_transaction = self.cleaned_data.get("first_transaction")
+        second_transaction = self.cleaned_data.get("second_transaction")
 
         if first_transaction.date < second_transaction.date:
             hero_transaction = first_transaction
@@ -309,6 +296,7 @@ class TransactionLinkForm(forms.Form):
         hero_transaction.create_link(linked_transaction)
         return hero_transaction
 
+
 class JournalEntryMetadataForm(forms.Form):
     index = forms.IntegerField(min_value=0, widget=forms.HiddenInput())
     paystub_id = forms.CharField(widget=forms.HiddenInput(), required=False)
@@ -318,26 +306,28 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
 
     def __init__(self, *args, **kwargs):
         open_accounts = Account.objects.filter(is_closed=False)
-        open_accounts_choices = [(account.name, account.name) for account in open_accounts]
-        kwargs['form_kwargs'] = {'open_accounts_choices': open_accounts_choices}
+        open_accounts_choices = [
+            (account.name, account.name) for account in open_accounts
+        ]
+        kwargs["form_kwargs"] = {"open_accounts_choices": open_accounts_choices}
         super(BaseJournalEntryItemFormset, self).__init__(*args, **kwargs)
 
     def get_entry_total(self):
         total = 0
         for form in self.forms:
             try:
-                amount = form.cleaned_data.get('amount')
+                amount = form.cleaned_data.get("amount")
             except AttributeError:
-                amount = form.initial.get('amount', None)
-            total += (amount if amount is not None else 0)
+                amount = form.initial.get("amount", None)
+            total += amount if amount is not None else 0
 
         return total
 
     def get_account_amount(self, target_account):
         for form in self.forms:
-            account = form.cleaned_data.get('account')
+            account = form.cleaned_data.get("account")
             if account == target_account:
-                return form.cleaned_data.get('amount')
+                return form.cleaned_data.get("amount")
 
     def save(self, transaction, type, commit=True):
 
@@ -345,46 +335,50 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
             journal_entry = transaction.journal_entry
         except JournalEntry.DoesNotExist:
             journal_entry = JournalEntry.objects.create(
-                date=transaction.date,
-                transaction=transaction
+                date=transaction.date, transaction=transaction
             )
 
         instances = []
         for form in self.forms:
-            if form.is_valid() and form.has_changed() and form.cleaned_data['amount'] > 0:
+            if (
+                form.is_valid()
+                and form.has_changed()
+                and form.cleaned_data["amount"] > 0
+            ):
                 instance = form.save(journal_entry, type)
                 instances.append(instance)
 
         return instances
+
 
 class JournalEntryItemForm(forms.ModelForm):
     amount = CommaDecimalField(
         initial=0.00,
         decimal_places=2,
         max_digits=12,
-        validators=[MinValueValidator(Decimal('0.00'))],
-        widget=forms.NumberInput(attrs={'step': '0.01'})
+        validators=[MinValueValidator(Decimal("0.00"))],
+        widget=forms.NumberInput(attrs={"step": "0.01"}),
     )
     account = forms.ChoiceField(choices=[])
 
     class Meta:
         model = JournalEntryItem
-        fields = ('account', 'amount')
+        fields = ("account", "amount")
 
     def __init__(self, *args, **kwargs):
-        open_accounts_choices = kwargs.pop('open_accounts_choices', [])
+        open_accounts_choices = kwargs.pop("open_accounts_choices", [])
         super(JournalEntryItemForm, self).__init__(*args, **kwargs)
-        self.fields['amount'].localize = True
-        self.fields['account'].choices = open_accounts_choices
+        self.fields["amount"].localize = True
+        self.fields["account"].choices = open_accounts_choices
 
         # Resolve the account name for the bound form
         if self.instance.pk and self.instance.account:
             self.account_name = self.instance.account.name
         else:
-            self.account_name = ''
+            self.account_name = ""
 
     def clean_account(self):
-        account_name = self.cleaned_data['account']
+        account_name = self.cleaned_data["account"]
         try:
             account = Account.objects.get(name=account_name)
             return account
@@ -402,66 +396,55 @@ class JournalEntryItemForm(forms.ModelForm):
 
 
 class TransactionFilterForm(forms.Form):
-    date_from = forms.DateField(
-        required=False
-    )
-    date_to = forms.DateField(
-        required=False
-    )
+    date_from = forms.DateField(required=False)
+    date_to = forms.DateField(required=False)
     account = forms.ModelMultipleChoiceField(
-        queryset=Account.objects.all(),
-        required=False
+        queryset=Account.objects.all(), required=False
     )
     transaction_type = forms.MultipleChoiceField(
-        choices=Transaction.TransactionType.choices,
-        required=False
+        choices=Transaction.TransactionType.choices, required=False
     )
     IS_CLOSED_CHOICES = (
-        (None, '---------'),
-        (True, 'True'),
-        (False, 'False'),
+        (None, "---------"),
+        (True, "True"),
+        (False, "False"),
     )
-    is_closed = forms.ChoiceField(
-        required=False,
-        choices=IS_CLOSED_CHOICES
-    )
+    is_closed = forms.ChoiceField(required=False, choices=IS_CLOSED_CHOICES)
     LINKED_TRANSACTION_CHOICES = (
-        (None, '---------'),
-        (True, 'Linked'),
-        (False, 'Unlinked'),
+        (None, "---------"),
+        (True, "Linked"),
+        (False, "Unlinked"),
     )
     has_linked_transaction = forms.ChoiceField(
-        required=False,
-        choices=LINKED_TRANSACTION_CHOICES
+        required=False, choices=LINKED_TRANSACTION_CHOICES
     )
     related_account = forms.ModelMultipleChoiceField(
-        queryset=Account.objects.all(),
-        required=False
+        queryset=Account.objects.all(), required=False
     )
 
     def clean_is_closed(self):
-        is_closed = self.cleaned_data.get('is_closed', None)
-        if is_closed == '':
+        is_closed = self.cleaned_data.get("is_closed", None)
+        if is_closed == "":
             return None
         return is_closed
 
     def clean_has_linked_transaction(self):
-        data = self.cleaned_data['has_linked_transaction']
-        if data in ['True', 'False']:
-            return data == 'True'
+        data = self.cleaned_data["has_linked_transaction"]
+        if data in ["True", "False"]:
+            return data == "True"
         return None
 
     def get_transactions(self):
         data = self.cleaned_data
         queryset = Transaction.objects.filter_for_table(
-            is_closed=data.get('is_closed'),
-            has_linked_transaction=data.get('has_linked_transaction'),
-            transaction_types=data['transaction_type'],
-            accounts=data['account'],
-            date_from=data.get('date_from'),
-            date_to=data.get('date_to'),
-            related_accounts=data['related_account'],
-        ).select_related('account')
+            is_closed=data.get("is_closed"),
+            has_linked_transaction=data.get("has_linked_transaction"),
+            transaction_types=data["transaction_type"],
+            accounts=data["account"],
+            date_from=data.get("date_from"),
+            date_to=data.get("date_to"),
+            related_accounts=data["related_account"],
+        ).select_related("account")
         return queryset
 
 
@@ -473,57 +456,53 @@ class TransactionForm(forms.ModelForm):
         initial=0.00,
         decimal_places=2,
         max_digits=12,
-        widget=forms.NumberInput(attrs={'step': '0.01'})
+        widget=forms.NumberInput(attrs={"step": "0.01"}),
     )
 
     class Meta:
         model = Transaction
         fields = [
-            'date',
-            'account',
-            'amount',
-            'description',
-            'suggested_account',
-            'type'
+            "date",
+            "account",
+            "amount",
+            "description",
+            "suggested_account",
+            "type",
         ]
 
     def __init__(self, *args, **kwargs):
         super(TransactionForm, self).__init__(*args, **kwargs)
         # Set today's date as initial value
-        self.fields['date'].initial = timezone.localdate()
+        self.fields["date"].initial = timezone.localdate()
         # Remove the 'None' option
-        self.fields['type'].choices = Transaction.TransactionType.choices
+        self.fields["type"].choices = Transaction.TransactionType.choices
         eligible_accounts = Account.objects.exclude(
             special_type__in=[Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES],
-        ).filter(
-            is_closed=False
-        )
-        account_tuples = [
-            (account.name, account.name) for account in eligible_accounts
-        ]
-        self.fields['suggested_account'].choices = account_tuples
-        self.fields['account'].choices = account_tuples
+        ).filter(is_closed=False)
+        account_tuples = [(account.name, account.name) for account in eligible_accounts]
+        self.fields["suggested_account"].choices = account_tuples
+        self.fields["account"].choices = account_tuples
 
         # Resolve the account name for the bound form
         if self.instance.pk and self.instance.account:
             self.account_name = self.instance.account.name
         else:
-            self.account_name = ''
+            self.account_name = ""
 
         if self.instance.pk and self.instance.suggested_account:
             self.suggested_account_name = self.instance.suggested_account.name
         else:
-            self.suggested_account_name = ''
+            self.suggested_account_name = ""
 
     def clean_account(self):
-        account_name = self.cleaned_data['account']
+        account_name = self.cleaned_data["account"]
         account = Account.objects.get(name=account_name)
         return account
 
     def clean_suggested_account(self):
-        if not self.cleaned_data['suggested_account']:
+        if not self.cleaned_data["suggested_account"]:
             return None
-        suggested_account_name = self.cleaned_data['suggested_account']
+        suggested_account_name = self.cleaned_data["suggested_account"]
         suggested_account = Account.objects.get(name=suggested_account_name)
         return suggested_account
 
@@ -534,30 +513,28 @@ class WalletForm(forms.ModelForm):
 
     class Meta:
         model = Transaction
-        fields = ['date', 'amount', 'description', 'suggested_account', 'type']
+        fields = ["date", "amount", "description", "suggested_account", "type"]
 
     def __init__(self, *args, **kwargs):
         super(WalletForm, self).__init__(*args, **kwargs)
-        self.fields['date'].initial = timezone.localdate()
+        self.fields["date"].initial = timezone.localdate()
 
         # Override the 'type' field choices
         type_choices = [
-            (Transaction.TransactionType.PURCHASE, 'Purchase'),
-            (Transaction.TransactionType.INCOME, 'Income')
+            (Transaction.TransactionType.PURCHASE, "Purchase"),
+            (Transaction.TransactionType.INCOME, "Income"),
         ]
-        self.fields['type'].choices = type_choices
-        self.fields['type'].initial = Transaction.TransactionType.PURCHASE
+        self.fields["type"].choices = type_choices
+        self.fields["type"].initial = Transaction.TransactionType.PURCHASE
         eligible_accounts = Account.objects.filter(
             type__in=[Account.Type.INCOME, Account.Type.EXPENSE]
-        ).exclude(
-            special_type=Account.SpecialType.WALLET
-        )
-        self.fields['suggested_account'].choices = [
+        ).exclude(special_type=Account.SpecialType.WALLET)
+        self.fields["suggested_account"].choices = [
             (account.name, account.name) for account in eligible_accounts
         ]
 
     def clean_suggested_account(self):
-        suggested_account_name = self.cleaned_data['suggested_account']
+        suggested_account_name = self.cleaned_data["suggested_account"]
         suggested_account = Account.objects.get(name=suggested_account_name)
         return suggested_account
 
