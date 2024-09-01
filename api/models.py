@@ -868,7 +868,7 @@ class CSVProfile(models.Model):
         transactions_list = []
         for row in cleared_rows_csv:
             if row == {}:
-                continue
+                break
 
             # Set defaults
             transaction_type = Transaction.TransactionType.PURCHASE
