@@ -1,11 +1,11 @@
 <script>
     $(document).ready(function(){
-        // Functionality to highlight a row
+        // Functionality to highlight a row within its own table
         $('.clickable-row').click(function() {
-            console.log('click-highlight')
+            console.log('click-highlight');
             
-            // Remove 'table-active' from all rows in all tables
-            $('.clickable-row').removeClass('table-active');
+            // Find the closest table and remove 'table-active' from all its rows
+            $(this).closest('table').find('.clickable-row').removeClass('table-active');
             
             // Add 'table-active' to the clicked row
             $(this).addClass('table-active');
@@ -17,5 +17,4 @@
             $('.clickable-row').removeClass('table-active');
         });
     });
-    </script>
-    
+</script>
