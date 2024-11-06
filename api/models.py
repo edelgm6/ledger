@@ -859,7 +859,7 @@ class CSVProfile(models.Model):
 
         transactions_list = []
         for row in cleared_rows_csv:
-            if row == {}:
+            if row == {} or self._get_coalesced_amount(row) == 0:
                 break
 
             # Set defaults
