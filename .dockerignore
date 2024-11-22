@@ -1,4 +1,0 @@
-fly.toml
-.git/
-db.sqlite3
-ledger/local_settings.py
