@@ -44,8 +44,8 @@ class CSVProfileAdmin(admin.ModelAdmin):
 
 class JournalEntryItemAdmin(ImportExportModelAdmin):
     resource_class = JournalEntryItemResource
-    list_display = ("journal_entry", "type", "amount", "account")
-    list_filter = ("type", "account")
+    list_display = ("journal_entry", "type", "amount", "account", "entity")
+    list_filter = ("type", "account", "entity")
 
 
 class JournalEntryItemInline(admin.TabularInline):
