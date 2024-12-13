@@ -33,6 +33,12 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+CORS_ALLOWED_ORIGINS = [
+    "https://fast-cliffs-86166-34cfbc0196cc.herokuapp.com",
+    "http://localhost:8000",
+]
+
 ```
 
 
