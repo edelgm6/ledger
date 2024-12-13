@@ -94,9 +94,7 @@ INTERNAL_IPS = [
     "127.0.0.1",
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    "https://fast-cliffs-86166-34cfbc0196cc.herokuapp.com",
-]
+CORS_ALLOWED_ORIGINS = [os.environ.get("APP_ORIGIN")]
 
 CORS_ALLOW_CREDENTIALS = True  # Needed for cookies/authentication with HTMX
 
