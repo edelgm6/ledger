@@ -73,12 +73,14 @@ INSTALLED_APPS = [
     "api",
     "import_export",
     "debug_toolbar",
+    "corsheaders",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -91,6 +93,13 @@ MIDDLEWARE = [
 INTERNAL_IPS = [
     "127.0.0.1",
 ]
+
+CORS_ALLOWED_ORIGINS = [
+    "https://fast-cliffs-86166-34cfbc0196cc.herokuapp.com",
+]
+
+CORS_ALLOW_CREDENTIALS = True  # Needed for cookies/authentication with HTMX
+
 
 ROOT_URLCONF = "ledger.urls"
 
