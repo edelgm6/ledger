@@ -31,8 +31,6 @@ class JournalEntryViewMixin:
         oustanding_textract_job_files = S3File.objects.filter(documents__isnull=True)
         if oustanding_textract_job_files:
             return render_to_string("api/tables/paystubs-table-poller.html")
-        # for outstanding_textract_job_file in oustanding_textract_job_files:
-        # outstanding_textract_job_file.create_paystubs_from_textract_data()
 
         paystubs = (
             Paystub.objects.filter(journal_entry__isnull=True)
