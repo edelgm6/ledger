@@ -27,9 +27,12 @@ class JournalEntryViewMixin:
     entry_form_template = "api/entry_forms/journal-entry-item-form.html"
 
     def get_paystubs_table_html(self):
+        # Make sure endpoint doesn't return a table until all S3files have paystubs
         oustanding_textract_job_files = S3File.objects.filter(documents__isnull=True)
-        for outstanding_textract_job_file in oustanding_textract_job_files:
-            outstanding_textract_job_file.create_paystubs_from_textract_data()
+        if oustanding_textract_job_files:
+            return render_to_string("api/tables/paystubs-table-poller.html")
+        # for outstanding_textract_job_file in oustanding_textract_job_files:
+        # outstanding_textract_job_file.create_paystubs_from_textract_data()
 
         paystubs = (
             Paystub.objects.filter(journal_entry__isnull=True)
@@ -309,6 +312,12 @@ class JournalEntryFormView(
         )
 
         return HttpResponse(entry_form_html)
+
+
+class PaystubTableView(JournalEntryViewMixin, LoginRequiredMixin, View):
+    def get(self, request):
+        html = self.get_paystubs_table_html()
+        return HttpResponse(html)
 
 
 class PaystubDetailView(TransactionsViewMixin, LoginRequiredMixin, View):
