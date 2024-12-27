@@ -6,7 +6,7 @@ from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.views import View
 
-from api import utils
+from api import tasks, utils
 from api.forms import DocumentForm, UploadTransactionsForm, WalletForm
 from api.models import S3File
 from api.statement import Trend
@@ -53,7 +53,11 @@ class UploadTransactionsView(View):
         form = DocumentForm(request.POST, request.FILES)
         if form.is_valid():
             s3file = form.create_s3_file()
-            s3file.create_textract_job()
+            print("file created")
+            tasks.orchestrate_paystub_extraction.delay(s3file.pk)
+            print("extraction completed")
+
+            # s3file.create_textract_job()
         return self.get_textract_form_html(filename=s3file.user_filename)
 
     def post(self, request):
