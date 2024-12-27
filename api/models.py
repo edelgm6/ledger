@@ -2,6 +2,7 @@ import datetime
 import math
 import re
 
+from celery import shared_task
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -13,6 +14,7 @@ from api.aws_services import (
     convert_table_to_cleaned_dataframe,
     create_textract_job,
     get_textract_results,
+    wait_for_textract_completion,
 )
 
 
