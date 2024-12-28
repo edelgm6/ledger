@@ -53,6 +53,7 @@ AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
 AWS_REGION_NAME = "us-east-1"
 AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME")
+AWS_VERIFY = True
 
 # Configure Django Storages
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
@@ -119,6 +120,10 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "ledger.wsgi.application"
 
+# Celery Settings
+CELERY_BROKER_URL = "redis://localhost:6379/0"  # URL for Redis
+CELERY_ACCEPT_CONTENT = ["json"]  # Accepted content formats
+CELERY_TASK_SERIALIZER = "json"  # Serialization format
 
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases

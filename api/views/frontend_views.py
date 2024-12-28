@@ -6,13 +6,13 @@ from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.views import View
 
-from api import utils
+from api import tasks, utils
 from api.forms import DocumentForm, UploadTransactionsForm, WalletForm
-from api.models import S3File
 from api.statement import Trend
+from api.views.mixins import JournalEntryViewMixin
 
 
-class UploadTransactionsView(View):
+class UploadTransactionsView(View, JournalEntryViewMixin):
 
     def get_textract_form_html(self, filename=None):
         form = DocumentForm()
@@ -27,18 +27,18 @@ class UploadTransactionsView(View):
         )
 
     def get(self, request):
-        # Retrieve job info for non paystub-created jobs
-        unprocessed_files = S3File.objects.filter(documents__isnull=True).distinct()
-        for file in unprocessed_files:
-            file.create_paystubs_from_textract_data()
-
         template = "api/views/upload-transactions.html"
         csv_form_html = self.get_csv_form_html()
         textract_form_html = self.get_textract_form_html()
+        paystub_table_html = self.get_paystubs_table_html()
         return render(
             request,
             template,
-            {"form": csv_form_html, "textract_form": textract_form_html},
+            {
+                "form": csv_form_html,
+                "textract_form": textract_form_html,
+                "paystubs_table": paystub_table_html,
+            },
         )
 
     def handle_transactions_form(self, request):
@@ -53,7 +53,7 @@ class UploadTransactionsView(View):
         form = DocumentForm(request.POST, request.FILES)
         if form.is_valid():
             s3file = form.create_s3_file()
-            s3file.create_textract_job()
+            tasks.orchestrate_paystub_extraction.delay(s3file.pk)
         return self.get_textract_form_html(filename=s3file.user_filename)
 
     def post(self, request):
