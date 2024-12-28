@@ -1,8 +1,10 @@
 import re
 import uuid
 from decimal import Decimal
+from time import sleep
 
 import boto3
+from botocore.exceptions import ClientError
 from django.conf import settings
 
 
@@ -12,6 +14,7 @@ def get_boto3_client(service="textract"):
         aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
         aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
         region_name=settings.AWS_REGION_NAME,
+        verify=settings.AWS_VERIFY,
     )
     return client
 
@@ -53,8 +56,41 @@ def create_textract_job(filename):
     return job_id
 
 
+def wait_for_textract_completion(job_id):
+    POLLING_INTERVAL = 10  # Time in seconds between polls
+    MAX_ATTEMPTS = 30  # Maximum number of polling attempts
+
+    client = get_boto3_client()
+
+    for attempt in range(MAX_ATTEMPTS):
+        try:
+            response = client.get_document_analysis(JobId=job_id)
+            job_status = response.get("JobStatus")
+
+            if job_status == "SUCCEEDED":
+                # Job is complete; exit the loop
+                return
+            elif job_status == "FAILED":
+                raise RuntimeError(
+                    f"Textract job failed: {response.get('StatusMessage')}"
+                )
+            elif job_status == "IN_PROGRESS":
+                # Wait and poll again
+                sleep(POLLING_INTERVAL)
+            else:
+                raise RuntimeError(f"Unexpected job status: {job_status}")
+        except ClientError as e:
+            raise RuntimeError(f"An error occurred while polling Textract: {str(e)}")
+
+    # If the maximum attempts are reached, raise an exception
+    raise TimeoutError(
+        f"Textract job {job_id} did not complete within the allowed time."
+    )
+
+
 # Get all responses, paginated
 def get_textract_results(job_id):
+
     client = get_boto3_client()
 
     responses = []
