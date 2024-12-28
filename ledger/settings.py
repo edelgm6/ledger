@@ -121,7 +121,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "ledger.wsgi.application"
 
 # Celery Settings
-CELERY_BROKER_URL = "redis://localhost:6379/0"  # URL for Redis
+CELERY_BROKER_URL = os.environ.get("REDIS_URL")
 CELERY_ACCEPT_CONTENT = ["json"]  # Accepted content formats
 CELERY_TASK_SERIALIZER = "json"  # Serialization format
 
