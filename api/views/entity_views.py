@@ -88,6 +88,7 @@ class EntityTagMixin:
             "api/tables/entity-balances-table.html",
             {
                 "entities_balances": self.get_entities_balances(),
+                "preselected_entity": preselected_entity,
                 "entity_history_table": entity_history_table_html,
             },
         )
