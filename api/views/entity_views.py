@@ -76,11 +76,20 @@ class EntityTagMixin:
 
         return html, untagged_journal_entry_items
 
-    def get_entities_balances_table_html(self):
+    def get_entities_balances_table_html(self, preselected_entity=None):
+        if preselected_entity:
+            entity_history_table_html = self.get_entity_history_table_html(
+                entity_id=preselected_entity.id
+            )
+        else:
+            entity_history_table_html = ""
 
         html = render_to_string(
             "api/tables/entity-balances-table.html",
-            {"entities_balances": self.get_entities_balances()},
+            {
+                "entities_balances": self.get_entities_balances(),
+                "entity_history_table": entity_history_table_html,
+            },
         )
 
         return html
@@ -91,6 +100,8 @@ class EntityTagMixin:
             .select_related("journal_entry__transaction")
             .order_by("journal_entry__date")
         )
+        if not journal_entry_items:
+            return ""
 
         balance = 0
         for journal_entry_item in journal_entry_items:
@@ -107,7 +118,9 @@ class EntityTagMixin:
         )
         return html
 
-    def get_total_page_html(self, is_initial_load=False, preloaded_entity=None):
+    def get_total_page_html(
+        self, is_initial_load=False, preloaded_entity=None, preselected_entity=None
+    ):
 
         table_html, untagged_journal_entry_items = (
             self.get_untagged_journal_entries_table_and_items()
@@ -131,7 +144,9 @@ class EntityTagMixin:
                 },
             )
         )
-        entity_balances_table_html = self.get_entities_balances_table_html()
+        entity_balances_table_html = self.get_entities_balances_table_html(
+            preselected_entity
+        )
 
         html = render_to_string(
             "api/views/payables-receivables.html",
@@ -153,9 +168,10 @@ class UntagJournalEntryView(LoginRequiredMixin, EntityTagMixin, View):
         journal_entry_item = get_object_or_404(
             JournalEntryItem, pk=journal_entry_item_id
         )
+        entity = journal_entry_item.entity
         journal_entry_item.remove_entity()
 
-        html = self.get_total_page_html()
+        html = self.get_total_page_html(preselected_entity=entity)
         return HttpResponse(html)
 
 
