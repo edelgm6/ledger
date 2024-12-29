@@ -9,7 +9,12 @@ from api.views.amortization_views import (
     AmortizationView,
     AmortizeFormView,
 )
-from api.views.entity_views import EntityHistoryTable, TagEntitiesForm, TagEntitiesView
+from api.views.entity_views import (
+    EntityHistoryTable,
+    TagEntitiesForm,
+    TagEntitiesView,
+    UntagJournalEntryView,
+)
 from api.views.frontend_views import IndexView, TrendView, UploadTransactionsView
 from api.views.journal_entry_views import (
     JournalEntryFormView,
@@ -121,6 +126,12 @@ urlpatterns = [
         "amortization/amortize-form/<int:amortization_id>/",
         AmortizeFormView.as_view(),
         name="amortize-form",
+    ),
+    # Tagging balances
+    path(
+        "tag/journal-entry-item/<int:journal_entry_item_id>/",
+        UntagJournalEntryView.as_view(),
+        name="untag-journal-entry",
     ),
     path("tag/", TagEntitiesView.as_view(), name="tag-entities"),
     path(
