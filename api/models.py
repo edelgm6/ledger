@@ -707,6 +707,10 @@ class JournalEntryItem(models.Model):
     def __str__(self):
         return str(self.journal_entry.id) + " " + self.type + " $" + str(self.amount)
 
+    def remove_entity(self):
+        self.entity = None
+        self.save()
+
 
 class AutoTag(models.Model):
     search_string = models.CharField(max_length=20)
