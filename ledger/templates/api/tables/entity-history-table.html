@@ -7,15 +7,26 @@
                 <th>Transaction</th>
                 <th>Amount</th>
                 <th>Balance</th>
+                <th>Action</th>
             </tr>
         </thead>
         <tbody>
             {% for entry in journal_entry_items %}
-                <tr>
+                <tr id="row-{{ entry.id }}">
                     <td>{{ entry.journal_entry.date }}</td>
                     <td>{{ entry.journal_entry.transaction.description }}</td>
                     <td>{% if entry.type == "debit" %}-{% endif %}${{ entry.amount|floatformat:2|intcomma }}</td>
                     <td>${{ entry.balance|floatformat:2|intcomma }}</td>
+                    <td>
+                        <button 
+                            class="btn btn-primary btn-sm"
+                            style="padding: 0.125rem 0.25rem; font-size: 0.75rem; line-height: 1;"
+                            hx-post="{% url 'untag-journal-entry' entry.id %}" 
+                            hx-target="#table-and-form" 
+                            hx-swap="outerHTML">
+                            Untag
+                        </button>
+                    </td>
                 </tr>
             {% endfor %}
         </tbody>

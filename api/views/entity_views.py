@@ -50,7 +50,7 @@ class EntityTagMixin:
 
         return entities_balances
 
-    def get_total_page_html(self, is_initial_load=False, preloaded_entity=None):
+    def get_untagged_journal_entries_table_and_items(self):
         # Need to create a new account sub type for payables
         relevant_account_types = [
             Account.SubType.ACCOUNTS_RECEIVABLE,
@@ -65,13 +65,52 @@ class EntityTagMixin:
             .order_by("journal_entry__date")
         )
 
-        table_html = (
+        html = (
             None
             if not untagged_journal_entry_items.exists()
             else render_to_string(
                 "api/tables/payables-receivables-table.html",
                 {"payables_receivables": untagged_journal_entry_items},
             )
+        )
+
+        return html, untagged_journal_entry_items
+
+    def get_entities_balances_table_html(self):
+
+        html = render_to_string(
+            "api/tables/entity-balances-table.html",
+            {"entities_balances": self.get_entities_balances()},
+        )
+
+        return html
+
+    def get_entity_history_table_html(self, entity_id):
+        journal_entry_items = (
+            JournalEntryItem.objects.filter(entity__pk=entity_id)
+            .select_related("journal_entry__transaction")
+            .order_by("journal_entry__date")
+        )
+
+        balance = 0
+        for journal_entry_item in journal_entry_items:
+            if journal_entry_item.type == JournalEntryItem.JournalEntryType.DEBIT:
+                balance -= journal_entry_item.amount
+            else:
+                balance += journal_entry_item.amount
+
+            journal_entry_item.balance = balance
+
+        html = render_to_string(
+            "api/tables/entity-history-table.html",
+            {"journal_entry_items": journal_entry_items},
+        )
+        return html
+
+    def get_total_page_html(self, is_initial_load=False, preloaded_entity=None):
+
+        table_html, untagged_journal_entry_items = (
+            self.get_untagged_journal_entries_table_and_items()
         )
         try:
             initial_journal_entry_item = untagged_journal_entry_items[0]
@@ -92,10 +131,7 @@ class EntityTagMixin:
                 },
             )
         )
-        entity_balances_table_html = render_to_string(
-            "api/tables/entity-balances-table.html",
-            {"entities_balances": self.get_entities_balances()},
-        )
+        entity_balances_table_html = self.get_entities_balances_table_html()
 
         html = render_to_string(
             "api/views/payables-receivables.html",
@@ -109,30 +145,26 @@ class EntityTagMixin:
         return html
 
 
+class UntagJournalEntryView(LoginRequiredMixin, EntityTagMixin, View):
+    login_url = "/login/"
+    redirect_field_name = "next"
+
+    def post(self, request, journal_entry_item_id):
+        journal_entry_item = get_object_or_404(
+            JournalEntryItem, pk=journal_entry_item_id
+        )
+        journal_entry_item.remove_entity()
+
+        html = self.get_total_page_html()
+        return HttpResponse(html)
+
+
 class EntityHistoryTable(LoginRequiredMixin, EntityTagMixin, View):
     login_url = "/login/"
     redirect_field_name = "next"
 
     def get(self, request, entity_id):
-        journal_entry_items = (
-            JournalEntryItem.objects.filter(entity__pk=entity_id)
-            .select_related("journal_entry__transaction")
-            .order_by("journal_entry__date")
-        )
-
-        balance = 0
-        for journal_entry_item in journal_entry_items:
-            if journal_entry_item.type == JournalEntryItem.JournalEntryType.DEBIT:
-                balance -= journal_entry_item.amount
-            else:
-                balance += journal_entry_item.amount
-
-            journal_entry_item.balance = balance
-
-        html = render_to_string(
-            "api/tables/entity-history-table.html",
-            {"journal_entry_items": journal_entry_items},
-        )
+        html = self.get_entity_history_table_html(entity_id)
         return HttpResponse(html)
 
 
