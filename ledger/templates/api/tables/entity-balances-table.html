@@ -19,7 +19,11 @@
                 <tbody>
                     {% for balance in entities_balances %}
                         <tr
-                            class="clickable-row"
+                            {% if balance.entity__name == preselected_entity.name %}
+                                class="clickable-row table-active"
+                            {% else %}
+                                class="clickable-row"
+                            {% endif %}
                             hx-get="{% url 'entity-history' balance.entity__id %}"
                             hx-target="#history-table" 
                         >
