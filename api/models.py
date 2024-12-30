@@ -412,8 +412,15 @@ class Transaction(models.Model):
         self.save()
         transaction.close()
 
+    def find_matching_autotag(self):
+        cleaned_description = re.sub(" +", " ", self.description.strip().lower())
+        matching_tags = AutoTag.objects.filter(
+            search_string__icontains=cleaned_description
+        )
+        return matching_tags.first()
+
     def apply_autotag(self):
-        matching_autotag = AutoTag.find_matching_autotag(description=self.description)
+        matching_autotag = self.find_matching_autotag()
         if matching_autotag:
             self.suggested_account = matching_autotag.account
             self.prefill = matching_autotag.prefill
@@ -736,12 +743,6 @@ class AutoTag(models.Model):
 
     def __str__(self):
         return '"' + self.search_string + '": ' + str(self.account)
-
-    @classmethod
-    def find_matching_autotag(cls, description):
-        cleaned_description = re.sub(" +", " ", description.strip().lower())
-        matching_tags = cls.objects.filter(search_string__icontains=cleaned_description)
-        return matching_tags.first()
 
 
 class Prefill(models.Model):
