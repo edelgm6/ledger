@@ -86,10 +86,21 @@
             </div>
         </div>
 
-        <!-- Submit Button -->
-        <div class="col-md-1">
+        <!-- Submit + Rerun tag Button -->
+        <div class="col-md-3">
             <div class="form-group">
                 <button type="submit" class="btn btn-primary">Filter</button>
+                <!-- New Button -->
+                <button 
+                    type="button" 
+                    class="btn btn-secondary"
+                    hx-get="{% url 'trigger-autotag' %}"
+                    hx-trigger="click"
+                    hx-target="#autotag-success"
+                    hx-swap="innerHTML">
+                    Run Autotag
+                </button>
+                <div id="autotag-success"></div>
             </div>
         </div>
     </div>

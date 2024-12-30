@@ -412,6 +412,16 @@ class Transaction(models.Model):
         self.save()
         transaction.close()
 
+    def apply_autotag(self):
+        matching_autotag = AutoTag.find_matching_autotag(description=self.description)
+        if matching_autotag:
+            self.suggested_account = matching_autotag.account
+            self.prefill = matching_autotag.prefill
+            if matching_autotag.transaction_type:
+                self.type = matching_autotag.transaction_type
+            else:
+                self.type = Transaction.TransactionType.PURCHASE
+
 
 class TaxCharge(models.Model):
     class Type(models.TextChoices):
@@ -727,6 +737,12 @@ class AutoTag(models.Model):
     def __str__(self):
         return '"' + self.search_string + '": ' + str(self.account)
 
+    @classmethod
+    def find_matching_autotag(cls, description):
+        cleaned_description = re.sub(" +", " ", description.strip().lower())
+        matching_tags = cls.objects.filter(search_string__icontains=cleaned_description)
+        return matching_tags.first()
+
 
 class Prefill(models.Model):
     name = models.CharField(max_length=200)
@@ -867,36 +883,18 @@ class CSVProfile(models.Model):
                 break
 
             # Set defaults
-            transaction_type = Transaction.TransactionType.PURCHASE
-            suggested_account = None
-            prefill = None
-            # Loop through AutoTags to find
-            # the first match with the description
-            for tag in AutoTag.objects.all():
-                cleaned_description = re.sub(
-                    " +", " ", row[self.description].strip().lower()
-                )
-                if tag.search_string.lower() in cleaned_description:
-                    suggested_account = tag.account
-                    prefill = tag.prefill
-                    # Only override the transaction type
-                    # if it's specified in the tag
-                    tag_type = tag.transaction_type
-                    transaction_type = tag_type if tag_type else transaction_type
-                    break
-
-            transactions_list.append(
-                Transaction(
-                    date=self._get_formatted_date(row[self.date]),
-                    account=account,
-                    amount=self._get_coalesced_amount(row),
-                    description=row[self.description],
-                    category=row[self.category],
-                    suggested_account=suggested_account,
-                    prefill=prefill,
-                    type=transaction_type,
-                )
+            transaction = Transaction(
+                date=self._get_formatted_date(row[self.date]),
+                account=account,
+                amount=self._get_coalesced_amount(row),
+                description=row[self.description],
+                category=row[self.category],
+                suggested_account=None,  # Default value
+                prefill=None,  # Default value
+                type=Transaction.TransactionType.PURCHASE,  # Default type
             )
+            transaction.apply_autotag()  # override with AutoTag if finds match
+            transactions_list.append(transaction)
 
         Transaction.objects.bulk_create(transactions_list)
 
