@@ -12,14 +12,22 @@ from api.forms import (
     JournalEntryMetadataForm,
     TransactionFilterForm,
 )
-from api.models import (
-    JournalEntryItem,
-    Paystub,
-    PaystubValue,
-    Transaction,
-)
+from api.models import JournalEntryItem, Paystub, PaystubValue, Transaction
 from api.views.mixins import JournalEntryViewMixin
 from api.views.transaction_views import TransactionsViewMixin
+
+
+class TriggerAutoTagView(LoginRequiredMixin, View):
+    login_url = "/login/"
+    redirect_field_name = "next"
+
+    def get(self, request):
+        open_transactions = Transaction.objects.filter(is_closed=False)
+        for transaction in open_transactions:
+            transaction.apply_autotag()
+            transaction.save()
+
+        return HttpResponse("<small class=text-success>Autotag complete</small>")
 
 
 # Called every time the page is filtered
@@ -56,7 +64,6 @@ class JournalEntryTableView(
 
 
 # Called every time a table row is clicked
-# TODO: WTF shoudl I do here
 class JournalEntryFormView(
     TransactionsViewMixin, JournalEntryViewMixin, LoginRequiredMixin, View
 ):
