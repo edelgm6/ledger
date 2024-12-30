@@ -22,6 +22,7 @@ from api.views.journal_entry_views import (
     JournalEntryView,
     PaystubDetailView,
     PaystubTableView,
+    TriggerAutoTagView,
 )
 from api.views.reconciliation_views import ReconciliationTableView, ReconciliationView
 from api.views.statement_views import StatementDetailView, StatementView
@@ -74,6 +75,7 @@ urlpatterns = [
     path(
         "paystubs/<int:paystub_id>/", PaystubDetailView.as_view(), name="paystub-detail"
     ),
+    path("trigger-autotag/", TriggerAutoTagView.as_view(), name="trigger-autotag"),
     # Link page
     path(
         "transactions-linking/",
