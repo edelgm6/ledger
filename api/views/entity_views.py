@@ -1,5 +1,5 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Case, DecimalField, F, Sum, Value, When
+from django.db.models import Case, DecimalField, F, Max, Sum, Value, When
 from django.db.models.functions import Abs
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
@@ -41,12 +41,15 @@ class EntityTagMixin:
                 balance=F("total_credits") - F("total_debits"),
             )
             .annotate(
-                abs_balance=Abs(
-                    F("balance")
-                )  # Use Django's Abs function to calculate absolute value
+                abs_balance=Abs(F("balance")),  # Absolute value of the balance
+                max_journalentry_date=Max(
+                    "journal_entry__date"
+                ),  # Maximum date for related JournalEntry
             )
-            .order_by("-abs_balance")
-        )  # Sort by absolute balance in descending order
+            .order_by(
+                "-abs_balance", "-max_journalentry_date"
+            )  # Order by abs_balance and max date
+        )
 
         return entities_balances
 

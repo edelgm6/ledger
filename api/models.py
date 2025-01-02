@@ -60,14 +60,16 @@ class S3File(models.Model):
             for account, value in page_data.items():
                 if not isinstance(account, Account):
                     continue
-                paystub_values.append(
-                    PaystubValue(
-                        paystub=paystub,
-                        account=account,
-                        amount=value["value"],
-                        journal_entry_item_type=value["entry_type"],
+                amount = value["value"]
+                if amount != 0:
+                    paystub_values.append(
+                        PaystubValue(
+                            paystub=paystub,
+                            account=account,
+                            amount=amount,
+                            journal_entry_item_type=value["entry_type"],
+                        )
                     )
-                )
             PaystubValue.objects.bulk_create(paystub_values)
 
     def _extract_data(self):
