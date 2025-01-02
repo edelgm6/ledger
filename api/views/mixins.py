@@ -15,8 +15,8 @@ class JournalEntryViewMixin:
 
     def get_paystubs_table_html(self):
         # Make sure endpoint doesn't return a table until all S3files have paystubs
-        oustanding_textract_job_files = S3File.objects.filter(documents__isnull=True)
-        if oustanding_textract_job_files:
+        oustanding_textract_jobs = S3File.objects.filter(analysis_complete__isnull=True)
+        if oustanding_textract_jobs:
             return render_to_string("api/tables/paystubs-table-poller.html")
 
         paystubs = (
