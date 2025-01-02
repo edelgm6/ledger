@@ -421,19 +421,15 @@ class Transaction(models.Model):
                 " +", " ", transaction.description.strip().lower()
             )
 
-            matching_autotag = None
             for tag in all_tags:
                 if tag.search_string.lower() in cleaned_description:
-                    matching_autotag = tag  # Return the first matching tag
+                    transaction.suggested_account = tag.account
+                    transaction.prefill = tag.prefill
+                    if tag.transaction_type:
+                        transaction.type = tag.transaction_type
+                    else:
+                        transaction.type = Transaction.TransactionType.PURCHASE
                     break
-
-            if matching_autotag:
-                transaction.suggested_account = matching_autotag.account
-                transaction.prefill = matching_autotag.prefill
-                if matching_autotag.transaction_type:
-                    transaction.type = matching_autotag.transaction_type
-                else:
-                    transaction.type = Transaction.TransactionType.PURCHASE
 
 
 class TaxCharge(models.Model):
