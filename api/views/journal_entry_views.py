@@ -23,8 +23,7 @@ class TriggerAutoTagView(LoginRequiredMixin, View):
 
     def get(self, request):
         open_transactions = Transaction.objects.filter(is_closed=False)
-        for transaction in open_transactions:
-            transaction.apply_autotag()
+        Transaction.apply_autotags(open_transactions)
 
         open_transactions.bulk_update(
             open_transactions, ["suggested_account", "prefill", "type"]
