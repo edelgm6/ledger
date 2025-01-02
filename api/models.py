@@ -32,6 +32,7 @@ class S3File(models.Model):
     user_filename = models.CharField(max_length=200)
     s3_filename = models.CharField(max_length=200)
     textract_job_id = models.CharField(max_length=200)
+    analysis_complete = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return self.prefill.name + " " + self.s3_filename
@@ -412,22 +413,27 @@ class Transaction(models.Model):
         self.save()
         transaction.close()
 
-    def find_matching_autotag(self):
-        cleaned_description = re.sub(" +", " ", self.description.strip().lower())
-        matching_tags = AutoTag.objects.filter(
-            search_string__icontains=cleaned_description
-        )
-        return matching_tags.first()
+    @staticmethod
+    def apply_autotags(transactions):
+        all_tags = AutoTag.objects.all()
+        for transaction in transactions:
+            cleaned_description = re.sub(
+                " +", " ", transaction.description.strip().lower()
+            )
 
-    def apply_autotag(self):
-        matching_autotag = self.find_matching_autotag()
-        if matching_autotag:
-            self.suggested_account = matching_autotag.account
-            self.prefill = matching_autotag.prefill
-            if matching_autotag.transaction_type:
-                self.type = matching_autotag.transaction_type
-            else:
-                self.type = Transaction.TransactionType.PURCHASE
+            matching_autotag = None
+            for tag in all_tags:
+                if tag.search_string.lower() in cleaned_description:
+                    matching_autotag = tag  # Return the first matching tag
+                    break
+
+            if matching_autotag:
+                transaction.suggested_account = matching_autotag.account
+                transaction.prefill = matching_autotag.prefill
+                if matching_autotag.transaction_type:
+                    transaction.type = matching_autotag.transaction_type
+                else:
+                    transaction.type = Transaction.TransactionType.PURCHASE
 
 
 class TaxCharge(models.Model):
@@ -894,9 +900,9 @@ class CSVProfile(models.Model):
                 prefill=None,  # Default value
                 type=Transaction.TransactionType.PURCHASE,  # Default type
             )
-            transaction.apply_autotag()  # override with AutoTag if finds match
             transactions_list.append(transaction)
 
+        Transaction.apply_autotags(transactions_list)
         Transaction.objects.bulk_create(transactions_list)
 
         return len(transactions_list)
