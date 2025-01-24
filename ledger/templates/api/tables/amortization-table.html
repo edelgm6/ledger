@@ -12,6 +12,7 @@
                         <th style="position: sticky; top: 0; background: white; z-index: 10;">Description</th>
                         <th style="position: sticky; top: 0; background: white; z-index: 10;">Amount (Remaining)</th>
                         <th style="position: sticky; top: 0; background: white; z-index: 10;">Periods (Remaining)</th>
+                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Latest Entry</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -26,6 +27,7 @@
                         <td>{{ amortization.description }}</td>
                         <td>${{ amortization.amount|floatformat:2|intcomma }} (${{ amortization.remaining_balance|floatformat:2|intcomma }})</td>
                         <td>{{ amortization.periods }} ({{ amortization.remaining_periods }})</td>
+                        <td>{{ amortization.latest_transaction_date }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
