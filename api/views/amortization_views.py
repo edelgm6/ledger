@@ -21,7 +21,7 @@ class AmortizationTableMixin:
             )
             amortization.remaining_balance = remaining_balance
             amortization.remaining_periods = remaining_periods
-            amortization.latest_transaction = latest_transaction_date
+            amortization.latest_transaction_date = latest_transaction_date
         return render_to_string(
             "api/tables/amortization-table.html", {"amortizations": amortizations}
         )
