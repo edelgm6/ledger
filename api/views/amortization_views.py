@@ -16,11 +16,12 @@ class AmortizationTableMixin:
         ).filter(is_closed=False)
 
         for amortization in amortizations:
-            remaining_balance, remaining_periods = (
-                amortization.get_remaining_balance_and_periods()
+            remaining_balance, remaining_periods, latest_transaction_date = (
+                amortization.get_remaining_balance_and_periods_and_max_date()
             )
             amortization.remaining_balance = remaining_balance
             amortization.remaining_periods = remaining_periods
+            amortization.latest_transaction = latest_transaction_date
         return render_to_string(
             "api/tables/amortization-table.html", {"amortizations": amortizations}
         )
@@ -90,7 +91,6 @@ class AmortizationFormView(AmortizationTableMixin, LoginRequiredMixin, View):
         journal_entry_item = get_object_or_404(
             JournalEntryItem, pk=journal_entry_item_id
         )
-        print(journal_entry_item)
         amortization_form_html = self.get_amortization_form_html(journal_entry_item)
         return HttpResponse(amortization_form_html)
 
