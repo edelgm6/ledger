@@ -185,13 +185,7 @@ class Amortization(models.Model):
         related_transactions_count = len(related_transactions)
         remaining_periods = self.periods - related_transactions_count
 
-        max_date = None
-        for transaction in related_transactions:
-            transaction_date = transaction.date
-            if not max_date:
-                max_date = transaction_date
-            elif transaction_date > max_date:
-                max_date = transaction_date
+        max_date = related_transactions[0].date
 
         return remaining_balance, remaining_periods, max_date
 
