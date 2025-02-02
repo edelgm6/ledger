@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0002_s3file_analysis_complete"),
+        ("api", "0001_initial"),
     ]
 
     operations = [
