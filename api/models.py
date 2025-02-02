@@ -18,6 +18,7 @@ from api.aws_services import (
 
 class Entity(models.Model):
     name = models.CharField(max_length=200, unique=True)
+    is_closed = models.BooleanField(default=False)
 
     class Meta:
         verbose_name_plural = "entities"
