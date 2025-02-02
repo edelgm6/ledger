@@ -18,6 +18,7 @@ from api.aws_services import (
 
 class Entity(models.Model):
     name = models.CharField(max_length=200, unique=True)
+    is_closed = models.BooleanField(default=False)
 
     class Meta:
         verbose_name_plural = "entities"
@@ -369,6 +370,13 @@ class Transaction(models.Model):
         null=True,
         blank=True,
     )
+    suggested_entity = models.ForeignKey(
+        "Entity",
+        related_name="suggested_entity",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+    )
     type = models.CharField(max_length=25, choices=TransactionType.choices)
     linked_transaction = models.OneToOneField(
         "Transaction", on_delete=models.SET_NULL, null=True, blank=True
@@ -428,6 +436,7 @@ class Transaction(models.Model):
             for tag in all_tags:
                 if tag.search_string.lower() in cleaned_description:
                     transaction.suggested_account = tag.account
+                    transaction.suggested_entity = tag.entity
                     transaction.prefill = tag.prefill
                     if tag.transaction_type:
                         transaction.type = tag.transaction_type
@@ -639,6 +648,13 @@ class Account(models.Model):
         max_length=30, choices=SpecialType.choices, null=True, blank=True, unique=True
     )
     is_closed = models.BooleanField(default=False)
+    entity = models.ForeignKey(
+        "Entity",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="accounts",
+    )
 
     class Meta:
         ordering = ("name",)
@@ -745,6 +761,9 @@ class AutoTag(models.Model):
     )
     prefill = models.ForeignKey(
         "Prefill", on_delete=models.CASCADE, null=True, blank=True
+    )
+    entity = models.ForeignKey(
+        "Entity", on_delete=models.CASCADE, null=True, blank=True
     )
 
     def __str__(self):

@@ -309,7 +309,13 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
         open_accounts_choices = [
             (account.name, account.name) for account in open_accounts
         ]
-        kwargs["form_kwargs"] = {"open_accounts_choices": open_accounts_choices}
+
+        open_entities = Entity.objects.filter(is_closed=False)
+        open_entities_choices = [(entity.name, entity.name) for entity in open_entities]
+        kwargs["form_kwargs"] = {
+            "open_accounts_choices": open_accounts_choices,
+            "open_entities_choices": open_entities_choices,
+        }
         super(BaseJournalEntryItemFormset, self).__init__(*args, **kwargs)
 
     def get_entry_total(self):
@@ -360,16 +366,19 @@ class JournalEntryItemForm(forms.ModelForm):
         widget=forms.NumberInput(attrs={"step": "0.01"}),
     )
     account = forms.ChoiceField(choices=[])
+    entity = forms.ChoiceField(choices=[])
 
     class Meta:
         model = JournalEntryItem
-        fields = ("account", "amount")
+        fields = ("account", "amount", "entity")
 
     def __init__(self, *args, **kwargs):
         open_accounts_choices = kwargs.pop("open_accounts_choices", [])
+        open_entities_choices = kwargs.pop("open_entities_choices", [])
         super(JournalEntryItemForm, self).__init__(*args, **kwargs)
         self.fields["amount"].localize = True
         self.fields["account"].choices = open_accounts_choices
+        self.fields["entity"].choices = open_entities_choices
 
         # Resolve the account name for the bound form
         if self.instance.pk and self.instance.account:
@@ -384,6 +393,14 @@ class JournalEntryItemForm(forms.ModelForm):
             return account
         except Account.DoesNotExist:
             raise forms.ValidationError("This Account does not exist.")
+
+    def clean_entity(self):
+        entity_name = self.cleaned_data["entity"]
+        try:
+            entity = Entity.objects.get(name=entity_name)
+            return entity
+        except Account.DoesNotExist:
+            raise forms.ValidationError("This Entity does not exist.")
 
     def save(self, journal_entry, type):
         instance = super(JournalEntryItemForm, self).save(commit=False)

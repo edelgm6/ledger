@@ -32,7 +32,7 @@
             <small>Total Debits: $<span id="totalDebits">{{ debit_prefilled_total|floatformat:2|intcomma }}</span></small>
             {% for form in debit_formset %}
             <div class="row">
-                <div class="col-md-8">
+                <div class="col-md-6">
                     {{ form.id }}
                     <input
                         class="form-control {% if form.account.errors %}is-invalid{% endif %}"
@@ -55,7 +55,7 @@
                         {% endfor %}
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <input
                         type="number"
                         step="0.01"
@@ -71,6 +71,22 @@
                         {% endfor %}
                     </div>
                 </div>
+                <div class="col-md-3">
+                    <input
+                        class="form-control {% if form.entity.errors %}is-invalid{% endif %}"
+                        list="debitEntityOptions"
+                        name="{{ form.entity.html_name }}"
+                        id="{{ form.entity.auto_id }}"
+                        tabindex="{{ forloop.counter|multiply:4|add:3 }}"
+                        value="{% if form.entity_name %}{{ form.entity_name }}{% elif form.entity.value %}{{ form.entity.value }}{% endif %}"
+                        >
+                        <datalist id="debitEntityOptions">
+                            {% for value, text in form.entity.field.choices %}
+                                <option value="{{ text }}">
+                            {% endfor %}
+                        </datalist>
+                    </input>
+                </div>
             </div>
             {% endfor %}
         </div>
@@ -82,7 +98,7 @@
             <small>Total Credits: $<span id="totalCredits">{{ credit_prefilled_total|floatformat:2|intcomma }}</span></small>
             {% for form in credit_formset %}
             <div class="row">
-                <div class="col-md-8">
+                <div class="col-md-6">
                     {{ form.id }}
                     <input
                         class="form-control {% if form.account.errors %}is-invalid{% endif %}"
@@ -105,7 +121,7 @@
                         {% endfor %}
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <input
                         type="number"
                         step="0.01"
@@ -120,6 +136,22 @@
                             {{ error }}
                         {% endfor %}
                     </div>
+                </div>
+                <div class="col-md-3">
+                    <input
+                        class="form-control {% if form.entity.errors %}is-invalid{% endif %}"
+                        list="creditEntityOptions"
+                        name="{{ form.entity.html_name }}"
+                        id="{{ form.entity.auto_id }}"
+                        tabindex="{{ forloop.counter|multiply:4|add:3 }}"
+                        value="{% if form.entity_name %}{{ form.entity_name }}{% elif form.entity.value %}{{ form.entity.value }}{% endif %}"
+                        >
+                        <datalist id="creditEntityOptions">
+                            {% for value, text in form.entity.field.choices %}
+                                <option value="{{ text }}">
+                            {% endfor %}
+                        </datalist>
+                    </input>
                 </div>
             </div>
             {% endfor %}
