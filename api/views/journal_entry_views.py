@@ -26,7 +26,8 @@ class TriggerAutoTagView(LoginRequiredMixin, View):
         Transaction.apply_autotags(open_transactions)
 
         open_transactions.bulk_update(
-            open_transactions, ["suggested_account", "prefill", "type"]
+            open_transactions,
+            ["suggested_account", "prefill", "type", "suggested_entity"],
         )
 
         return HttpResponse("<small class=text-success>Autotag complete</small>")
