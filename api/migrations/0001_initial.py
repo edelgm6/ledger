@@ -8,249 +8,704 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='CSVColumnValuePair',
+            name="CSVColumnValuePair",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('column', models.CharField(max_length=200)),
-                ('value', models.CharField(max_length=200)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("column", models.CharField(max_length=200)),
+                ("value", models.CharField(max_length=200)),
             ],
         ),
         migrations.CreateModel(
-            name='Entity',
+            name="Entity",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=200, unique=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=200, unique=True)),
             ],
             options={
-                'verbose_name_plural': 'entities',
+                "verbose_name_plural": "entities",
             },
         ),
         migrations.CreateModel(
-            name='JournalEntry',
+            name="JournalEntry",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date', models.DateField()),
-                ('description', models.CharField(blank=True, max_length=200)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date", models.DateField()),
+                ("description", models.CharField(blank=True, max_length=200)),
             ],
             options={
-                'verbose_name_plural': 'journal entries',
+                "verbose_name_plural": "journal entries",
             },
         ),
         migrations.CreateModel(
-            name='Prefill',
+            name="Prefill",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=200)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=200)),
             ],
         ),
         migrations.CreateModel(
-            name='CSVProfile',
+            name="CSVProfile",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=200)),
-                ('date', models.CharField(max_length=200)),
-                ('description', models.CharField(max_length=200)),
-                ('category', models.CharField(max_length=200)),
-                ('clear_prepended_until_value', models.CharField(blank=True, max_length=200)),
-                ('inflow', models.CharField(max_length=200)),
-                ('outflow', models.CharField(max_length=200)),
-                ('date_format', models.CharField(default='%Y-%m-%d', max_length=200)),
-                ('clear_values_column_pairs', models.ManyToManyField(blank=True, null=True, to='api.csvcolumnvaluepair')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=200)),
+                ("date", models.CharField(max_length=200)),
+                ("description", models.CharField(max_length=200)),
+                ("category", models.CharField(max_length=200)),
+                (
+                    "clear_prepended_until_value",
+                    models.CharField(blank=True, max_length=200),
+                ),
+                ("inflow", models.CharField(max_length=200)),
+                ("outflow", models.CharField(max_length=200)),
+                ("date_format", models.CharField(default="%Y-%m-%d", max_length=200)),
+                (
+                    "clear_values_column_pairs",
+                    models.ManyToManyField(
+                        blank=True, null=True, to="api.csvcolumnvaluepair"
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Account',
+            name="Account",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=200, unique=True)),
-                ('type', models.CharField(choices=[('asset', 'Asset'), ('liability', 'Liability'), ('income', 'Income'), ('expense', 'Expense'), ('equity', 'Equity')], max_length=9)),
-                ('sub_type', models.CharField(choices=[('short_term_debt', 'Short-term Debt'), ('taxes_payable', 'Taxes Payable'), ('long_term_debt', 'Long-term Debt'), ('accounts_payable', 'Accounts Payable'), ('cash', 'Cash'), ('accounts_receivable', 'Accounts Receivable'), ('prepaid_expenses', 'Prepaid Expenses'), ('securities_unrestricted', 'Securities-Unrestricted'), ('securities_retirement', 'Securities-Retirement'), ('real_estate', 'Real Estate'), ('retained_earnings', 'Retained Earnings'), ('salary', 'Salary'), ('dividends_and_interest', 'Dividends & Interest'), ('realized_investment_gains', 'Realized Investment Gains'), ('other_income', 'Other Income'), ('unrealized_investment_gains', 'Unrealized Investment Gains'), ('purchases', 'Purchases'), ('tax', 'Tax'), ('interest', 'Interest Expense')], max_length=30)),
-                ('special_type', models.CharField(blank=True, choices=[('unrealized_gains_and_losses', 'Unrealized Gains and Losses'), ('state_taxes_payable', 'State Taxes Payable'), ('federal_taxes_payable', 'Federal Taxes Payable'), ('property_taxes_payable', 'Property Taxes Payable'), ('state_taxes', 'State Taxes'), ('federal_taxes', 'Federal Taxes'), ('property_taxes', 'Property Taxes'), ('wallet', 'Wallet'), ('prepaid_expenses', 'Prepaid Expenses')], max_length=30, null=True, unique=True)),
-                ('is_closed', models.BooleanField(default=False)),
-                ('csv_profile', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='accounts', to='api.csvprofile')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=200, unique=True)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("asset", "Asset"),
+                            ("liability", "Liability"),
+                            ("income", "Income"),
+                            ("expense", "Expense"),
+                            ("equity", "Equity"),
+                        ],
+                        max_length=9,
+                    ),
+                ),
+                (
+                    "sub_type",
+                    models.CharField(
+                        choices=[
+                            ("short_term_debt", "Short-term Debt"),
+                            ("taxes_payable", "Taxes Payable"),
+                            ("long_term_debt", "Long-term Debt"),
+                            ("accounts_payable", "Accounts Payable"),
+                            ("cash", "Cash"),
+                            ("accounts_receivable", "Accounts Receivable"),
+                            ("prepaid_expenses", "Prepaid Expenses"),
+                            ("securities_unrestricted", "Securities-Unrestricted"),
+                            ("securities_retirement", "Securities-Retirement"),
+                            ("real_estate", "Real Estate"),
+                            ("retained_earnings", "Retained Earnings"),
+                            ("salary", "Salary"),
+                            ("dividends_and_interest", "Dividends & Interest"),
+                            ("realized_investment_gains", "Realized Investment Gains"),
+                            ("other_income", "Other Income"),
+                            (
+                                "unrealized_investment_gains",
+                                "Unrealized Investment Gains",
+                            ),
+                            ("purchases", "Purchases"),
+                            ("tax", "Tax"),
+                            ("interest", "Interest Expense"),
+                        ],
+                        max_length=30,
+                    ),
+                ),
+                (
+                    "special_type",
+                    models.CharField(
+                        blank=True,
+                        choices=[
+                            (
+                                "unrealized_gains_and_losses",
+                                "Unrealized Gains and Losses",
+                            ),
+                            ("state_taxes_payable", "State Taxes Payable"),
+                            ("federal_taxes_payable", "Federal Taxes Payable"),
+                            ("property_taxes_payable", "Property Taxes Payable"),
+                            ("state_taxes", "State Taxes"),
+                            ("federal_taxes", "Federal Taxes"),
+                            ("property_taxes", "Property Taxes"),
+                            ("wallet", "Wallet"),
+                            ("prepaid_expenses", "Prepaid Expenses"),
+                        ],
+                        max_length=30,
+                        null=True,
+                        unique=True,
+                    ),
+                ),
+                ("is_closed", models.BooleanField(default=False)),
+                (
+                    "csv_profile",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="accounts",
+                        to="api.csvprofile",
+                    ),
+                ),
             ],
             options={
-                'ordering': ('name',),
+                "ordering": ("name",),
             },
         ),
         migrations.CreateModel(
-            name='JournalEntryItem',
+            name="JournalEntryItem",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('type', models.CharField(choices=[('debit', 'Debit'), ('credit', 'Credit')], max_length=6)),
-                ('amount', models.DecimalField(decimal_places=2, max_digits=12)),
-                ('account', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='api.account')),
-                ('entity', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='journal_entry_items', to='api.entity')),
-                ('journal_entry', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='journal_entry_items', to='api.journalentry')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[("debit", "Debit"), ("credit", "Credit")], max_length=6
+                    ),
+                ),
+                ("amount", models.DecimalField(decimal_places=2, max_digits=12)),
+                (
+                    "account",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, to="api.account"
+                    ),
+                ),
+                (
+                    "entity",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="journal_entry_items",
+                        to="api.entity",
+                    ),
+                ),
+                (
+                    "journal_entry",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="journal_entry_items",
+                        to="api.journalentry",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Amortization',
+            name="Amortization",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('amount', models.DecimalField(decimal_places=2, max_digits=12)),
-                ('periods', models.PositiveSmallIntegerField(blank=True, null=True)),
-                ('is_closed', models.BooleanField(default=False)),
-                ('description', models.CharField(max_length=200)),
-                ('suggested_account', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='api.account')),
-                ('accrued_journal_entry_item', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='amortization', to='api.journalentryitem')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("amount", models.DecimalField(decimal_places=2, max_digits=12)),
+                ("periods", models.PositiveSmallIntegerField(blank=True, null=True)),
+                ("is_closed", models.BooleanField(default=False)),
+                ("description", models.CharField(max_length=200)),
+                (
+                    "suggested_account",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, to="api.account"
+                    ),
+                ),
+                (
+                    "accrued_journal_entry_item",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="amortization",
+                        to="api.journalentryitem",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Paystub',
+            name="Paystub",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('page_id', models.CharField(max_length=200)),
-                ('title', models.CharField(max_length=200)),
-                ('journal_entry', models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='api.journalentry')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("page_id", models.CharField(max_length=200)),
+                ("title", models.CharField(max_length=200)),
+                (
+                    "journal_entry",
+                    models.OneToOneField(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="api.journalentry",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='PaystubValue',
+            name="PaystubValue",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('amount', models.DecimalField(decimal_places=2, max_digits=12)),
-                ('journal_entry_item_type', models.CharField(choices=[('debit', 'Debit'), ('credit', 'Credit')], max_length=25)),
-                ('account', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='api.account')),
-                ('paystub', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='paystub_values', to='api.paystub')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("amount", models.DecimalField(decimal_places=2, max_digits=12)),
+                (
+                    "journal_entry_item_type",
+                    models.CharField(
+                        choices=[("debit", "Debit"), ("credit", "Credit")],
+                        max_length=25,
+                    ),
+                ),
+                (
+                    "account",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, to="api.account"
+                    ),
+                ),
+                (
+                    "paystub",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="paystub_values",
+                        to="api.paystub",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='DocSearch',
+            name="DocSearch",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('keyword', models.CharField(blank=True, max_length=200, null=True)),
-                ('table_name', models.CharField(blank=True, max_length=200, null=True)),
-                ('row', models.CharField(blank=True, max_length=200, null=True)),
-                ('column', models.CharField(blank=True, max_length=200, null=True)),
-                ('journal_entry_item_type', models.CharField(blank=True, choices=[('debit', 'Debit'), ('credit', 'Credit')], max_length=25, null=True)),
-                ('selection', models.CharField(blank=True, choices=[('Company', 'Company'), ('Begin Period', 'Begin Period'), ('End Period', 'End Period')], max_length=20, null=True)),
-                ('account', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='api.account')),
-                ('prefill', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='api.prefill')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("keyword", models.CharField(blank=True, max_length=200, null=True)),
+                ("table_name", models.CharField(blank=True, max_length=200, null=True)),
+                ("row", models.CharField(blank=True, max_length=200, null=True)),
+                ("column", models.CharField(blank=True, max_length=200, null=True)),
+                (
+                    "journal_entry_item_type",
+                    models.CharField(
+                        blank=True,
+                        choices=[("debit", "Debit"), ("credit", "Credit")],
+                        max_length=25,
+                        null=True,
+                    ),
+                ),
+                (
+                    "selection",
+                    models.CharField(
+                        blank=True,
+                        choices=[
+                            ("Company", "Company"),
+                            ("Begin Period", "Begin Period"),
+                            ("End Period", "End Period"),
+                        ],
+                        max_length=20,
+                        null=True,
+                    ),
+                ),
+                (
+                    "account",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="api.account",
+                    ),
+                ),
+                (
+                    "prefill",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, to="api.prefill"
+                    ),
+                ),
             ],
             options={
-                'verbose_name_plural': 'doc searches',
+                "verbose_name_plural": "doc searches",
             },
         ),
         migrations.CreateModel(
-            name='AutoTag',
+            name="AutoTag",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('search_string', models.CharField(max_length=20)),
-                ('transaction_type', models.CharField(blank=True, choices=[('income', 'Income'), ('purchase', 'Purchase'), ('payment', 'Payment'), ('transfer', 'Transfer')], max_length=25)),
-                ('account', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='api.account')),
-                ('prefill', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='api.prefill')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("search_string", models.CharField(max_length=20)),
+                (
+                    "transaction_type",
+                    models.CharField(
+                        blank=True,
+                        choices=[
+                            ("income", "Income"),
+                            ("purchase", "Purchase"),
+                            ("payment", "Payment"),
+                            ("transfer", "Transfer"),
+                        ],
+                        max_length=25,
+                    ),
+                ),
+                (
+                    "account",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="api.account",
+                    ),
+                ),
+                (
+                    "prefill",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="api.prefill",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='PrefillItem',
+            name="PrefillItem",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('journal_entry_item_type', models.CharField(choices=[('debit', 'Debit'), ('credit', 'Credit')], max_length=25)),
-                ('order', models.PositiveSmallIntegerField()),
-                ('account', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.account')),
-                ('prefill', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.prefill')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "journal_entry_item_type",
+                    models.CharField(
+                        choices=[("debit", "Debit"), ("credit", "Credit")],
+                        max_length=25,
+                    ),
+                ),
+                ("order", models.PositiveSmallIntegerField()),
+                (
+                    "account",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, to="api.account"
+                    ),
+                ),
+                (
+                    "prefill",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, to="api.prefill"
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='S3File',
+            name="S3File",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('url', models.URLField(unique=True)),
-                ('user_filename', models.CharField(max_length=200)),
-                ('s3_filename', models.CharField(max_length=200)),
-                ('textract_job_id', models.CharField(max_length=200)),
-                ('analysis_complete', models.DateTimeField(blank=True, null=True)),
-                ('prefill', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='api.prefill')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("url", models.URLField(unique=True)),
+                ("user_filename", models.CharField(max_length=200)),
+                ("s3_filename", models.CharField(max_length=200)),
+                ("textract_job_id", models.CharField(max_length=200)),
+                ("analysis_complete", models.DateTimeField(blank=True, null=True)),
+                (
+                    "prefill",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, to="api.prefill"
+                    ),
+                ),
             ],
         ),
         migrations.AddField(
-            model_name='paystub',
-            name='document',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='documents', to='api.s3file'),
+            model_name="paystub",
+            name="document",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="documents",
+                to="api.s3file",
+            ),
         ),
         migrations.CreateModel(
-            name='Transaction',
+            name="Transaction",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date', models.DateField()),
-                ('amount', models.DecimalField(decimal_places=2, max_digits=12)),
-                ('description', models.CharField(blank=True, max_length=200)),
-                ('category', models.CharField(blank=True, max_length=200)),
-                ('is_closed', models.BooleanField(default=False)),
-                ('date_closed', models.DateField(blank=True, null=True)),
-                ('type', models.CharField(choices=[('income', 'Income'), ('purchase', 'Purchase'), ('payment', 'Payment'), ('transfer', 'Transfer')], max_length=25)),
-                ('account', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='api.account')),
-                ('amortization', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='transactions', to='api.amortization')),
-                ('linked_transaction', models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='api.transaction')),
-                ('prefill', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to='api.prefill')),
-                ('suggested_account', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='suggested_account', to='api.account')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date", models.DateField()),
+                ("amount", models.DecimalField(decimal_places=2, max_digits=12)),
+                ("description", models.CharField(blank=True, max_length=200)),
+                ("category", models.CharField(blank=True, max_length=200)),
+                ("is_closed", models.BooleanField(default=False)),
+                ("date_closed", models.DateField(blank=True, null=True)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("income", "Income"),
+                            ("purchase", "Purchase"),
+                            ("payment", "Payment"),
+                            ("transfer", "Transfer"),
+                        ],
+                        max_length=25,
+                    ),
+                ),
+                (
+                    "account",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, to="api.account"
+                    ),
+                ),
+                (
+                    "amortization",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="transactions",
+                        to="api.amortization",
+                    ),
+                ),
+                (
+                    "linked_transaction",
+                    models.OneToOneField(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="api.transaction",
+                    ),
+                ),
+                (
+                    "prefill",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        to="api.prefill",
+                    ),
+                ),
+                (
+                    "suggested_account",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="suggested_account",
+                        to="api.account",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='TaxCharge',
+            name="TaxCharge",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('type', models.CharField(choices=[('property', 'Property'), ('federal', 'Federal'), ('state', 'State')], max_length=25)),
-                ('date', models.DateField()),
-                ('amount', models.DecimalField(decimal_places=2, max_digits=12)),
-                ('transaction', models.OneToOneField(on_delete=django.db.models.deletion.PROTECT, to='api.transaction')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("property", "Property"),
+                            ("federal", "Federal"),
+                            ("state", "State"),
+                        ],
+                        max_length=25,
+                    ),
+                ),
+                ("date", models.DateField()),
+                ("amount", models.DecimalField(decimal_places=2, max_digits=12)),
+                (
+                    "transaction",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        to="api.transaction",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Reconciliation',
+            name="Reconciliation",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date', models.DateField()),
-                ('amount', models.DecimalField(blank=True, decimal_places=2, max_digits=12, null=True)),
-                ('account', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.account')),
-                ('transaction', models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to='api.transaction')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date", models.DateField()),
+                (
+                    "amount",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=12, null=True
+                    ),
+                ),
+                (
+                    "account",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, to="api.account"
+                    ),
+                ),
+                (
+                    "transaction",
+                    models.OneToOneField(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        to="api.transaction",
+                    ),
+                ),
             ],
         ),
         migrations.AddField(
-            model_name='journalentry',
-            name='transaction',
-            field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='journal_entry', to='api.transaction'),
+            model_name="journalentry",
+            name="transaction",
+            field=models.OneToOneField(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="journal_entry",
+                to="api.transaction",
+            ),
         ),
         migrations.AddIndex(
-            model_name='journalentryitem',
-            index=models.Index(fields=['type'], name='jei_date_idx'),
+            model_name="journalentryitem",
+            index=models.Index(fields=["type"], name="jei_date_idx"),
         ),
         migrations.AddIndex(
-            model_name='journalentryitem',
-            index=models.Index(fields=['account'], name='jei_account_idx'),
+            model_name="journalentryitem",
+            index=models.Index(fields=["account"], name="jei_account_idx"),
         ),
         migrations.AddIndex(
-            model_name='transaction',
-            index=models.Index(fields=['date'], name='date_idx'),
+            model_name="transaction",
+            index=models.Index(fields=["date"], name="date_idx"),
         ),
         migrations.AddIndex(
-            model_name='transaction',
-            index=models.Index(fields=['account'], name='account_idx'),
+            model_name="transaction",
+            index=models.Index(fields=["account"], name="account_idx"),
         ),
         migrations.AddIndex(
-            model_name='transaction',
-            index=models.Index(fields=['type'], name='type_idx'),
+            model_name="transaction",
+            index=models.Index(fields=["type"], name="type_idx"),
         ),
         migrations.AddIndex(
-            model_name='transaction',
-            index=models.Index(fields=['is_closed'], name='is_closed_idx'),
+            model_name="transaction",
+            index=models.Index(fields=["is_closed"], name="is_closed_idx"),
         ),
         migrations.AddIndex(
-            model_name='transaction',
-            index=models.Index(fields=['linked_transaction'], name='linked_transaction_idx'),
+            model_name="transaction",
+            index=models.Index(
+                fields=["linked_transaction"], name="linked_transaction_idx"
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='taxcharge',
-            unique_together={('type', 'date')},
+            name="taxcharge",
+            unique_together={("type", "date")},
         ),
         migrations.AlterUniqueTogether(
-            name='reconciliation',
-            unique_together={('account', 'date')},
+            name="reconciliation",
+            unique_together={("account", "date")},
         ),
     ]
