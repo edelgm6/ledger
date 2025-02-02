@@ -133,17 +133,22 @@ class JournalEntryViewMixin:
             prefill_debits_count = 0
             prefill_credits_count = 0
             if bound_debits_count + bound_credits_count == 0:
-                # TODO: Here's where I would insert the paystub prefills
                 primary_account, secondary_account = (
                     (transaction.account, transaction.suggested_account)
                     if is_debit
                     else (transaction.suggested_account, transaction.account)
+                )
+                primary_entity, secondary_entity = (
+                    (transaction.account.entity, transaction.suggested_entity)
+                    if is_debit
+                    else (transaction.suggested_entity, transaction.account.entity)
                 )
 
                 debits_initial_data.append(
                     {
                         "account": getattr(primary_account, "name", None),
                         "amount": abs(transaction.amount),
+                        "entity": primary_entity,
                     }
                 )
 
@@ -151,6 +156,7 @@ class JournalEntryViewMixin:
                     {
                         "account": getattr(secondary_account, "name", None),
                         "amount": abs(transaction.amount),
+                        "entity": secondary_entity,
                     }
                 )
 
@@ -164,12 +170,20 @@ class JournalEntryViewMixin:
                             == JournalEntryItem.JournalEntryType.DEBIT
                         ):
                             debits_initial_data.append(
-                                {"account": item.account.name, "amount": 0}
+                                {
+                                    "account": item.account.name,
+                                    "amount": 0,
+                                    "entity": item.entity.name,
+                                }
                             )
                             prefill_debits_count += 1
                         else:
                             credits_initial_data.append(
-                                {"account": item.account.name, "amount": 0}
+                                {
+                                    "account": item.account.name,
+                                    "amount": 0,
+                                    "entity": item.entity.name,
+                                }
                             )
                             prefill_credits_count += 1
 
@@ -190,6 +204,7 @@ class JournalEntryViewMixin:
                                 {
                                     "account": paystub_value.account.name,
                                     "amount": paystub_value.amount,
+                                    "entity": paystub_value.entity,
                                 }
                             )
                             prefill_debits_count += 1
@@ -198,6 +213,7 @@ class JournalEntryViewMixin:
                                 {
                                     "account": paystub_value.account.name,
                                     "amount": paystub_value.amount,
+                                    "entity": paystub_value.entity,
                                 }
                             )
                             prefill_credits_count += 1
