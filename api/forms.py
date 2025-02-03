@@ -386,6 +386,12 @@ class JournalEntryItemForm(forms.ModelForm):
         else:
             self.account_name = ""
 
+        # Resolve the entity name for the bound form
+        if self.instance.pk and self.instance.entity:
+            self.entity_name = self.instance.entity.name
+        else:
+            self.entity_name = ""
+
     def clean_account(self):
         account_name = self.cleaned_data["account"]
         try:
