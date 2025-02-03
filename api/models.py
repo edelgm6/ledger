@@ -784,6 +784,13 @@ class PrefillItem(models.Model):
         max_length=25, choices=JournalEntryItem.JournalEntryType.choices
     )
     order = models.PositiveSmallIntegerField()
+    entity = models.ForeignKey(
+        "Entity",
+        related_name="prefill_item",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+    )
 
 
 class Paystub(models.Model):
