@@ -39,7 +39,7 @@
                         list="debitAccountOptions"
                         name="{{ form.account.html_name }}"
                         id="{{ form.account.auto_id }}"
-                        tabindex="{{ forloop.counter|multiply:4|add:1 }}"
+                        tabindex="{{ forloop.counter|multiply:6|add:1 }}"
                         value="{% if form.account_name %}{{ form.account_name }}{% elif form.account.value %}{{ form.account.value }}{% endif %}"
                         {% if not autofocus_debit %}autofocus{% endif %}
                         >
@@ -63,7 +63,7 @@
                         name="{{ form.amount.html_name }}"
                         id="{{ form.amount.auto_id }}"
                         value="{{ form.amount.value }}"
-                        tabindex="{{ forloop.counter|multiply:4|add:2 }}"
+                        tabindex="{{ forloop.counter|multiply:6|add:2 }}"
                     >
                     <div class="invalid-feedback">
                         {% for error in form.amount.errors %}
@@ -77,7 +77,7 @@
                         list="debitEntityOptions"
                         name="{{ form.entity.html_name }}"
                         id="{{ form.entity.auto_id }}"
-                        tabindex="{{ forloop.counter|multiply:4|add:3 }}"
+                        tabindex="{{ forloop.counter|multiply:6|add:3 }}"
                         value="{% if form.entity_name %}{{ form.entity_name }}{% elif form.entity.value %}{{ form.entity.value }}{% endif %}"
                         >
                         <datalist id="debitEntityOptions">
@@ -105,7 +105,7 @@
                         list="debitAccountOptions"
                         name="{{ form.account.html_name }}"
                         id="{{ form.account.auto_id }}"
-                        tabindex="{{ forloop.counter|multiply:4|add:3 }}"
+                        tabindex="{{ forloop.counter|multiply:6|add:4 }}"
                         value="{% if form.account_name %}{{ form.account_name }}{% elif form.account.value %}{{ form.account.value }}{% endif %}"
                         {% if autofocus_debit %}autofocus{% endif %}
                         >
@@ -129,7 +129,7 @@
                         name="{{ form.amount.html_name }}"
                         id="{{ form.amount.auto_id }}"
                         value="{{ form.amount.value }}"
-                        tabindex="{{ forloop.counter|multiply:4|add:4 }}"
+                        tabindex="{{ forloop.counter|multiply:6|add:5 }}"
                     >
                     <div class="invalid-feedback">
                         {% for error in form.amount.errors %}
@@ -143,7 +143,7 @@
                         list="creditEntityOptions"
                         name="{{ form.entity.html_name }}"
                         id="{{ form.entity.auto_id }}"
-                        tabindex="{{ forloop.counter|multiply:4|add:3 }}"
+                        tabindex="{{ forloop.counter|multiply:6|add:6 }}"
                         value="{% if form.entity_name %}{{ form.entity_name }}{% elif form.entity.value %}{{ form.entity.value }}{% endif %}"
                         >
                         <datalist id="creditEntityOptions">
