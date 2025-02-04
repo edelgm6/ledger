@@ -816,6 +816,13 @@ class PaystubValue(models.Model):
     journal_entry_item_type = models.CharField(
         max_length=25, choices=JournalEntryItem.JournalEntryType.choices
     )
+    entity = models.ForeignKey(
+        "Entity",
+        related_name="paystubvalues",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+    )
 
     def __str__(self):
         return self.paystub.title + "-" + self.account.name + "-" + str(self.amount)
@@ -835,6 +842,13 @@ class DocSearch(models.Model):
         choices=JournalEntryItem.JournalEntryType.choices,
         blank=True,
         null=True,
+    )
+    entity = models.ForeignKey(
+        "Entity",
+        related_name="docsearches",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
     )
 
     STRING_CHOICES = [
