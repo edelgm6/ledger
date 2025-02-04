@@ -10,10 +10,14 @@ from api.models import Account, Amortization, JournalEntryItem
 
 class AmortizationTableMixin:
     def get_amortization_table_html(self):
-        amortizations = Amortization.objects.select_related(
-            "accrued_journal_entry_item__journal_entry__transaction",
-            "suggested_account",
-        ).filter(is_closed=False)
+        amortizations = (
+            Amortization.objects.select_related(
+                "accrued_journal_entry_item__journal_entry__transaction",
+                "suggested_account",
+            )
+            .filter(is_closed=False)
+            .order_by("accrued_journal_entry_item__journal_entry__transaction__date")
+        )
 
         for amortization in amortizations:
             remaining_balance, remaining_periods, latest_transaction_date = (
