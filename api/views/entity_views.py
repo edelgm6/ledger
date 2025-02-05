@@ -15,7 +15,13 @@ class EntityTagMixin:
 
     def get_entities_balances(self):
         entities_balances = (
-            JournalEntryItem.objects.exclude(entity__isnull=True)
+            JournalEntryItem.objects.filter(
+                account__in=[
+                    Account.SubType.ACCOUNTS_PAYABLE,
+                    Account.SubType.ACCOUNTS_RECEIVABLE,
+                ]
+            )
+            .exclude(entity__isnull=True)
             .values("entity__id", "entity__name")
             .annotate(
                 total_debits=Sum(
