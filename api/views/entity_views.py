@@ -16,7 +16,7 @@ class EntityTagMixin:
     def get_entities_balances(self):
         entities_balances = (
             JournalEntryItem.objects.filter(
-                account__in=[
+                account__sub_type__in=[
                     Account.SubType.ACCOUNTS_PAYABLE,
                     Account.SubType.ACCOUNTS_RECEIVABLE,
                 ]
