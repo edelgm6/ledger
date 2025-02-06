@@ -106,7 +106,13 @@ class EntityTagMixin:
 
     def get_entity_history_table_html(self, entity_id):
         journal_entry_items = (
-            JournalEntryItem.objects.filter(entity__pk=entity_id)
+            JournalEntryItem.objects.filter(
+                entity__pk=entity_id,
+                account__sub_type__in=[
+                    Account.SubType.ACCOUNTS_PAYABLE,
+                    Account.SubType.ACCOUNTS_RECEIVABLE,
+                ],
+            )
             .select_related("journal_entry__transaction")
             .order_by("journal_entry__date")
         )
