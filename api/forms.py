@@ -311,7 +311,7 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
         ]
 
         open_entities = Entity.objects.filter(is_closed=False)
-        open_entities_choices = [(entity.name, entity.name) for entity in open_entities]
+        open_entities_choices = [entity.name for entity in open_entities]
         kwargs["form_kwargs"] = {
             "open_accounts_choices": open_accounts_choices,
             "open_entities_choices": open_entities_choices,
