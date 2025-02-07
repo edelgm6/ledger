@@ -366,7 +366,8 @@ class JournalEntryItemForm(forms.ModelForm):
         widget=forms.NumberInput(attrs={"step": "0.01"}),
     )
     account = forms.ChoiceField(choices=[])
-    entity = forms.ChoiceField(choices=[])
+    # entity = forms.ChoiceField(choices=[])
+    entity = forms.CharField()
 
     class Meta:
         model = JournalEntryItem
@@ -378,7 +379,8 @@ class JournalEntryItemForm(forms.ModelForm):
         super(JournalEntryItemForm, self).__init__(*args, **kwargs)
         self.fields["amount"].localize = True
         self.fields["account"].choices = open_accounts_choices
-        self.fields["entity"].choices = open_entities_choices
+        # self.fields["entity"].choices = open_entities_choices
+        self.entity_choices = open_entities_choices
 
         # Resolve the account name for the bound form
         if self.instance.pk and self.instance.account:
@@ -402,11 +404,12 @@ class JournalEntryItemForm(forms.ModelForm):
 
     def clean_entity(self):
         entity_name = self.cleaned_data["entity"]
-        try:
-            entity = Entity.objects.get(name=entity_name)
-            return entity
-        except Account.DoesNotExist:
-            raise forms.ValidationError("This Entity does not exist.")
+        entity, created = Entity.objects.get_or_create(name=entity_name)
+
+        if created:
+            self.created_entity = entity
+
+        return entity
 
     def save(self, journal_entry, type):
         instance = super(JournalEntryItemForm, self).save(commit=False)

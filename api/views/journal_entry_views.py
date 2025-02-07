@@ -208,8 +208,14 @@ class JournalEntryView(
             except IndexError:
                 index = 0
                 highlighted_transaction = transactions[index]
+
+            created_entities = self.get_created_entities(
+                formsets=[debit_formset, credit_formset]
+            )
             entry_form_html = self.get_journal_entry_form_html(
-                transaction=highlighted_transaction, index=index
+                transaction=highlighted_transaction,
+                index=index,
+                created_entities=created_entities,
             )
 
         table_html = self.get_table_html(

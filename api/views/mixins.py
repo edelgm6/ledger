@@ -1,4 +1,6 @@
-from django.forms import modelformset_factory
+from typing import List
+
+from django.forms import BaseModelFormSet, modelformset_factory
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 
@@ -7,11 +9,29 @@ from api.forms import (
     JournalEntryItemForm,
     JournalEntryMetadataForm,
 )
-from api.models import JournalEntry, JournalEntryItem, Paystub, PaystubValue, S3File
+from api.models import (
+    Entity,
+    JournalEntry,
+    JournalEntryItem,
+    Paystub,
+    PaystubValue,
+    S3File,
+)
 
 
 class JournalEntryViewMixin:
     entry_form_template = "api/entry_forms/journal-entry-item-form.html"
+
+    def get_created_entities(self, formsets: List[BaseModelFormSet]) -> List[Entity]:
+        created_entities = []
+        for formset in formsets:
+            for form in formset:
+                try:
+                    created_entities.append(form.created_entity)
+                except AttributeError:
+                    continue
+
+        return created_entities
 
     def get_paystubs_table_html(self):
         # Make sure endpoint doesn't return a table until all S3files have paystubs
@@ -95,6 +115,7 @@ class JournalEntryViewMixin:
         is_debit=True,
         form_errors=None,
         paystub_id=None,
+        created_entities=None,
     ):
 
         if not transaction:
@@ -256,6 +277,7 @@ class JournalEntryViewMixin:
             "debit_prefilled_total": debit_prefilled_total,
             "credit_prefilled_total": credit_prefilled_total,
             "metadata_form": metadata_form,
+            "created_entities": created_entities,
         }
 
         return render_to_string(self.entry_form_template, context)
