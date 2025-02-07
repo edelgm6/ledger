@@ -17,11 +17,23 @@
             <input type="submit" value="Submit" class="btn btn-primary mt-3" />
         </div>
     </div>
+    {% if created_entities %}
+    <div class="row">
+        <div class="col-md-6">
+            <small class="text-success">Entities created:</small><br>
+            {% for created_entity in created_entities %}
+                <small class="text-success">{{ created_entity.name }}</small><br>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
     {% if form_errors %}
-    <div class="col-md-6 alert alert-danger" role="alert">
-        {% for error in form_errors %}
-            <small>{{ error }}</small><br>
-        {% endfor %}
+    <div class="row">
+        <div class="col-md-6 alert alert-danger" role="alert">
+            {% for error in form_errors %}
+                <small>{{ error }}</small><br>
+            {% endfor %}
+        </div>
     </div>
     {% endif %}
     <div class="row">
@@ -81,8 +93,8 @@
                         value="{% if form.entity_name %}{{ form.entity_name }}{% elif form.entity.value %}{{ form.entity.value }}{% endif %}"
                         >
                         <datalist id="debitEntityOptions">
-                            {% for value, text in form.entity.field.choices %}
-                                <option value="{{ text }}">
+                            {% for entity in form.entity_choices %}
+                                <option value="{{ entity }}">
                             {% endfor %}
                         </datalist>
                     </input>
@@ -147,8 +159,8 @@
                         value="{% if form.entity_name %}{{ form.entity_name }}{% elif form.entity.value %}{{ form.entity.value }}{% endif %}"
                         >
                         <datalist id="creditEntityOptions">
-                            {% for value, text in form.entity.field.choices %}
-                                <option value="{{ text }}">
+                            {% for entity in form.entity_choices %}
+                                <option value="{{ entity }}">
                             {% endfor %}
                         </datalist>
                     </input>
