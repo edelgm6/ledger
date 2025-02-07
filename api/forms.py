@@ -366,7 +366,6 @@ class JournalEntryItemForm(forms.ModelForm):
         widget=forms.NumberInput(attrs={"step": "0.01"}),
     )
     account = forms.ChoiceField(choices=[])
-    # entity = forms.ChoiceField(choices=[])
     entity = forms.CharField()
 
     class Meta:
@@ -379,7 +378,6 @@ class JournalEntryItemForm(forms.ModelForm):
         super(JournalEntryItemForm, self).__init__(*args, **kwargs)
         self.fields["amount"].localize = True
         self.fields["account"].choices = open_accounts_choices
-        # self.fields["entity"].choices = open_entities_choices
         self.entity_choices = open_entities_choices
 
         # Resolve the account name for the bound form
