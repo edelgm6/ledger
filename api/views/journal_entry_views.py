@@ -75,7 +75,9 @@ class JournalEntryFormView(
     item_form_template = "api/entry_forms/journal-entry-item-form.html"
 
     def get(self, request, transaction_id):
-        transaction = Transaction.objects.get(pk=transaction_id)
+        transaction = Transaction.objects.select_related("journal_entry").get(
+            pk=transaction_id
+        )
         paystub_id = request.GET.get("paystub_id")
         entry_form_html = self.get_journal_entry_form_html(
             transaction=transaction,
