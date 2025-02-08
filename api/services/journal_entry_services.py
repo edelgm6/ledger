@@ -31,7 +31,11 @@ def get_prefill_initial_data(
     debits_initial_data = []
     credits_initial_data = []
 
-    prefill_items = transaction.prefill.prefillitem_set.all().order_by("order")
+    prefill_items = (
+        transaction.prefill.prefillitem_set.all()
+        .select_related("account", "entity")
+        .order_by("order")
+    )
     for item in prefill_items:
         if item.journal_entry_item_type == JournalEntryItem.JournalEntryType.DEBIT:
             debits_initial_data.append(
