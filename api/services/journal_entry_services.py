@@ -108,6 +108,11 @@ def get_initial_data(
 
     debits_initial_data = []
     credits_initial_data = []
+
+    transaction = Transaction.objects.select_related(
+        "account", "suggested_account"
+    ).get(pk=transaction.pk)
+
     primary_account, secondary_account = (
         (transaction.account, transaction.suggested_account)
         if transaction_account_is_debit
