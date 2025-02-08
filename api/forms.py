@@ -1,11 +1,13 @@
 import csv
 from decimal import Decimal, InvalidOperation
+from typing import List, Tuple
 
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.forms import BaseModelFormSet, DecimalField
+from django.forms.renderers import get_default_renderer
 from django.utils import timezone
 
 from api import utils
@@ -303,20 +305,13 @@ class JournalEntryMetadataForm(forms.Form):
 
 
 class BaseJournalEntryItemFormset(BaseModelFormSet):
+    # def __init__(self, *args, **kwargs):
+    #     # Pop your custom keyword arguments so that they don't get passed to the parent
+    #     self.open_accounts_choices = kwargs.pop("open_accounts_choices", None)
+    #     self.open_entities_choices = kwargs.pop("open_entities_choices", None)
 
-    def __init__(self, *args, **kwargs):
-        open_accounts = Account.objects.filter(is_closed=False)
-        open_accounts_choices = [
-            (account.name, account.name) for account in open_accounts
-        ]
-
-        open_entities = Entity.objects.filter(is_closed=False).order_by("name")
-        open_entities_choices = [entity.name for entity in open_entities]
-        kwargs["form_kwargs"] = {
-            "open_accounts_choices": open_accounts_choices,
-            "open_entities_choices": open_entities_choices,
-        }
-        super(BaseJournalEntryItemFormset, self).__init__(*args, **kwargs)
+    #     # Call the parent initializer with the remaining kwargs
+    #     super().__init__(*args, **kwargs)
 
     def get_entry_total(self):
         total = 0
@@ -372,13 +367,13 @@ class JournalEntryItemForm(forms.ModelForm):
         model = JournalEntryItem
         fields = ("account", "amount", "entity")
 
-    def __init__(self, *args, **kwargs):
-        open_accounts_choices = kwargs.pop("open_accounts_choices", [])
-        open_entities_choices = kwargs.pop("open_entities_choices", [])
-        super(JournalEntryItemForm, self).__init__(*args, **kwargs)
-        self.fields["amount"].localize = True
-        self.fields["account"].choices = open_accounts_choices
-        self.entity_choices = open_entities_choices
+    def __init__(self, *args, open_accounts_choices, open_entities_choices, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Use the passed in choices for a field's choices, for example:
+        self.fields["account"].choices = open_accounts_choices or []
+        self.entity_choices = open_entities_choices or []
+        # print(self.fields["entity"].choices)
+        # print(wtf)
 
         # Resolve the account name for the bound form
         if self.instance.pk and self.instance.account:

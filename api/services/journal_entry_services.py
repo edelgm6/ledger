@@ -4,7 +4,7 @@ from django.db.models import QuerySet
 from django.forms import BaseModelFormSet, modelformset_factory
 
 from api.forms import BaseJournalEntryItemFormset, JournalEntryItemForm
-from api.models import JournalEntryItem, PaystubValue, Transaction
+from api.models import Account, Entity, JournalEntryItem, PaystubValue, Transaction
 
 
 def get_debits_and_credits(
@@ -27,9 +27,9 @@ def get_debits_and_credits(
 
 def get_prefill_initial_data(
     transaction: Transaction,
+    debits_initial_data: List[Dict[str, str | int]],
+    credits_initial_data: List[Dict[str, str | int]],
 ) -> Tuple[List[Dict[str, str | int]], List[Dict[str, str | int]]]:
-    debits_initial_data = []
-    credits_initial_data = []
 
     prefill_items = (
         transaction.prefill.prefillitem_set.all()
@@ -100,8 +100,6 @@ def get_initial_data(
 ) -> Tuple[List[Dict[str, str | int]], List[Dict[str, str | int]]]:
     if paystub_id:
         return get_paystub_initial_data(paystub_id)
-    if transaction.prefill:
-        return get_prefill_initial_data(transaction)
 
     if transaction.amount >= 0:
         transaction_account_is_debit = True
@@ -137,7 +135,26 @@ def get_initial_data(
         }
     )
 
+    if transaction.prefill:
+        return get_prefill_initial_data(
+            transaction=transaction,
+            debits_initial_data=debits_initial_data,
+            credits_initial_data=credits_initial_data,
+        )
+
     return debits_initial_data, credits_initial_data
+
+
+def get_entities_choices() -> List[str]:
+    open_entities = Entity.objects.filter(is_closed=False).order_by("name")
+    open_entities_choices = [entity.name for entity in open_entities]
+    return open_entities_choices
+
+
+def get_accounts_choices() -> List[Tuple[str, str]]:
+    open_accounts = Account.objects.filter(is_closed=False)
+    open_accounts_choices = [(account.name, account.name) for account in open_accounts]
+    return open_accounts_choices
 
 
 def get_formsets(
@@ -165,15 +182,25 @@ def get_formsets(
         extra=max((10 - bound_credits_count), prefill_credits_count),
     )
 
+    accounts_choices = get_accounts_choices()
+    entities_choices = get_entities_choices()
     debit_formset = debit_formset(
         queryset=journal_entry_debits,
         initial=debits_initial_data,
         prefix="debits",
+        form_kwargs={
+            "open_accounts_choices": accounts_choices,
+            "open_entities_choices": entities_choices,
+        },
     )
     credit_formset = credit_formset(
         queryset=journal_entry_credits,
         initial=credits_initial_data,
         prefix="credits",
+        form_kwargs={
+            "open_accounts_choices": accounts_choices,
+            "open_entities_choices": entities_choices,
+        },
     )
 
     return debit_formset, credit_formset
