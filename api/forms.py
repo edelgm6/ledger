@@ -375,17 +375,14 @@ class JournalEntryItemForm(forms.ModelForm):
         # print(self.fields["entity"].choices)
         # print(wtf)
 
-        # Resolve the account name for the bound form
-        if self.instance.pk and self.instance.account:
-            self.account_name = self.instance.account.name
-        else:
-            self.account_name = ""
-
-        # Resolve the entity name for the bound form
-        if self.instance.pk and self.instance.entity:
-            self.entity_name = self.instance.entity.name
-        else:
-            self.entity_name = ""
+        if self.instance.pk:
+            print("wtf")
+            print(self.instance.pk)
+            journal_entry_item = JournalEntryItem.objects.select_related(
+                "account", "entity"
+            ).get(pk=self.instance.pk)
+            self.account_name = journal_entry_item.account.name
+            self.entity_name = journal_entry_item.entity.name
 
     def clean_account(self):
         account_name = self.cleaned_data["account"]
