@@ -367,7 +367,13 @@ class JournalEntryItemForm(forms.ModelForm):
         model = JournalEntryItem
         fields = ("account", "amount", "entity")
 
-    def __init__(self, *args, open_accounts_choices, open_entities_choices, **kwargs):
+    def __init__(
+        self,
+        *args,
+        open_accounts_choices: List[Account],
+        open_entities_choices: List[Entity] = [],
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         # Use the passed in choices for a field's choices, for example:
         self.fields["account"].choices = open_accounts_choices or []
@@ -376,8 +382,6 @@ class JournalEntryItemForm(forms.ModelForm):
         # print(wtf)
 
         if self.instance.pk:
-            print("wtf")
-            print(self.instance.pk)
             journal_entry_item = JournalEntryItem.objects.select_related(
                 "account", "entity"
             ).get(pk=self.instance.pk)
