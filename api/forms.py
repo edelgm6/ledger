@@ -7,7 +7,6 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.forms import BaseModelFormSet, DecimalField
-from django.forms.renderers import get_default_renderer
 from django.utils import timezone
 
 from api import utils
@@ -360,6 +359,8 @@ class JournalEntryItemForm(forms.ModelForm):
         validators=[MinValueValidator(Decimal("0.00"))],
         widget=forms.NumberInput(attrs={"step": "0.01"}),
     )
+    # account = forms.ModelChoiceField(queryset=None)
+    # entity = forms.ModelChoiceField(queryset=None)
     account = forms.ChoiceField(choices=[])
     entity = forms.CharField()
 
@@ -376,6 +377,8 @@ class JournalEntryItemForm(forms.ModelForm):
     ):
         super().__init__(*args, **kwargs)
         # Use the passed in choices for a field's choices, for example:
+        # self.fields["account"].queryset = open_accounts_choices
+        # self.fields["entity"].queryset = open_entities_choices
         self.fields["account"].choices = open_accounts_choices or []
         self.entity_choices = open_entities_choices or []
         # print(self.fields["entity"].choices)

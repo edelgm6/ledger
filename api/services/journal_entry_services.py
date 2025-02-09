@@ -96,7 +96,7 @@ def get_paystub_initial_data(
 
 
 def get_initial_data(
-    transaction: Transaction, paystub_id: Optional[int]
+    transaction: Transaction, paystub_id: Optional[int] = None
 ) -> Tuple[List[Dict[str, str | int]], List[Dict[str, str | int]]]:
     if paystub_id:
         return get_paystub_initial_data(paystub_id)
