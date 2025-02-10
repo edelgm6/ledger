@@ -13,7 +13,10 @@ from api.forms import (
     TransactionFilterForm,
 )
 from api.models import JournalEntryItem, Paystub, PaystubValue, Transaction
-from api.services.journal_entry_services import get_accounts_choices
+from api.services.journal_entry_services import (
+    get_accounts_choices,
+    get_entities_choices,
+)
 from api.views.mixins import JournalEntryViewMixin
 from api.views.transaction_views import TransactionsViewMixin
 
@@ -158,15 +161,22 @@ class JournalEntryView(
         )
 
         accounts_choices = get_accounts_choices()
+        entities_choices = get_entities_choices()
         debit_formset = JournalEntryItemFormset(
             request.POST,
             prefix="debits",
-            form_kwargs={"open_accounts_choices": accounts_choices},
+            form_kwargs={
+                "open_accounts_choices": accounts_choices,
+                "open_entities_choices": entities_choices,
+            },
         )
         credit_formset = JournalEntryItemFormset(
             request.POST,
             prefix="credits",
-            form_kwargs={"open_accounts_choices": accounts_choices},
+            form_kwargs={
+                "open_accounts_choices": accounts_choices,
+                "open_entities_choices": entities_choices,
+            },
         )
         metadata_form = JournalEntryMetadataForm(request.POST)
         transaction = get_object_or_404(Transaction, pk=transaction_id)

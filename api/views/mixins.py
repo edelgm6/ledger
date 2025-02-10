@@ -46,9 +46,8 @@ class JournalEntryViewMixin:
 
         paystubs = (
             Paystub.objects.filter(journal_entry__isnull=True)
-            .prefetch_related("paystub_values")
-            .select_related("document")
-            .order_by("title")
+            # .prefetch_related("paystub_values")
+            .select_related("document").order_by("title")
         )
         paystubs_template = "api/tables/paystubs-table.html"
         return render_to_string(paystubs_template, {"paystubs": paystubs})
