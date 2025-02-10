@@ -345,7 +345,7 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
                 and form.has_changed()
                 and form.cleaned_data["amount"] > 0
             ):
-                instance = form.save(journal_entry, type)
+                instance = form.save(journal_entry, type, commit=commit)
                 instances.append(instance)
 
         return instances
@@ -415,12 +415,13 @@ class JournalEntryItemForm(forms.ModelForm):
 
         return entity
 
-    def save(self, journal_entry, type):
+    def save(self, journal_entry, type, commit=True):
         instance = super(JournalEntryItemForm, self).save(commit=False)
 
         instance.journal_entry = journal_entry
         instance.type = type
-        instance.save()
+        if commit:
+            instance.save()
 
         return instance
 

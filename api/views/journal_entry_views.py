@@ -192,8 +192,16 @@ class JournalEntryView(
         if has_errors:
             return response
 
-        debit_formset.save(transaction, JournalEntryItem.JournalEntryType.DEBIT)
-        credit_formset.save(transaction, JournalEntryItem.JournalEntryType.CREDIT)
+        debits = debit_formset.save(
+            transaction, JournalEntryItem.JournalEntryType.DEBIT, commit=False
+        )
+        credits = credit_formset.save(
+            transaction, JournalEntryItem.JournalEntryType.CREDIT, commit=False
+        )
+        combined_journal_entry_items = debits + credits
+
+        # Bulk create all instances in one query
+        JournalEntryItem.objects.bulk_create(combined_journal_entry_items)
         transaction.close()
 
         # If there's an attached paystub in the GET request, close it out

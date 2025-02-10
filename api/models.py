@@ -414,7 +414,9 @@ class Transaction(models.Model):
             + str(self.amount)
         )
 
-    def close(self, date=datetime.date.today()):
+    def close(self, date=None):
+        if not date:
+            date = datetime.date.today()
         self.is_closed = True
         self.date_closed = date
         self.save()
