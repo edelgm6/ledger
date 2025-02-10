@@ -1,6 +1,6 @@
 import csv
 from decimal import Decimal, InvalidOperation
-from typing import List, Tuple
+from typing import Dict
 
 from django import forms
 from django.conf import settings
@@ -361,7 +361,7 @@ class JournalEntryItemForm(forms.ModelForm):
     )
     # account = forms.ModelChoiceField(queryset=None)
     # entity = forms.ModelChoiceField(queryset=None)
-    account = forms.ChoiceField(choices=[])
+    account = forms.CharField()
     entity = forms.CharField()
 
     class Meta:
@@ -371,19 +371,23 @@ class JournalEntryItemForm(forms.ModelForm):
     def __init__(
         self,
         *args,
-        open_accounts_choices: List[Account],
-        open_entities_choices: List[Entity] = [],
+        open_accounts_choices: Dict[str, int],
+        open_entities_choices: Dict[str, int],
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        # Use the passed in choices for a field's choices, for example:
-        # self.fields["account"].queryset = open_accounts_choices
-        # self.fields["entity"].queryset = open_entities_choices
-        self.fields["account"].choices = open_accounts_choices or []
-        self.entity_choices = open_entities_choices or []
-        # print(self.fields["entity"].choices)
-        # print(wtf)
+        self.open_accounts_choices = open_accounts_choices
+        self.open_entities_choices = open_entities_choices
 
+        # Use the passed in choices for a field's choices, for example:
+        self.fields["account"].choices = [
+            key for key in self.open_accounts_choices.keys()
+        ]
+        self.fields["entity"].choices = [
+            key for key in self.open_entities_choices.keys()
+        ]
+
+        # If the JEI already exists, need to fill in the name for the datalist
         if self.instance.pk:
             journal_entry_item = JournalEntryItem.objects.select_related(
                 "account", "entity"
@@ -393,17 +397,20 @@ class JournalEntryItemForm(forms.ModelForm):
 
     def clean_account(self):
         account_name = self.cleaned_data["account"]
-        try:
-            account = Account.objects.get(name=account_name)
+        account = self.open_accounts_choices.get(account_name, None)
+        if account:
             return account
-        except Account.DoesNotExist:
+        else:
             raise forms.ValidationError("This Account does not exist.")
 
     def clean_entity(self):
         entity_name = self.cleaned_data["entity"]
-        entity, created = Entity.objects.get_or_create(name=entity_name)
-
-        if created:
+        print(entity_name)
+        print(self.open_entities_choices)
+        entity = self.open_entities_choices.get(entity_name, None)
+        print(entity)
+        if not entity:
+            entity = Entity.objects.create(name=entity_name)
             self.created_entity = entity
 
         return entity

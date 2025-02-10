@@ -715,8 +715,6 @@ class JournalEntry(models.Model):
     def delete(self, *args, **kwargs):
         self.transaction.is_closed = False
         self.transaction.save()
-
-        # Call the original delete() method to perform the deletion.
         super().delete(*args, **kwargs)
 
     def delete_journal_entry_items(self):

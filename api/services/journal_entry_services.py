@@ -150,15 +150,17 @@ def get_initial_data(
     return debits_initial_data, credits_initial_data
 
 
-def get_entities_choices() -> List[str]:
+def get_entities_choices() -> Dict[str, int]:
     open_entities = Entity.objects.filter(is_closed=False).order_by("name")
-    open_entities_choices = [entity.name for entity in open_entities]
+    open_entities_choices = {entity.name: entity for entity in open_entities}
+    # open_entities_choices = [entity.name for entity in open_entities]
     return open_entities_choices
 
 
-def get_accounts_choices() -> List[Tuple[str, str]]:
+def get_accounts_choices() -> Dict[str, int]:
     open_accounts = Account.objects.filter(is_closed=False)
-    open_accounts_choices = [(account.name, account.name) for account in open_accounts]
+    open_accounts_choices = {account.name: account for account in open_accounts}
+    # open_accounts_choices = [(account.name, account.name) for account in open_accounts]
     return open_accounts_choices
 
 
