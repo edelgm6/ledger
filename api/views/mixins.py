@@ -1,21 +1,21 @@
 from typing import List
 
-from django.forms import BaseModelFormSet, modelformset_factory
+from django.forms import BaseModelFormSet
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 
 from api.forms import (
-    BaseJournalEntryItemFormset,
-    JournalEntryItemForm,
     JournalEntryMetadataForm,
 )
 from api.models import (
     Entity,
-    JournalEntry,
-    JournalEntryItem,
     Paystub,
-    PaystubValue,
     S3File,
+)
+from api.services.journal_entry_services import (
+    get_debits_and_credits,
+    get_formsets,
+    get_initial_data,
 )
 
 
@@ -41,7 +41,6 @@ class JournalEntryViewMixin:
 
         paystubs = (
             Paystub.objects.filter(journal_entry__isnull=True)
-            .prefetch_related("paystub_values")
             .select_related("document")
             .order_by("title")
         )
@@ -118,149 +117,39 @@ class JournalEntryViewMixin:
         created_entities=None,
     ):
 
+        # If no transaction passed in, return nothing
         if not transaction:
             return ""
 
-        context = {}
-
+        # If didn't pass in formsets, create them
         if not (debit_formset and credit_formset):
-            try:
-                journal_entry = transaction.journal_entry
-                journal_entry_items = JournalEntryItem.objects.filter(
-                    journal_entry=journal_entry
-                )
-                journal_entry_debits = journal_entry_items.filter(
-                    type=JournalEntryItem.JournalEntryType.DEBIT
-                )
-                journal_entry_credits = journal_entry_items.filter(
-                    type=JournalEntryItem.JournalEntryType.CREDIT
-                )
-                bound_debits_count = journal_entry_debits.count()
-                bound_credits_count = journal_entry_credits.count()
-            except JournalEntry.DoesNotExist:
-                bound_debits_count = 0
-                bound_credits_count = 0
-                journal_entry_debits = JournalEntryItem.objects.none()
-                journal_entry_credits = JournalEntryItem.objects.none()
+            journal_entry_debits, journal_entry_credits = get_debits_and_credits(
+                transaction
+            )
+            bound_debits_count = journal_entry_debits.count()
+            bound_credits_count = journal_entry_credits.count()
 
-            debits_initial_data = []
-            credits_initial_data = []
-
+            # Determine if transaction's source account is a debit
             if transaction.amount >= 0:
                 is_debit = True
             else:
                 is_debit = False
 
-            prefill_debits_count = 0
-            prefill_credits_count = 0
             if bound_debits_count + bound_credits_count == 0:
-                primary_account, secondary_account = (
-                    (transaction.account, transaction.suggested_account)
-                    if is_debit
-                    else (transaction.suggested_account, transaction.account)
+                debits_initial_data, credits_initial_data = get_initial_data(
+                    transaction=transaction, paystub_id=paystub_id
                 )
-                primary_entity, secondary_entity = (
-                    (transaction.account.entity, transaction.suggested_entity)
-                    if is_debit
-                    else (transaction.suggested_entity, transaction.account.entity)
-                )
+            else:
+                debits_initial_data = []
+                credits_initial_data = []
 
-                debits_initial_data.append(
-                    {
-                        "account": getattr(primary_account, "name", None),
-                        "amount": abs(transaction.amount),
-                        "entity": primary_entity,
-                    }
-                )
-
-                credits_initial_data.append(
-                    {
-                        "account": getattr(secondary_account, "name", None),
-                        "amount": abs(transaction.amount),
-                        "entity": secondary_entity,
-                    }
-                )
-
-                if transaction.prefill:
-                    prefill_items = transaction.prefill.prefillitem_set.all().order_by(
-                        "order"
-                    )
-                    for item in prefill_items:
-                        if (
-                            item.journal_entry_item_type
-                            == JournalEntryItem.JournalEntryType.DEBIT
-                        ):
-                            debits_initial_data.append(
-                                {
-                                    "account": item.account.name,
-                                    "amount": 0,
-                                    "entity": item.entity.name,
-                                }
-                            )
-                            prefill_debits_count += 1
-                        else:
-                            credits_initial_data.append(
-                                {
-                                    "account": item.account.name,
-                                    "amount": 0,
-                                    "entity": item.entity.name,
-                                }
-                            )
-                            prefill_credits_count += 1
-
-                if paystub_id:
-                    paystub_values = PaystubValue.objects.filter(
-                        paystub__pk=paystub_id
-                    ).select_related("account")
-                    debits_initial_data = []
-                    credits_initial_data = []
-                    prefill_debits_count = 0
-                    prefill_credits_count = 0
-                    for paystub_value in paystub_values:
-                        if (
-                            paystub_value.journal_entry_item_type
-                            == JournalEntryItem.JournalEntryType.DEBIT
-                        ):
-                            debits_initial_data.append(
-                                {
-                                    "account": paystub_value.account.name,
-                                    "amount": paystub_value.amount,
-                                    "entity": paystub_value.entity,
-                                }
-                            )
-                            prefill_debits_count += 1
-                        else:
-                            credits_initial_data.append(
-                                {
-                                    "account": paystub_value.account.name,
-                                    "amount": paystub_value.amount,
-                                    "entity": paystub_value.entity,
-                                }
-                            )
-                            prefill_credits_count += 1
-
-            debit_formset = modelformset_factory(
-                JournalEntryItem,
-                form=JournalEntryItemForm,
-                formset=BaseJournalEntryItemFormset,
-                extra=max((10 - bound_debits_count), prefill_debits_count),
-            )
-            credit_formset = modelformset_factory(
-                JournalEntryItem,
-                form=JournalEntryItemForm,
-                formset=BaseJournalEntryItemFormset,
-                extra=max((10 - bound_credits_count), prefill_credits_count),
-            )
-
-            debit_formset = debit_formset(
-                queryset=journal_entry_debits,
-                initial=debits_initial_data,
-                prefix="debits",
-            )
-            credit_formset = credit_formset(
-                queryset=journal_entry_credits,
-                initial=credits_initial_data,
-                prefix="credits",
+            debit_formset, credit_formset = get_formsets(
+                debits_initial_data=debits_initial_data,
+                credits_initial_data=credits_initial_data,
+                journal_entry_debits=journal_entry_debits,
+                journal_entry_credits=journal_entry_credits,
+                bound_debits_count=bound_debits_count,
+                bound_credits_count=bound_credits_count,
             )
 
         metadata = {"index": index, "paystub_id": paystub_id}

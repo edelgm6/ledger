@@ -13,6 +13,10 @@ from api.forms import (
     TransactionFilterForm,
 )
 from api.models import JournalEntryItem, Paystub, PaystubValue, Transaction
+from api.services.journal_entry_services import (
+    get_accounts_choices,
+    get_entities_choices,
+)
 from api.views.mixins import JournalEntryViewMixin
 from api.views.transaction_views import TransactionsViewMixin
 
@@ -75,7 +79,9 @@ class JournalEntryFormView(
     item_form_template = "api/entry_forms/journal-entry-item-form.html"
 
     def get(self, request, transaction_id):
-        transaction = Transaction.objects.get(pk=transaction_id)
+        transaction = Transaction.objects.select_related("journal_entry").get(
+            pk=transaction_id
+        )
         paystub_id = request.GET.get("paystub_id")
         entry_form_html = self.get_journal_entry_form_html(
             transaction=transaction,
@@ -153,8 +159,25 @@ class JournalEntryView(
             formset=BaseJournalEntryItemFormset,
             form=JournalEntryItemForm,
         )
-        debit_formset = JournalEntryItemFormset(request.POST, prefix="debits")
-        credit_formset = JournalEntryItemFormset(request.POST, prefix="credits")
+
+        accounts_choices = get_accounts_choices()
+        entities_choices = get_entities_choices()
+        debit_formset = JournalEntryItemFormset(
+            request.POST,
+            prefix="debits",
+            form_kwargs={
+                "open_accounts_choices": accounts_choices,
+                "open_entities_choices": entities_choices,
+            },
+        )
+        credit_formset = JournalEntryItemFormset(
+            request.POST,
+            prefix="credits",
+            form_kwargs={
+                "open_accounts_choices": accounts_choices,
+                "open_entities_choices": entities_choices,
+            },
+        )
         metadata_form = JournalEntryMetadataForm(request.POST)
         transaction = get_object_or_404(Transaction, pk=transaction_id)
 
@@ -169,8 +192,16 @@ class JournalEntryView(
         if has_errors:
             return response
 
-        debit_formset.save(transaction, JournalEntryItem.JournalEntryType.DEBIT)
-        credit_formset.save(transaction, JournalEntryItem.JournalEntryType.CREDIT)
+        debits = debit_formset.save(
+            transaction, JournalEntryItem.JournalEntryType.DEBIT, commit=False
+        )
+        credits = credit_formset.save(
+            transaction, JournalEntryItem.JournalEntryType.CREDIT, commit=False
+        )
+        combined_journal_entry_items = debits + credits
+
+        # Bulk create all instances in one query
+        JournalEntryItem.objects.bulk_create(combined_journal_entry_items)
         transaction.close()
 
         # If there's an attached paystub in the GET request, close it out
