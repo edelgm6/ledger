@@ -1,5 +1,6 @@
 import csv
 from decimal import Decimal, InvalidOperation
+from typing import Dict
 
 from django import forms
 from django.conf import settings
@@ -304,20 +305,6 @@ class JournalEntryMetadataForm(forms.Form):
 
 class BaseJournalEntryItemFormset(BaseModelFormSet):
 
-    def __init__(self, *args, **kwargs):
-        open_accounts = Account.objects.filter(is_closed=False)
-        open_accounts_choices = [
-            (account.name, account.name) for account in open_accounts
-        ]
-
-        open_entities = Entity.objects.filter(is_closed=False).order_by("name")
-        open_entities_choices = [entity.name for entity in open_entities]
-        kwargs["form_kwargs"] = {
-            "open_accounts_choices": open_accounts_choices,
-            "open_entities_choices": open_entities_choices,
-        }
-        super(BaseJournalEntryItemFormset, self).__init__(*args, **kwargs)
-
     def get_entry_total(self):
         total = 0
         for form in self.forms:
@@ -351,7 +338,7 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
                 and form.has_changed()
                 and form.cleaned_data["amount"] > 0
             ):
-                instance = form.save(journal_entry, type)
+                instance = form.save(journal_entry, type, commit=commit)
                 instances.append(instance)
 
         return instances
@@ -365,56 +352,64 @@ class JournalEntryItemForm(forms.ModelForm):
         validators=[MinValueValidator(Decimal("0.00"))],
         widget=forms.NumberInput(attrs={"step": "0.01"}),
     )
-    account = forms.ChoiceField(choices=[])
+    account = forms.CharField()
     entity = forms.CharField()
 
     class Meta:
         model = JournalEntryItem
         fields = ("account", "amount", "entity")
 
-    def __init__(self, *args, **kwargs):
-        open_accounts_choices = kwargs.pop("open_accounts_choices", [])
-        open_entities_choices = kwargs.pop("open_entities_choices", [])
-        super(JournalEntryItemForm, self).__init__(*args, **kwargs)
-        self.fields["amount"].localize = True
-        self.fields["account"].choices = open_accounts_choices
-        self.entity_choices = open_entities_choices
+    def __init__(
+        self,
+        *args,
+        open_accounts_choices: Dict[str, int],
+        open_entities_choices: Dict[str, int],
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.open_accounts_choices = open_accounts_choices
+        self.open_entities_choices = open_entities_choices
 
-        # Resolve the account name for the bound form
-        if self.instance.pk and self.instance.account:
-            self.account_name = self.instance.account.name
-        else:
-            self.account_name = ""
+        # Use the passed in choices for a field's choices, for example:
+        self.fields["account"].choices = [
+            key for key in self.open_accounts_choices.keys()
+        ]
+        self.fields["entity"].choices = [
+            key for key in self.open_entities_choices.keys()
+        ]
 
-        # Resolve the entity name for the bound form
-        if self.instance.pk and self.instance.entity:
-            self.entity_name = self.instance.entity.name
-        else:
-            self.entity_name = ""
+        # If the JEI already exists, need to fill in the name for the datalist
+        if self.instance.pk:
+            journal_entry_item = JournalEntryItem.objects.select_related(
+                "account", "entity"
+            ).get(pk=self.instance.pk)
+            self.account_name = journal_entry_item.account.name
+            self.entity_name = journal_entry_item.entity.name
 
     def clean_account(self):
         account_name = self.cleaned_data["account"]
-        try:
-            account = Account.objects.get(name=account_name)
+        account = self.open_accounts_choices.get(account_name, None)
+        if account:
             return account
-        except Account.DoesNotExist:
+        else:
             raise forms.ValidationError("This Account does not exist.")
 
     def clean_entity(self):
         entity_name = self.cleaned_data["entity"]
-        entity, created = Entity.objects.get_or_create(name=entity_name)
-
-        if created:
+        entity = self.open_entities_choices.get(entity_name, None)
+        if not entity:
+            entity = Entity.objects.create(name=entity_name)
             self.created_entity = entity
 
         return entity
 
-    def save(self, journal_entry, type):
+    def save(self, journal_entry, type, commit=True):
         instance = super(JournalEntryItemForm, self).save(commit=False)
 
         instance.journal_entry = journal_entry
         instance.type = type
-        instance.save()
+        if commit:
+            instance.save()
 
         return instance
 

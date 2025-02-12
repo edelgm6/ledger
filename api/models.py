@@ -414,7 +414,9 @@ class Transaction(models.Model):
             + str(self.amount)
         )
 
-    def close(self, date=datetime.date.today()):
+    def close(self, date=None):
+        if not date:
+            date = datetime.date.today()
         self.is_closed = True
         self.date_closed = date
         self.save()
@@ -711,6 +713,12 @@ class JournalEntry(models.Model):
 
     def __str__(self):
         return str(self.pk) + ": " + str(self.date) + " " + self.description
+
+    def delete(self, *args, **kwargs):
+        self.transaction.is_closed = False
+        self.transaction.date_closed = None
+        self.transaction.save()
+        super().delete(*args, **kwargs)
 
     def delete_journal_entry_items(self):
         journal_entry_items = JournalEntryItem.objects.filter(journal_entry=self)

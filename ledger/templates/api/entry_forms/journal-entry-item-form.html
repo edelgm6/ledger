@@ -56,7 +56,7 @@
                         {% if not autofocus_debit %}autofocus{% endif %}
                         >
                         <datalist id="debitAccountOptions">
-                            {% for value, text in form.account.field.choices %}
+                            {% for text in form.account.field.choices %}
                                 <option value="{{ text }}">
                             {% endfor %}
                         </datalist>
@@ -93,8 +93,8 @@
                         value="{% if form.entity_name %}{{ form.entity_name }}{% elif form.entity.value %}{{ form.entity.value }}{% endif %}"
                         >
                         <datalist id="debitEntityOptions">
-                            {% for entity in form.entity_choices %}
-                                <option value="{{ entity }}">
+                            {% for text in form.entity.field.choices %}
+                                <option value="{{ text }}">
                             {% endfor %}
                         </datalist>
                     </input>
@@ -122,7 +122,7 @@
                         {% if autofocus_debit %}autofocus{% endif %}
                         >
                         <datalist id="debitAccountOptions">
-                            {% for value, text in form.account.field.choices %}
+                            {% for text in form.account.field.choices %}
                                 <option value="{{ text }}">
                             {% endfor %}
                         </datalist>
@@ -159,8 +159,8 @@
                         value="{% if form.entity_name %}{{ form.entity_name }}{% elif form.entity.value %}{{ form.entity.value }}{% endif %}"
                         >
                         <datalist id="creditEntityOptions">
-                            {% for entity in form.entity_choices %}
-                                <option value="{{ entity }}">
+                            {% for text in form.entity.field.choices %}
+                                <option value="{{ text }}">
                             {% endfor %}
                         </datalist>
                     </input>
