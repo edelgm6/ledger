@@ -45,7 +45,6 @@ def get_prefill_initial_data(
                     "entity": item.entity.name,
                 }
             )
-            # prefill_debits_count += 1
         else:
             credits_initial_data.append(
                 {
@@ -54,7 +53,6 @@ def get_prefill_initial_data(
                     "entity": item.entity.name,
                 }
             )
-            # prefill_credits_count += 1
 
     return debits_initial_data, credits_initial_data
 
@@ -67,8 +65,6 @@ def get_paystub_initial_data(
     )
     debits_initial_data = []
     credits_initial_data = []
-    # prefill_debits_count = 0
-    # prefill_credits_count = 0
     for paystub_value in paystub_values:
         if (
             paystub_value.journal_entry_item_type
@@ -81,7 +77,6 @@ def get_paystub_initial_data(
                     "entity": paystub_value.entity,
                 }
             )
-            # prefill_debits_count += 1
         else:
             credits_initial_data.append(
                 {
@@ -90,7 +85,6 @@ def get_paystub_initial_data(
                     "entity": paystub_value.entity,
                 }
             )
-            # prefill_credits_count += 1
 
     return debits_initial_data, credits_initial_data
 
@@ -153,14 +147,12 @@ def get_initial_data(
 def get_entities_choices() -> Dict[str, int]:
     open_entities = Entity.objects.filter(is_closed=False).order_by("name")
     open_entities_choices = {entity.name: entity for entity in open_entities}
-    # open_entities_choices = [entity.name for entity in open_entities]
     return open_entities_choices
 
 
 def get_accounts_choices() -> Dict[str, int]:
     open_accounts = Account.objects.filter(is_closed=False)
     open_accounts_choices = {account.name: account for account in open_accounts}
-    # open_accounts_choices = [(account.name, account.name) for account in open_accounts]
     return open_accounts_choices
 
 

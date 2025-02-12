@@ -1,20 +1,15 @@
 from typing import List
 
-from django.forms import BaseModelFormSet, modelformset_factory
+from django.forms import BaseModelFormSet
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 
 from api.forms import (
-    BaseJournalEntryItemFormset,
-    JournalEntryItemForm,
     JournalEntryMetadataForm,
 )
 from api.models import (
     Entity,
-    JournalEntry,
-    JournalEntryItem,
     Paystub,
-    PaystubValue,
     S3File,
 )
 from api.services.journal_entry_services import (
@@ -46,8 +41,8 @@ class JournalEntryViewMixin:
 
         paystubs = (
             Paystub.objects.filter(journal_entry__isnull=True)
-            # .prefetch_related("paystub_values")
-            .select_related("document").order_by("title")
+            .select_related("document")
+            .order_by("title")
         )
         paystubs_template = "api/tables/paystubs-table.html"
         return render_to_string(paystubs_template, {"paystubs": paystubs})
