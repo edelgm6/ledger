@@ -304,13 +304,6 @@ class JournalEntryMetadataForm(forms.Form):
 
 
 class BaseJournalEntryItemFormset(BaseModelFormSet):
-    # def __init__(self, *args, **kwargs):
-    #     # Pop your custom keyword arguments so that they don't get passed to the parent
-    #     self.open_accounts_choices = kwargs.pop("open_accounts_choices", None)
-    #     self.open_entities_choices = kwargs.pop("open_entities_choices", None)
-
-    #     # Call the parent initializer with the remaining kwargs
-    #     super().__init__(*args, **kwargs)
 
     def get_entry_total(self):
         total = 0
@@ -359,8 +352,6 @@ class JournalEntryItemForm(forms.ModelForm):
         validators=[MinValueValidator(Decimal("0.00"))],
         widget=forms.NumberInput(attrs={"step": "0.01"}),
     )
-    # account = forms.ModelChoiceField(queryset=None)
-    # entity = forms.ModelChoiceField(queryset=None)
     account = forms.CharField()
     entity = forms.CharField()
 
@@ -405,10 +396,7 @@ class JournalEntryItemForm(forms.ModelForm):
 
     def clean_entity(self):
         entity_name = self.cleaned_data["entity"]
-        print(entity_name)
-        print(self.open_entities_choices)
         entity = self.open_entities_choices.get(entity_name, None)
-        print(entity)
         if not entity:
             entity = Entity.objects.create(name=entity_name)
             self.created_entity = entity
