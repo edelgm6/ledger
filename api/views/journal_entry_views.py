@@ -179,7 +179,9 @@ class JournalEntryView(
             },
         )
         metadata_form = JournalEntryMetadataForm(request.POST)
-        transaction = get_object_or_404(Transaction, pk=transaction_id)
+        transaction = Transaction.objects.select_related("journal_entry").get(
+            pk=transaction_id
+        )
 
         # First check if the forms are valid and return errors if not
         has_errors, response = self.check_for_errors(
@@ -201,7 +203,12 @@ class JournalEntryView(
         combined_journal_entry_items = debits + credits
 
         # Bulk create all instances in one query
-        JournalEntryItem.objects.bulk_create(combined_journal_entry_items)
+        if transaction.journal_entry:
+            JournalEntryItem.objects.bulk_update(
+                combined_journal_entry_items, ["amount", "account", "entity"]
+            )
+        else:
+            JournalEntryItem.objects.bulk_create(combined_journal_entry_items)
         transaction.close()
 
         # If there's an attached paystub in the GET request, close it out
