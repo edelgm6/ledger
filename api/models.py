@@ -196,7 +196,7 @@ class Amortization(models.Model):
         if self.periods - starting_amortization_count == 0 or self.is_closed:
             raise ValidationError("Cannot further amortize")
         elif self.periods - starting_amortization_count == 1:
-            amortization_amount, _ = (
+            amortization_amount, _, _ = (
                 self.get_remaining_balance_and_periods_and_max_date()
             )
             is_final_amortization = True
