@@ -339,8 +339,7 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
                 and form.cleaned_data["amount"] > 0
             ):
                 instance = form.save(journal_entry, type, commit=commit)
-                if instance:
-                    instances.append(instance)
+                instances.append(instance)
 
         return instances
 
