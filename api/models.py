@@ -69,6 +69,7 @@ class S3File(models.Model):
                             account=account,
                             amount=amount,
                             journal_entry_item_type=value["entry_type"],
+                            entity = value["entity"]
                         )
                     )
             PaystubValue.objects.bulk_create(paystub_values)
@@ -114,6 +115,9 @@ class S3File(models.Model):
                         data[kv.page_id][identifier][
                             "entry_type"
                         ] = keyword_search.journal_entry_item_type
+                        data[kv.page_id][identifier][
+                            "entity"
+                        ] = keyword_search.entity
                     else:
                         data[kv.page_id][identifier] = clean_string(kv.value.text)
 
@@ -151,6 +155,9 @@ class S3File(models.Model):
                     data[table.page_id][identifier][
                         "entry_type"
                     ] = table_search.journal_entry_item_type
+                    data[table.page_id][identifier][
+                        "entity"
+                    ] = table_search.entity
 
         return data
 
