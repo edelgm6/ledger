@@ -3,7 +3,7 @@
 <br>
 <h5>Paystubs</h5>
 <div class="row">
-    <div class="col-md-12">
+    <div class="col-md-6">
         <div id="paystubs-table" class="table-responsive">
             <table class="table table-hover table-sm">
                 <thead>
@@ -28,45 +28,47 @@
             </table>
         </div>
     </div>
-</div>
-{% endif %}
-
-<div id="paystubs-detail">
-{% if paystub_values %}
-    <div class="row">
-        <div class="col-md-12">
-            <table class="table table-sm">
-                <thead>
-                    <tr class="clickable-row">
-                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Account</th>
-                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Value</th>
-                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Type</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for paystub_value in paystub_values %}
-                    <tr>
-                        <td>{{ paystub_value.account }}</td>
-                        <td>${{ paystub_value.amount }}</td>
-                        <td>{{ paystub_value.journal_entry_item_type }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    {% endif %}
+    <div class="col-md-6">
+        <div id="paystubs-detail">
+        {% if paystub_values %}
+            <div class="row">
+                <div class="col-md-12">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr class="clickable-row">
+                                <th style="position: sticky; top: 0; background: white; z-index: 10;">Account</th>
+                                <th style="position: sticky; top: 0; background: white; z-index: 10;">Value</th>
+                                <th style="position: sticky; top: 0; background: white; z-index: 10;">Type</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for paystub_value in paystub_values %}
+                            <tr>
+                                <td>{{ paystub_value.account }}</td>
+                                <td>${{ paystub_value.amount }}</td>
+                                <td>{{ paystub_value.journal_entry_item_type }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        
+            <!-- Add button here -->
+            <div class="row">
+                <div class="col-md-12">
+                    <button
+                        class="btn btn-primary"
+                        x-bind:hx-get="`journal-entries/form/${selectedRowId}/?row_index=${rowIndex}&paystub_id={{ paystub_id }}`"
+                        hx-target="#form-div"
+                    >
+                        Fill Paystub<br>
+                    </button>
+                </div>
+            </div>
+        {% endif %}
         </div>
     </div>
-
-    <!-- Add button here -->
-    <div class="row">
-        <div class="col-md-12">
-            <button
-                class="btn btn-primary"
-                x-bind:hx-get="`journal-entries/form/${selectedRowId}/?row_index=${rowIndex}&paystub_id={{ paystub_id }}`"
-                hx-target="#form-div"
-            >
-                Fill Paystub<br>
-            </button>
-        </div>
-    </div>
-{% endif %}
 </div>
+
