@@ -166,7 +166,7 @@ def get_formsets(
 ) -> Tuple[BaseModelFormSet, BaseModelFormSet]:
 
     prefill_debits_count = len(debits_initial_data)
-    prefill_credits_count = len(debits_initial_data)
+    prefill_credits_count = len(credits_initial_data)
 
     debit_formset = modelformset_factory(
         JournalEntryItem,
