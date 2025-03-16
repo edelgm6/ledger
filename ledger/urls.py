@@ -24,6 +24,16 @@ from api.views.journal_entry_views import (
     PaystubTableView,
     TriggerAutoTagView,
 )
+from api.views.journal_entry_views_alt import (
+    JournalEntryButton,
+    JournalEntryUpdate,
+    # PaystubDetailView,
+    # PaystubTableView,
+    # TriggerAutoTagView,
+    # JournalEntryFormView,
+    # JournalEntryTableView,
+    JournalEntryViewAlt,
+)
 from api.views.reconciliation_views import ReconciliationTableView, ReconciliationView
 from api.views.statement_views import StatementDetailView, StatementView
 from api.views.tax_views import TaxChargeFormView, TaxChargeTableView, TaxesView
@@ -56,6 +66,9 @@ urlpatterns = [
     ),
     # JE page
     path("journal-entries/", JournalEntryView.as_view(), name="journal-entries"),
+    path("journal-entries-alt/", JournalEntryViewAlt.as_view(), name="journal-entries-alt"),
+    path("journal-entry-button/<int:transaction_id>/", JournalEntryButton.as_view(), name="journal-entry-button"),
+    path("journal-entry-update/<int:transaction_id>/", JournalEntryUpdate.as_view(), name="journal-entry-update"),
     path(
         "journal-entries/<int:transaction_id>/",
         JournalEntryView.as_view(),
