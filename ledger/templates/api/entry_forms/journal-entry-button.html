@@ -1,0 +1,14 @@
+<button 
+    hx-post="{% url 'journal-entry-update' transaction_id %}"
+    hx-trigger="click"
+    hx-target="#result"
+    hx-on="htmx:afterRequest: 
+        console.log('HTMX request completed');
+        document.getElementById('row-{{ transaction_id }}')?.remove();
+        document.getElementById('row-{{ next_transaction_id }}')?.classList.add('table-active');
+    "
+>
+    Submit
+</button>
+
+<div id="result"></div>

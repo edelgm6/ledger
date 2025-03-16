@@ -1,0 +1,43 @@
+{% load humanize %}
+<div class="row">
+    <div class="col">
+        <div id="transactions-table" class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+            <table class="table table-hover table-sm">
+                <thead>
+                    <tr>
+                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Date</th>
+                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Account</th>
+                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Amount</th>
+                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Description</th>
+                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Category</th>
+                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Type</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pair in transactions %}
+                    <tr 
+                        id="row-{{ pair.current.id }}"
+                        class="clickable-row"
+                        hx-get="{% url 'journal-entry-button' pair.current.id %}?next_transaction_id={{ pair.next.id }}"
+                        hx-target="#button"
+                    >
+                        <td>{{ pair.current.date }}</td>
+                        <td>{{ pair.current.account }}</td>
+                        <td>${{ pair.current.amount|floatformat:2|intcomma }}</td>
+                        <td>{{ pair.current.description }}</td>
+                        <td>{{ pair.current.category }}</td>
+                        <td>{{ pair.current.get_type_display }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col">
+        <div id="button">
+            
+        </div>
+    </div>
+</div>
