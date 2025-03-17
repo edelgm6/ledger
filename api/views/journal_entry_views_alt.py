@@ -5,6 +5,7 @@ from django.urls import reverse
 from django.views import View
 
 from api.models import Transaction
+from api.services.journal_entry_services import get_journal_entry_form_html
 from api.views.mixins import JournalEntryViewMixin
 from api.views.transaction_views import TransactionsViewMixin
 
@@ -19,12 +20,12 @@ class JournalEntryUpdate(View):
 class JournalEntryButton(View):
     
     def get(self, request, transaction_id):
-        template = "api/entry_forms/journal-entry-button.html"
-        context = {
-            "transaction_id": transaction_id,
-            "next_transaction_id": request.GET.get("next_transaction_id")
-        }
-        html = render_to_string(template, context)
+        if not transaction_id:
+            return ""
+        
+        transaction = Transaction.objects.get(pk=transaction_id)
+        next_transaction_id = request.GET.get("next_transaction_id")
+        html = get_journal_entry_form_html(transaction, next_transaction_id)
         return HttpResponse(html)
 
 # Called as the main page

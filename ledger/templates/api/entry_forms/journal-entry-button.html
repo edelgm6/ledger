@@ -1,14 +1,152 @@
-<button 
+{% load math_filters %}
+{% load humanize %}
+<form
+    id="journal-entry-form"
+    class="form-horizontal form-sm"
     hx-post="{% url 'journal-entry-update' transaction_id %}"
-    hx-trigger="click"
-    hx-target="#result"
+    hx-trigger="submit"
     hx-on="htmx:afterRequest: 
         console.log('HTMX request completed');
         document.getElementById('row-{{ transaction_id }}')?.remove();
         document.getElementById('row-{{ next_transaction_id }}')?.classList.add('table-active');
     "
 >
-    Submit
-</button>
+    <div class="row">
+        <div class="col-12">
+            <input type="submit" value="Submit" class="btn btn-primary mt-3" />
+        </div>
+    </div>
+    <div class="row">
+        <!-- Debit Formset Column -->
+        <div class="col-md-6">
+            <h3>Debits</h3>
+            {{ debit_formset.management_form }}
+            <small>Total Debits: $<span id="totalDebits">{{ debit_prefilled_total|floatformat:2|intcomma }}</span></small>
+            {% for form in debit_formset %}
+            <div class="row">
+                <div class="col-md-6">
+                    {{ form.id }}
+                    <input
+                        class="form-control {% if form.account.errors %}is-invalid{% endif %}"
+                        list="debitAccountOptions"
+                        name="{{ form.account.html_name }}"
+                        id="{{ form.account.auto_id }}"
+                        tabindex="{{ forloop.counter|multiply:6|add:1 }}"
+                        value="{% if form.account_name %}{{ form.account_name }}{% elif form.account.value %}{{ form.account.value }}{% endif %}"
+                        {% if not autofocus_debit %}autofocus{% endif %}
+                        >
+                        <datalist id="debitAccountOptions">
+                            {% for text in form.account.field.choices %}
+                                <option value="{{ text }}">
+                            {% endfor %}
+                        </datalist>
+                    </input>
+                    <div class="invalid-feedback">
+                        {% for error in form.account.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <input
+                        type="number"
+                        step="0.01"
+                        class="form-control {% if form.amount.errors %}is-invalid{% endif %}"
+                        name="{{ form.amount.html_name }}"
+                        id="{{ form.amount.auto_id }}"
+                        value="{{ form.amount.value }}"
+                        tabindex="{{ forloop.counter|multiply:6|add:2 }}"
+                    >
+                    <div class="invalid-feedback">
+                        {% for error in form.amount.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <input
+                        class="form-control {% if form.entity.errors %}is-invalid{% endif %}"
+                        list="debitEntityOptions"
+                        name="{{ form.entity.html_name }}"
+                        id="{{ form.entity.auto_id }}"
+                        tabindex="{{ forloop.counter|multiply:6|add:3 }}"
+                        value="{% if form.entity_name %}{{ form.entity_name }}{% elif form.entity.value %}{{ form.entity.value }}{% endif %}"
+                        >
+                        <datalist id="debitEntityOptions">
+                            {% for text in form.entity.field.choices %}
+                                <option value="{{ text }}">
+                            {% endfor %}
+                        </datalist>
+                    </input>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
 
-<div id="result"></div>
+        <!-- Credit Formset Column -->
+        <div class="col-md-6">
+            <h3>Credits</h3>
+            {{ credit_formset.management_form }}
+            <small>Total Credits: $<span id="totalCredits">{{ credit_prefilled_total|floatformat:2|intcomma }}</span></small>
+            {% for form in credit_formset %}
+            <div class="row">
+                <div class="col-md-6">
+                    {{ form.id }}
+                    <input
+                        class="form-control {% if form.account.errors %}is-invalid{% endif %}"
+                        list="debitAccountOptions"
+                        name="{{ form.account.html_name }}"
+                        id="{{ form.account.auto_id }}"
+                        tabindex="{{ forloop.counter|multiply:6|add:4 }}"
+                        value="{% if form.account_name %}{{ form.account_name }}{% elif form.account.value %}{{ form.account.value }}{% endif %}"
+                        {% if autofocus_debit %}autofocus{% endif %}
+                        >
+                        <datalist id="debitAccountOptions">
+                            {% for text in form.account.field.choices %}
+                                <option value="{{ text }}">
+                            {% endfor %}
+                        </datalist>
+                    </input>
+                    <div class="invalid-feedback">
+                        {% for error in form.account.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <input
+                        type="number"
+                        step="0.01"
+                        class="form-control {% if form.amount.errors %}is-invalid{% endif %}"
+                        name="{{ form.amount.html_name }}"
+                        id="{{ form.amount.auto_id }}"
+                        value="{{ form.amount.value }}"
+                        tabindex="{{ forloop.counter|multiply:6|add:5 }}"
+                    >
+                    <div class="invalid-feedback">
+                        {% for error in form.amount.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <input
+                        class="form-control {% if form.entity.errors %}is-invalid{% endif %}"
+                        list="creditEntityOptions"
+                        name="{{ form.entity.html_name }}"
+                        id="{{ form.entity.auto_id }}"
+                        tabindex="{{ forloop.counter|multiply:6|add:6 }}"
+                        value="{% if form.entity_name %}{{ form.entity_name }}{% elif form.entity.value %}{{ form.entity.value }}{% endif %}"
+                        >
+                        <datalist id="creditEntityOptions">
+                            {% for text in form.entity.field.choices %}
+                                <option value="{{ text }}">
+                            {% endfor %}
+                        </datalist>
+                    </input>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</form>
