@@ -129,6 +129,7 @@ class AmortizationForm(forms.ModelForm):
         instance = super(AmortizationForm, self).save(commit=False)
         journal_entry_item = self.cleaned_data["accrued_journal_entry_item"]
         instance.amount = abs(journal_entry_item.amount)
+        instance.entity = journal_entry_item.entity
 
         if commit:
             instance.save()
