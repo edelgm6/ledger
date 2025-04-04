@@ -231,6 +231,7 @@ class Amortization(models.Model):
                 + str(len(self.get_related_transactions()) + 1)
             ),
             suggested_account=self.suggested_account,
+            suggested_entity=self.entity,
             type=Transaction.TransactionType.PURCHASE,
             amortization=self,
         )
