@@ -174,7 +174,8 @@ class Amortization(models.Model):
     entity = models.ForeignKey(
         "Entity",
         related_name="amortizations",
-        on_delete=models.PROTECT
+        on_delete=models.PROTECT,
+        null=True
     )
 
     def __str__(self):
