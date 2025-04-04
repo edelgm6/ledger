@@ -171,6 +171,11 @@ class Amortization(models.Model):
     is_closed = models.BooleanField(default=False)
     description = models.CharField(max_length=200)
     suggested_account = models.ForeignKey("Account", on_delete=models.PROTECT)
+    entity = models.ForeignKey(
+        "Entity",
+        related_name="amortizations",
+        on_delete=models.PROTECT
+    )
 
     def __str__(self):
         return self.description + " $" + str(self.amount)
