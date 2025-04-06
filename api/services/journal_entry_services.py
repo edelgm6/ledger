@@ -158,7 +158,7 @@ def get_initial_data(
     return debits_initial_data, credits_initial_data
 
 
-def get_journal_entry_form_html(transaction, next_transaction_id):
+def get_journal_entry_form_html(transaction, transaction_ids):
     journal_entry_debits, journal_entry_credits, has_debits_or_credits = get_debits_and_credits(
         transaction
     )
@@ -184,7 +184,7 @@ def get_journal_entry_form_html(transaction, next_transaction_id):
         "debit_formset": debit_formset,
         "credit_formset": credit_formset,
         "transaction_id": transaction.id,
-        "next_transaction_id": next_transaction_id,
+        "transaction_ids": transaction_ids,
         "autofocus_debit": transaction_account_is_debit(transaction),
         "debit_prefilled_total": debit_prefilled_total,
         "credit_prefilled_total": credit_prefilled_total,
