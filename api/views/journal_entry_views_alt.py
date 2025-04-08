@@ -1,3 +1,5 @@
+import json
+
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
 from django.template.loader import render_to_string
@@ -23,13 +25,21 @@ class JournalEntryUpdate(View):
     # TODO: load the form plus button
     def post(self, request, transaction_id):
         print('journalentryupdate')
-        print(request.POST)
         # TODO: Process the post
 
-        next_transaction_id = request.GET.get("next_transaction_id")
-        next_next_transaction_id = request.GET.get("next_transaction_id")
-        transaction = Transaction.objects.get(pk=next_transaction_id)
-        html = get_journal_entry_form_html(transaction, next_transaction_id, next_next_transaction_id)
+        transaction_ids = request.POST.get('transaction_ids')
+        transaction_ids = [int(id) for id in transaction_ids.split(",")]
+        print(transaction_ids)
+        transaction = Transaction.objects.get(pk=transaction_id)
+        transaction_index = transaction_ids.index(transaction_id)
+
+        if transaction_index < len(transaction_ids):
+            next_transaction = Transaction.objects.get(pk=transaction_ids[transaction_index + 1])
+        else:
+            next_transaction = None
+
+        transaction_ids.remove(transaction_id)
+        html = get_journal_entry_form_html(transaction=next_transaction, transaction_ids=transaction_ids)
 
         response = HttpResponse(html)
         response["HX-Trigger"] = "afterOnload"
@@ -40,13 +50,13 @@ class JournalEntryButton(View):
     
     def get(self, request, transaction_id):
         print('journalentrybutton')
-        print(request.GET.get('transaction_ids'))
-        print(request.GET.dict())
         if not transaction_id:
             return ""
         
         transaction_ids = request.GET.get('transaction_ids')
-        transaction_ids = transaction_ids.split(',')
+        print(transaction_ids)
+        # transaction_ids = transaction_ids.split(',')
+        # print(transaction_ids)
 
         transaction = Transaction.objects.get(pk=transaction_id)
         html = get_journal_entry_form_html(transaction=transaction, transaction_ids=transaction_ids)
@@ -82,15 +92,16 @@ class JournalEntryViewAlt(
     
     def get(self, request):
         print('get')
-        transactions = Transaction.objects.all()
+        transactions = Transaction.objects.all().order_by('date')
         table_html = self.get_table_html(
             transactions=transactions
         )
         jei_form_html = get_journal_entry_form_html(transaction=transactions[0], transaction_ids=transactions.values_list('id', flat=True))
+        transaction_id_list = list(transactions.values_list('id', flat=True))
         context = {
             "table": table_html,
             "form": jei_form_html,
-            "transaction_ids": transactions.values_list('id', flat=True)
+            "transaction_ids": transaction_id_list
         }
 
         html = render_to_string(self.view_template, context)
