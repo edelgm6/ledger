@@ -1,5 +1,5 @@
 <h2>Journal Entries</h2>
-
+<div id="transaction-store" data-transaction-ids="{{ transaction_ids|join:',' }}"></div>
 <div id="table-and-form">
     <div class="row">
         <div class="col-md-12">
@@ -14,3 +14,9 @@
 </div>
 {% include "api/components/clickable-row-script.html" %}
 {% include "api/components/transactions-scroll.html" %}
+<script>
+    document.body.addEventListener("htmx:configRequest", function(event) {
+      const transaction_ids = document.getElementById("transaction-store").dataset.numbers;
+      event.detail.headers['X-TransactionIds'] = transaction_ids;  // Custom header
+    });
+</script>

@@ -20,7 +20,6 @@
                         class="clickable-row"
                         hx-get="{% url 'journal-entry-button' pair.current.id %}?next_transaction_id={{ pair.next.id }}&next_next_transaction_id= {{ pair.next_next.id }}"
                         hx-target="#form"
-                        hx-vals='{"transaction_ids": "{{ transaction_ids|join:"," }}"}'
                     >
                         <td>{{ pair.current.date }}</td>
                         <td>{{ pair.current.account }}</td>
