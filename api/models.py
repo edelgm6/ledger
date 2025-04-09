@@ -22,6 +22,7 @@ class Entity(models.Model):
 
     class Meta:
         verbose_name_plural = "entities"
+        ordering = ['is_closed', 'name']
 
     def __str__(self):
         return self.name
