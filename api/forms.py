@@ -385,7 +385,10 @@ class JournalEntryItemForm(forms.ModelForm):
                 "account", "entity"
             ).get(pk=self.instance.pk)
             self.account_name = journal_entry_item.account.name
-            self.entity_name = journal_entry_item.entity.name
+            try:
+                self.entity_name = journal_entry_item.entity.name
+            except AttributeError:
+                pass
 
     def clean_account(self):
         account_name = self.cleaned_data["account"]
