@@ -338,17 +338,11 @@ class CashFlowStatement(Statement):
             for balance in self.balance_sheet_deltas
             if balance.account.sub_type == Account.SubType.PREPAID_EXPENSES
         ]
-        accounts_payable_accounts = [
-            balance
-            for balance in self.balance_sheet_deltas
-            if balance.account.sub_type == Account.SubType.ACCOUNTS_PAYABLE
-        ]
         return (
             net_income_less_gains_and_losses
             + accounts_receivable_accounts
             + prepaid_expenses_accounts
             + short_term_debt_accounts
-            + accounts_payable_accounts
             + taxes_payable_accounts
         )
 
