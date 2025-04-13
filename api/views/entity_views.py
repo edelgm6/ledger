@@ -17,7 +17,6 @@ class EntityTagMixin:
         entities_balances = (
             JournalEntryItem.objects.filter(
                 account__sub_type__in=[
-                    Account.SubType.ACCOUNTS_PAYABLE,
                     Account.SubType.ACCOUNTS_RECEIVABLE,
                 ]
             )
@@ -63,7 +62,6 @@ class EntityTagMixin:
         # Need to create a new account sub type for payables
         relevant_account_types = [
             Account.SubType.ACCOUNTS_RECEIVABLE,
-            Account.SubType.ACCOUNTS_PAYABLE,
         ]
 
         untagged_journal_entry_items = (
@@ -109,7 +107,6 @@ class EntityTagMixin:
             JournalEntryItem.objects.filter(
                 entity__pk=entity_id,
                 account__sub_type__in=[
-                    Account.SubType.ACCOUNTS_PAYABLE,
                     Account.SubType.ACCOUNTS_RECEIVABLE,
                 ],
             )
