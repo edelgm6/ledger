@@ -596,7 +596,6 @@ class Account(models.Model):
         SHORT_TERM_DEBT = "short_term_debt", _("Short-term Debt")
         TAXES_PAYABLE = "taxes_payable", _("Taxes Payable")
         LONG_TERM_DEBT = "long_term_debt", _("Long-term Debt")
-        ACCOUNTS_PAYABLE = "accounts_payable", _("Accounts Payable")
         # Asset types
         CASH = "cash", _("Cash")
         ACCOUNTS_RECEIVABLE = "accounts_receivable", _("Accounts Receivable")
@@ -630,7 +629,6 @@ class Account(models.Model):
     SUBTYPE_TO_TYPE_MAP = {
         Type.LIABILITY: [
             SubType.SHORT_TERM_DEBT,
-            SubType.ACCOUNTS_PAYABLE,
             SubType.TAXES_PAYABLE,
             SubType.LONG_TERM_DEBT,
         ],
