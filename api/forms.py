@@ -402,9 +402,7 @@ class JournalEntryItemForm(forms.ModelForm):
         entity_name = self.cleaned_data["entity"]
         entity = self.open_entities_choices.get(entity_name, None)
         if not entity:
-            # Need get_or_create in case where debit and credit form
-            # needs the same entity
-            entity, _ = Entity.objects.get_or_create(name=entity_name)
+            entity = Entity.objects.create(name=entity_name)
             self.created_entity = entity
 
         return entity
