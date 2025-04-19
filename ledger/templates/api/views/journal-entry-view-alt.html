@@ -12,11 +12,60 @@
         </div>
     </div>
 </div>
+{% block extra_js %}
 {% include "api/components/clickable-row-script.html" %}
-{% include "api/components/transactions-scroll.html" %}
 <script>
     document.body.addEventListener("htmx:configRequest", function(event) {
-      const transaction_ids = document.getElementById("transaction-store").dataset.numbers;
-      event.detail.headers['X-TransactionIds'] = transaction_ids;  // Custom header
+      const ids = document.getElementById("transaction-store").dataset.transactionIds;
+  
+      // Ensure the parameters object exists
+      if (!event.detail.parameters) {
+        event.detail.parameters = {};
+      }
+  
+      // Add the transaction_ids to all requests
+      event.detail.parameters['transaction_ids'] = ids;
     });
 </script>
+<script>
+    document.body.addEventListener("htmx:afterRequest", function(event) {
+        console.log('afterreqest')
+        // Only run if request was successful
+        if (!event.detail.successful) return;
+
+        // Only run if the form that triggered the request was #journal-entry-form
+        const targetEl = event.target;
+        if (!(targetEl instanceof HTMLFormElement) || targetEl.id !== "journal-entry-form") return;
+
+        // Now we’re clear to run
+        handleRowDelete();
+    });
+</script>
+<script>
+    function handleRowDelete() {
+        console.log("run");
+    
+        const container = document.getElementById("transactions-table");
+        const currentRow = container.querySelector("tr.table-active");
+    
+        if (!currentRow) return;
+    
+        const nextRow = currentRow.nextElementSibling;
+    
+        currentRow.remove();
+    
+        if (nextRow) {
+            nextRow.classList.add("table-active");
+            container.scrollTop = nextRow.offsetTop;
+        } else {
+            // No next row? Assume table is now empty — clear it
+            const allRows = container.querySelectorAll("tbody tr");
+            allRows.forEach(row => row.remove());
+        }
+    }
+</script>
+    
+    
+{% endblock %}
+
+  

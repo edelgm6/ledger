@@ -7,7 +7,10 @@ from django.urls import reverse
 from django.views import View
 
 from api.models import Transaction
-from api.services.journal_entry_services import get_journal_entry_form_html
+from api.services.journal_entry_services import (
+    convert_frontend_list_to_python,
+    get_journal_entry_form_html,
+)
 from api.views.mixins import JournalEntryViewMixin
 from api.views.transaction_views import TransactionsViewMixin
 
@@ -28,21 +31,22 @@ class JournalEntryUpdate(View):
         # TODO: Process the post
 
         transaction_ids = request.POST.get('transaction_ids')
-        transaction_ids = [int(id) for id in transaction_ids.split(",")]
-        print(transaction_ids)
+        transaction_ids = convert_frontend_list_to_python(frontend_list=transaction_ids)
         transaction = Transaction.objects.get(pk=transaction_id)
         transaction_index = transaction_ids.index(transaction_id)
 
-        if transaction_index < len(transaction_ids):
+        print(transaction_ids)
+        print(transaction_id)
+        print(transaction_index)
+        print(len(transaction_ids))
+        if transaction_index < len(transaction_ids) - 1:
             next_transaction = Transaction.objects.get(pk=transaction_ids[transaction_index + 1])
+            transaction_ids.remove(transaction_id)
+            html = get_journal_entry_form_html(transaction=next_transaction, transaction_ids=transaction_ids)
         else:
-            next_transaction = None
-
-        transaction_ids.remove(transaction_id)
-        html = get_journal_entry_form_html(transaction=next_transaction, transaction_ids=transaction_ids)
+            html = ''
 
         response = HttpResponse(html)
-        response["HX-Trigger"] = "afterOnload"
 
         return response
 
@@ -54,7 +58,7 @@ class JournalEntryButton(View):
             return ""
         
         transaction_ids = request.GET.get('transaction_ids')
-        print(transaction_ids)
+        transaction_ids = convert_frontend_list_to_python(frontend_list=transaction_ids)
         # transaction_ids = transaction_ids.split(',')
         # print(transaction_ids)
 
