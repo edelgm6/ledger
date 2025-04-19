@@ -157,6 +157,16 @@ def get_initial_data(
 
     return debits_initial_data, credits_initial_data
 
+def convert_frontend_list_to_python(frontend_list: str) -> List[int]:
+    python_list = [int(id) for id in frontend_list.split(",")]
+    return python_list
+
+def _get_next_id(ids_list: List[int], transaction_id: str) -> Optional[int]:
+    print(list(ids_list))
+    print(transaction_id)
+    idx = list(ids_list).index(int(transaction_id))
+    next_id = ids_list[idx + 1] if idx + 1 < len(ids_list) else None
+    return next_id
 
 def get_journal_entry_form_html(transaction, transaction_ids):
     journal_entry_debits, journal_entry_credits, has_debits_or_credits = get_debits_and_credits(
@@ -184,6 +194,7 @@ def get_journal_entry_form_html(transaction, transaction_ids):
         "debit_formset": debit_formset,
         "credit_formset": credit_formset,
         "transaction_id": transaction.id,
+        "next_transaction_id": _get_next_id(ids_list=transaction_ids, transaction_id=transaction.id),
         "transaction_ids": transaction_ids,
         "autofocus_debit": transaction_account_is_debit(transaction),
         "debit_prefilled_total": debit_prefilled_total,

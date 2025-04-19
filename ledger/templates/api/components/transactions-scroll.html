@@ -1,4 +1,4 @@
-<script>
+<!-- <script>
     $(document).ready(function(){
         // Find the highlighted row
         var highlightedRow = document.querySelector('#transactions-table .table-active');
@@ -15,4 +15,33 @@
             tableContainer.scrollTop = rowPosition - headerHeight;
         }
     });
-</script>
+</script>-->
+
+<script>
+    function highlightNextRow() {
+      const tableBody = document.querySelector("#transactions-table tbody");
+      const previouslyActive = tableBody.querySelector(".table-active");
+    
+      if (!previouslyActive) {
+        console.warn("No previously active row found");
+        return;
+      }
+    
+      // Get the next sibling *before* removing the old row
+      const nextRow = previouslyActive.nextElementSibling;
+    
+      // Remove the old active class (and the row if already deleted)
+      previouslyActive.classList.remove("table-active");
+    
+      // If there's a next row, mark it as active and scroll to it
+      if (nextRow) {
+        nextRow.classList.add("table-active");
+    
+        // Scroll the parent container to the top of the next row
+        const container = document.getElementById("transactions-table");
+        const rowOffsetTop = nextRow.offsetTop;
+        container.scrollTop = rowOffsetTop;
+      }
+    }
+    </script>
+    
