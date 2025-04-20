@@ -12,34 +12,39 @@
         </div>
     </div>
 </div>
-{% block extra_js %}
+
 {% include "api/components/clickable-row-script.html" %}
 <script>
+if (!window.hasAddedConfigRequestListener) {
+    window.hasAddedConfigRequestListener = true;
+
     document.body.addEventListener("htmx:configRequest", function(event) {
-      const ids = document.getElementById("transaction-store").dataset.transactionIds;
-  
-      // Ensure the parameters object exists
-      if (!event.detail.parameters) {
-        event.detail.parameters = {};
-      }
-  
-      // Add the transaction_ids to all requests
-      event.detail.parameters['transaction_ids'] = ids;
+        const ids = document.getElementById("transaction-store")?.dataset.transactionIds;
+        if (!ids) return;
+
+        if (!event.detail.parameters) {
+            event.detail.parameters = {};
+        }
+
+        event.detail.parameters['transaction_ids'] = ids;
     });
+}
 </script>
 <script>
+if (!window.hasAddedAfterRequestListener) {
+    window.hasAddedAfterRequestListener = true;
+
     document.body.addEventListener("htmx:afterRequest", function(event) {
-        console.log('afterreqest')
-        // Only run if request was successful
+        console.log('afterrequest');
+
         if (!event.detail.successful) return;
 
-        // Only run if the form that triggered the request was #journal-entry-form
         const targetEl = event.target;
         if (!(targetEl instanceof HTMLFormElement) || targetEl.id !== "journal-entry-form") return;
 
-        // Now we’re clear to run
         handleRowDelete();
     });
+}
 </script>
 <script>
     function handleRowDelete() {
@@ -64,8 +69,3 @@
         }
     }
 </script>
-    
-    
-{% endblock %}
-
-  
