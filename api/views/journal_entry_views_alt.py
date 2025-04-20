@@ -47,6 +47,12 @@ class JournalEntryUpdate(View):
         else:
             html = ''
 
+        transaction_store_html = render_to_string(
+            "api/components/transaction-store.html",
+            {"transaction_ids": transaction_ids}
+        )
+        html += transaction_store_html
+
         response = HttpResponse(html)
 
         return response
@@ -102,9 +108,11 @@ class JournalEntryViewAlt(
             transactions=transactions
         )
         jei_form_html = get_journal_entry_form_html(transaction=transactions[0], transaction_ids=transactions.values_list('id', flat=True))
+        transaction_ids = transactions.values_list('id', flat=True)
         context = {
             "table": table_html,
-            "form": jei_form_html
+            "form": jei_form_html,
+            "transaction_ids": transaction_ids
         }
 
         html = render_to_string(self.view_template, context)
