@@ -62,9 +62,18 @@ if (!window.hasAddedAfterRequestListener) {
             nextRow.classList.add("table-active");
             container.scrollTop = nextRow.offsetTop;
         } else {
-            // No next row? Assume table is now empty — clear it
+            // No next row? Select the last row if it exists
             const allRows = container.querySelectorAll("tbody tr");
-            allRows.forEach(row => row.remove());
+            
+            if (allRows.length > 0) {
+                const lastRow = allRows[allRows.length - 1];
+                lastRow.classList.add("table-active");
+                container.scrollTop = lastRow.offsetTop;
+            } else {
+                // If no rows exist, clear the table (optional)
+                console.log("No rows left in the table.");
+            }
         }
+
     }
 </script>
