@@ -39,20 +39,21 @@ class JournalEntryUpdate(View):
         print(transaction_id)
         print(transaction_index)
         print(len(transaction_ids))
-        if transaction_index < len(transaction_ids) - 1:
+        if len(transaction_ids) == 1:
+            return HttpResponse('')
+        elif transaction_index < len(transaction_ids) - 1:
             next_transaction = Transaction.objects.get(pk=transaction_ids[transaction_index + 1])
-            transaction_ids.remove(transaction_id)
-            print(transaction_ids)
-            html = get_journal_entry_form_html(transaction=next_transaction, transaction_ids=transaction_ids)
         else:
-            html = ''
+            next_transaction = Transaction.objects.get(pk=transaction_ids[transaction_index - 1])
+        transaction_ids.remove(transaction_id)
+        print(transaction_ids)
+        html = get_journal_entry_form_html(transaction=next_transaction, transaction_ids=transaction_ids)
 
         transaction_store_html = render_to_string(
             "api/components/transaction-store.html",
             {"transaction_ids": transaction_ids}
         )
         html += transaction_store_html
-
         response = HttpResponse(html)
 
         return response
@@ -66,8 +67,6 @@ class JournalEntryButton(View):
         
         transaction_ids = request.GET.get('transaction_ids')
         transaction_ids = convert_frontend_list_to_python(frontend_list=transaction_ids)
-        # transaction_ids = transaction_ids.split(',')
-        # print(transaction_ids)
 
         transaction = Transaction.objects.get(pk=transaction_id)
         html = get_journal_entry_form_html(transaction=transaction, transaction_ids=transaction_ids)
@@ -103,6 +102,7 @@ class JournalEntryViewAlt(
     
     def get(self, request):
         print('get')
+        # TODO: Make the datastore component explicitly included with a true/false flag
         transactions = Transaction.objects.all().order_by('date')
         table_html = self.get_table_html(
             transactions=transactions
