@@ -42,6 +42,7 @@ class JournalEntryUpdate(View):
         if transaction_index < len(transaction_ids) - 1:
             next_transaction = Transaction.objects.get(pk=transaction_ids[transaction_index + 1])
             transaction_ids.remove(transaction_id)
+            print(transaction_ids)
             html = get_journal_entry_form_html(transaction=next_transaction, transaction_ids=transaction_ids)
         else:
             html = ''
@@ -101,11 +102,9 @@ class JournalEntryViewAlt(
             transactions=transactions
         )
         jei_form_html = get_journal_entry_form_html(transaction=transactions[0], transaction_ids=transactions.values_list('id', flat=True))
-        transaction_id_list = list(transactions.values_list('id', flat=True))
         context = {
             "table": table_html,
-            "form": jei_form_html,
-            "transaction_ids": transaction_id_list
+            "form": jei_form_html
         }
 
         html = render_to_string(self.view_template, context)
