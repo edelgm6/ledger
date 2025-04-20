@@ -6,7 +6,7 @@
     hx-post="{% url 'journal-entry-update' transaction_id %}?next_transaction_id={{ next_transaction_id }}&next_next_transaction_id={{ next_next_transaction_id }}"
     hx-trigger="submit"
 >
-<div id="transaction-store" data-transaction-ids="{{ transaction_ids|join:',' }}"></div>
+<input type="hidden" name="transaction_ids" value="{{ transaction_ids|join:',' }}">
     <div class="row">
         <div class="col-12">
             <input type="submit" value="Submit" class="btn btn-primary mt-3" />
