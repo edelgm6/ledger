@@ -81,17 +81,8 @@ class JournalEntryViewAlt(
     def get_table_html(self, transactions):
         print('get_table_html')
         transaction_ids = transactions.values_list('id', flat=True)
-        transactions = list(transactions)  # Convert queryset to list
-        transactions_with_next = [
-            {
-                "current": transactions[i], 
-                "next": transactions[i+1] if i+1 < len(transactions) else None,
-                "next_next": transactions[i+2] if i+2 < len(transactions) else None
-            }
-            for i in range(len(transactions))
-        ]
         context = {
-            "transactions": transactions_with_next,
+            "transactions": transactions,
             "transaction_ids": transaction_ids
         }
 
@@ -100,7 +91,6 @@ class JournalEntryViewAlt(
     
     def get(self, request):
         print('get')
-        # TODO: Make the datastore component explicitly included with a true/false flag
         transactions = Transaction.objects.all().order_by('date')
         table_html = self.get_table_html(
             transactions=transactions
