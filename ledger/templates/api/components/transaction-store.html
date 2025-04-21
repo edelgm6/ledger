@@ -1,1 +1,6 @@
-<div id="transaction-store" data-transaction-ids="{{ transaction_ids|join:',' }}" hx-swap-oob="true"></div>
+<div 
+    id="transaction-store" 
+    data-transaction-ids="{{ transaction_ids|join:',' }}" 
+    {% if swap_oob %}hx-swap-oob="true"{% endif %}
+>
+</div>

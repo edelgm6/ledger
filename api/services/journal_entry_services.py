@@ -161,6 +161,18 @@ def convert_frontend_list_to_python(frontend_list: str) -> List[int]:
     python_list = [int(id) for id in frontend_list.split(",")]
     return python_list
 
+def get_transaction_store_to_html(transaction_ids: List[int], swap_oob: bool = False) -> str:
+    html = render_to_string(
+        "api/components/transaction-store.html",
+        {
+            "transaction_ids": transaction_ids,
+            "swap_oob": swap_oob
+        }
+    )
+
+    return html
+
+
 def _get_next_id(ids_list: List[int], transaction_id: str) -> Optional[int]:
     print(list(ids_list))
     print(transaction_id)

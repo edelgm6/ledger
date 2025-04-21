@@ -10,6 +10,7 @@ from api.models import Transaction
 from api.services.journal_entry_services import (
     convert_frontend_list_to_python,
     get_journal_entry_form_html,
+    get_transaction_store_to_html,
 )
 from api.views.mixins import JournalEntryViewMixin
 from api.views.transaction_views import TransactionsViewMixin
@@ -49,10 +50,7 @@ class JournalEntryUpdate(View):
         print(transaction_ids)
         html = get_journal_entry_form_html(transaction=next_transaction, transaction_ids=transaction_ids)
 
-        transaction_store_html = render_to_string(
-            "api/components/transaction-store.html",
-            {"transaction_ids": transaction_ids}
-        )
+        transaction_store_html = get_transaction_store_to_html(transaction_ids=transaction_ids, swap_oob=True)
         html += transaction_store_html
         response = HttpResponse(html)
 
@@ -109,10 +107,12 @@ class JournalEntryViewAlt(
         )
         jei_form_html = get_journal_entry_form_html(transaction=transactions[0], transaction_ids=transactions.values_list('id', flat=True))
         transaction_ids = transactions.values_list('id', flat=True)
+        transaction_store_html = get_transaction_store_to_html(transaction_ids=transaction_ids)
         context = {
             "table": table_html,
             "form": jei_form_html,
-            "transaction_ids": transaction_ids
+            "transaction_ids": transaction_ids,
+            "transaction_store": transaction_store_html
         }
 
         html = render_to_string(self.view_template, context)
