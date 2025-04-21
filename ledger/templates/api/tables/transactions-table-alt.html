@@ -14,19 +14,19 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for pair in transactions %}
+                    {% for transaction in transactions %}
                     <tr 
-                        id="row-{{ pair.current.id }}"
+                        id="row-{{ transaction.id }}"
                         class="clickable-row {% if forloop.first %}table-active{% endif %}"
-                        hx-get="{% url 'journal-entry-button' pair.current.id %}?next_transaction_id={{ pair.next.id }}&next_next_transaction_id= {{ pair.next_next.id }}"
+                        hx-get="{% url 'journal-entry-button' transaction.id %}"
                         hx-target="#form"
                     >
-                        <td>{{ pair.current.date }}</td>
-                        <td>{{ pair.current.account }}</td>
-                        <td>${{ pair.current.amount|floatformat:2|intcomma }}</td>
-                        <td>{{ pair.current.description }}</td>
-                        <td>{{ pair.current.category }}</td>
-                        <td>{{ pair.current.get_type_display }}</td>
+                        <td>{{ transaction.date }}</td>
+                        <td>{{ transaction.account }}</td>
+                        <td>${{ transaction.amount|floatformat:2|intcomma }}</td>
+                        <td>{{ transaction.description }}</td>
+                        <td>{{ transaction.category }}</td>
+                        <td>{{ transaction.get_type_display }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
