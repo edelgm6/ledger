@@ -17,10 +17,11 @@ from api.views.transaction_views import TransactionsViewMixin
 
 """
 How this all works
-1) Each row in the table is aware of itself, plus the id of the next row and the next next row
-2) When a row is clicked, it creates a form that is aware of the selected row, the next row, and the next next row
-3) When the form is processed, it passes back the new form, which is aware of the current transaction (previously the next row) 
-plus the next transaction (previously the next next row)
+1) Each row in the table can call the server to replace the form to a new transaction
+2) A Data Store html component is passed to the front end with all of the transaction IDs
+in the current table
+3) When the form is processed, it references the Data Store object to figure out the next
+transaction to preload
 """
 
 
