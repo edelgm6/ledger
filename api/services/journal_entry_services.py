@@ -17,10 +17,10 @@ def transaction_account_is_debit(transaction):
 
     return transaction_account_is_debit
 
+
 def get_debits_and_credits(
     transaction: Transaction,
 ) -> Tuple[QuerySet[JournalEntryItem], QuerySet[JournalEntryItem], bool]:
-
     journal_entry = getattr(
         transaction, "journal_entry", None
     )  # Handle missing attribute
@@ -40,7 +40,6 @@ def get_prefill_initial_data(
     debits_initial_data: List[Dict[str, str | int]],
     credits_initial_data: List[Dict[str, str | int]],
 ) -> Tuple[List[Dict[str, str | int]], List[Dict[str, str | int]]]:
-
     prefill_items = (
         transaction.prefill.prefillitem_set.all()
         .select_related("account", "entity")
@@ -157,17 +156,18 @@ def get_initial_data(
 
     return debits_initial_data, credits_initial_data
 
+
 def convert_frontend_list_to_python(frontend_list: str) -> List[int]:
     python_list = [int(id) for id in frontend_list.split(",")]
     return python_list
 
-def get_transaction_store_to_html(transaction_ids: List[int], swap_oob: bool = False) -> str:
+
+def get_transaction_store_to_html(
+    transaction_ids: List[int], swap_oob: bool = False
+) -> str:
     html = render_to_string(
         "api/components/transaction-store.html",
-        {
-            "transaction_ids": transaction_ids,
-            "swap_oob": swap_oob
-        }
+        {"transaction_ids": transaction_ids, "swap_oob": swap_oob},
     )
 
     return html
@@ -180,11 +180,12 @@ def _get_next_id(ids_list: List[int], transaction_id: str) -> Optional[int]:
     next_id = ids_list[idx + 1] if idx + 1 < len(ids_list) else None
     return next_id
 
+
 def get_journal_entry_form_html(transaction, transaction_ids):
-    journal_entry_debits, journal_entry_credits, has_debits_or_credits = get_debits_and_credits(
-        transaction
+    journal_entry_debits, journal_entry_credits, has_debits_or_credits = (
+        get_debits_and_credits(transaction)
     )
-    
+
     debits_initial_data = []
     credits_initial_data = []
     if not has_debits_or_credits:
@@ -196,7 +197,7 @@ def get_journal_entry_form_html(transaction, transaction_ids):
         debits_initial_data=debits_initial_data,
         credits_initial_data=credits_initial_data,
         journal_entry_debits=journal_entry_debits,
-        journal_entry_credits=journal_entry_credits
+        journal_entry_credits=journal_entry_credits,
     )
 
     # Set the total amounts for the debit and credits
@@ -206,7 +207,9 @@ def get_journal_entry_form_html(transaction, transaction_ids):
         "debit_formset": debit_formset,
         "credit_formset": credit_formset,
         "transaction_id": transaction.id,
-        "next_transaction_id": _get_next_id(ids_list=transaction_ids, transaction_id=transaction.id),
+        "next_transaction_id": _get_next_id(
+            ids_list=transaction_ids, transaction_id=transaction.id
+        ),
         "transaction_ids": transaction_ids,
         "autofocus_debit": transaction_account_is_debit(transaction),
         "debit_prefilled_total": debit_prefilled_total,
@@ -235,7 +238,6 @@ def get_formsets(
     journal_entry_debits: QuerySet[JournalEntryItem],
     journal_entry_credits: QuerySet[JournalEntryItem],
 ) -> Tuple[BaseModelFormSet, BaseModelFormSet]:
-
     # Need counts to figure out how long the formset should be
     prefill_debits_count = len(debits_initial_data)
     prefill_credits_count = len(credits_initial_data)

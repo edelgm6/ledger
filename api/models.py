@@ -5,7 +5,7 @@ import re
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from textractor.entities.document import Document
+from textractor.entities.document import Document  # type: ignore
 
 from api.aws_services import (
     clean_and_convert_string_to_decimal,
@@ -45,7 +45,6 @@ class S3File(models.Model):
         return job_id
 
     def create_paystubs_from_textract_data(self):
-
         textract_data = self._extract_data()
         for page_id, page_data in textract_data.items():
             try:
@@ -69,13 +68,12 @@ class S3File(models.Model):
                             account=account,
                             amount=amount,
                             journal_entry_item_type=value["entry_type"],
-                            entity = value["entity"]
+                            entity=value["entity"],
                         )
                     )
             PaystubValue.objects.bulk_create(paystub_values)
 
     def _extract_data(self):
-
         textract_job_response = get_textract_results(job_id=self.textract_job_id)
 
         # Load the Textract response from the JSON file using textractor
@@ -112,12 +110,10 @@ class S3File(models.Model):
                         data[kv.page_id][identifier]["value"] = (
                             clean_and_convert_string_to_decimal(kv.value.text)
                         )
-                        data[kv.page_id][identifier][
-                            "entry_type"
-                        ] = keyword_search.journal_entry_item_type
-                        data[kv.page_id][identifier][
-                            "entity"
-                        ] = keyword_search.entity
+                        data[kv.page_id][identifier]["entry_type"] = (
+                            keyword_search.journal_entry_item_type
+                        )
+                        data[kv.page_id][identifier]["entity"] = keyword_search.entity
                     else:
                         data[kv.page_id][identifier] = clean_string(kv.value.text)
 
@@ -152,12 +148,10 @@ class S3File(models.Model):
                 else:
                     data[table.page_id][identifier] = {}
                     data[table.page_id][identifier]["value"] = value
-                    data[table.page_id][identifier][
-                        "entry_type"
-                    ] = table_search.journal_entry_item_type
-                    data[table.page_id][identifier][
-                        "entity"
-                    ] = table_search.entity
+                    data[table.page_id][identifier]["entry_type"] = (
+                        table_search.journal_entry_item_type
+                    )
+                    data[table.page_id][identifier]["entity"] = table_search.entity
 
         return data
 
@@ -358,7 +352,6 @@ class TransactionManager(models.Manager):
 
 
 class Transaction(models.Model):
-
     class TransactionType(models.TextChoices):
         INCOME = "income", _("Income")
         PURCHASE = "purchase", _("Purchase")
@@ -561,7 +554,6 @@ class TaxCharge(models.Model):
 
 
 class Account(models.Model):
-
     class SpecialType(models.TextChoices):
         UNREALIZED_GAINS_AND_LOSSES = (
             "unrealized_gains_and_losses",
@@ -700,7 +692,6 @@ class Account(models.Model):
 
             journal_entry_type = JournalEntryItem.JournalEntryType.DEBIT
             if journal_entry_item.type == journal_entry_type:
-
                 debits += amount
             else:
                 credits += amount
@@ -735,7 +726,6 @@ class JournalEntry(models.Model):
 
 
 class JournalEntryItem(models.Model):
-
     class JournalEntryType(models.TextChoices):
         DEBIT = "debit", _("Debit")
         CREDIT = "credit", _("Credit")
@@ -926,9 +916,7 @@ class CSVProfile(models.Model):
     description = models.CharField(max_length=200)
     category = models.CharField(max_length=200)
     clear_prepended_until_value = models.CharField(max_length=200, blank=True)
-    clear_values_column_pairs = models.ManyToManyField(
-        CSVColumnValuePair, null=True, blank=True
-    )
+    clear_values_column_pairs = models.ManyToManyField(CSVColumnValuePair, blank=True)
     inflow = models.CharField(max_length=200)
     outflow = models.CharField(max_length=200)
     date_format = models.CharField(max_length=200, default="%Y-%m-%d")
@@ -980,7 +968,6 @@ class CSVProfile(models.Model):
             return row[self.outflow]
 
     def _clear_prepended_rows(self, csv_data):
-
         if not self.clear_prepended_until_value:
             return csv_data
 
