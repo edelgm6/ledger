@@ -64,7 +64,7 @@ class JournalEntryUpdate(View):
 
 
 class JournalEntryButton(View):
-    def get(self, request, transaction_id) -> Int:
+    def get(self, request, transaction_id):
         print("journalentrybutton")
         if not transaction_id:
             return ""
