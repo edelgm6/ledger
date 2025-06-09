@@ -1,4 +1,5 @@
 from typing import Dict, List, Optional, Tuple
+from django.http import HttpResponse
 
 from django.db.models import QuerySet
 from django.forms import BaseModelFormSet, modelformset_factory
@@ -157,6 +158,29 @@ def get_initial_data(
     return debits_initial_data, credits_initial_data
 
 
+def remove_transaction_from_ids_list(
+    transaction_ids: str, transaction_id: int
+) -> Tuple[List[int], Optional[Transaction]]:
+    transaction_ids_list = convert_frontend_list_to_python(
+        frontend_list=transaction_ids
+    )
+    transaction_index = transaction_ids_list.index(transaction_id)
+
+    if len(transaction_ids_list) == 1:
+        return [], None
+    elif transaction_index < len(transaction_ids_list) - 1:
+        next_transaction = Transaction.objects.get(
+            pk=transaction_ids_list[transaction_index + 1]
+        )
+    else:
+        next_transaction = Transaction.objects.get(
+            pk=transaction_ids_list[transaction_index - 1]
+        )
+    transaction_ids_list.remove(transaction_id)
+
+    return transaction_ids_list, next_transaction
+
+
 def convert_frontend_list_to_python(frontend_list: str) -> List[int]:
     python_list = [int(id) for id in frontend_list.split(",")]
     return python_list
@@ -181,7 +205,7 @@ def _get_next_id(ids_list: List[int], transaction_id: str) -> Optional[int]:
     return next_id
 
 
-def get_journal_entry_form_html(transaction, transaction_ids):
+def get_journal_entry_form_html(transaction):
     journal_entry_debits, journal_entry_credits, has_debits_or_credits = (
         get_debits_and_credits(transaction)
     )
@@ -207,10 +231,6 @@ def get_journal_entry_form_html(transaction, transaction_ids):
         "debit_formset": debit_formset,
         "credit_formset": credit_formset,
         "transaction_id": transaction.id,
-        "next_transaction_id": _get_next_id(
-            ids_list=transaction_ids, transaction_id=transaction.id
-        ),
-        "transaction_ids": transaction_ids,
         "autofocus_debit": transaction_account_is_debit(transaction),
         "debit_prefilled_total": debit_prefilled_total,
         "credit_prefilled_total": credit_prefilled_total,

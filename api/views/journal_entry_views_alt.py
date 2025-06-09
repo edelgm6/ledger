@@ -8,6 +8,7 @@ from api.services.journal_entry_services import (
     convert_frontend_list_to_python,
     get_journal_entry_form_html,
     get_transaction_store_to_html,
+    remove_transaction_from_ids_list,
 )
 
 from api.views.mixins import JournalEntryViewMixin
@@ -28,34 +29,18 @@ class JournalEntryUpdate(View):
     def post(self, request, transaction_id):
         print("journalentryupdate")
         # TODO: Process the post
+        transaction = Transaction.objects.get(pk=transaction_id)
 
         transaction_ids = request.POST.get("transaction_ids")
-        transaction_ids = convert_frontend_list_to_python(frontend_list=transaction_ids)
-        transaction = Transaction.objects.get(pk=transaction_id)
-        transaction_index = transaction_ids.index(transaction_id)
-
-        print(transaction_ids)
-        print(transaction_id)
-        print(transaction_index)
-        print(len(transaction_ids))
-        if len(transaction_ids) == 1:
-            return HttpResponse("")
-        elif transaction_index < len(transaction_ids) - 1:
-            next_transaction = Transaction.objects.get(
-                pk=transaction_ids[transaction_index + 1]
-            )
-        else:
-            next_transaction = Transaction.objects.get(
-                pk=transaction_ids[transaction_index - 1]
-            )
-        transaction_ids.remove(transaction_id)
-        print(transaction_ids)
-        html = get_journal_entry_form_html(
-            transaction=next_transaction, transaction_ids=transaction_ids
+        cleaned_transaction_ids, next_transaction = remove_transaction_from_ids_list(
+            transaction_ids=transaction_ids, transaction_id=transaction_id
         )
 
+        if not next_transaction:
+            return HttpResponse("")
+        html = get_journal_entry_form_html(transaction=next_transaction)
         transaction_store_html = get_transaction_store_to_html(
-            transaction_ids=transaction_ids, swap_oob=True
+            transaction_ids=cleaned_transaction_ids, swap_oob=True
         )
         html += transaction_store_html
         response = HttpResponse(html)
@@ -73,9 +58,7 @@ class JournalEntryButton(View):
         transaction_ids = convert_frontend_list_to_python(frontend_list=transaction_ids)
 
         transaction = Transaction.objects.get(pk=transaction_id)
-        html = get_journal_entry_form_html(
-            transaction=transaction, transaction_ids=transaction_ids
-        )
+        html = get_journal_entry_form_html(transaction=transaction)
         return HttpResponse(html)
 
 
@@ -99,10 +82,7 @@ class JournalEntryViewAlt(
         print("get")
         transactions = Transaction.objects.all().order_by("date")
         table_html = self.get_table_html(transactions=transactions)
-        jei_form_html = get_journal_entry_form_html(
-            transaction=transactions[0],
-            transaction_ids=transactions.values_list("id", flat=True),
-        )
+        jei_form_html = get_journal_entry_form_html(transaction=transactions[0])
         transaction_ids = transactions.values_list("id", flat=True)
         transaction_store_html = get_transaction_store_to_html(
             transaction_ids=transaction_ids
