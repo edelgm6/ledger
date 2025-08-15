@@ -8,7 +8,6 @@ from api.models import Account, JournalEntryItem
 
 
 class Trend:
-
     def __init__(self, start_date, end_date):
         self.start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
         self.end_date = end_date
@@ -31,7 +30,6 @@ class Trend:
         return ranges
 
     def get_balances(self):
-
         ranges = self._get_month_ranges()
 
         balances = []
@@ -55,7 +53,6 @@ class Trend:
 
 
 class Balance:
-
     def __init__(self, account: Account, amount: float, date: date, type: str = "flow"):
         self.account = account
         self.amount = amount
@@ -64,7 +61,6 @@ class Balance:
 
 
 class Metric:
-
     def __init__(self, name, value, metric_type="total"):
         self.name = name
         self.value = value
@@ -72,7 +68,6 @@ class Metric:
 
 
 class Statement:
-
     def __init__(self, end_date):
         self.end_date = end_date
 
@@ -179,9 +174,7 @@ class Statement:
 
 
 class CashFlowStatement(Statement):
-
     def __init__(self, income_statement, start_balance_sheet, end_balance_sheet):
-
         self.income_statement = income_statement
         self.start_balance_sheet = start_balance_sheet
         self.end_balance_sheet = end_balance_sheet
@@ -360,6 +353,7 @@ class CashFlowStatement(Statement):
         account_sub_types = [
             Account.SubType.SECURITIES_RETIREMENT,
             Account.SubType.SECURITIES_UNRESTRICTED,
+            Account.SubType.REAL_ESTATE,
         ]
         exclude_journal_entries_with_sub_types = [
             Account.SubType.UNREALIZED_INVESTMENT_GAINS
@@ -404,7 +398,6 @@ class CashFlowStatement(Statement):
 
 
 class IncomeStatement(Statement):
-
     def __init__(self, end_date, start_date):
         super().__init__(end_date)
         self.start_date = start_date
@@ -517,7 +510,6 @@ class IncomeStatement(Statement):
 
 
 class BalanceSheet(Statement):
-
     def __init__(self, end_date):
         super().__init__(end_date)
         self.balances = self.get_balances()
