@@ -2,6 +2,7 @@ import datetime
 import math
 import re
 
+from django.db.models import Q
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -22,7 +23,7 @@ class Entity(models.Model):
 
     class Meta:
         verbose_name_plural = "entities"
-        ordering = ['is_closed', 'name']
+        ordering = ["is_closed", "name"]
 
     def __str__(self):
         return self.name
@@ -46,7 +47,6 @@ class S3File(models.Model):
         return job_id
 
     def create_paystubs_from_textract_data(self):
-
         textract_data = self._extract_data()
         for page_id, page_data in textract_data.items():
             try:
@@ -70,13 +70,12 @@ class S3File(models.Model):
                             account=account,
                             amount=amount,
                             journal_entry_item_type=value["entry_type"],
-                            entity = value["entity"]
+                            entity=value["entity"],
                         )
                     )
             PaystubValue.objects.bulk_create(paystub_values)
 
     def _extract_data(self):
-
         textract_job_response = get_textract_results(job_id=self.textract_job_id)
 
         # Load the Textract response from the JSON file using textractor
@@ -113,12 +112,10 @@ class S3File(models.Model):
                         data[kv.page_id][identifier]["value"] = (
                             clean_and_convert_string_to_decimal(kv.value.text)
                         )
-                        data[kv.page_id][identifier][
-                            "entry_type"
-                        ] = keyword_search.journal_entry_item_type
-                        data[kv.page_id][identifier][
-                            "entity"
-                        ] = keyword_search.entity
+                        data[kv.page_id][identifier]["entry_type"] = (
+                            keyword_search.journal_entry_item_type
+                        )
+                        data[kv.page_id][identifier]["entity"] = keyword_search.entity
                     else:
                         data[kv.page_id][identifier] = clean_string(kv.value.text)
 
@@ -153,12 +150,10 @@ class S3File(models.Model):
                 else:
                     data[table.page_id][identifier] = {}
                     data[table.page_id][identifier]["value"] = value
-                    data[table.page_id][identifier][
-                        "entry_type"
-                    ] = table_search.journal_entry_item_type
-                    data[table.page_id][identifier][
-                        "entity"
-                    ] = table_search.entity
+                    data[table.page_id][identifier]["entry_type"] = (
+                        table_search.journal_entry_item_type
+                    )
+                    data[table.page_id][identifier]["entity"] = table_search.entity
 
         return data
 
@@ -173,10 +168,7 @@ class Amortization(models.Model):
     description = models.CharField(max_length=200)
     suggested_account = models.ForeignKey("Account", on_delete=models.PROTECT)
     entity = models.ForeignKey(
-        "Entity",
-        related_name="amortizations",
-        on_delete=models.PROTECT,
-        null=True
+        "Entity", related_name="amortizations", on_delete=models.PROTECT, null=True
     )
 
     def __str__(self):
@@ -366,7 +358,6 @@ class TransactionManager(models.Manager):
 
 
 class Transaction(models.Model):
-
     class TransactionType(models.TextChoices):
         INCOME = "income", _("Income")
         PURCHASE = "purchase", _("Purchase")
@@ -569,7 +560,6 @@ class TaxCharge(models.Model):
 
 
 class Account(models.Model):
-
     class SpecialType(models.TextChoices):
         UNREALIZED_GAINS_AND_LOSSES = (
             "unrealized_gains_and_losses",
@@ -662,7 +652,7 @@ class Account(models.Model):
         blank=True,
     )
     special_type = models.CharField(
-        max_length=30, choices=SpecialType.choices, null=True, blank=True, unique=True
+        max_length=30, choices=SpecialType.choices, null=True, blank=True
     )
     is_closed = models.BooleanField(default=False)
     entity = models.ForeignKey(
@@ -675,6 +665,13 @@ class Account(models.Model):
 
     class Meta:
         ordering = ("name",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["special_type"],
+                condition=~Q(special_type="property_taxes"),
+                name="unique_special_type_except_property_taxes",
+            )
+        ]
 
     def __str__(self):
         return self.name
@@ -706,7 +703,6 @@ class Account(models.Model):
 
             journal_entry_type = JournalEntryItem.JournalEntryType.DEBIT
             if journal_entry_item.type == journal_entry_type:
-
                 debits += amount
             else:
                 credits += amount
@@ -741,7 +737,6 @@ class JournalEntry(models.Model):
 
 
 class JournalEntryItem(models.Model):
-
     class JournalEntryType(models.TextChoices):
         DEBIT = "debit", _("Debit")
         CREDIT = "credit", _("Credit")
@@ -986,7 +981,6 @@ class CSVProfile(models.Model):
             return row[self.outflow]
 
     def _clear_prepended_rows(self, csv_data):
-
         if not self.clear_prepended_until_value:
             return csv_data
 
