@@ -2,7 +2,6 @@ from api.models import Account, Reconciliation, TaxCharge
 
 
 class ReconciliationFactory:
-
     @staticmethod
     def create_bulk_reconciliations(date):
         existing_reconciliations = set(
@@ -30,13 +29,16 @@ class ReconciliationFactory:
 
 
 class TaxChargeFactory:
-
     @staticmethod
     def create_bulk_tax_charges(date):
         tax_charges = TaxCharge.objects.filter(date=date)
-        for value, _ in TaxCharge.Type.choices:
+        tax_accounts = Account.objects.filter(sub_type=Account.SubType.TAX)
+
+        for account in tax_accounts:
             existing_tax_charge = [
-                charge for charge in tax_charges if charge.type == value
+                charge
+                for charge in tax_charges
+                if charge.transaction.account == account
             ]
             if len(existing_tax_charge) == 0:
-                TaxCharge.objects.create(date=date, type=value, amount=0)
+                TaxCharge.objects.create(date=date, account=account, amount=0)
