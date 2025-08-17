@@ -75,18 +75,12 @@
                         <th scope="row">Taxable Income</th>
                         <td>${{ taxable_income|floatformat:2|intcomma }}</td>
                     </tr>
+                    {% for taxcharge in latest_taxcharges %}
                     <tr>
-                        <th scope="row">Current Federal Tax</th>
-                        <td>${{ latest_federal_tax_charge.current_tax|floatformat:2|intcomma }}</td>
+                        <th scope="row">taxcharge.account.name</th>
+                        <td>${{ taxcharge.current_tax|floatformat:2|intcomma }}</td>
                     </tr>
-                    <tr>
-                        <th scope="row">Current State Tax</th>
-                        <td>${{ latest_state_tax_charge.current_tax|floatformat:2|intcomma }}</td>
-                    </tr>
-                    <tr>
-                        <th scope="row">Current Property Tax</th>
-                        <td>${{ latest_property_tax_charge.amount|floatformat:2|intcomma }}</td>
-                    </tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>

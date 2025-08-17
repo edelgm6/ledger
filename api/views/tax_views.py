@@ -5,16 +5,16 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.views import View
+from django.db.models import OuterRef, Subquery
 
 from api import utils
 from api.factories import TaxChargeFactory
 from api.forms import TaxChargeFilterForm, TaxChargeForm
-from api.models import TaxCharge
+from api.models import TaxCharge, Account
 from api.statement import IncomeStatement
 
 
 class TaxChargeMixIn:
-
     def _get_taxable_income(self, end_date):
         first_day_of_month = date(end_date.year, end_date.month, 1)
         taxable_income = IncomeStatement(
@@ -54,39 +54,62 @@ class TaxChargeMixIn:
         first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
         income_statement = IncomeStatement(last_day_of_month, first_day_of_month)
 
+        # Step 1: Define a subquery that, for a given Account,
+        # finds that account’s most recent TaxCharge (with amount > 0).
+        latest_taxcharge_subquery = (
+            TaxCharge.objects
+            # filter to just rows for *this account* (OuterRef refers to the Account we're comparing against)
+            .filter(account=OuterRef("pk"), amount__gt=0)
+            # order newest first (so the first row is the latest one)
+            .order_by("-date")
+            # we don’t want the whole row, just the primary key of the TaxCharge
+            .values("pk")[:1]  # slice = "take only the first row"
+        )
+
+        # Step 2: Use that subquery to filter the actual TaxCharge table
+        # We say "give me TaxCharges where the pk is equal to the subquery result"
+        latest_taxcharges = TaxCharge.objects.filter(
+            pk__in=Subquery(latest_taxcharge_subquery)
+        )
         # Get latest charge that has a positive value to account for auto-created
         # tax charges
         # This charge will be used to fill out the recommended charges table
-        latest_federal_tax_charge = (
-            TaxCharge.objects.filter(type=TaxCharge.Type.FEDERAL, amount__gt=0)
-            .order_by("-date")
-            .first()
-        )
-        latest_state_tax_charge = (
-            TaxCharge.objects.filter(type=TaxCharge.Type.STATE, amount__gt=0)
-            .order_by("-date")
-            .first()
-        )
-        latest_property_tax_charge = (
-            TaxCharge.objects.filter(type=TaxCharge.Type.PROPERTY, amount__gt=0)
-            .order_by("-date")
-            .first()
-        )
+        # latest_federal_tax_charge = (
+        #     TaxCharge.objects.filter(type=TaxCharge.Type.FEDERAL, amount__gt=0)
+        #     .order_by("-date")
+        #     .first()
+        # )
+        # latest_state_tax_charge = (
+        #     TaxCharge.objects.filter(type=TaxCharge.Type.STATE, amount__gt=0)
+        #     .order_by("-date")
+        #     .first()
+        # )
+        # latest_property_tax_charge = (
+        #     TaxCharge.objects.filter(type=TaxCharge.Type.PROPERTY, amount__gt=0)
+        #     .order_by("-date")
+        #     .first()
+        # )
 
         current_taxable_income = income_statement.get_taxable_income()
-        for latest_tax_charge in [latest_federal_tax_charge, latest_state_tax_charge]:
-            self._add_tax_rate_and_charge(
-                tax_charge=latest_tax_charge,
-                taxable_income=self._get_taxable_income(latest_tax_charge.date),
-                current_taxable_income=current_taxable_income,
-            )
+        # for latest_tax_charge in [latest_federal_tax_charge, latest_state_tax_charge]:
+        #     self._add_tax_rate_and_charge(
+        #         tax_charge=latest_tax_charge,
+        #         taxable_income=self._get_taxable_income(latest_tax_charge.date),
+        #         current_taxable_income=current_taxable_income,
+        #     )
+
+        for latest_taxcharge in latest_taxcharges:
+            if self.account.special_type is not Account.SpecialType.PROPERTY_TAXES:
+                self._add_tax_rate_and_charge(
+                    tax_charge=latest_taxcharge,
+                    taxable_income=self._get_taxable_income(latest_taxcharge.date),
+                    current_taxable_income=current_taxable_income,
+                )
 
         context = {
             "form": form,
             "taxable_income": current_taxable_income,
-            "latest_federal_tax_charge": latest_federal_tax_charge,
-            "latest_state_tax_charge": latest_state_tax_charge,
-            "latest_property_tax_charge": latest_property_tax_charge,
+            "latest_taxcharges": latest_taxcharges,
             "tax_charge": tax_charge,
         }
         form_template = "api/entry_forms/edit-tax-charge-form.html"
@@ -94,10 +117,9 @@ class TaxChargeMixIn:
         return form_html
 
     def get_tax_table_html(self, tax_charges, end_date):
-
         tax_charges = tax_charges.select_related(
             "transaction", "transaction__account"
-        ).order_by("date", "type")
+        ).order_by("date", "account")
         tax_dates = []
         taxable_income = None
         for tax_charge in tax_charges:
@@ -160,7 +182,6 @@ class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
     redirect_field_name = "next"
 
     def get(self, request, *args, **kwargs):
-
         initial_end_date = utils.get_last_day_of_last_month()
         TaxChargeFactory.create_bulk_tax_charges(date=initial_end_date)
 
