@@ -461,51 +461,54 @@ class TaxCharge(models.Model):
         FEDERAL = "federal", _("Federal")
         STATE = "state", _("State")
 
-    type = models.CharField(max_length=25, choices=Type.choices)
+    # type = models.CharField(max_length=25, choices=Type.choices)
+    account = models.ForeignKey(
+        "Account", related_name="tax_charges", on_delete=models.PROTECT, null=True
+    )
     transaction = models.OneToOneField("Transaction", on_delete=models.PROTECT)
     date = models.DateField()
     amount = models.DecimalField(decimal_places=2, max_digits=12)
 
     class Meta:
-        unique_together = [["type", "date"]]
+        unique_together = [["account", "date"]]
 
     def __str__(self):
-        return str(self.date) + " " + self.type
+        return str(self.date) + " " + self.account
 
-    def _get_tax_accounts(self):
-        tax_accounts = {
-            self.Type.STATE: {
-                "expense": Account.objects.get(
-                    special_type=Account.SpecialType.STATE_TAXES
-                ),
-                "liability": Account.objects.get(
-                    special_type=Account.SpecialType.STATE_TAXES_PAYABLE
-                ),
-                "description": "State Income Tax",
-            },
-            self.Type.FEDERAL: {
-                "expense": Account.objects.get(
-                    special_type=Account.SpecialType.FEDERAL_TAXES
-                ),
-                "liability": Account.objects.get(
-                    special_type=Account.SpecialType.FEDERAL_TAXES_PAYABLE
-                ),
-                "description": "Federal Income Tax",
-            },
-            self.Type.PROPERTY: {
-                "expense": Account.objects.get(
-                    special_type=Account.SpecialType.PROPERTY_TAXES
-                ),
-                "liability": Account.objects.get(
-                    special_type=Account.SpecialType.PROPERTY_TAXES_PAYABLE
-                ),
-                "description": "Property Tax",
-            },
-        }
-        return tax_accounts[self.type]
+    # def _get_tax_accounts(self):
+    #     tax_accounts = {
+    #         self.Type.STATE: {
+    #             "expense": Account.objects.get(
+    #                 special_type=Account.SpecialType.STATE_TAXES
+    #             ),
+    #             "liability": Account.objects.get(
+    #                 special_type=Account.SpecialType.STATE_TAXES_PAYABLE
+    #             ),
+    #             "description": "State Income Tax",
+    #         },
+    #         self.Type.FEDERAL: {
+    #             "expense": Account.objects.get(
+    #                 special_type=Account.SpecialType.FEDERAL_TAXES
+    #             ),
+    #             "liability": Account.objects.get(
+    #                 special_type=Account.SpecialType.FEDERAL_TAXES_PAYABLE
+    #             ),
+    #             "description": "Federal Income Tax",
+    #         },
+    #         self.Type.PROPERTY: {
+    #             "expense": Account.objects.get(
+    #                 special_type=Account.SpecialType.PROPERTY_TAXES
+    #             ),
+    #             "liability": Account.objects.get(
+    #                 special_type=Account.SpecialType.PROPERTY_TAXES_PAYABLE
+    #             ),
+    #             "description": "Property Tax",
+    #         },
+    #     }
+    #     return tax_accounts[self.type]
 
     def save(self, *args, **kwargs):
-        accounts = self._get_tax_accounts()
+        # accounts = self._get_tax_accounts()
 
         try:
             transaction = self.transaction
@@ -514,9 +517,10 @@ class TaxCharge(models.Model):
         except Transaction.DoesNotExist:
             transaction = Transaction.objects.create(
                 date=self.date,
-                account=accounts["expense"],
+                # account=accounts["expense"],
+                account=self.account,
                 amount=self.amount,
-                description=str(self.date) + " " + accounts["description"],
+                description=str(self.date) + " " + self.account.name,
                 is_closed=True,
                 date_closed=datetime.date.today(),
                 type=Transaction.TransactionType.PURCHASE,
@@ -535,21 +539,21 @@ class TaxCharge(models.Model):
             journal_entry=journal_entry,
             type=JournalEntryItem.JournalEntryType.DEBIT,
             amount=self.transaction.amount,
-            account=accounts["expense"],
+            account=self.account,
         )
         JournalEntryItem.objects.create(
             journal_entry=journal_entry,
             type=JournalEntryItem.JournalEntryType.CREDIT,
             amount=self.transaction.amount,
-            account=accounts["liability"],
+            account=self.account.tax_payable_account,
         )
 
         # Update the Reconciliation per the new tax amount
-        liability_account = accounts["liability"]
+        liability_account = self.account.tax_payable_account
         liability_balance = liability_account.get_balance(self.date)
         try:
             reconciliation = Reconciliation.objects.get(
-                date=self.date, account=accounts["liability"]
+                date=self.date, account=self.account.tax_payable_account
             )
             reconciliation.amount = liability_balance
             reconciliation.save()
@@ -661,6 +665,9 @@ class Account(models.Model):
         null=True,
         blank=True,
         related_name="accounts",
+    )
+    tax_payable_account = models.OneToOneField(
+        "Account", on_delete=models.SET_NULL, null=True, blank=True
     )
 
     class Meta:
