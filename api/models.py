@@ -473,7 +473,7 @@ class TaxCharge(models.Model):
         unique_together = [["account", "date"]]
 
     def __str__(self):
-        return str(self.date) + " " + self.account
+        return str(self.date) + " " + self.account.name
 
     # def _get_tax_accounts(self):
     #     tax_accounts = {
