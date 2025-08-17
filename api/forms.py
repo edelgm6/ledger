@@ -194,7 +194,6 @@ class ReconciliationForm(forms.ModelForm):
 
 
 class TaxChargeFilterForm(forms.Form):
-
     date_from = forms.ChoiceField(required=False, choices=[])
     date_to = forms.ChoiceField(required=False, choices=[])
     TAX_TYPE_CHOICES = (
@@ -240,7 +239,7 @@ class TaxChargeForm(forms.ModelForm):
 
     class Meta:
         model = TaxCharge
-        fields = ["type", "date", "amount"]
+        fields = ["account", "date", "amount"]
 
     def __init__(self, *args, **kwargs):
         super(TaxChargeForm, self).__init__(*args, **kwargs)
@@ -305,7 +304,6 @@ class JournalEntryMetadataForm(forms.Form):
 
 
 class BaseJournalEntryItemFormset(BaseModelFormSet):
-
     def get_entry_total(self):
         total = 0
         for form in self.forms:
@@ -324,7 +322,6 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
                 return form.cleaned_data.get("amount")
 
     def save(self, transaction, type, commit=True):
-
         try:
             journal_entry = transaction.journal_entry
         except JournalEntry.DoesNotExist:
@@ -472,7 +469,6 @@ class TransactionFilterForm(forms.Form):
 
 
 class TransactionForm(forms.ModelForm):
-
     account = forms.ChoiceField(choices=[])
     suggested_account = forms.ChoiceField(choices=[], required=False)
     amount = CommaDecimalField(
@@ -531,7 +527,6 @@ class TransactionForm(forms.ModelForm):
 
 
 class WalletForm(forms.ModelForm):
-
     suggested_account = forms.ChoiceField(choices=[])
 
     class Meta:
