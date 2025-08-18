@@ -77,8 +77,10 @@
                     </tr>
                     {% for taxcharge in latest_taxcharges %}
                     <tr>
-                        <th scope="row">taxcharge.account.name</th>
-                        <td>${{ taxcharge.current_tax|floatformat:2|intcomma }}</td>
+                        <th scope="row">{{ taxcharge.account.name }}</th>
+                        <td>
+                            ${{ taxcharge.current_tax|default_if_none:taxcharge.amount|floatformat:2|intcomma }}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
