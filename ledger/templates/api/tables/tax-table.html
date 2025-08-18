@@ -6,7 +6,6 @@
     <table class="table table-hover table-sm">
         <thead>
             <tr>
-                <th>Type</th>
                 <th>Transaction</th>
                 <th>Date</th>
                 <th>Amount</th>
@@ -17,7 +16,6 @@
         <tbody>
             {% for tax_charge in tax_charges %}
                 <tr class="clickable-row" hx-get="{% url 'tax-form-bound' pk=tax_charge.pk %}" hx-target="#form-container">
-                    <td>{{ tax_charge.type }}</td>
                     <td>{{ tax_charge.transaction_string }}</td>
                     <td>{{ tax_charge.date }}</td>
                     <td>${{ tax_charge.amount|floatformat:2|intcomma }}</td>
