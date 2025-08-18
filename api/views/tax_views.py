@@ -113,6 +113,10 @@ class TaxChargeMixIn:
         #     )
 
         for latest_taxcharge in latest_taxcharges:
+            print("****wtf*****")
+            print(latest_taxcharge)
+            print(latest_taxcharge.account)
+            print("****wtf*****")
             if (
                 latest_taxcharge.account.special_type
                 is not Account.SpecialType.PROPERTY_TAXES
