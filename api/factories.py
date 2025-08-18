@@ -32,7 +32,13 @@ class TaxChargeFactory:
     @staticmethod
     def create_bulk_tax_charges(date):
         tax_charges = TaxCharge.objects.filter(date=date)
-        tax_accounts = Account.objects.filter(sub_type=Account.SubType.TAX)
+        tax_accounts = Account.objects.filter(
+            special_type__in=[
+                Account.SpecialType.FEDERAL_TAXES,
+                Account.SpecialType.PROPERTY_TAXES,
+                Account.SpecialType.STATE_TAXES,
+            ]
+        )
 
         for account in tax_accounts:
             existing_tax_charge = [
