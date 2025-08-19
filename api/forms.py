@@ -247,6 +247,14 @@ class TaxChargeForm(forms.ModelForm):
         self.fields["date"].choices = last_days_of_month_tuples
         last_day_of_last_month = last_days_of_month_tuples[0][0]
         self.fields["date"].initial = last_day_of_last_month
+        tax_accounts = Account.objects.filter(
+            special_type__in=[
+                Account.SpecialType.FEDERAL_TAXES,
+                Account.SpecialType.STATE_TAXES,
+                Account.SpecialType.PROPERTY_TAXES,
+            ]
+        )
+        self.fields["account"].queryset = tax_accounts
 
 
 class TransactionLinkForm(forms.Form):

@@ -13,16 +13,19 @@
                 {% csrf_token %}
 
                 <div class="row">
-                    <!-- Render the 'type' field -->
+                    <!-- Account Field -->
                     <div class="col-md-2">
                         <div class="form-group">
-                            <select name="type" id="id_type" class="form-control">
-                                {% for value, label in form.type.field.choices %}
-                                    <option value="{{ value }}" {% if form.type.value == value %} selected {% endif %}>
-                                        {{ label }}
-                                    </option>
+                            <select name="account" id="id_account" class="form-control">
+                                {% for option in form.account %}
+                                    {{ option }}
                                 {% endfor %}
                             </select>
+                            {% if form.account.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.account.errors|striptags }}
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
 
