@@ -59,13 +59,12 @@ class TaxChargeMixIn:
         )
 
         latest_by_account = {}
-        for tax_charge in tax_charges:
-            if tax_charge.account not in latest_by_account:
-                latest_by_account[tax_charge.account] = tax_charge
+        for charge in tax_charges:
+            if charge.account not in latest_by_account:
+                latest_by_account[charge.account] = charge
 
         # now you have one TaxCharge (latest) per account
         latest_taxcharges = [value for value in latest_by_account.values()]
-        print(latest_taxcharges)
 
         # Step 1: Define a subquery that, for a given Account,
         # finds that account’s most recent TaxCharge (with amount > 0).
@@ -113,10 +112,6 @@ class TaxChargeMixIn:
         #     )
 
         for latest_taxcharge in latest_taxcharges:
-            print("****wtf*****")
-            print(latest_taxcharge)
-            print(latest_taxcharge.account)
-            print("****wtf*****")
             if (
                 latest_taxcharge.account.special_type
                 is not Account.SpecialType.PROPERTY_TAXES
@@ -248,3 +243,5 @@ class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
             template = "api/content/taxes-content.html"
             html = render_to_string(template, context)
             return HttpResponse(html)
+        else:
+            print(form.errors)
