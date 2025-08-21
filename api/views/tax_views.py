@@ -62,55 +62,9 @@ class TaxChargeMixIn:
         for charge in tax_charges:
             if charge.account not in latest_by_account:
                 latest_by_account[charge.account] = charge
-
-        # now you have one TaxCharge (latest) per account
         latest_taxcharges = [value for value in latest_by_account.values()]
 
-        # Step 1: Define a subquery that, for a given Account,
-        # finds that account’s most recent TaxCharge (with amount > 0).
-        # latest_taxcharge_subquery = (
-        #     TaxCharge.objects
-        #     # filter to just rows for *this account* (OuterRef refers to the Account we're comparing against)
-        #     .filter(account=OuterRef("pk"), amount__gt=0)
-        #     # order newest first (so the first row is the latest one)
-        #     .order_by("-date")
-        #     # we don’t want the whole row, just the primary key of the TaxCharge
-        #     .values("pk")[:1]  # slice = "take only the first row"
-        # )
-
-        # # Step 2: Use that subquery to filter the actual TaxCharge table
-        # # We say "give me TaxCharges where the pk is equal to the subquery result"
-        # latest_taxcharges = TaxCharge.objects.filter(
-        #     pk__in=Subquery(latest_taxcharge_subquery)
-        # )
-        # print(latest_taxcharges)
-        # Get latest charge that has a positive value to account for auto-created
-        # tax charges
-        # This charge will be used to fill out the recommended charges table
-        # latest_federal_tax_charge = (
-        #     TaxCharge.objects.filter(type=TaxCharge.Type.FEDERAL, amount__gt=0)
-        #     .order_by("-date")
-        #     .first()
-        # )
-        # latest_state_tax_charge = (
-        #     TaxCharge.objects.filter(type=TaxCharge.Type.STATE, amount__gt=0)
-        #     .order_by("-date")
-        #     .first()
-        # )
-        # latest_property_tax_charge = (
-        #     TaxCharge.objects.filter(type=TaxCharge.Type.PROPERTY, amount__gt=0)
-        #     .order_by("-date")
-        #     .first()
-        # )
-
         current_taxable_income = income_statement.get_taxable_income()
-        # for latest_tax_charge in [latest_federal_tax_charge, latest_state_tax_charge]:
-        #     self._add_tax_rate_and_charge(
-        #         tax_charge=latest_tax_charge,
-        #         taxable_income=self._get_taxable_income(latest_tax_charge.date),
-        #         current_taxable_income=current_taxable_income,
-        #     )
-
         for latest_taxcharge in latest_taxcharges:
             if (
                 latest_taxcharge.account.special_type
