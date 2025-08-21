@@ -463,7 +463,7 @@ class TaxCharge(models.Model):
 
     # type = models.CharField(max_length=25, choices=Type.choices)
     account = models.ForeignKey(
-        "Account", related_name="tax_charges", on_delete=models.PROTECT, null=True
+        "Account", related_name="tax_charges", on_delete=models.PROTECT
     )
     transaction = models.OneToOneField("Transaction", on_delete=models.PROTECT)
     date = models.DateField()
@@ -476,41 +476,7 @@ class TaxCharge(models.Model):
         account_name = self.account.name if self.account else "No Account"
         return f"{self.date} {account_name}"
 
-    # def _get_tax_accounts(self):
-    #     tax_accounts = {
-    #         self.Type.STATE: {
-    #             "expense": Account.objects.get(
-    #                 special_type=Account.SpecialType.STATE_TAXES
-    #             ),
-    #             "liability": Account.objects.get(
-    #                 special_type=Account.SpecialType.STATE_TAXES_PAYABLE
-    #             ),
-    #             "description": "State Income Tax",
-    #         },
-    #         self.Type.FEDERAL: {
-    #             "expense": Account.objects.get(
-    #                 special_type=Account.SpecialType.FEDERAL_TAXES
-    #             ),
-    #             "liability": Account.objects.get(
-    #                 special_type=Account.SpecialType.FEDERAL_TAXES_PAYABLE
-    #             ),
-    #             "description": "Federal Income Tax",
-    #         },
-    #         self.Type.PROPERTY: {
-    #             "expense": Account.objects.get(
-    #                 special_type=Account.SpecialType.PROPERTY_TAXES
-    #             ),
-    #             "liability": Account.objects.get(
-    #                 special_type=Account.SpecialType.PROPERTY_TAXES_PAYABLE
-    #             ),
-    #             "description": "Property Tax",
-    #         },
-    #     }
-    #     return tax_accounts[self.type]
-
     def save(self, *args, **kwargs):
-        # accounts = self._get_tax_accounts()
-
         try:
             transaction = self.transaction
             transaction.amount = self.amount
@@ -518,7 +484,6 @@ class TaxCharge(models.Model):
         except Transaction.DoesNotExist:
             transaction = Transaction.objects.create(
                 date=self.date,
-                # account=accounts["expense"],
                 account=self.account,
                 amount=self.amount,
                 description=str(self.date) + " " + self.account.name,
