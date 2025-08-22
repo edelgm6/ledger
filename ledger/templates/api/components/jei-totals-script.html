@@ -17,11 +17,23 @@ $(document).ready(function() {
             totalCredits += parseFloat(value) || 0;
         });
 
-        // Format the totals and update in the HTML
-        $('#totalDebits').text(totalDebits.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-        $('#totalCredits').text(totalCredits.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-        console.log(totalDebits)
-        console.log(totalCredits)
+        // Calculate deltas
+        let deltaDebits = totalDebits - totalCredits;
+        let deltaCredits = totalCredits - totalDebits;
+
+        // Format totals with relative delta
+        $('#totalDebits').text(
+            totalDebits.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) +
+            ` (${deltaDebits >= 0 ? "+" : ""}${deltaDebits.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+        );
+
+        $('#totalCredits').text(
+            totalCredits.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) +
+            ` (${deltaCredits >= 0 ? "+" : ""}${deltaCredits.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+        );
+
+        console.log("Debits:", totalDebits, "Credits:", totalCredits);
+        console.log("Delta Debits:", deltaDebits, "Delta Credits:", deltaCredits);
     }
 
     // Attach event listener for input on amount fields
