@@ -15,6 +15,7 @@
                 <tr id="row-{{ entry.id }}">
                     <td>{{ entry.journal_entry.date }}</td>
                     <td>{{ entry.journal_entry.transaction.description|slice:":24" }}{% if entry.journal_entry.transaction.description|length > 24 %}...{% endif %}</td>
+                    <td>{{ entry.account }}</td>
                     <td>{% if entry.type == "debit" %}-{% endif %}${{ entry.amount|floatformat:2|intcomma }}</td>
                     <td>${{ entry.balance|floatformat:2|intcomma }}</td>
                     <td>
