@@ -55,7 +55,13 @@ class TaxChargeMixIn:
         income_statement = IncomeStatement(last_day_of_month, first_day_of_month)
         current_taxable_income = income_statement.get_taxable_income()
 
-        tax_accounts = Account.objects.filter(sub_type=Account.SubType.TAX)
+        tax_accounts = Account.objects.filter(
+            special_type__in=[
+                Account.SpecialType.FEDERAL_TAXES,
+                Account.SpecialType.STATE_TAXES,
+                Account.SpecialType.PROPERTY_TAXES,
+            ]
+        )
         for account in tax_accounts:
             if account.tax_rate:
                 recommended_tax = account.tax_rate * current_taxable_income
