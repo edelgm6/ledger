@@ -635,6 +635,20 @@ class Account(models.Model):
     tax_payable_account = models.OneToOneField(
         "Account", on_delete=models.SET_NULL, null=True, blank=True
     )
+    tax_rate = models.DecimalField(
+        max_digits=4,  # enough to store 999.9999 if needed
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Tax rate as a decimal (e.g., 0.3110 for 31.10%)",
+    )
+    tax_amount = models.DecimalField(
+        max_digits=12,  # depends on how big flat amounts can be
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Flat tax amount (e.g., 1000.00)",
+    )
 
     class Meta:
         ordering = ("name",)
@@ -648,6 +662,12 @@ class Account(models.Model):
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        super().clean()
+
+        if self.tax_rate is not None and self.tax_amount is not None:
+            raise ValidationError("Only one of tax_rate or tax_amount can be set.")
 
     @staticmethod
     def get_balance_from_debit_and_credit(account_type, debits, credits):

@@ -78,11 +78,11 @@
                         <th scope="row">Taxable Income</th>
                         <td>${{ taxable_income|floatformat:2|intcomma }}</td>
                     </tr>
-                    {% for taxcharge in latest_taxcharges %}
+                    {% for account in tax_accounts %}
                     <tr>
-                        <th scope="row">{{ taxcharge.account.name }}</th>
+                        <th scope="row">{{ account.name }}</th>
                         <td>
-                            ${{ taxcharge.current_tax|default_if_none:taxcharge.amount|floatformat:2|intcomma }}
+                            ${{ account.recommended_tax|floatformat:2|intcomma }}
                         </td>
                     </tr>
                     {% endfor %}
