@@ -53,33 +53,23 @@ class TaxChargeMixIn:
         )
         first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
         income_statement = IncomeStatement(last_day_of_month, first_day_of_month)
-
-        tax_charges = TaxCharge.objects.filter(amount__gt=0).order_by(
-            "account_id", "-date"
-        )
-
-        latest_by_account = {}
-        for charge in tax_charges:
-            if charge.account not in latest_by_account:
-                latest_by_account[charge.account] = charge
-        latest_taxcharges = [value for value in latest_by_account.values()]
-
         current_taxable_income = income_statement.get_taxable_income()
-        for latest_taxcharge in latest_taxcharges:
-            if (
-                latest_taxcharge.account.special_type
-                is not Account.SpecialType.PROPERTY_TAXES
-            ):
-                self._add_tax_rate_and_charge(
-                    tax_charge=latest_taxcharge,
-                    taxable_income=self._get_taxable_income(latest_taxcharge.date),
-                    current_taxable_income=current_taxable_income,
-                )
+
+        tax_accounts = Account.objects.filter(sub_type=Account.SubType.TAX)
+        for account in tax_accounts:
+            if account.tax_rate:
+                recommended_tax = account.tax_rate * current_taxable_income
+            elif account.tax_amount:
+                recommended_tax = account.tax_amount
+            else:
+                recommended_tax = None
+
+            account.recommended_tax = recommended_tax
 
         context = {
             "form": form,
             "taxable_income": current_taxable_income,
-            "latest_taxcharges": latest_taxcharges,
+            "tax_accounts": tax_accounts,
             "tax_charge": tax_charge,
         }
         form_template = "api/entry_forms/edit-tax-charge-form.html"
