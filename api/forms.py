@@ -41,7 +41,7 @@ class JournalEntryItemEntityForm(forms.ModelForm):
 class DocumentForm(forms.Form):
     document = forms.FileField()
     prefill = forms.ModelChoiceField(
-        queryset=Prefill.objects.filter(docsearch__isnull=False).distinct(),
+        queryset=Prefill.objects.filter(is_closed=False),
         required=True,
     )
 
