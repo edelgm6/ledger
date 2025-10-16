@@ -1,5 +1,7 @@
 from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
+from django.utils.html import format_html
+from django.urls import reverse
 
 from .models import (
     Account,
@@ -76,11 +78,23 @@ class TransactionAdmin(ImportExportModelAdmin):
         "is_closed",
         "linked_transaction",
         "amortization",
-        "journal_entry",
+        "journal_entry_link",
     )
     list_filter = ("account__name", "date", "is_closed")
     search_fields = ("description",)
     inlines = [JournalEntryInline]
+
+    def journal_entry_link(self, obj):
+        if obj.journal_entry:
+            url = reverse(
+                "admin:api_journalentry_change",  # <-- replace yourappname
+                args=[obj.journal_entry.id],
+            )
+            return format_html('<a href="{}">{}</a>', url, obj.journal_entry.id)
+        return "-"
+
+    journal_entry_link.short_description = "Journal Entry"
+    journal_entry_link.admin_order_field = "journal_entry"
 
 
 class PrefillItemInline(admin.TabularInline):
