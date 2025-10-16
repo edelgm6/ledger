@@ -783,6 +783,7 @@ class AutoTag(models.Model):
 
 class Prefill(models.Model):
     name = models.CharField(max_length=200)
+    is_closed = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
