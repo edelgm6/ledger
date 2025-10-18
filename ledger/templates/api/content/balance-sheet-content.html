@@ -6,6 +6,36 @@
     </div>
 </div>
 <div class="container-fluid">
+    {% if unbalanced_entries %}
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="alert alert-danger py-1 px-2 small mb-2" role="alert">
+            ⚠️ <strong>{{ unbalanced_entries|length }}</strong> unbalanced journal entr{{ unbalanced_entries|length|pluralize:"y,ies" }} detected.
+            </div>
+            <table class="table table-sm table-striped align-middle mb-4">
+                <thead class="table-light">
+                <tr>
+                    <th scope="col">ID</th>
+                    <th scope="col">Description</th>
+                    <th scope="col" class="text-end">Debits</th>
+                    <th scope="col" class="text-end">Credits</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for entry in unbalanced_entries %}
+                    <tr>
+                    <td>{{ entry.id }}</td>
+                    <td>{{ entry.transaction.description }}</td>
+                    <td class="text-end">${{ entry.total_debits|default:0|floatformat:2 }}</td>
+                    <td class="text-end">${{ entry.total_credits|default:0|floatformat:2 }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
     <div class="row">
         <div class="col-md-12">
             <div class="row text-center">
