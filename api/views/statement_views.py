@@ -145,12 +145,12 @@ class StatementMixIn:
             end_balance_sheet=end_balance_sheet,
         )
 
+        end_date = "2500-01-01"
+        start_date = "1900-01-01"
         global_cash_statement = CashFlowStatement(
-            income_statement=IncomeStatement(
-                end_date="2500-01-01", start_date="1900-01-01"
-            ),
-            end_balance_sheet=BalanceSheet(end_date="2500-01-01"),
-            start_balance_sheet=BalanceSheet(end_date="1900-01-01"),
+            income_statement=IncomeStatement(end_date=end_date, start_date=start_date),
+            end_balance_sheet=BalanceSheet(end_date=end_date),
+            start_balance_sheet=BalanceSheet(end_date=start_date),
         )
 
         context = {
