@@ -5,15 +5,15 @@ from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views import View
+from django.db.models import Sum, Case, When, F, DecimalField
 
 from api import utils
 from api.forms import FromToDateForm
-from api.models import Account, JournalEntryItem
+from api.models import Account, JournalEntryItem, JournalEntry
 from api.statement import BalanceSheet, CashFlowStatement, IncomeStatement
 
 
 class StatementMixIn:
-
     def _clear_closed_accounts(self, balances):
         new_balances = []
         for balance in balances:
@@ -23,7 +23,6 @@ class StatementMixIn:
         return new_balances
 
     def _get_statement_summary_dict(self, statement):
-
         type_dict = dict(Account.Type.choices)
         summary = {}
         for account_type in Account.Type.values:
@@ -100,11 +99,37 @@ class StatementMixIn:
         balance_sheet = BalanceSheet(end_date=to_date)
         summary = self._get_statement_summary_dict(statement=balance_sheet)
 
+        unbalanced_entries = (
+            JournalEntry.objects.select_related("transaction")
+            .annotate(
+                total_debits=Sum(
+                    Case(
+                        When(
+                            journal_entry_items__type="debit",
+                            then=F("journal_entry_items__amount"),
+                        ),
+                        output_field=DecimalField(),
+                    )
+                ),
+                total_credits=Sum(
+                    Case(
+                        When(
+                            journal_entry_items__type="credit",
+                            then=F("journal_entry_items__amount"),
+                        ),
+                        output_field=DecimalField(),
+                    )
+                ),
+            )
+            .exclude(total_debits=F("total_credits"))
+        )
+
         context = {
             "summary": summary,
             "cash_percent_assets": balance_sheet.get_cash_percent_assets(),
             "debt_to_equity_ratio": balance_sheet.get_debt_to_equity(),
             "liquid_percent_assets": balance_sheet.get_liquid_assets_percent(),
+            "unbalanced_entries": unbalanced_entries,
         }
 
         template = "api/content/balance-sheet-content.html"
@@ -160,7 +185,12 @@ class StatementMixIn:
             ),
             "levered_cash_flow": cash_statement.get_levered_after_tax_cash_flow(),
             "levered_cash_flow_post_retirement": cash_statement.get_levered_after_tax_after_retirement_cash_flow(),
+            "cash_flow_discrepancy": cash_statement.get_cash_flow_discrepancy(),
         }
+
+        print("***")
+        print(cash_statement.get_cash_flow_discrepancy())
+        print("***")
 
         template = "api/content/cash-flow-content.html"
         return render_to_string(template, context)
