@@ -185,7 +185,12 @@ class StatementMixIn:
             ),
             "levered_cash_flow": cash_statement.get_levered_after_tax_cash_flow(),
             "levered_cash_flow_post_retirement": cash_statement.get_levered_after_tax_after_retirement_cash_flow(),
+            "cash_flow_discrepancy": cash_statement.get_cash_flow_discrepancy(),
         }
+
+        print("***")
+        print(cash_statement.get_cash_flow_discrepancy())
+        print("***")
 
         template = "api/content/cash-flow-content.html"
         return render_to_string(template, context)
