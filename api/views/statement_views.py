@@ -145,6 +145,14 @@ class StatementMixIn:
             end_balance_sheet=end_balance_sheet,
         )
 
+        global_cash_statement = CashFlowStatement(
+            income_statement=IncomeStatement(
+                end_date="2500-01-01", start_date="1900-01-01"
+            ),
+            end_balance_sheet=BalanceSheet(end_date="2500-01-01"),
+            start_balance_sheet=BalanceSheet(end_date="1900-01-01"),
+        )
+
         context = {
             "operations_flows": self._clear_closed_accounts(
                 cash_statement.cash_from_operations_balances
@@ -185,12 +193,8 @@ class StatementMixIn:
             ),
             "levered_cash_flow": cash_statement.get_levered_after_tax_cash_flow(),
             "levered_cash_flow_post_retirement": cash_statement.get_levered_after_tax_after_retirement_cash_flow(),
-            "cash_flow_discrepancy": cash_statement.get_cash_flow_discrepancy(),
+            "cash_flow_discrepancy": global_cash_statement.get_cash_flow_discrepancy(),
         }
-
-        print("***")
-        print(cash_statement.get_cash_flow_discrepancy())
-        print("***")
 
         template = "api/content/cash-flow-content.html"
         return render_to_string(template, context)
