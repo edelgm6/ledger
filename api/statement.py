@@ -226,6 +226,17 @@ class CashFlowStatement(Statement):
             ),
         ]
 
+    def get_cash_flow_discrepancy(self):
+        cash_delta = self.get_cash_balance(
+            self.end_balance_sheet
+        ) - self.get_cash_balance(self.start_balance_sheet)
+
+        measured_cash_flow = self.net_cash_flow
+        if cash_delta != measured_cash_flow:
+            return cash_delta - measured_cash_flow
+
+        return None
+
     @staticmethod
     def get_cash_balance(balance_sheet):
         cash = sum(
