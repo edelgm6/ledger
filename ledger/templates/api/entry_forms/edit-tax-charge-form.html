@@ -81,7 +81,7 @@
                     {% for account in tax_accounts %}
                     <tr>
                         <th scope="row">{{ account.name }}</th>
-                        <td>
+                        <td class="copyable">
                             ${{ account.recommended_tax|floatformat:2|intcomma }}
                         </td>
                     </tr>
@@ -91,3 +91,17 @@
         </div>
     </div>
 </div>
+
+{% block extra_js %}
+<script>
+  document.querySelectorAll(".copyable").forEach((el) => {
+    el.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(el.textContent.trim());
+      } catch (err) {
+        console.error("Failed to copy:", err);
+      }
+    });
+  });
+</script>
+{% endblock %}
