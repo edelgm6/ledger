@@ -543,6 +543,7 @@ class Account(models.Model):
         PROPERTY_TAXES = "property_taxes", _("Property Taxes")
         WALLET = "wallet", _("Wallet")
         PREPAID_EXPENSES = "prepaid_expenses", _("Prepaid Expenses")
+        STARTING_EQUITY = "starting_equity", _("Starting Equity")
 
     class Type(models.TextChoices):
         ASSET = "asset", _("Asset")

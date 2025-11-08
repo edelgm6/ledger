@@ -231,7 +231,14 @@ class CashFlowStatement(Statement):
             self.end_balance_sheet
         ) - self.get_cash_balance(self.start_balance_sheet)
 
-        measured_cash_flow = self.net_cash_flow
+        starting_equity = [
+            balance
+            for balance in self.end_balance_sheet.balances
+            if balance.account.special_type == Account.SpecialType.STARTING_EQUITY
+        ][0]
+
+        measured_cash_flow = self.net_cash_flow + starting_equity.amount
+
         if cash_delta != measured_cash_flow:
             return cash_delta - measured_cash_flow
 
