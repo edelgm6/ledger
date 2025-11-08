@@ -47,7 +47,7 @@ class JournalEntryViewMixin:
         paystubs_template = "api/tables/paystubs-table.html"
         return render_to_string(paystubs_template, {"paystubs": paystubs})
 
-    def get_combined_formset_errors(self, debit_formset, credit_formset):
+    def get_combined_formset_errors(self, debit_formset, credit_formset, transaction):
         form_errors = []
         debit_total = debit_formset.get_entry_total()
         credit_total = credit_formset.get_entry_total()
@@ -58,6 +58,19 @@ class JournalEntryViewMixin:
                 + ") and Credits ($"
                 + str(credit_total)
                 + ") must balance."
+            )
+
+        # Check that the correct formset has a JEI with the transaction's account and amount
+        formset = debit_formset if transaction.amount >= 0 else credit_formset
+        formset_items_equalling_transaction_amount = [
+            form
+            for form in formset.forms
+            if form.cleaned_data.get("amount") == abs(transaction.amount)
+            and form.cleaned_data.get("account") == transaction.account
+        ]
+        if len(formset_items_equalling_transaction_amount) != 1:
+            form_errors.append(
+                "Must be one journal entry item with the Transaction's account and amount."
             )
 
         print(form_errors)
@@ -76,7 +89,9 @@ class JournalEntryViewMixin:
             and metadata_form.is_valid()
         ):
             form_errors = self.get_combined_formset_errors(
-                debit_formset=debit_formset, credit_formset=credit_formset
+                debit_formset=debit_formset,
+                credit_formset=credit_formset,
+                transaction=transaction,
             )
             has_errors = bool(form_errors)
         else:
@@ -116,7 +131,6 @@ class JournalEntryViewMixin:
         paystub_id=None,
         created_entities=None,
     ):
-
         # If no transaction passed in, return nothing
         if not transaction:
             return ""

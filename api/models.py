@@ -15,6 +15,7 @@ from api.aws_services import (
     create_textract_job,
     get_textract_results,
 )
+from api.validators import non_zero
 
 
 class Entity(models.Model):
@@ -366,7 +367,7 @@ class Transaction(models.Model):
 
     date = models.DateField()
     account = models.ForeignKey("Account", on_delete=models.PROTECT)
-    amount = models.DecimalField(decimal_places=2, max_digits=12)
+    amount = models.DecimalField(decimal_places=2, max_digits=12, validators=[non_zero])
     description = models.CharField(max_length=200, blank=True)
     category = models.CharField(max_length=200, blank=True)
     is_closed = models.BooleanField(default=False)
@@ -739,7 +740,7 @@ class JournalEntryItem(models.Model):
         "JournalEntry", related_name="journal_entry_items", on_delete=models.CASCADE
     )
     type = models.CharField(max_length=6, choices=JournalEntryType.choices)
-    amount = models.DecimalField(decimal_places=2, max_digits=12)
+    amount = models.DecimalField(decimal_places=2, max_digits=12, validators=[non_zero])
     account = models.ForeignKey("Account", on_delete=models.PROTECT)
     entity = models.ForeignKey(
         "Entity",
