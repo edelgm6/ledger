@@ -98,26 +98,29 @@
     const icon = el.querySelector("i");
 
     icon.addEventListener("click", async (event) => {
-      event.stopPropagation(); // prevent triggering parent click handlers if any
+      event.stopPropagation(); // prevent bubbling
 
-      // Get the text of the parent element *without* the icon text
+      const input = document.querySelector("#id_amount");
+      if (!input) return;
+
+      // Get the text of the parent element (without icon text)
       const textToCopy = el.textContent.replace(icon.textContent, "").trim();
 
-      try {
-        await navigator.clipboard.writeText(textToCopy);
+      // Remove any dollar signs or commas before setting the value
+      const numericValue = textToCopy.replace(/[\$,]/g, "");
 
-        // Change icon to check
-        icon.classList.remove("bi-clipboard");
-        icon.classList.add("bi-check2");
+      // Fill the input
+      input.value = numericValue;
 
-        // Revert after 3 seconds
-        setTimeout(() => {
-          icon.classList.remove("bi-check2");
-          icon.classList.add("bi-clipboard");
-        }, 1000);
-      } catch (err) {
-        console.error("Failed to copy:", err);
-      }
+      // Change icon to check
+      icon.classList.remove("bi-clipboard");
+      icon.classList.add("bi-check2", "text-success");
+
+      // Revert after 3 seconds
+      setTimeout(() => {
+        icon.classList.remove("bi-check2", "text-success");
+        icon.classList.add("bi-clipboard");
+      }, 3000);
     });
   });
 </script>
