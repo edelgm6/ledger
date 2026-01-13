@@ -196,13 +196,16 @@ class ReconciliationForm(forms.ModelForm):
 class TaxChargeFilterForm(forms.Form):
     date_from = forms.ChoiceField(required=False, choices=[])
     date_to = forms.ChoiceField(required=False, choices=[])
-    TAX_TYPE_CHOICES = (
-        (None, "---------"),
-        (TaxCharge.Type.FEDERAL, "Federal"),
-        (TaxCharge.Type.STATE, "State"),
-        (TaxCharge.Type.PROPERTY, "Property"),
+    tax_type = forms.ModelChoiceField(
+        required=False,
+        queryset=Account.objects.filter(
+            special_type__in=[
+                Account.SpecialType.FEDERAL_TAXES,
+                Account.SpecialType.STATE_TAXES,
+                Account.SpecialType.PROPERTY_TAXES,
+            ]
+        ),
     )
-    tax_type = forms.ChoiceField(required=False, choices=TAX_TYPE_CHOICES)
 
     def __init__(self, *args, **kwargs):
         super(TaxChargeFilterForm, self).__init__(*args, **kwargs)
@@ -222,7 +225,9 @@ class TaxChargeFilterForm(forms.Form):
         if self.cleaned_data.get("date_from"):
             queryset = queryset.filter(date__lte=self.cleaned_data["date_to"])
         if self.cleaned_data["tax_type"]:
-            queryset = queryset.filter(type=self.cleaned_data["tax_type"])
+            queryset = queryset.filter(
+                transaction__account=self.cleaned_data["tax_type"]
+            )
 
         return queryset.order_by("date")
 
