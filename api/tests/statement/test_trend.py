@@ -1,11 +1,17 @@
 from datetime import date
+from decimal import Decimal
 from django.test import TestCase
 from api.statement import Trend
-from api.models import Account, JournalEntryItem, JournalEntry, Transaction
+from api.models import Account
+from api.tests.scenario_builders import (
+    create_closed_transaction_with_journal_entry,
+    create_multi_line_journal_entry,
+)
 
 
 class TrendTest(TestCase):
     def setUp(self):
+        # Create required accounts
         Account.objects.create(
             name='8000-gains losses',
             type=Account.Type.EQUITY,
@@ -27,102 +33,64 @@ class TrendTest(TestCase):
             type='expense',
             sub_type='purchases'
         )
-
-        transaction = Transaction.objects.create(
-            date='2023-01-28',
-            amount=100,
-            account=groceries
-        )
-
-        journal_entry = JournalEntry.objects.create(date='2023-01-28', transaction=transaction)
-        JournalEntryItem.objects.create(
-            type='debit',
-            amount=100,
-            account=groceries,
-            journal_entry=journal_entry
-        )
-        JournalEntryItem.objects.create(
-            type='credit',
-            amount=100,
-            account=chase,
-            journal_entry=journal_entry
-        )
-
-        transaction = Transaction.objects.create(
-            date='2023-01-28',
-            amount=100,
-            account=groceries
-        )
-
-        journal_entry = JournalEntry.objects.create(date='2023-01-28', transaction=transaction)
-        JournalEntryItem.objects.create(
-            type='debit',
-            amount=100,
-            account=insurance,
-            journal_entry=journal_entry
-        )
-        JournalEntryItem.objects.create(
-            type='credit',
-            amount=100,
-            account=chase,
-            journal_entry=journal_entry
-        )
-
         ally = Account.objects.create(
             name='1000-Ally',
             type='asset',
             sub_type='cash'
-        )
-        transaction = Transaction.objects.create(
-            date='2023-01-28',
-            amount=100,
-            account=groceries
-        )
-
-        journal_entry = JournalEntry.objects.create(date='2023-01-28', transaction=transaction)
-        JournalEntryItem.objects.create(
-            type='debit',
-            amount=100,
-            account=ally,
-            journal_entry=journal_entry
-        )
-        JournalEntryItem.objects.create(
-            type='credit',
-            amount=100,
-            account=chase,
-            journal_entry=journal_entry
         )
         income = Account.objects.create(
             name='8000-Income',
             type=Account.Type.INCOME,
             sub_type=Account.SubType.SALARY
         )
-        transaction = Transaction.objects.create(
-            date='2023-01-28',
-            amount=100,
-            account=groceries
+
+        txn_date = '2023-01-28'
+
+        # Groceries purchase: Debit Groceries $100, Credit Chase $100
+        create_closed_transaction_with_journal_entry(
+            date=txn_date,
+            debit_account=groceries,
+            credit_account=chase,
+            amount=Decimal('100'),
+            transaction_account=groceries,
         )
 
-        journal_entry = JournalEntry.objects.create(date='2023-01-28', transaction=transaction)
-        JournalEntryItem.objects.create(
-            type='credit',
-            amount=100,
-            account=income,
-            journal_entry=journal_entry
+        # Insurance purchase: Debit Insurance $100, Credit Chase $100
+        create_closed_transaction_with_journal_entry(
+            date=txn_date,
+            debit_account=insurance,
+            credit_account=chase,
+            amount=Decimal('100'),
+            transaction_account=groceries,
         )
-        JournalEntryItem.objects.create(
-            type='credit',
-            amount=100,
-            account=chase,
-            journal_entry=journal_entry
+
+        # Cash deposit: Debit Ally $100, Credit Chase $100
+        create_closed_transaction_with_journal_entry(
+            date=txn_date,
+            debit_account=ally,
+            credit_account=chase,
+            amount=Decimal('100'),
+            transaction_account=groceries,
+        )
+
+        # Multi-line income entry: Credit Income $100, Credit Chase $100
+        create_multi_line_journal_entry(
+            date=txn_date,
+            entries=[
+                {'account': income, 'type': 'credit', 'amount': Decimal('100')},
+                {'account': chase, 'type': 'credit', 'amount': Decimal('100')},
+            ],
+            transaction_account=groceries,
+            transaction_amount=Decimal('100'),
         )
 
     def test_create_trend(self):
-        trend = Trend('2023-01-01', '2023-06-30')
+        # Note: Trend class expects end_date as a date object (not string)
+        trend = Trend('2023-01-01', date(2023, 6, 30))
         self.assertTrue(trend.start_date)
 
     def test_month_ranges(self):
-        trend = Trend('2023-01-01', '2023-06-30')
+        trend = Trend('2023-01-01', date(2023, 6, 30))
         ranges = trend._get_month_ranges()
         self.assertEqual(len(ranges), 6)
         self.assertEqual(ranges[0].start, date(2023, 1, 1))
@@ -130,6 +98,6 @@ class TrendTest(TestCase):
         self.assertEqual(ranges[-1].end, date(2023, 6, 30))
 
     def test_balance_trends(self):
-        trend = Trend('2023-01-01', '2023-06-30')
+        trend = Trend('2023-01-01', date(2023, 6, 30))
         balances = trend.get_balances()
         self.assertTrue(balances)

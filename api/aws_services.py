@@ -1,3 +1,4 @@
+import logging
 import re
 import uuid
 from decimal import Decimal
@@ -6,6 +7,8 @@ from time import sleep
 import boto3
 from botocore.exceptions import ClientError
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 def get_boto3_client(service="textract"):
@@ -31,7 +34,7 @@ def upload_file_to_s3(file):
         )
         return unique_name
     except Exception as e:
-        print(str(e))
+        logger.error("S3 upload failed: %s", str(e))
         return {"error": str(e), "message": "Upload failed"}
 
 
