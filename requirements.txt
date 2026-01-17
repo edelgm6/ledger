@@ -3,6 +3,7 @@ amazon-textract-response-parser==1.0.3
 amazon-textract-textractor==1.8.2
 amqp==5.3.1
 asgiref==3.8.1
+beautifulsoup4==4.12.3
 astroid==2.14.1
 billiard==4.2.1
 boto3==1.34.140
