@@ -1,3 +1,10 @@
+"""
+Transaction views for HTTP orchestration.
+
+Views handle HTTP requests/responses only, delegating business logic to
+services and rendering to helpers.
+"""
+
 from datetime import timedelta
 
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -10,153 +17,95 @@ from django.views import View
 from api import utils
 from api.forms import TransactionFilterForm, TransactionForm, TransactionLinkForm
 from api.models import Transaction
-
-
-class TransactionsViewMixin:
-    filter_form_template = "api/filter_forms/transactions-filter-form.html"
-
-    def get_filter_form_html_and_objects(
-        self,
-        is_closed=None,
-        has_linked_transaction=None,
-        transaction_type=None,
-        date_from=None,
-        date_to=None,
-        get_url=None,
-    ):
-        form = TransactionFilterForm(prefix="filter")
-        form.initial["is_closed"] = is_closed
-        form.initial["has_linked_transaction"] = has_linked_transaction
-        form.initial["transaction_type"] = transaction_type
-        form.initial["date_from"] = (
-            utils.format_datetime_to_string(date_from) if date_from else None
-        )
-        form.initial["date_to"] = (
-            utils.format_datetime_to_string(date_to) if date_to else None
-        )
-
-        transactions = Transaction.objects.filter_for_table(
-            is_closed=is_closed,
-            has_linked_transaction=has_linked_transaction,
-            transaction_types=transaction_type,
-            date_from=date_from,
-            date_to=date_to,
-        ).select_related("account")
-
-        context = {"filter_form": form, "get_url": get_url}
-
-        return (render_to_string(self.filter_form_template, context), transactions)
-
-    def get_table_html(
-        self,
-        transactions,
-        index=0,
-        no_highlight=False,
-        row_url=None,
-        double_row_click=False,
-    ):
-
-        context = {
-            "transactions": transactions,
-            "index": index,
-            "no_highlight": no_highlight,
-            "row_url": row_url,
-            "double_row_click": double_row_click,
-        }
-
-        table_template = "api/tables/transactions-table-new.html"
-        return render_to_string(table_template, context)
-
-    def get_transaction_form_html(
-        self, transaction=None, created_transaction=None, change=None
-    ):
-        form_template = "api/entry_forms/transaction-form.html"
-        if transaction:
-            form = TransactionForm(instance=transaction)
-        else:
-            form = TransactionForm()
-        form_html = render_to_string(
-            form_template,
-            {
-                "form": form,
-                "transaction": transaction,
-                "created_transaction": created_transaction,
-                "change": change,
-            },
-        )
-        return form_html
-
-    def get_link_form_html(self):
-        entry_form_template = "api/entry_forms/transaction-link-form.html"
-        html = render_to_string(
-            entry_form_template, {"link_form": TransactionLinkForm()}
-        )
-        return html
+from api.services import transaction_services
+from api.views import transaction_helpers
 
 
 # ------------------Transactions View-----------------------
 
 
 # Called by the filter form
-class TransactionContentView(TransactionsViewMixin, LoginRequiredMixin, View):
+class TransactionContentView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
+        # Parse and validate filter form
         form = TransactionFilterForm(request.GET, prefix="filter")
         if form.is_valid():
             transactions = form.get_transactions()
-            form_html = self.get_transaction_form_html()
+        else:
+            transactions = []
 
-            row_url = reverse("transactions")
-            table_html = self.get_table_html(
-                transactions=transactions, no_highlight=True, row_url=row_url
-            )
+        # Render via helpers
+        form_html = transaction_helpers.render_transaction_form()
+        row_url = reverse("transactions")
+        table_html = transaction_helpers.render_transaction_table(
+            transactions=transactions,
+            no_highlight=True,
+            row_url=row_url
+        )
 
-            content_template = "api/content/transactions-content.html"
-            context = {"transactions_form": form_html, "table": table_html}
+        # Combine content
+        html = transaction_helpers.render_transactions_content(
+            table_html=table_html,
+            form_html=form_html
+        )
 
-            html = render_to_string(content_template, context)
-            return HttpResponse(html)
+        return HttpResponse(html)
 
 
 # Called by table rows
-class TransactionFormView(TransactionsViewMixin, LoginRequiredMixin, View):
+class TransactionFormView(LoginRequiredMixin, View):
     login_url = "/login/"
     redirect_field_name = "next"
 
     def get(self, request, transaction_id=None):
         transaction = get_object_or_404(Transaction, pk=transaction_id)
-        form_html = self.get_transaction_form_html(transaction=transaction)
+        form_html = transaction_helpers.render_transaction_form(
+            transaction=transaction
+        )
         return HttpResponse(form_html)
 
 
 # Called to load page or POST new objects
-class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
+class TransactionsView(LoginRequiredMixin, View):
     login_url = "/login/"
     redirect_field_name = "next"
-    content_template = "api/content/transactions-content.html"
 
     def get(self, request):
+        # Calculate default date range (last month)
         last_two_months_last_days = utils.get_last_days_of_month_tuples()[0:2]
         last_day_of_last_month = last_two_months_last_days[0][0]
         first_day_of_last_month = last_two_months_last_days[1][0] + timedelta(days=1)
 
-        filter_form_html, transactions = self.get_filter_form_html_and_objects(
+        # Filter transactions via service
+        filter_result = transaction_services.filter_transactions(
             date_from=first_day_of_last_month,
             date_to=last_day_of_last_month,
+            is_closed=False,
+        )
+
+        # Render filter form
+        filter_form_html = transaction_helpers.render_transaction_filter_form(
+            date_from=transaction_helpers.format_date_for_form(first_day_of_last_month),
+            date_to=transaction_helpers.format_date_for_form(last_day_of_last_month),
             is_closed=False,
             get_url=reverse("transactions-content"),
         )
 
+        # Render table and form
         row_url = reverse("transactions")
-        table_html = self.get_table_html(
-            transactions=transactions, no_highlight=True, row_url=row_url
+        table_html = transaction_helpers.render_transaction_table(
+            transactions=filter_result.transactions,
+            no_highlight=True,
+            row_url=row_url
         )
+        transaction_form_html = transaction_helpers.render_transaction_form()
 
-        transaction_form_html = self.get_transaction_form_html()
+        # Combine all HTML
         context = {
             "filter_form": filter_form_html,
-            "table_and_form": render_to_string(
-                self.content_template,
-                {"table": table_html, "transactions_form": transaction_form_html},
+            "table_and_form": transaction_helpers.render_transactions_content(
+                table_html=table_html,
+                form_html=transaction_form_html
             ),
         }
 
@@ -165,48 +114,69 @@ class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
         return HttpResponse(html)
 
     def post(self, request, transaction_id=None):
+        # Parse filter form to get current transaction list
         filter_form = TransactionFilterForm(request.POST, prefix="filter")
         if filter_form.is_valid():
-            transactions = filter_form.get_transactions()
+            transactions = list(filter_form.get_transactions())
         else:
             print(filter_form.errors)
+            transactions = []
 
-        if transaction_id:
-            transaction = get_object_or_404(Transaction, pk=transaction_id)
-            form = TransactionForm(request.POST, instance=transaction)
+        # Handle different actions
+        action = request.POST.get("action")
+        transaction_obj = None
+
+        if action == "delete":
+            # Delete via service
+            result = transaction_services.delete_transaction(transaction_id)
+            if result.success:
+                transaction_obj = result.transaction
+                form_html = transaction_helpers.render_transaction_form(
+                    created_transaction=transaction_obj,
+                    change="delete"
+                )
+            else:
+                return HttpResponse(result.error, status=400)
+
+        elif action == "clear":
+            # Clear form
+            form_html = transaction_helpers.render_transaction_form()
+
         else:
-            form = TransactionForm(request.POST)
-
-        if request.POST["action"] == "delete":
-            form_html = self.get_transaction_form_html(
-                created_transaction=transaction, change="delete"
-            )
-            transaction.delete()
-        elif request.POST["action"] == "clear":
-            form_html = self.get_transaction_form_html()
-        elif form.is_valid():
+            # Create or update transaction
             if transaction_id:
+                transaction_obj = get_object_or_404(Transaction, pk=transaction_id)
+                form = TransactionForm(request.POST, instance=transaction_obj)
                 change = "update"
             else:
+                form = TransactionForm(request.POST)
                 change = "create"
-            transaction = form.save()
-            form_html = self.get_transaction_form_html(
-                created_transaction=transaction, change=change
-            )
 
+            if form.is_valid():
+                transaction_obj = form.save()
+                form_html = transaction_helpers.render_transaction_form(
+                    created_transaction=transaction_obj,
+                    change=change
+                )
+            else:
+                # Return form with errors
+                return HttpResponse("Form validation failed", status=400)
+
+        # Render updated table
         row_url = reverse("transactions")
-        table_html = self.get_table_html(
-            transactions=transactions, no_highlight=True, row_url=row_url
+        table_html = transaction_helpers.render_transaction_table(
+            transactions=transactions,
+            no_highlight=True,
+            row_url=row_url
         )
 
-        content_template = "api/content/transactions-content.html"
-        context = {
-            "transactions_form": form_html,
-            "table": table_html,
-            "transaction": transaction,
-        }
+        # Combine and return
+        html = transaction_helpers.render_transactions_content(
+            table_html=table_html,
+            form_html=form_html,
+            transaction=transaction_obj
+        )
 
-        html = render_to_string(content_template, context)
         return HttpResponse(html)
 
 
@@ -214,32 +184,51 @@ class TransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
 
 
 # Called on filter
-class LinkTransactionsContentView(TransactionsViewMixin, LoginRequiredMixin, View):
+class LinkTransactionsContentView(LoginRequiredMixin, View):
 
     def get(self, request):
+        # Parse and validate filter form
         form = TransactionFilterForm(request.GET, prefix="filter")
         if form.is_valid():
-            transactions = form.get_transactions()
+            transactions = list(form.get_transactions())
+        else:
+            transactions = []
 
-            table_html = self.get_table_html(
-                transactions, no_highlight=True, double_row_click=True
-            )
-            link_form_html = self.get_link_form_html()
-            context = {"table": table_html, "link_form": link_form_html}
-            content_template = "api/content/transactions-link-content.html"
+        # Render via helpers
+        table_html = transaction_helpers.render_transaction_table(
+            transactions,
+            no_highlight=True,
+            double_row_click=True
+        )
+        link_form_html = transaction_helpers.render_transaction_link_form()
 
-            html = render_to_string(content_template, context)
-            return HttpResponse(html)
+        # Combine content
+        html = transaction_helpers.render_transactions_link_content(
+            table_html=table_html,
+            link_form_html=link_form_html
+        )
+
+        return HttpResponse(html)
 
 
 # Called to load page and link transactions
-class LinkTransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
+class LinkTransactionsView(LoginRequiredMixin, View):
     login_url = "/login/"
     redirect_field_name = "next"
-    content_template = "api/content/transactions-link-content.html"
 
     def get(self, request):
-        filter_form_html, transactions = self.get_filter_form_html_and_objects(
+        # Filter for linkable transactions
+        filter_result = transaction_services.filter_transactions(
+            is_closed=False,
+            has_linked_transaction=False,
+            transaction_types=[
+                Transaction.TransactionType.TRANSFER,
+                Transaction.TransactionType.PAYMENT,
+            ],
+        )
+
+        # Render filter form
+        filter_form_html = transaction_helpers.render_transaction_filter_form(
             is_closed=False,
             has_linked_transaction=False,
             transaction_type=[
@@ -248,16 +237,21 @@ class LinkTransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
             ],
             get_url=reverse("link-transactions-content"),
         )
-        table_html = self.get_table_html(
-            transactions, no_highlight=True, double_row_click=True
-        )
-        link_form_html = self.get_link_form_html()
 
+        # Render table and link form
+        table_html = transaction_helpers.render_transaction_table(
+            filter_result.transactions,
+            no_highlight=True,
+            double_row_click=True
+        )
+        link_form_html = transaction_helpers.render_transaction_link_form()
+
+        # Combine all HTML
         context = {
             "filter_form": filter_form_html,
-            "table_and_form": render_to_string(
-                self.content_template,
-                {"table": table_html, "link_form": link_form_html},
+            "table_and_form": transaction_helpers.render_transactions_link_content(
+                table_html=table_html,
+                link_form_html=link_form_html
             ),
         }
 
@@ -266,21 +260,34 @@ class LinkTransactionsView(TransactionsViewMixin, LoginRequiredMixin, View):
         return HttpResponse(html)
 
     def post(self, request):
+        # Parse link form
         form = TransactionLinkForm(request.POST)
+
+        # Parse filter form to get current transaction list
         filter_form = TransactionFilterForm(request.POST, prefix="filter")
         if filter_form.is_valid():
-            transactions = filter_form.get_transactions()
+            transactions = list(filter_form.get_transactions())
+        else:
+            transactions = []
 
-            if form.is_valid():
-                form.save()
-                table_html = self.get_table_html(
-                    transactions=transactions, no_highlight=True, double_row_click=True
-                )
-                link_form_html = self.get_link_form_html()
-                context = {"table": table_html, "link_form": link_form_html}
-
-                html = render_to_string(self.content_template, context)
-                return HttpResponse(html)
-
+        # Link transactions if form valid
+        if form.is_valid():
+            form.save()  # TransactionLinkForm handles the linking logic
+        else:
             print(form.errors)
             print(form.non_field_errors())
+
+        # Render updated table and form
+        table_html = transaction_helpers.render_transaction_table(
+            transactions=transactions,
+            no_highlight=True,
+            double_row_click=True
+        )
+        link_form_html = transaction_helpers.render_transaction_link_form()
+
+        html = transaction_helpers.render_transactions_link_content(
+            table_html=table_html,
+            link_form_html=link_form_html
+        )
+
+        return HttpResponse(html)
