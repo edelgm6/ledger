@@ -1,5 +1,14 @@
 import factory
-from api.models import Account, CSVProfile, Transaction, Amortization, Reconciliation, JournalEntry, JournalEntryItem, AutoTag, Prefill, PrefillItem, TaxCharge
+from api.models import Account, CSVProfile, Entity, Transaction, Amortization, Reconciliation, JournalEntry, JournalEntryItem, AutoTag, Prefill, PrefillItem, TaxCharge
+
+
+# Entity Factory
+class EntityFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Entity
+
+    name = factory.Sequence(lambda n: f"Entity {n}")
+    is_closed = False
 
 # CSVProfile Factory
 class CSVProfileFactory(factory.django.DjangoModelFactory):
