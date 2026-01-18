@@ -14,10 +14,18 @@ from api.forms import (
 )
 from api.models import JournalEntryItem, Paystub, PaystubValue, Transaction
 from api.services.journal_entry_services import (
+    apply_autotags_to_open_transactions,
     get_accounts_choices,
     get_entities_choices,
+    get_post_save_context,
+    save_journal_entry,
+    validate_journal_entry_balance,
 )
-from api.views.mixins import JournalEntryViewMixin
+from api.views.journal_entry_helpers import (
+    extract_created_entities,
+    render_journal_entry_form,
+    render_paystubs_table,
+)
 from api.views.transaction_views import TransactionsViewMixin
 
 
@@ -26,21 +34,14 @@ class TriggerAutoTagView(LoginRequiredMixin, View):
     redirect_field_name = "next"
 
     def get(self, request):
-        open_transactions = Transaction.objects.filter(is_closed=False)
-        Transaction.apply_autotags(open_transactions)
-
-        open_transactions.bulk_update(
-            open_transactions,
-            ["suggested_account", "prefill", "type", "suggested_entity"],
+        count = apply_autotags_to_open_transactions()
+        return HttpResponse(
+            f"<small class=text-success>Autotag complete ({count} transactions)</small>"
         )
-
-        return HttpResponse("<small class=text-success>Autotag complete</small>")
 
 
 # Called every time the page is filtered
-class JournalEntryTableView(
-    TransactionsViewMixin, JournalEntryViewMixin, LoginRequiredMixin, View
-):
+class JournalEntryTableView(TransactionsViewMixin, LoginRequiredMixin, View):
     login_url = "/login/"
     redirect_field_name = "next"
 
@@ -55,8 +56,8 @@ class JournalEntryTableView(
                 transaction = transactions[0]
             except IndexError:
                 transaction = None
-            entry_form_html = self.get_journal_entry_form_html(transaction=transaction)
-            paystubs_table_html = self.get_paystubs_table_html()
+            entry_form_html = render_journal_entry_form(transaction=transaction)
+            paystubs_table_html = render_paystubs_table()
             view_template = "api/views/journal-entry-view.html"
             context = {
                 "entry_form": entry_form_html,
@@ -71,9 +72,7 @@ class JournalEntryTableView(
 
 
 # Called every time a table row is clicked
-class JournalEntryFormView(
-    TransactionsViewMixin, JournalEntryViewMixin, LoginRequiredMixin, View
-):
+class JournalEntryFormView(TransactionsViewMixin, LoginRequiredMixin, View):
     login_url = "/login/"
     redirect_field_name = "next"
     item_form_template = "api/entry_forms/journal-entry-item-form.html"
@@ -83,18 +82,19 @@ class JournalEntryFormView(
             pk=transaction_id
         )
         paystub_id = request.GET.get("paystub_id")
-        entry_form_html = self.get_journal_entry_form_html(
+        row_index = request.GET.get("row_index", 0)
+        entry_form_html = render_journal_entry_form(
             transaction=transaction,
-            index=request.GET.get("row_index"),
+            index=int(row_index) if row_index else 0,
             paystub_id=paystub_id,
         )
 
         return HttpResponse(entry_form_html)
 
 
-class PaystubTableView(JournalEntryViewMixin, LoginRequiredMixin, View):
+class PaystubTableView(LoginRequiredMixin, View):
     def get(self, request):
-        html = self.get_paystubs_table_html()
+        html = render_paystubs_table()
         return HttpResponse(html)
 
 
@@ -112,9 +112,7 @@ class PaystubDetailView(TransactionsViewMixin, LoginRequiredMixin, View):
 
 
 # Called as the main page
-class JournalEntryView(
-    TransactionsViewMixin, JournalEntryViewMixin, LoginRequiredMixin, View
-):
+class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
     login_url = "/login/"
     redirect_field_name = "next"
     view_template = "api/views/journal-entry-view.html"
@@ -136,8 +134,8 @@ class JournalEntryView(
             transaction = transactions[0]
         except IndexError:
             transaction = None
-        entry_form_html = self.get_journal_entry_form_html(transaction=transaction)
-        paystubs_table_html = self.get_paystubs_table_html()
+        entry_form_html = render_journal_entry_form(transaction=transaction)
+        paystubs_table_html = render_paystubs_table()
         context = {
             "filter_form": filter_form_html,
             "table": table_html,
@@ -152,8 +150,19 @@ class JournalEntryView(
         return HttpResponse(html)
 
     def post(self, request, transaction_id):
-        # Build formsets for the credit and debit side of the JE and get transaction
-        # and metadata form
+        """
+        Saves journal entry for a transaction.
+
+        Flow:
+        1. Build and validate forms
+        2. Validate business rules via service
+        3. Save via service (atomic)
+        4. Build response context via service
+        5. Render response via helpers
+        """
+        # 1. Build forms
+        transaction = get_object_or_404(Transaction, pk=transaction_id)
+
         JournalEntryItemFormset = modelformset_factory(
             JournalEntryItem,
             formset=BaseJournalEntryItemFormset,
@@ -162,6 +171,7 @@ class JournalEntryView(
 
         accounts_choices = get_accounts_choices()
         entities_choices = get_entities_choices()
+
         debit_formset = JournalEntryItemFormset(
             request.POST,
             prefix="debits",
@@ -179,95 +189,94 @@ class JournalEntryView(
             },
         )
         metadata_form = JournalEntryMetadataForm(request.POST)
-        transaction = Transaction.objects.get(pk=transaction_id)
 
-        # First check if the forms are valid and return errors if not
-        has_errors, response = self.check_for_errors(
-            debit_formset=debit_formset,
-            credit_formset=credit_formset,
-            request=request,
-            transaction=transaction,
-            metadata_form=metadata_form,
-        )
-        if has_errors:
+        # 2. Validate forms (field-level)
+        if not (
+            debit_formset.is_valid()
+            and credit_formset.is_valid()
+            and metadata_form.is_valid()
+        ):
+            # Render form with field errors
+            entry_form_html = render_journal_entry_form(
+                transaction=transaction,
+                debit_formset=debit_formset,
+                credit_formset=credit_formset,
+                form_errors=[],
+            )
+            response = HttpResponse(entry_form_html)
+            response.headers["HX-Retarget"] = "#form-div"
             return response
 
-        debits = debit_formset.save(
-            transaction, JournalEntryItem.JournalEntryType.DEBIT, commit=False
+        # 3. Validate business rules
+        validation_result = validate_journal_entry_balance(
+            transaction=transaction,
+            debits_data=debit_formset.cleaned_data,
+            credits_data=credit_formset.cleaned_data,
         )
-        credits = credit_formset.save(
-            transaction, JournalEntryItem.JournalEntryType.CREDIT, commit=False
-        )
-        combined_journal_entry_items = debits + credits
-        new_journal_entry_items = []
-        changed_journal_entry_items = []
-        for item in combined_journal_entry_items:
-            if item.pk:
-                changed_journal_entry_items.append(item)
-            else:
-                new_journal_entry_items.append(item)
-        # Bulk create all instances in one query
-        JournalEntryItem.objects.bulk_update(
-            changed_journal_entry_items, ["amount", "account", "entity"]
-        )
-        JournalEntryItem.objects.bulk_create(new_journal_entry_items)
-        transaction.close()
 
-        # If there's an attached paystub in the GET request, close it out
-        paystub_id = metadata_form.cleaned_data.get("paystub_id")
-        try:
-            paystub = Paystub.objects.get(pk=paystub_id)
-            paystub.journal_entry = transaction.journal_entry
-            paystub.save()
-        except ValueError:
-            pass
+        if not validation_result.is_valid:
+            # Render form with validation errors
+            entry_form_html = render_journal_entry_form(
+                transaction=transaction,
+                debit_formset=debit_formset,
+                credit_formset=credit_formset,
+                form_errors=validation_result.errors,
+            )
+            response = HttpResponse(entry_form_html)
+            response.headers["HX-Retarget"] = "#form-div"
+            return response
 
-        # Build the transactions table — use the existing filter settings if valid,
-        # else return all transactions
+        # 4. Save (service handles ALL database operations)
+        save_result = save_journal_entry(
+            transaction_obj=transaction,
+            debits_data=debit_formset.cleaned_data,
+            credits_data=credit_formset.cleaned_data,
+            paystub_id=metadata_form.cleaned_data.get("paystub_id"),
+        )
+
+        if not save_result.success:
+            # This should rarely happen (validation passed)
+            return HttpResponse(f"Error: {save_result.error}", status=500)
+
+        # 5. Build response context via service
         filter_form = TransactionFilterForm(request.POST, prefix="filter")
-        if filter_form.is_valid():
-            transactions = filter_form.get_transactions()
-            index = metadata_form.cleaned_data["index"]
-        else:
-            _, transactions = self.get_filter_form_html_and_objects(
-                is_closed=False,
-                transaction_type=[
-                    Transaction.TransactionType.INCOME,
-                    Transaction.TransactionType.PURCHASE,
-                ],
-            )
-            index = 0
+        current_index = metadata_form.cleaned_data["index"]
 
-        if len(transactions) == 0:
+        context = get_post_save_context(
+            filter_form=filter_form,
+            current_index=current_index,
+            debit_formset=debit_formset,
+            credit_formset=credit_formset,
+        )
+
+        # 6. Render response via helpers
+        if context.highlighted_transaction:
+            entry_form_html = render_journal_entry_form(
+                transaction=context.highlighted_transaction,
+                index=context.highlighted_index,
+                created_entities=context.created_entities,
+            )
+        else:
             entry_form_html = ""
-        else:
-            # Need to check an index error in case
-            # user chose the last entry
-            try:
-                highlighted_transaction = transactions[index]
-            except IndexError:
-                index = 0
-                highlighted_transaction = transactions[index]
-
-            created_entities = self.get_created_entities(
-                formsets=[debit_formset, credit_formset]
-            )
-            entry_form_html = self.get_journal_entry_form_html(
-                transaction=highlighted_transaction,
-                index=index,
-                created_entities=created_entities,
-            )
 
         table_html = self.get_table_html(
-            transactions=transactions, index=index, row_url=reverse("journal-entries")
+            transactions=context.transactions,
+            index=context.highlighted_index,
+            row_url=reverse("journal-entries"),
         )
-        paystubs_table_html = self.get_paystubs_table_html()
-        context = {
-            "table": table_html,
-            "entry_form": entry_form_html,
-            "index": index,
-            "transaction_id": transactions[index].pk if transactions else None,
-            "paystubs_table": paystubs_table_html,
-        }
-        html = render_to_string(self.view_template, context)
+        paystubs_table_html = render_paystubs_table()
+
+        html = render_to_string(
+            self.view_template,
+            {
+                "table": table_html,
+                "entry_form": entry_form_html,
+                "index": context.highlighted_index,
+                "transaction_id": context.highlighted_transaction.pk
+                if context.highlighted_transaction
+                else None,
+                "paystubs_table": paystubs_table_html,
+            },
+        )
+
         return HttpResponse(html)
