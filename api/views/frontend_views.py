@@ -9,10 +9,10 @@ from django.views import View
 from api import tasks, utils
 from api.forms import DocumentForm, UploadTransactionsForm, WalletForm
 from api.statement import Trend
-from api.views.mixins import JournalEntryViewMixin
+from api.views.journal_entry_helpers import render_paystubs_table
 
 
-class UploadTransactionsView(View, JournalEntryViewMixin):
+class UploadTransactionsView(View):
 
     def get_textract_form_html(self, filename=None):
         form = DocumentForm()
@@ -30,7 +30,7 @@ class UploadTransactionsView(View, JournalEntryViewMixin):
         template = "api/views/upload-transactions.html"
         csv_form_html = self.get_csv_form_html()
         textract_form_html = self.get_textract_form_html()
-        paystub_table_html = self.get_paystubs_table_html()
+        paystub_table_html = render_paystubs_table()
         return render(
             request,
             template,
