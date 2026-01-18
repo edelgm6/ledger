@@ -26,7 +26,7 @@ from api.views.journal_entry_helpers import (
     render_journal_entry_form,
     render_paystubs_table,
 )
-from api.views.transaction_views import TransactionsViewMixin
+from api.views import transaction_helpers
 
 
 class TriggerAutoTagView(LoginRequiredMixin, View):
@@ -41,7 +41,7 @@ class TriggerAutoTagView(LoginRequiredMixin, View):
 
 
 # Called every time the page is filtered
-class JournalEntryTableView(TransactionsViewMixin, LoginRequiredMixin, View):
+class JournalEntryTableView(LoginRequiredMixin, View):
     login_url = "/login/"
     redirect_field_name = "next"
 
@@ -49,7 +49,7 @@ class JournalEntryTableView(TransactionsViewMixin, LoginRequiredMixin, View):
         form = TransactionFilterForm(request.GET, prefix="filter")
         if form.is_valid():
             transactions = form.get_transactions()
-            table_html = self.get_table_html(
+            table_html = transaction_helpers.render_transaction_table(
                 transactions=transactions, row_url=reverse("journal-entries")
             )
             try:
@@ -72,7 +72,7 @@ class JournalEntryTableView(TransactionsViewMixin, LoginRequiredMixin, View):
 
 
 # Called every time a table row is clicked
-class JournalEntryFormView(TransactionsViewMixin, LoginRequiredMixin, View):
+class JournalEntryFormView(LoginRequiredMixin, View):
     login_url = "/login/"
     redirect_field_name = "next"
     item_form_template = "api/entry_forms/journal-entry-item-form.html"
@@ -98,7 +98,7 @@ class PaystubTableView(LoginRequiredMixin, View):
         return HttpResponse(html)
 
 
-class PaystubDetailView(TransactionsViewMixin, LoginRequiredMixin, View):
+class PaystubDetailView(LoginRequiredMixin, View):
 
     def get(self, request, paystub_id):
         paystub_values = PaystubValue.objects.filter(
@@ -112,14 +112,25 @@ class PaystubDetailView(TransactionsViewMixin, LoginRequiredMixin, View):
 
 
 # Called as the main page
-class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
+class JournalEntryView(LoginRequiredMixin, View):
     login_url = "/login/"
     redirect_field_name = "next"
     view_template = "api/views/journal-entry-view.html"
 
     def get(self, request):
         # Collect HTML for all components in view
-        filter_form_html, transactions = self.get_filter_form_html_and_objects(
+        from api.services import transaction_services
+
+        filter_result = transaction_services.filter_transactions(
+            is_closed=False,
+            transaction_types=[
+                Transaction.TransactionType.INCOME,
+                Transaction.TransactionType.PURCHASE,
+            ],
+        )
+        transactions = filter_result.transactions
+
+        filter_form_html = transaction_helpers.render_transaction_filter_form(
             is_closed=False,
             transaction_type=[
                 Transaction.TransactionType.INCOME,
@@ -127,7 +138,7 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
             ],
             get_url=reverse("journal-entries-table"),
         )
-        table_html = self.get_table_html(
+        table_html = transaction_helpers.render_transaction_table(
             transactions=transactions, row_url=reverse("journal-entries")
         )
         try:
@@ -259,7 +270,7 @@ class JournalEntryView(TransactionsViewMixin, LoginRequiredMixin, View):
         else:
             entry_form_html = ""
 
-        table_html = self.get_table_html(
+        table_html = transaction_helpers.render_transaction_table(
             transactions=context.transactions,
             index=context.highlighted_index,
             row_url=reverse("journal-entries"),
