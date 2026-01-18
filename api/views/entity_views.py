@@ -1,203 +1,89 @@
+"""
+Views for entity tagging and payables/receivables management.
+
+These views handle HTTP orchestration, delegating business logic to services
+and rendering to helpers.
+"""
+
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Case, DecimalField, F, Max, Sum, Value, When
-from django.db.models.functions import Abs
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
-from django.template.loader import render_to_string
 from django.views import View
 
 from api.forms import JournalEntryItemEntityForm
-from api.models import Account, JournalEntryItem
+from api.models import JournalEntryItem
+from api.services import entity_services
+from api.views import entity_helpers
 
 
-# TODO: Create a mixin to handle common logic
-class EntityTagMixin:
+def _render_full_page(
+    is_initial_load: bool = False,
+    preloaded_entity=None,
+    preselected_entity=None,
+) -> str:
+    """
+    Helper to render the full entities page.
 
-    def get_entities_balances(self):
-        entities_balances = (
-            JournalEntryItem.objects.filter(
-                account__sub_type__in=[
-                    Account.SubType.ACCOUNTS_RECEIVABLE,
-                ]
-            )
-            .exclude(entity__isnull=True)
-            .values("entity__id", "entity__name")
-            .annotate(
-                total_debits=Sum(
-                    Case(
-                        When(
-                            type=JournalEntryItem.JournalEntryType.DEBIT,
-                            then=F("amount"),
-                        ),
-                        default=Value(0),
-                        output_field=DecimalField(),
-                    )
-                ),
-                total_credits=Sum(
-                    Case(
-                        When(
-                            type=JournalEntryItem.JournalEntryType.CREDIT,
-                            then=F("amount"),
-                        ),
-                        default=Value(0),
-                        output_field=DecimalField(),
-                    )
-                ),
-                balance=F("total_credits") - F("total_debits"),
-            )
-            .annotate(
-                abs_balance=Abs(F("balance")),  # Absolute value of the balance
-                max_journalentry_date=Max(
-                    "journal_entry__date"
-                ),  # Maximum date for related JournalEntry
-            )
-            .order_by(
-                "-abs_balance", "-max_journalentry_date"
-            )  # Order by abs_balance and max date
+    Args:
+        is_initial_load: Whether this is the initial page load (shows header)
+        preloaded_entity: Entity to pre-select in the form dropdown
+        preselected_entity: Entity to highlight in the balances table
+    """
+    # Get data via services
+    untagged = entity_services.get_untagged_journal_entry_items()
+    balances = entity_services.get_entities_balances()
+
+    # Get history if entity selected
+    history_html = ""
+    if preselected_entity:
+        history_data = entity_services.get_entity_history(preselected_entity.id)
+        history_html = entity_helpers.render_entity_history_table(history_data)
+
+    # Render via helpers
+    table_html = entity_helpers.render_untagged_entries_table(untagged.items)
+
+    form_html = None
+    if untagged.first_item:
+        form_html = entity_helpers.render_entity_tag_form(
+            untagged.first_item, preloaded_entity
         )
 
-        return entities_balances
+    balances_html = entity_helpers.render_entity_balances_table(
+        balances, preselected_entity, history_html
+    )
 
-    def get_untagged_journal_entries_table_and_items(self):
-        # Need to create a new account sub type for payables
-        relevant_account_types = [
-            Account.SubType.ACCOUNTS_RECEIVABLE,
-        ]
-
-        untagged_journal_entry_items = (
-            JournalEntryItem.objects.filter(
-                entity__isnull=True, account__sub_type__in=relevant_account_types
-            )
-            .select_related("journal_entry__transaction")
-            .order_by("journal_entry__date")
-        )
-
-        html = (
-            None
-            if not untagged_journal_entry_items.exists()
-            else render_to_string(
-                "api/tables/payables-receivables-table.html",
-                {"payables_receivables": untagged_journal_entry_items},
-            )
-        )
-
-        return html, untagged_journal_entry_items
-
-    def get_entities_balances_table_html(self, preselected_entity=None):
-        if preselected_entity:
-            entity_history_table_html = self.get_entity_history_table_html(
-                entity_id=preselected_entity.id
-            )
-        else:
-            entity_history_table_html = ""
-
-        html = render_to_string(
-            "api/tables/entity-balances-table.html",
-            {
-                "entities_balances": self.get_entities_balances(),
-                "preselected_entity": preselected_entity,
-                "entity_history_table": entity_history_table_html,
-            },
-        )
-
-        return html
-
-    def get_entity_history_table_html(self, entity_id):
-        journal_entry_items = (
-            JournalEntryItem.objects.filter(
-                entity__pk=entity_id,
-                account__sub_type__in=[
-                    Account.SubType.ACCOUNTS_RECEIVABLE,
-                ],
-            )
-            .select_related("journal_entry__transaction")
-            .order_by("journal_entry__date")
-        )
-        if not journal_entry_items:
-            return ""
-
-        balance = 0
-        for journal_entry_item in journal_entry_items:
-            if journal_entry_item.type == JournalEntryItem.JournalEntryType.DEBIT:
-                balance -= journal_entry_item.amount
-            else:
-                balance += journal_entry_item.amount
-
-            journal_entry_item.balance = balance
-
-        html = render_to_string(
-            "api/tables/entity-history-table.html",
-            {"journal_entry_items": journal_entry_items},
-        )
-        return html
-
-    def get_total_page_html(
-        self, is_initial_load=False, preloaded_entity=None, preselected_entity=None
-    ):
-
-        table_html, untagged_journal_entry_items = (
-            self.get_untagged_journal_entries_table_and_items()
-        )
-        try:
-            initial_journal_entry_item = untagged_journal_entry_items[0]
-        except IndexError:
-            initial_journal_entry_item = None
-        initial_data = {"entity": preloaded_entity}
-        entity_form = JournalEntryItemEntityForm(
-            instance=initial_journal_entry_item, initial=initial_data
-        )
-        form_html = (
-            None
-            if initial_journal_entry_item is None
-            else render_to_string(
-                "api/entry_forms/entity-tag-form.html",
-                {
-                    "form": entity_form,
-                    "journal_entry_item_id": initial_journal_entry_item.pk,
-                },
-            )
-        )
-        entity_balances_table_html = self.get_entities_balances_table_html(
-            preselected_entity
-        )
-
-        html = render_to_string(
-            "api/views/payables-receivables.html",
-            {
-                "table": table_html,
-                "form": form_html,
-                "is_initial_load": is_initial_load,
-                "balances_table": entity_balances_table_html,
-            },
-        )
-        return html
+    return entity_helpers.render_entity_page(
+        table_html, form_html, balances_html, is_initial_load
+    )
 
 
-class UntagJournalEntryView(LoginRequiredMixin, EntityTagMixin, View):
+class UntagJournalEntryView(LoginRequiredMixin, View):
+    """Removes entity assignment from a journal entry item."""
+
     login_url = "/login/"
     redirect_field_name = "next"
 
     def post(self, request, journal_entry_item_id):
-        journal_entry_item = get_object_or_404(
-            JournalEntryItem, pk=journal_entry_item_id
-        )
-        entity = journal_entry_item.entity
-        journal_entry_item.remove_entity()
-
-        html = self.get_total_page_html(preselected_entity=entity)
+        entity = entity_services.untag_journal_entry_item(journal_entry_item_id)
+        html = _render_full_page(preselected_entity=entity)
         return HttpResponse(html)
 
 
-class EntityHistoryTable(LoginRequiredMixin, EntityTagMixin, View):
+class EntityHistoryTable(LoginRequiredMixin, View):
+    """Returns the history table for a specific entity."""
+
     login_url = "/login/"
     redirect_field_name = "next"
 
     def get(self, request, entity_id):
-        html = self.get_entity_history_table_html(entity_id)
+        history_data = entity_services.get_entity_history(entity_id)
+        html = entity_helpers.render_entity_history_table(history_data)
         return HttpResponse(html)
 
 
-class TagEntitiesForm(LoginRequiredMixin, EntityTagMixin, View):
+class TagEntitiesForm(LoginRequiredMixin, View):
+    """Handles entity tagging form display and submission."""
+
     login_url = "/login/"
     redirect_field_name = "next"
 
@@ -205,14 +91,7 @@ class TagEntitiesForm(LoginRequiredMixin, EntityTagMixin, View):
         journal_entry_item = get_object_or_404(
             JournalEntryItem, pk=journal_entry_item_id
         )
-
-        html = render_to_string(
-            "api/entry_forms/entity-tag-form.html",
-            {
-                "form": JournalEntryItemEntityForm(instance=journal_entry_item),
-                "journal_entry_item_id": journal_entry_item.pk,
-            },
-        )
+        html = entity_helpers.render_entity_tag_form(journal_entry_item, None)
         return HttpResponse(html)
 
     def post(self, request, journal_entry_item_id):
@@ -224,16 +103,16 @@ class TagEntitiesForm(LoginRequiredMixin, EntityTagMixin, View):
         if form.is_valid():
             form.save()
 
-        html = self.get_total_page_html(preloaded_entity=form.cleaned_data["entity"])
+        html = _render_full_page(preloaded_entity=form.cleaned_data["entity"])
         return HttpResponse(html)
 
 
-class TagEntitiesView(LoginRequiredMixin, EntityTagMixin, View):
+class TagEntitiesView(LoginRequiredMixin, View):
+    """Main page for entity tagging (payables/receivables)."""
+
     login_url = "/login/"
     redirect_field_name = "next"
 
     def get(self, request):
-        html = self.get_total_page_html(is_initial_load=True)
-        self.get_entities_balances()
-
+        html = _render_full_page(is_initial_load=True)
         return HttpResponse(html)

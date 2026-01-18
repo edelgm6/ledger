@@ -60,6 +60,7 @@ class Command(BaseCommand):
             prefills = self._create_prefills(accounts, entities)
             self._create_autotags(accounts, prefills, entities)
             self._create_transaction_history(accounts, entities, prefills, months)
+            self._create_untagged_receivables(accounts)
 
         self.stdout.write(self.style.SUCCESS(
             f"Successfully seeded database with {months} months of test data"
@@ -137,6 +138,12 @@ class Command(BaseCommand):
             ('Joint', False),
             ('Employer Inc', False),
             ('Old Job LLC', True),  # closed entity
+            # Entities for accounts receivable tracking
+            ('John Smith', False),
+            ('Jane Doe', False),
+            ('Mike Johnson', False),
+            ('Freelance Client A', False),
+            ('Freelance Client B', False),
         ]
 
         for name, is_closed in entity_data:
@@ -458,6 +465,39 @@ class Command(BaseCommand):
                 'type': Transaction.TransactionType.TRANSFER,
                 'suggested_account': accounts.get('ally_savings'),
             },
+            # Accounts Receivable - Loans to friends/family
+            {
+                'description_choices': ['LOAN TO JOHN', 'LOAN TO JANE', 'LOAN TO MIKE'],
+                'account': accounts.get('ally_checking'),
+                'amount_range': (50, 500),
+                'frequency': 0.02,  # ~1 per month
+                'type': Transaction.TransactionType.PURCHASE,
+                'suggested_account': accounts.get('accounts_receivable'),
+                'is_receivable': True,
+                'receivable_entities': ['john_smith', 'jane_doe', 'mike_johnson'],
+            },
+            # Accounts Receivable - Loan repayments
+            {
+                'description_choices': ['REPAYMENT FROM JOHN', 'REPAYMENT FROM JANE', 'REPAYMENT FROM MIKE'],
+                'account': accounts.get('ally_checking'),
+                'amount_range': (25, 200),
+                'frequency': 0.015,  # slightly less than loans
+                'type': Transaction.TransactionType.INCOME,
+                'suggested_account': accounts.get('accounts_receivable'),
+                'is_receivable': True,
+                'receivable_entities': ['john_smith', 'jane_doe', 'mike_johnson'],
+            },
+            # Freelance income (invoiced but tracked via AR)
+            {
+                'description_choices': ['FREELANCE PROJECT', 'CONSULTING FEE', 'CONTRACT WORK'],
+                'account': accounts.get('ally_checking'),
+                'amount_range': (500, 2000),
+                'frequency': 0.02,
+                'type': Transaction.TransactionType.INCOME,
+                'suggested_account': accounts.get('accounts_receivable'),
+                'is_receivable': True,
+                'receivable_entities': ['freelance_client_a', 'freelance_client_b'],
+            },
         ]
 
     def _should_generate_transaction(self, pattern, current_date):
@@ -504,11 +544,22 @@ class Command(BaseCommand):
                 debit_account = pattern['suggested_account']
                 credit_account = pattern['account']
 
+            # Select entity for receivable transactions
+            receivable_entity = None
+            if pattern.get('is_receivable') and pattern.get('receivable_entities'):
+                entity_key = random.choice(pattern['receivable_entities'])
+                receivable_entity = entities.get(entity_key)
+
+            # Assign entity to the accounts receivable item
+            debit_entity = receivable_entity if debit_account == pattern.get('suggested_account') and pattern.get('is_receivable') else None
+            credit_entity = receivable_entity if credit_account == pattern.get('suggested_account') and pattern.get('is_receivable') else None
+
             JournalEntryItem.objects.create(
                 journal_entry=journal_entry,
                 type=JournalEntryItem.JournalEntryType.DEBIT,
                 amount=abs(amount),
                 account=debit_account,
+                entity=debit_entity,
             )
 
             JournalEntryItem.objects.create(
@@ -516,6 +567,66 @@ class Command(BaseCommand):
                 type=JournalEntryItem.JournalEntryType.CREDIT,
                 amount=abs(amount),
                 account=credit_account,
+                entity=credit_entity,
             )
 
         return transaction
+
+    def _create_untagged_receivables(self, accounts):
+        """Create some untagged receivable items for testing the tagging UI."""
+        ar_account = accounts.get('accounts_receivable')
+        checking_account = accounts.get('ally_checking')
+
+        if not ar_account or not checking_account:
+            return
+
+        untagged_transactions = [
+            ('VENMO PAYMENT RECEIVED', Decimal('75.00')),
+            ('ZELLE FROM UNKNOWN', Decimal('150.00')),
+            ('CHECK DEPOSIT', Decimal('200.00')),
+            ('CASH APP PAYMENT', Decimal('50.00')),
+            ('PAYPAL TRANSFER', Decimal('125.00')),
+        ]
+
+        today = date.today()
+        for i, (description, amount) in enumerate(untagged_transactions):
+            txn_date = today - timedelta(days=i + 1)
+
+            transaction = Transaction.objects.create(
+                date=txn_date,
+                account=checking_account,
+                amount=amount,
+                description=description,
+                type=Transaction.TransactionType.INCOME,
+                suggested_account=ar_account,
+                is_closed=True,
+                date_closed=txn_date,
+            )
+
+            journal_entry = JournalEntry.objects.create(
+                date=txn_date,
+                description=description,
+                transaction=transaction,
+            )
+
+            # Debit checking (cash in)
+            JournalEntryItem.objects.create(
+                journal_entry=journal_entry,
+                type=JournalEntryItem.JournalEntryType.DEBIT,
+                amount=amount,
+                account=checking_account,
+                entity=None,
+            )
+
+            # Credit AR (reducing receivable) - NO ENTITY, needs tagging
+            JournalEntryItem.objects.create(
+                journal_entry=journal_entry,
+                type=JournalEntryItem.JournalEntryType.CREDIT,
+                amount=amount,
+                account=ar_account,
+                entity=None,  # Intentionally untagged
+            )
+
+        self.stdout.write(self.style.SUCCESS(
+            f"  Created {len(untagged_transactions)} untagged receivable items for testing"
+        ))
