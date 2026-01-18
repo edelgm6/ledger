@@ -1,206 +1,25 @@
-from datetime import timedelta
+"""
+Statement views for income statement, balance sheet, and cash flow statement.
+
+Views handle HTTP orchestration only. Business logic is in statement_services.py,
+and rendering is in statement_helpers.py.
+"""
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
 from django.template.loader import render_to_string
-from django.urls import reverse
 from django.views import View
-from django.db.models import Sum, Case, When, F, DecimalField
 
 from api import utils
 from api.forms import FromToDateForm
-from api.models import Account, JournalEntryItem, JournalEntry
-from api.statement import BalanceSheet, CashFlowStatement, IncomeStatement
-
-
-class StatementMixIn:
-    def _clear_closed_accounts(self, balances):
-        new_balances = []
-        for balance in balances:
-            if balance.account.is_closed and balance.amount == 0:
-                continue
-            new_balances.append(balance)
-        return new_balances
-
-    def _get_statement_summary_dict(self, statement):
-        type_dict = dict(Account.Type.choices)
-        summary = {}
-        for account_type in Account.Type.values:
-            type_total = 0
-            account_balances = []
-            for sub_type in Account.SUBTYPE_TO_TYPE_MAP[account_type]:
-                balances = [
-                    balance
-                    for balance in statement.balances
-                    if balance.account.sub_type == sub_type
-                ]
-                sub_type_total = sum([balance.amount for balance in balances])
-                account_balances.append(
-                    {
-                        "name": sub_type.label,
-                        "balances": self._clear_closed_accounts(balances),
-                        "total": sub_type_total,
-                    }
-                )
-                type_total += sub_type_total
-            label = type_dict[account_type]
-            summary[account_type] = {
-                "name": label,
-                "balances": account_balances,
-                "total": type_total,
-            }
-
-        return summary
-
-    def get_filter_form_html(self, statement_type, from_date, to_date):
-        initial_data = {
-            # from_date will be None if submitted from balance sheet,
-            # so put in arbitrary value
-            "date_from": (
-                utils.format_datetime_to_string(from_date)
-                if from_date
-                else "2023-01-01"
-            ),
-            "date_to": utils.format_datetime_to_string(to_date),
-        }
-
-        template = "api/filter_forms/from-to-date-form.html"
-        context = {
-            "filter_form": FromToDateForm(initial=initial_data),
-            "get_url": reverse("statements", args=(statement_type,)),
-            "statement_type": statement_type,
-        }
-        return render_to_string(template, context)
-
-    def get_income_statement_html(self, from_date, to_date):
-        income_statement = IncomeStatement(end_date=to_date, start_date=from_date)
-
-        summary = self._get_statement_summary_dict(statement=income_statement)
-        context = {
-            "summary": summary,
-            "tax_rate": (
-                0
-                if not income_statement.get_tax_rate()
-                else income_statement.get_tax_rate()
-            ),
-            "savings_rate": (
-                0
-                if not income_statement.get_savings_rate()
-                else income_statement.get_savings_rate()
-            ),
-            "from_date": from_date,
-            "to_date": to_date,
-        }
-
-        template = "api/content/income-content.html"
-        return render_to_string(template, context)
-
-    def get_balance_sheet_html(self, to_date):
-        balance_sheet = BalanceSheet(end_date=to_date)
-        summary = self._get_statement_summary_dict(statement=balance_sheet)
-
-        unbalanced_entries = (
-            JournalEntry.objects.select_related("transaction")
-            .annotate(
-                total_debits=Sum(
-                    Case(
-                        When(
-                            journal_entry_items__type="debit",
-                            then=F("journal_entry_items__amount"),
-                        ),
-                        output_field=DecimalField(),
-                    )
-                ),
-                total_credits=Sum(
-                    Case(
-                        When(
-                            journal_entry_items__type="credit",
-                            then=F("journal_entry_items__amount"),
-                        ),
-                        output_field=DecimalField(),
-                    )
-                ),
-            )
-            .exclude(total_debits=F("total_credits"))
-        )
-
-        context = {
-            "summary": summary,
-            "cash_percent_assets": balance_sheet.get_cash_percent_assets(),
-            "debt_to_equity_ratio": balance_sheet.get_debt_to_equity(),
-            "liquid_percent_assets": balance_sheet.get_liquid_assets_percent(),
-            "unbalanced_entries": unbalanced_entries,
-        }
-
-        template = "api/content/balance-sheet-content.html"
-        return render_to_string(template, context)
-
-    def get_cash_flow_html(self, from_date, to_date):
-        income_statement = IncomeStatement(end_date=to_date, start_date=from_date)
-        end_balance_sheet = BalanceSheet(end_date=to_date)
-        start_balance_sheet = BalanceSheet(end_date=from_date + timedelta(days=-1))
-        cash_statement = CashFlowStatement(
-            income_statement=income_statement,
-            start_balance_sheet=start_balance_sheet,
-            end_balance_sheet=end_balance_sheet,
-        )
-
-        end_date = "2500-01-01"
-        start_date = "1900-01-01"
-        global_cash_statement = CashFlowStatement(
-            income_statement=IncomeStatement(end_date=end_date, start_date=start_date),
-            end_balance_sheet=BalanceSheet(end_date=end_date),
-            start_balance_sheet=BalanceSheet(end_date=start_date),
-        )
-
-        context = {
-            "operations_flows": self._clear_closed_accounts(
-                cash_statement.cash_from_operations_balances
-            ),
-            "financing_flows": self._clear_closed_accounts(
-                cash_statement.cash_from_financing_balances
-            ),
-            "investing_flows": self._clear_closed_accounts(
-                cash_statement.cash_from_investing_balances
-            ),
-            "cash_from_operations": sum(
-                [
-                    metric.value
-                    for metric in cash_statement.summaries
-                    if metric.name == "Cash Flow From Operations"
-                ]
-            ),
-            "cash_from_financing": sum(
-                [
-                    metric.value
-                    for metric in cash_statement.summaries
-                    if metric.name == "Cash Flow From Financing"
-                ]
-            ),
-            "cash_from_investing": sum(
-                [
-                    metric.value
-                    for metric in cash_statement.summaries
-                    if metric.name == "Cash Flow From Investing"
-                ]
-            ),
-            "net_cash_flow": sum(
-                [
-                    metric.value
-                    for metric in cash_statement.summaries
-                    if metric.name == "Net Cash Flow"
-                ]
-            ),
-            "levered_cash_flow": cash_statement.get_levered_after_tax_cash_flow(),
-            "levered_cash_flow_post_retirement": cash_statement.get_levered_after_tax_after_retirement_cash_flow(),
-            "cash_flow_discrepancy": global_cash_statement.get_cash_flow_discrepancy(),
-        }
-
-        template = "api/content/cash-flow-content.html"
-        return render_to_string(template, context)
+from api.services import statement_services
+from api.statement import BalanceSheet, IncomeStatement
+from api.views import statement_helpers
 
 
 class StatementDetailView(LoginRequiredMixin, View):
+    """View for account drill-down in statements."""
+
     login_url = "/login/"
     redirect_field_name = "next"
 
@@ -208,75 +27,95 @@ class StatementDetailView(LoginRequiredMixin, View):
         from_date = request.GET.get("from_date")
         to_date = request.GET.get("to_date")
 
-        template = "api/tables/statement-detail-table.html"
-
-        journal_entry_items = (
-            JournalEntryItem.objects.filter(
-                account__pk=account_id,
-                journal_entry__date__gte=from_date,
-                journal_entry__date__lte=to_date,
-                amount__gt=0,
-            )
-            .select_related("journal_entry__transaction", "account")
-            .order_by("journal_entry__date")
+        # Get detail data via service
+        detail_data = statement_services.get_statement_detail_items(
+            account_id=account_id,
+            from_date=from_date,
+            to_date=to_date,
         )
 
-        for entry in journal_entry_items:
-            entry.amount_signed = entry.amount
-            if (
-                entry.account.type == Account.Type.INCOME
-                and entry.type == JournalEntryItem.JournalEntryType.DEBIT
-            ):
-                entry.amount_signed *= -1
-            if (
-                entry.account.type == Account.Type.EXPENSE
-                and entry.type == JournalEntryItem.JournalEntryType.CREDIT
-            ):
-                entry.amount_signed *= -1
-
-        html = render_to_string(template, {"journal_entry_items": journal_entry_items})
+        # Render via helper
+        html = statement_helpers.render_statement_detail_table(detail_data)
         return HttpResponse(html)
 
 
-class StatementView(StatementMixIn, LoginRequiredMixin, View):
+class StatementView(LoginRequiredMixin, View):
+    """Main view for financial statements."""
+
     login_url = "/login/"
     redirect_field_name = "next"
 
     def get(self, request, statement_type, *args, **kwargs):
+        # 1. Parse form or use defaults
         form = FromToDateForm(request.GET)
         if form.is_valid():
             from_date = form.cleaned_data["date_from"]
             to_date = form.cleaned_data["date_to"]
         else:
-            last_month_tuple = utils.get_last_days_of_month_tuples()[0]
-            last_day_of_last_month = last_month_tuple[0]
-            first_day_of_last_month = utils.get_first_day_of_month_from_date(
-                last_day_of_last_month
-            )
-            from_date = first_day_of_last_month
-            to_date = last_day_of_last_month
+            from_date, to_date = self._get_default_dates()
 
+        # 2. Route to statement type handler
         if statement_type == "income":
-            statement_html = self.get_income_statement_html(
-                from_date=from_date, to_date=to_date
-            )
+            statement_html = self._render_income_statement(from_date, to_date)
             title = "Income Statement"
         elif statement_type == "balance":
-            statement_html = self.get_balance_sheet_html(to_date=to_date)
+            statement_html = self._render_balance_sheet(to_date)
             title = "Balance Sheet"
         elif statement_type == "cash":
-            statement_html = self.get_cash_flow_html(
-                from_date=from_date, to_date=to_date
-            )
+            statement_html = self._render_cash_flow(from_date, to_date)
             title = "Cash Flow Statement"
 
+        # 3. Render filter form via helper
+        filter_form_html = statement_helpers.render_statement_filter_form(
+            statement_type=statement_type,
+            from_date=from_date,
+            to_date=to_date,
+        )
+
+        # 4. Return combined response
         context = {
             "statement": statement_html,
-            "filter_form": self.get_filter_form_html(
-                statement_type, from_date=from_date, to_date=to_date
-            ),
+            "filter_form": filter_form_html,
             "title": title,
         }
-
         template = "api/views/statement.html"
         return HttpResponse(render_to_string(template, context))
+
+    def _get_default_dates(self):
+        """Get last month date range."""
+        last_month_tuple = utils.get_last_days_of_month_tuples()[0]
+        last_day = last_month_tuple[0]
+        first_day = utils.get_first_day_of_month_from_date(last_day)
+        return first_day, last_day
+
+    def _render_income_statement(self, from_date, to_date):
+        """Render income statement using services and helpers."""
+        income_statement = IncomeStatement(end_date=to_date, start_date=from_date)
+        summary = statement_services.build_statement_summary(income_statement)
+
+        return statement_helpers.render_income_statement(
+            summary=summary,
+            tax_rate=income_statement.get_tax_rate(),
+            savings_rate=income_statement.get_savings_rate(),
+            from_date=from_date,
+            to_date=to_date,
+        )
+
+    def _render_balance_sheet(self, to_date):
+        """Render balance sheet using services and helpers."""
+        balance_sheet = BalanceSheet(end_date=to_date)
+        summary = statement_services.build_statement_summary(balance_sheet)
+        unbalanced = statement_services.find_unbalanced_journal_entries()
+
+        return statement_helpers.render_balance_sheet(
+            summary=summary,
+            cash_percent_assets=balance_sheet.get_cash_percent_assets(),
+            debt_to_equity_ratio=balance_sheet.get_debt_to_equity(),
+            liquid_percent_assets=balance_sheet.get_liquid_assets_percent(),
+            unbalanced_entries=unbalanced.entries,
+        )
+
+    def _render_cash_flow(self, from_date, to_date):
+        """Render cash flow statement using services and helpers."""
+        metrics = statement_services.calculate_cash_flow_metrics(from_date, to_date)
+        return statement_helpers.render_cash_flow_statement(metrics)
