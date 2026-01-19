@@ -1,149 +1,89 @@
+"""
+Tax charge views.
+
+These views handle HTTP orchestration for tax charge pages,
+delegating to tax_services for business logic and tax_helpers for rendering.
+"""
+
 from datetime import date
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
-from django.template.loader import render_to_string
 from django.views import View
-from django.db.models import OuterRef, Subquery
 
 from api import utils
 from api.factories import TaxChargeFactory
 from api.forms import TaxChargeFilterForm, TaxChargeForm
-from api.models import TaxCharge, Account
-from api.statement import IncomeStatement
+from api.models import TaxCharge
+from api.services import tax_services
+from api.views import tax_helpers
 
 
-class TaxChargeMixIn:
-    def _get_taxable_income(self, end_date):
-        first_day_of_month = date(end_date.year, end_date.month, 1)
-        taxable_income = IncomeStatement(
-            end_date, first_day_of_month
-        ).get_taxable_income()
-        return taxable_income
-
-    def _add_tax_rate_and_charge(
-        self, tax_charge, taxable_income=None, current_taxable_income=None
-    ):
-        if not taxable_income:
-            taxable_income = self._get_taxable_income(end_date=tax_charge.date)
-        tax_charge.taxable_income = taxable_income
-        tax_charge.tax_rate = (
-            None if taxable_income == 0 else tax_charge.amount / taxable_income
-        )
-        if current_taxable_income and tax_charge.tax_rate:
-            tax_charge.current_tax = tax_charge.tax_rate * current_taxable_income
-
-    def get_tax_filter_form_html(self):
-        filter_template = "api/filter_forms/tax-charge-filter-form.html"
-        html = render_to_string(filter_template, {"filter_form": TaxChargeFilterForm()})
-        return html
-
-    def get_tax_form_html(self, tax_charge=None, last_day_of_month=None):
-        if tax_charge:
-            form = TaxChargeForm(instance=tax_charge)
-            last_day_of_month = tax_charge.date
-        else:
-            form = TaxChargeForm()
-
-        last_day_of_month = (
-            last_day_of_month
-            if last_day_of_month
-            else utils.get_last_day_of_last_month()
-        )
-        first_day_of_month = date(last_day_of_month.year, last_day_of_month.month, 1)
-        income_statement = IncomeStatement(last_day_of_month, first_day_of_month)
-        current_taxable_income = income_statement.get_taxable_income()
-
-        tax_accounts = Account.objects.filter(
-            special_type__in=[
-                Account.SpecialType.FEDERAL_TAXES,
-                Account.SpecialType.STATE_TAXES,
-                Account.SpecialType.PROPERTY_TAXES,
-            ]
-        )
-        for account in tax_accounts:
-            if account.tax_rate:
-                recommended_tax = account.tax_rate * current_taxable_income
-            elif account.tax_amount:
-                recommended_tax = account.tax_amount
-            else:
-                recommended_tax = None
-
-            account.recommended_tax = recommended_tax
-
-        context = {
-            "form": form,
-            "taxable_income": current_taxable_income,
-            "tax_accounts": tax_accounts,
-            "tax_charge": tax_charge,
-        }
-        form_template = "api/entry_forms/edit-tax-charge-form.html"
-        form_html = render_to_string(form_template, context)
-        return form_html
-
-    def get_tax_table_html(self, tax_charges, end_date):
-        tax_charges = tax_charges.select_related(
-            "transaction", "transaction__account"
-        ).order_by("date", "account")
-        tax_dates = []
-        taxable_income = None
-        for tax_charge in tax_charges:
-            # Limit the number of IncomeStatement objects we need to make
-            if tax_charge.date not in tax_dates:
-                taxable_income = self._get_taxable_income(tax_charge.date)
-                tax_dates.append(tax_charge.date)
-            self._add_tax_rate_and_charge(
-                tax_charge=tax_charge, taxable_income=taxable_income
-            )
-            tax_charge.transaction_string = str(tax_charge.transaction)
-
-        tax_charge_table_html = render_to_string(
-            "api/tables/tax-table.html", {"tax_charges": tax_charges}
-        )
-
-        return tax_charge_table_html
+def _parse_date(value):
+    """Convert a string date (YYYY-MM-DD) to a date object, or return as-is if already a date."""
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value))
 
 
-class TaxChargeTableView(TaxChargeMixIn, LoginRequiredMixin, View):
+class TaxChargeTableView(LoginRequiredMixin, View):
+    """Handle tax charge table filtering."""
+
     login_url = "/login/"
     redirect_field_name = "next"
 
     def get(self, request, *args, **kwargs):
         form = TaxChargeFilterForm(request.GET)
         if form.is_valid():
-            tax_charges = form.get_tax_charges()
-            tax_table_charge_table_html = self.get_tax_table_html(
-                tax_charges, end_date=form.cleaned_data["date_to"]
+            date_from = _parse_date(form.cleaned_data["date_from"])
+            date_to = _parse_date(form.cleaned_data["date_to"])
+
+            tax_charges = tax_services.get_filtered_tax_charges(
+                date_from=date_from,
+                date_to=date_to,
+                tax_type=form.cleaned_data.get("tax_type"),
+            )
+            enriched = tax_services.enrich_tax_charges_with_rates(tax_charges)
+            table_html = tax_helpers.render_tax_table(enriched)
+
+            taxable_income = tax_services.get_taxable_income(date_to)
+            recommendations = tax_services.get_tax_account_recommendations(
+                taxable_income.amount
+            )
+            form_html = tax_helpers.render_tax_form(
+                None, taxable_income.amount, recommendations
             )
 
-            template = "api/content/taxes-content.html"
-            context = {
-                "tax_charge_table": tax_table_charge_table_html,
-                "form": self.get_tax_form_html(),
-            }
-            html = render_to_string(template, context)
-
+            html = tax_helpers.render_taxes_content(table_html, form_html)
             return HttpResponse(html)
 
 
-class TaxChargeFormView(TaxChargeMixIn, LoginRequiredMixin, View):
+class TaxChargeFormView(LoginRequiredMixin, View):
+    """Handle tax charge form rendering for edit/create."""
+
     login_url = "/login/"
     redirect_field_name = "next"
 
     def get(self, request, pk=None, *args, **kwargs):
-        if pk:
-            tax_charge = get_object_or_404(TaxCharge, pk=pk)
-        else:
-            tax_charge = None
+        tax_charge = get_object_or_404(TaxCharge, pk=pk) if pk else None
+        end_date = (
+            tax_charge.date if tax_charge else utils.get_last_day_of_last_month()
+        )
 
-        form_html = self.get_tax_form_html(tax_charge=tax_charge)
+        taxable_income = tax_services.get_taxable_income(end_date)
+        recommendations = tax_services.get_tax_account_recommendations(
+            taxable_income.amount
+        )
+        html = tax_helpers.render_tax_form(
+            tax_charge, taxable_income.amount, recommendations
+        )
+        return HttpResponse(html)
 
-        return HttpResponse(form_html)
 
+class TaxesView(LoginRequiredMixin, View):
+    """Handle full taxes page and tax charge creation/updates."""
 
-# Loads full page
-class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
     login_url = "/login/"
     redirect_field_name = "next"
 
@@ -152,46 +92,62 @@ class TaxesView(TaxChargeMixIn, LoginRequiredMixin, View):
         TaxChargeFactory.create_bulk_tax_charges(date=initial_end_date)
 
         six_months_ago = utils.get_last_days_of_month_tuples()[5][0]
-        tax_charges = TaxCharge.objects.filter(
-            date__gte=six_months_ago, date__lte=initial_end_date
+        tax_charges = tax_services.get_filtered_tax_charges(
+            date_from=six_months_ago, date_to=initial_end_date
+        )
+        enriched = tax_services.enrich_tax_charges_with_rates(tax_charges)
+
+        taxable_income = tax_services.get_taxable_income(initial_end_date)
+        recommendations = tax_services.get_tax_account_recommendations(
+            taxable_income.amount
         )
 
-        context = {
-            "tax_charge_table": self.get_tax_table_html(
-                tax_charges=tax_charges, end_date=initial_end_date
-            ),
-            "form": self.get_tax_form_html(
-                last_day_of_month=utils.get_last_day_of_last_month()
-            ),
-            "filter_form": self.get_tax_filter_form_html(),
-        }
-        template = "api/views/taxes.html"
-        html = render_to_string(template, context)
+        table_html = tax_helpers.render_tax_table(enriched)
+        form_html = tax_helpers.render_tax_form(
+            None, taxable_income.amount, recommendations
+        )
+        filter_html = tax_helpers.render_tax_filter_form()
+
+        html = tax_helpers.render_taxes_page(table_html, form_html, filter_html)
         return HttpResponse(html)
 
     def post(self, request, pk=None, *args, **kwargs):
-        form_class = TaxChargeForm
-        if pk:
-            tax_charge = get_object_or_404(TaxCharge, pk=pk)
-            form = form_class(data=request.POST, instance=tax_charge)
-        else:
-            form = form_class(data=request.POST)
+        tax_charge = get_object_or_404(TaxCharge, pk=pk) if pk else None
+        form = TaxChargeForm(data=request.POST, instance=tax_charge)
 
         if form.is_valid():
-            tax_charge = form.save()
-            tax_charges_form = TaxChargeFilterForm(request.POST)
-            if tax_charges_form.is_valid():
-                tax_charges = tax_charges_form.get_tax_charges()
+            form.save()
 
-            end_date = request.POST.get("date_to")
-            context = {
-                "tax_charge_table": self.get_tax_table_html(
-                    tax_charges=tax_charges, end_date=end_date
-                ),
-                "form": self.get_tax_form_html(),
-            }
-            template = "api/content/taxes-content.html"
-            html = render_to_string(template, context)
-            return HttpResponse(html)
+        # Re-render with updated data
+        filter_form = TaxChargeFilterForm(request.POST)
+        if filter_form.is_valid():
+            date_from = _parse_date(filter_form.cleaned_data["date_from"])
+            date_to = _parse_date(filter_form.cleaned_data["date_to"])
+            tax_charges = tax_services.get_filtered_tax_charges(
+                date_from=date_from,
+                date_to=date_to,
+                tax_type=filter_form.cleaned_data.get("tax_type"),
+            )
+            end_date = date_to
         else:
-            print(form.errors)
+            # Fallback to default date range
+            initial_end_date = utils.get_last_day_of_last_month()
+            six_months_ago = utils.get_last_days_of_month_tuples()[5][0]
+            tax_charges = tax_services.get_filtered_tax_charges(
+                date_from=six_months_ago, date_to=initial_end_date
+            )
+            end_date = initial_end_date
+
+        enriched = tax_services.enrich_tax_charges_with_rates(tax_charges)
+        taxable_income = tax_services.get_taxable_income(end_date)
+        recommendations = tax_services.get_tax_account_recommendations(
+            taxable_income.amount
+        )
+
+        table_html = tax_helpers.render_tax_table(enriched)
+        form_html = tax_helpers.render_tax_form(
+            None, taxable_income.amount, recommendations
+        )
+
+        html = tax_helpers.render_taxes_content(table_html, form_html)
+        return HttpResponse(html)
