@@ -1,5 +1,4 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.forms import modelformset_factory
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
@@ -7,23 +6,27 @@ from django.urls import reverse
 from django.views import View
 
 from api.forms import (
-    BaseJournalEntryItemFormset,
-    JournalEntryItemForm,
     JournalEntryMetadataForm,
     TransactionFilterForm,
 )
-from api.models import JournalEntryItem, Paystub, PaystubValue, Transaction
+from api.models import Transaction
 from api.services.journal_entry_services import (
     apply_autotags_to_open_transactions,
     get_accounts_choices,
     get_entities_choices,
+    get_journal_entry_item_formset,
     get_post_save_context,
     save_journal_entry,
     validate_journal_entry_balance,
 )
+from api.services.paystub_services import (
+    get_paystub_detail_data,
+    get_paystubs_table_data,
+)
 from api.views.journal_entry_helpers import (
     extract_created_entities,
     render_journal_entry_form,
+    render_paystub_detail,
     render_paystubs_table,
 )
 from api.views import transaction_helpers
@@ -57,7 +60,8 @@ class JournalEntryTableView(LoginRequiredMixin, View):
             except IndexError:
                 transaction = None
             entry_form_html = render_journal_entry_form(transaction=transaction)
-            paystubs_table_html = render_paystubs_table()
+            paystubs_table_data = get_paystubs_table_data()
+            paystubs_table_html = render_paystubs_table(paystubs_table_data)
             view_template = "api/views/journal-entry-view.html"
             context = {
                 "entry_form": entry_form_html,
@@ -94,20 +98,16 @@ class JournalEntryFormView(LoginRequiredMixin, View):
 
 class PaystubTableView(LoginRequiredMixin, View):
     def get(self, request):
-        html = render_paystubs_table()
+        paystubs_table_data = get_paystubs_table_data()
+        html = render_paystubs_table(paystubs_table_data)
         return HttpResponse(html)
 
 
 class PaystubDetailView(LoginRequiredMixin, View):
 
     def get(self, request, paystub_id):
-        paystub_values = PaystubValue.objects.filter(
-            paystub__pk=paystub_id
-        ).select_related("account")
-        template = "api/tables/paystubs-table.html"
-        html = render_to_string(
-            template, {"paystub_values": paystub_values, "paystub_id": paystub_id}
-        )
+        detail_data = get_paystub_detail_data(paystub_id)
+        html = render_paystub_detail(detail_data)
         return HttpResponse(html)
 
 
@@ -146,7 +146,8 @@ class JournalEntryView(LoginRequiredMixin, View):
         except IndexError:
             transaction = None
         entry_form_html = render_journal_entry_form(transaction=transaction)
-        paystubs_table_html = render_paystubs_table()
+        paystubs_table_data = get_paystubs_table_data()
+        paystubs_table_html = render_paystubs_table(paystubs_table_data)
         context = {
             "filter_form": filter_form_html,
             "table": table_html,
@@ -174,11 +175,7 @@ class JournalEntryView(LoginRequiredMixin, View):
         # 1. Build forms
         transaction = get_object_or_404(Transaction, pk=transaction_id)
 
-        JournalEntryItemFormset = modelformset_factory(
-            JournalEntryItem,
-            formset=BaseJournalEntryItemFormset,
-            form=JournalEntryItemForm,
-        )
+        JournalEntryItemFormset = get_journal_entry_item_formset()
 
         accounts_choices = get_accounts_choices()
         entities_choices = get_entities_choices()
@@ -275,7 +272,8 @@ class JournalEntryView(LoginRequiredMixin, View):
             index=context.highlighted_index,
             row_url=reverse("journal-entries"),
         )
-        paystubs_table_html = render_paystubs_table()
+        paystubs_table_data = get_paystubs_table_data()
+        paystubs_table_html = render_paystubs_table(paystubs_table_data)
 
         html = render_to_string(
             self.view_template,
