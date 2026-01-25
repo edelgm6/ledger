@@ -24,7 +24,6 @@ from api.services.paystub_services import (
     get_paystubs_table_data,
 )
 from api.views.journal_entry_helpers import (
-    extract_created_entities,
     render_journal_entry_form,
     render_paystub_detail,
     render_paystubs_table,

@@ -117,16 +117,3 @@ def render_journal_entry_form(
     return render_to_string("api/entry_forms/journal-entry-item-form.html", context)
 
 
-def extract_created_entities(formsets) -> List[Entity]:
-    """
-    Extracts entities that were created during form cleaning.
-
-    Forms create entities on-the-fly if user enters a new entity name.
-    This helper collects them to pass to the next form render.
-    """
-    created_entities = []
-    for formset in formsets:
-        for form in formset:
-            if hasattr(form, 'created_entity'):
-                created_entities.append(form.created_entity)
-    return created_entities
