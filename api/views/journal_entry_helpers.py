@@ -10,31 +10,42 @@ from typing import List, Optional
 from django.template.loader import render_to_string
 
 from api.forms import JournalEntryMetadataForm
-from api.models import Entity, Paystub, S3File, Transaction
+from api.models import Entity, Transaction
 from api.services.journal_entry_services import (
     get_debits_and_credits,
     get_formsets,
     get_initial_data,
 )
+from api.services.paystub_services import PaystubDetailData, PaystubsTableData
 
 
-def render_paystubs_table() -> str:
+def render_paystubs_table(data: PaystubsTableData) -> str:
     """
     Renders the paystubs table HTML.
 
     Shows a poller if any Textract jobs are still processing,
     otherwise shows unlinked paystubs.
+
+    Args:
+        data: PaystubsTableData containing has_pending_jobs flag and paystubs list.
     """
-    outstanding_textract_jobs = S3File.objects.filter(analysis_complete__isnull=True)
-    if outstanding_textract_jobs:
+    if data.has_pending_jobs:
         return render_to_string("api/tables/paystubs-table-poller.html")
 
-    paystubs = (
-        Paystub.objects.filter(journal_entry__isnull=True)
-        .select_related("document")
-        .order_by("title")
+    return render_to_string("api/tables/paystubs-table.html", {"paystubs": data.paystubs})
+
+
+def render_paystub_detail(data: PaystubDetailData) -> str:
+    """
+    Renders the paystub detail view HTML.
+
+    Args:
+        data: PaystubDetailData containing paystub_values and paystub_id.
+    """
+    return render_to_string(
+        "api/tables/paystubs-table.html",
+        {"paystub_values": data.paystub_values, "paystub_id": data.paystub_id},
     )
-    return render_to_string("api/tables/paystubs-table.html", {"paystubs": paystubs})
 
 
 def render_journal_entry_form(

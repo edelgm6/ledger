@@ -9,6 +9,23 @@ from api.forms import BaseJournalEntryItemFormset, JournalEntryItemForm
 from api.models import Account, Entity, JournalEntry, JournalEntryItem, Paystub, PaystubValue, Transaction
 
 
+# Cached formset factory - created once at module load
+_JournalEntryItemFormset = modelformset_factory(
+    JournalEntryItem,
+    formset=BaseJournalEntryItemFormset,
+    form=JournalEntryItemForm,
+)
+
+
+def get_journal_entry_item_formset():
+    """
+    Returns the cached JournalEntryItem formset factory.
+
+    Caches the factory at module level to avoid recreating it on every POST request.
+    """
+    return _JournalEntryItemFormset
+
+
 def get_debits_and_credits(
     transaction: Transaction,
 ) -> Tuple[QuerySet[JournalEntryItem], QuerySet[JournalEntryItem]]:
@@ -44,7 +61,7 @@ def get_prefill_initial_data(
                 {
                     "account": item.account.name,
                     "amount": 0,
-                    "entity": item.entity.name,
+                    "entity": item.entity.name if item.entity else None,
                 }
             )
         else:
@@ -52,7 +69,7 @@ def get_prefill_initial_data(
                 {
                     "account": item.account.name,
                     "amount": 0,
-                    "entity": item.entity.name,
+                    "entity": item.entity.name if item.entity else None,
                 }
             )
 
