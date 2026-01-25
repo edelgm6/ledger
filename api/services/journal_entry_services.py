@@ -331,7 +331,15 @@ def save_journal_entry(
             if item:
                 (changed_items if item.pk else new_items).append(item)
 
-        # 3. Bulk operations
+        # 3. Delete items that were removed (cleared by user)
+        kept_item_ids = {item.pk for item in changed_items}
+        JournalEntryItem.objects.filter(
+            journal_entry=journal_entry
+        ).exclude(
+            pk__in=kept_item_ids
+        ).delete()
+
+        # 4. Bulk operations
         if changed_items:
             JournalEntryItem.objects.bulk_update(
                 changed_items,
@@ -341,10 +349,10 @@ def save_journal_entry(
         if new_items:
             JournalEntryItem.objects.bulk_create(new_items)
 
-        # 4. Close transaction
+        # 5. Close transaction
         transaction_obj.close()
 
-        # 5. Link paystub if provided
+        # 6. Link paystub if provided
         if paystub_id:
             try:
                 paystub = Paystub.objects.get(pk=paystub_id)
@@ -367,22 +375,26 @@ def _create_journal_entry_item(
 ) -> Optional[JournalEntryItem]:
     """
     Helper to create JournalEntryItem from cleaned form data.
-    Returns None if item has no amount (empty form).
+    Returns None if item is empty (no amount or no account).
     """
     amount = item_data.get('amount')
-    if not amount:
+    account = item_data.get('account')
+
+    # Skip empty forms (no amount or no account)
+    if not amount or not account:
         return None
 
-    # Get existing item by ID, or create new one
-    item_id = item_data.get('id')
-    if item_id:
-        item = JournalEntryItem.objects.get(pk=item_id)
+    # Get existing item or create new one
+    # Note: For ModelFormSet, cleaned_data['id'] is the instance itself, not the pk
+    existing_item = item_data.get('id')
+    if existing_item:
+        item = existing_item
     else:
         item = JournalEntryItem(journal_entry=journal_entry, type=entry_type)
 
     # Update fields
     item.amount = amount
-    item.account = item_data.get('account')
+    item.account = account
     item.entity = item_data.get('entity')
 
     return item
