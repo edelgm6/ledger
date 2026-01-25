@@ -22,8 +22,11 @@ from api.models import (
     Entity,
     JournalEntry,
     JournalEntryItem,
+    Paystub,
+    PaystubValue,
     Prefill,
     PrefillItem,
+    S3File,
     Transaction,
 )
 
@@ -59,6 +62,7 @@ class Command(BaseCommand):
             self._link_csv_profiles_to_accounts(accounts, csv_profiles)
             prefills = self._create_prefills(accounts, entities)
             self._create_autotags(accounts, prefills, entities)
+            self._create_paystubs(accounts, entities, prefills)
             self._create_transaction_history(accounts, entities, prefills, months)
             self._create_untagged_receivables(accounts)
 
@@ -214,7 +218,7 @@ class Command(BaseCommand):
 
             # Other assets
             ('Home', Account.Type.ASSET, Account.SubType.REAL_ESTATE, entities.get('joint')),
-            ('Accounts Receivable', Account.Type.ASSET, Account.SubType.ACCOUNTS_RECEIVABLE, None),
+            ('Accounts Receivable', Account.Type.ASSET, Account.SubType.ACCOUNTS_RECEIVABLE, entities.get('self')),
 
             # Liabilities
             ('Chase Sapphire', Account.Type.LIABILITY, Account.SubType.SHORT_TERM_DEBT, entities.get('self')),
@@ -224,10 +228,10 @@ class Command(BaseCommand):
             # Income
             ('Salary - Self', Account.Type.INCOME, Account.SubType.SALARY, entities.get('employer_inc')),
             ('Salary - Partner', Account.Type.INCOME, Account.SubType.SALARY, entities.get('partner')),
-            ('Dividends', Account.Type.INCOME, Account.SubType.DIVIDENDS_AND_INTEREST, None),
-            ('Interest Income', Account.Type.INCOME, Account.SubType.DIVIDENDS_AND_INTEREST, None),
-            ('Realized Gains', Account.Type.INCOME, Account.SubType.REALIZED_INVESTMENT_GAINS, None),
-            ('Other Income', Account.Type.INCOME, Account.SubType.OTHER_INCOME, None),
+            ('Dividends', Account.Type.INCOME, Account.SubType.DIVIDENDS_AND_INTEREST, entities.get('self')),
+            ('Interest Income', Account.Type.INCOME, Account.SubType.DIVIDENDS_AND_INTEREST, entities.get('self')),
+            ('Realized Gains', Account.Type.INCOME, Account.SubType.REALIZED_INVESTMENT_GAINS, entities.get('self')),
+            ('Other Income', Account.Type.INCOME, Account.SubType.OTHER_INCOME, entities.get('self')),
 
             # Expenses
             ('Groceries', Account.Type.EXPENSE, Account.SubType.PURCHASES, None),
@@ -373,6 +377,101 @@ class Command(BaseCommand):
                 )
 
         self.stdout.write(self.style.SUCCESS("  Created autotags"))
+
+    def _create_paystubs(self, accounts, entities, prefills):
+        """Create sample paystubs for testing the paystub-to-journal-entry workflow."""
+        from django.utils import timezone
+
+        prefill = prefills.get('paycheck')
+        if not prefill:
+            self.stdout.write(self.style.WARNING("  Skipping paystubs - no paycheck prefill found"))
+            return
+
+        # Get required accounts
+        salary_account = accounts.get('salary___self')
+        federal_taxes = accounts.get('federal_taxes')
+        state_taxes = accounts.get('state_taxes')
+        fidelity_401k = accounts.get('fidelity_401k')
+        ally_checking = accounts.get('ally_checking')
+
+        if not all([salary_account, federal_taxes, state_taxes, fidelity_401k, ally_checking]):
+            self.stdout.write(self.style.WARNING("  Skipping paystubs - missing required accounts"))
+            return
+
+        employer_entity = entities.get('employer_inc')
+
+        # Define different amounts for each paystub
+        paystub_data = [
+            {
+                'title': 'Employer Inc - Jan 15 2025',
+                'gross': Decimal('4000.00'),
+                'federal': Decimal('600.00'),
+                'state': Decimal('200.00'),
+                'retirement': Decimal('400.00'),
+                'net': Decimal('2800.00'),
+            },
+            {
+                'title': 'Employer Inc - Jan 31 2025',
+                'gross': Decimal('4250.00'),  # Different amount (overtime)
+                'federal': Decimal('650.00'),
+                'state': Decimal('215.00'),
+                'retirement': Decimal('425.00'),
+                'net': Decimal('2960.00'),
+            },
+        ]
+
+        today = date.today()
+
+        for i, data in enumerate(paystub_data):
+            # Create the S3File and Paystub
+            s3file = S3File.objects.create(
+                prefill=prefill,
+                url=f"https://example-bucket.s3.amazonaws.com/paystub_{i+1}.pdf",
+                user_filename=f"paystub_{i+1}.pdf",
+                s3_filename=f"paystub_{i+1}.pdf",
+                textract_job_id=f"textract_job_{i+1}",
+                analysis_complete=timezone.now(),
+            )
+
+            paystub = Paystub.objects.create(
+                document=s3file,
+                page_id=f"page_{i+1}",
+                title=data['title'],
+                journal_entry=None,
+            )
+
+            # Create PaystubValues for this paycheck
+            values = [
+                (salary_account, data['gross'], JournalEntryItem.JournalEntryType.CREDIT, employer_entity),
+                (federal_taxes, data['federal'], JournalEntryItem.JournalEntryType.DEBIT, None),
+                (state_taxes, data['state'], JournalEntryItem.JournalEntryType.DEBIT, None),
+                (fidelity_401k, data['retirement'], JournalEntryItem.JournalEntryType.DEBIT, None),
+                (ally_checking, data['net'], JournalEntryItem.JournalEntryType.DEBIT, None),
+            ]
+
+            for account, amount, item_type, entity in values:
+                PaystubValue.objects.create(
+                    paystub=paystub,
+                    account=account,
+                    amount=amount,
+                    journal_entry_item_type=item_type,
+                    entity=entity,
+                )
+
+            # Create corresponding open transaction (paycheck deposit into Ally Checking)
+            Transaction.objects.create(
+                date=today - timedelta(days=i + 1),
+                account=ally_checking,
+                amount=data['net'],  # Positive amount = money deposited
+                description=f"DIRECT DEPOSIT EMPLOYER INC - {data['title']}",
+                type=Transaction.TransactionType.INCOME,
+                suggested_account=salary_account,
+                suggested_entity=employer_entity,
+                prefill=prefill,
+                is_closed=False,
+            )
+
+        self.stdout.write(self.style.SUCCESS("  Created 2 sample paystubs with matching open transactions"))
 
     def _create_transaction_history(self, accounts, entities, prefills, months):
         """Create realistic transaction history."""
