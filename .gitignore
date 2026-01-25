@@ -2,6 +2,7 @@ fly.toml
 Dockerfile
 .vscode
 .DS_Store
+FOR\[garrett\].md
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
