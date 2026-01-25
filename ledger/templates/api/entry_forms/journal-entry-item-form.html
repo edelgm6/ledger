@@ -100,6 +100,11 @@
                             {% endfor %}
                         </datalist>
                     </input>
+                    <div class="invalid-feedback">
+                        {% for error in form.entity.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
             {% endfor %}
@@ -166,6 +171,11 @@
                             {% endfor %}
                         </datalist>
                     </input>
+                    <div class="invalid-feedback">
+                        {% for error in form.entity.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
             {% endfor %}

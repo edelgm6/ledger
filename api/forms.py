@@ -357,14 +357,15 @@ class BaseJournalEntryItemFormset(BaseModelFormSet):
 
 class JournalEntryItemForm(forms.ModelForm):
     amount = CommaDecimalField(
+        required=False,
         initial=0.00,
         decimal_places=2,
         max_digits=12,
         validators=[MinValueValidator(Decimal("0.00"))],
         widget=forms.NumberInput(attrs={"step": "0.01"}),
     )
-    account = forms.CharField()
-    entity = forms.CharField()
+    account = forms.CharField(required=False)
+    entity = forms.CharField(required=False)
 
     class Meta:
         model = JournalEntryItem
@@ -401,7 +402,9 @@ class JournalEntryItemForm(forms.ModelForm):
                 pass
 
     def clean_account(self):
-        account_name = self.cleaned_data["account"]
+        account_name = self.cleaned_data.get("account", "")
+        if not account_name:
+            return None
         account = self.open_accounts_choices.get(account_name, None)
         if account:
             return account
@@ -409,13 +412,35 @@ class JournalEntryItemForm(forms.ModelForm):
             raise forms.ValidationError("This Account does not exist.")
 
     def clean_entity(self):
-        entity_name = self.cleaned_data["entity"]
+        entity_name = self.cleaned_data.get("entity", "")
+        if not entity_name:
+            return None
         entity = self.open_entities_choices.get(entity_name, None)
         if not entity:
             entity = Entity.objects.create(name=entity_name)
             self.created_entity = entity
 
         return entity
+
+    def clean(self):
+        cleaned_data = super().clean()
+        account = cleaned_data.get("account")
+        amount = cleaned_data.get("amount")
+        entity = cleaned_data.get("entity")
+
+        # If all fields are empty, this is a blank row to be skipped
+        if not account and not amount and not entity:
+            return cleaned_data
+
+        # If partially filled, add errors to specific fields
+        if not account:
+            self.add_error("account", "This field is required.")
+        if not amount:
+            self.add_error("amount", "This field is required.")
+        if not entity:
+            self.add_error("entity", "This field is required.")
+
+        return cleaned_data
 
     def save(self, journal_entry, type, commit=True):
         instance = super(JournalEntryItemForm, self).save(commit=False)
