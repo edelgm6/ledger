@@ -283,7 +283,8 @@ def save_journal_entry(
     transaction_obj: Transaction,
     debits_data: List[dict],
     credits_data: List[dict],
-    paystub_id: Optional[int] = None
+    paystub_id: Optional[int] = None,
+    created_by: str = "user"
 ) -> SaveResult:
     """
     Saves journal entry with all items atomically.
@@ -306,7 +307,8 @@ def save_journal_entry(
         except JournalEntry.DoesNotExist:
             journal_entry = JournalEntry.objects.create(
                 date=transaction_obj.date,
-                transaction=transaction_obj
+                transaction=transaction_obj,
+                created_by=created_by
             )
 
         # 2. Process debits and credits
