@@ -75,7 +75,27 @@ INSTALLED_APPS = [
     "import_export",
     "debug_toolbar",
     "corsheaders",
+    "rest_framework",
 ]
+
+# Django REST Framework
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "api.rest_api.authentication.APIKeyAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ],
+    "DEFAULT_PARSER_CLASSES": [
+        "rest_framework.parsers.JSONParser",
+    ],
+}
+
+# API Key for REST API authentication
+LEDGER_API_KEY = os.environ.get("LEDGER_API_KEY")
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
