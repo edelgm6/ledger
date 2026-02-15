@@ -43,6 +43,31 @@ class TransactionListViewTest(TestCase):
         response = self.client.get("/api/v1/transactions/?account=Checking")
         self.assertEqual(response.data["count"], 1)
 
+    def test_filter_by_type(self):
+        TransactionFactory(
+            account=self.account, type=Transaction.TransactionType.INCOME
+        )
+        TransactionFactory(
+            account=self.account, type=Transaction.TransactionType.PURCHASE
+        )
+        response = self.client.get("/api/v1/transactions/?type=income")
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["transactions"][0]["type"], "income")
+
+    def test_filter_by_linked_true(self):
+        t1 = TransactionFactory(account=self.account)
+        t2 = TransactionFactory(account=self.account, linked_transaction=t1)
+        response = self.client.get("/api/v1/transactions/?linked=true")
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["transactions"][0]["id"], t2.id)
+
+    def test_filter_by_linked_false(self):
+        t1 = TransactionFactory(account=self.account)
+        t2 = TransactionFactory(account=self.account, linked_transaction=t1)
+        response = self.client.get("/api/v1/transactions/?linked=false")
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["transactions"][0]["id"], t1.id)
+
     def test_unauthenticated_returns_403(self):
         client = APIClient()
         response = client.get("/api/v1/transactions/")

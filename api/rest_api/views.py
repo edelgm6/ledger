@@ -37,6 +37,17 @@ class TransactionListView(APIView):
         if account_name:
             queryset = queryset.filter(account__name=account_name)
 
+        # Filter by transaction type
+        transaction_type = request.query_params.get("type")
+        if transaction_type:
+            queryset = queryset.filter(type=transaction_type)
+
+        # Filter by linked transaction
+        linked = request.query_params.get("linked")
+        if linked is not None:
+            has_linked = linked.lower() == "true"
+            queryset = queryset.filter(linked_transaction__isnull=not has_linked)
+
         serializer = TransactionSerializer(queryset, many=True)
         return Response(
             {"count": len(serializer.data), "transactions": serializer.data}
