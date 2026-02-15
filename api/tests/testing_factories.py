@@ -78,6 +78,7 @@ class JournalEntryFactory(factory.django.DjangoModelFactory):
     date = factory.Faker('date_object')
     description = factory.Faker('sentence')
     transaction = factory.SubFactory(TransactionFactory)
+    created_by = "user"
 
 # JournalEntryItem Factory
 class JournalEntryItemFactory(factory.django.DjangoModelFactory):
