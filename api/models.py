@@ -713,6 +713,7 @@ class JournalEntry(models.Model):
     transaction = models.OneToOneField(
         "Transaction", related_name="journal_entry", on_delete=models.CASCADE
     )
+    created_by = models.CharField(max_length=100, default="user")
 
     class Meta:
         verbose_name_plural = "journal entries"

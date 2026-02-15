@@ -37,6 +37,7 @@ from api.views.transaction_views import (
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/v1/", include("api.rest_api.urls", namespace="rest_api")),
     path("", IndexView.as_view(), name="index"),
     path("login/", LoginView.as_view(template_name="api/login.html"), name="login"),
     path("trend/", TrendView.as_view(), name="trend"),
