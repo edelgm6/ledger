@@ -1,6 +1,10 @@
+import logging
+
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+logger = logging.getLogger(__name__)
 
 from api.models import Account, Transaction
 from api.rest_api.serializers import (
@@ -80,8 +84,14 @@ class JournalEntryCreateView(APIView):
                 credits_data=data["credits"],
                 created_by=data["created_by"],
             )
-        except (ValueError, Exception) as e:
+        except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception("Unexpected error creating journal entry")
+            return Response(
+                {"error": "An internal error occurred."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         return Response(result, status=status.HTTP_201_CREATED)
 
@@ -92,7 +102,13 @@ class JournalEntryCreateView(APIView):
 
         try:
             result = bulk_create_journal_entries(entries_data)
-        except (ValueError, Exception) as e:
+        except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception("Unexpected error in bulk journal entry creation")
+            return Response(
+                {"error": "An internal error occurred."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         return Response(result, status=status.HTTP_201_CREATED)
