@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from api.models import Account, Transaction
+from api.models import Account, Entity, Transaction
 
 
 class TransactionSerializer(serializers.ModelSerializer):
@@ -38,6 +38,12 @@ class AccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = Account
         fields = ["id", "name", "type", "sub_type", "is_closed"]
+
+
+class EntitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Entity
+        fields = ["id", "name", "is_closed"]
 
 
 class JournalEntryItemInputSerializer(serializers.Serializer):

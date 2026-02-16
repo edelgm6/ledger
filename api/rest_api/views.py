@@ -6,10 +6,11 @@ from rest_framework.views import APIView
 
 logger = logging.getLogger(__name__)
 
-from api.models import Account, Transaction
+from api.models import Account, Entity, Transaction
 from api.rest_api.serializers import (
     AccountSerializer,
     BulkJournalEntryInputSerializer,
+    EntitySerializer,
     JournalEntryInputSerializer,
     TransactionSerializer,
 )
@@ -71,6 +72,22 @@ class AccountListView(APIView):
         serializer = AccountSerializer(queryset, many=True)
         return Response(
             {"count": len(serializer.data), "accounts": serializer.data}
+        )
+
+
+class EntityListView(APIView):
+    """GET /api/v1/entities/ — list entities with optional filters."""
+
+    def get(self, request):
+        queryset = Entity.objects.order_by("name")
+
+        is_closed = request.query_params.get("is_closed")
+        if is_closed is not None:
+            queryset = queryset.filter(is_closed=is_closed.lower() == "true")
+
+        serializer = EntitySerializer(queryset, many=True)
+        return Response(
+            {"count": len(serializer.data), "entities": serializer.data}
         )
 
 
