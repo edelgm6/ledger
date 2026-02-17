@@ -25,7 +25,7 @@ class TransactionListView(APIView):
 
     def get(self, request):
         queryset = Transaction.objects.select_related(
-            "account", "suggested_account"
+            "account", "suggested_account", "suggested_entity"
         ).order_by("-date")
 
         # Filter by is_closed
@@ -59,7 +59,7 @@ class AccountListView(APIView):
     """GET /api/v1/accounts/ — list accounts with optional filters."""
 
     def get(self, request):
-        queryset = Account.objects.order_by("name")
+        queryset = Account.objects.select_related("entity").order_by("name")
 
         is_closed = request.query_params.get("is_closed")
         if is_closed is not None:
