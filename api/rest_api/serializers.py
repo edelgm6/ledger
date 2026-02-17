@@ -8,6 +8,7 @@ from api.models import Account, Entity, Transaction
 class TransactionSerializer(serializers.ModelSerializer):
     account = serializers.CharField(source="account.name")
     suggested_account = serializers.SerializerMethodField()
+    suggested_entity = serializers.SerializerMethodField()
     journal_entry_id = serializers.SerializerMethodField()
 
     class Meta:
@@ -23,11 +24,15 @@ class TransactionSerializer(serializers.ModelSerializer):
             "date_closed",
             "type",
             "suggested_account",
+            "suggested_entity",
             "journal_entry_id",
         ]
 
     def get_suggested_account(self, obj) -> str | None:
         return obj.suggested_account.name if obj.suggested_account else None
+
+    def get_suggested_entity(self, obj) -> str | None:
+        return obj.suggested_entity.name if obj.suggested_entity else None
 
     def get_journal_entry_id(self, obj) -> int | None:
         journal_entry = getattr(obj, "journal_entry", None)
@@ -35,9 +40,14 @@ class TransactionSerializer(serializers.ModelSerializer):
 
 
 class AccountSerializer(serializers.ModelSerializer):
+    entity = serializers.SerializerMethodField()
+
     class Meta:
         model = Account
-        fields = ["id", "name", "type", "sub_type", "is_closed"]
+        fields = ["id", "name", "type", "sub_type", "is_closed", "entity"]
+
+    def get_entity(self, obj) -> str | None:
+        return obj.entity.name if obj.entity else None
 
 
 class EntitySerializer(serializers.ModelSerializer):
