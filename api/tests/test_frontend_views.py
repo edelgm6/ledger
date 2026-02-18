@@ -93,3 +93,12 @@ class TaxesViewTest(TestCase):
 
         # Should have created charges for the 3 tax account types
         self.assertGreaterEqual(tax_charges.count(), initial_count)
+
+
+class UploadTransactionsViewTest(TestCase):
+    """Tests for the UploadTransactionsView."""
+
+    def test_get_returns_200(self):
+        """Regression test: GET /upload-transactions/ should return 200."""
+        response = self.client.get(reverse('upload-transactions'))
+        self.assertEqual(response.status_code, 200)
