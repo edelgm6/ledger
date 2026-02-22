@@ -263,19 +263,19 @@ class LinkTransactionsView(LoginRequiredMixin, View):
         # Parse link form
         form = TransactionLinkForm(request.POST)
 
-        # Parse filter form to get current transaction list
-        filter_form = TransactionFilterForm(request.POST, prefix="filter")
-        if filter_form.is_valid():
-            transactions = list(filter_form.get_transactions())
-        else:
-            transactions = []
-
         # Link transactions if form valid
         if form.is_valid():
             form.save()  # TransactionLinkForm handles the linking logic
         else:
             print(form.errors)
             print(form.non_field_errors())
+
+        # Re-query transactions AFTER linking so linked/closed ones are excluded
+        filter_form = TransactionFilterForm(request.POST, prefix="filter")
+        if filter_form.is_valid():
+            transactions = list(filter_form.get_transactions())
+        else:
+            transactions = []
 
         # Render updated table and form
         table_html = transaction_helpers.render_transaction_table(

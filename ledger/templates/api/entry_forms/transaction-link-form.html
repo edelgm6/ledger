@@ -3,6 +3,7 @@
     method="post"
     hx-post="{% url 'link-transactions'%}"
     hx-target="#table-and-form"
+    hx-swap="outerHTML"
     hx-trigger="submit"
     hx-include="#transactions-filter-form"
 >
