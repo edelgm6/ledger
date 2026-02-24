@@ -46,16 +46,18 @@ class UploadTransactionsView(View):
         form = UploadTransactionsForm(request.POST, request.FILES)
         if form.is_valid():
             transactions_count = form.save()
-        return self.get_csv_form_html(
-            transactions_count=transactions_count, account=form.cleaned_data["account"]
-        )
+            return self.get_csv_form_html(
+                transactions_count=transactions_count, account=form.cleaned_data["account"]
+            )
+        return self.get_csv_form_html()
 
     def handle_paystubs_form(self, request):
         form = DocumentForm(request.POST, request.FILES)
         if form.is_valid():
             s3file = form.create_s3_file()
             tasks.orchestrate_paystub_extraction.delay(s3file.pk)
-        return self.get_textract_form_html(filename=s3file.user_filename)
+            return self.get_textract_form_html(filename=s3file.user_filename)
+        return self.get_textract_form_html()
 
     def post(self, request):
 
@@ -63,6 +65,8 @@ class UploadTransactionsView(View):
             form_html = self.handle_transactions_form(request)
         elif "paystubs" in request.POST:
             form_html = self.handle_paystubs_form(request)
+        else:
+            return HttpResponse("Unrecognized form submission.", status=400)
 
         return HttpResponse(form_html)
 
