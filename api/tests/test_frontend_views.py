@@ -102,3 +102,18 @@ class UploadTransactionsViewTest(TestCase):
         """Regression test: GET /upload-transactions/ should return 200."""
         response = self.client.get(reverse('upload-transactions'))
         self.assertEqual(response.status_code, 200)
+
+    def test_post_with_invalid_paystub_form_returns_200(self):
+        """POST with 'paystubs' key but missing required fields should re-render the form."""
+        response = self.client.post(reverse('upload-transactions'), {"paystubs": ""})
+        self.assertEqual(response.status_code, 200)
+
+    def test_post_with_invalid_transactions_form_returns_200(self):
+        """POST with 'transactions' key but missing required fields should re-render the form."""
+        response = self.client.post(reverse('upload-transactions'), {"transactions": ""})
+        self.assertEqual(response.status_code, 200)
+
+    def test_post_with_no_form_type_returns_400(self):
+        """POST with neither 'transactions' nor 'paystubs' should return 400."""
+        response = self.client.post(reverse('upload-transactions'), {"other": "data"})
+        self.assertEqual(response.status_code, 400)
