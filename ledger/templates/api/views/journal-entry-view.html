@@ -5,7 +5,7 @@
 {{ filter_form }}
 
 <div id="table-and-form">
-    <div x-data="{ selectedRowId: {{transaction_id}}, rowIndex: {{index}} }">
+    <div x-data="{ selectedRowId: {{transaction_id}}, rowIndex: {{index}}, hasSelectedTransaction: false }">
         <div class="row">
             <div class="col-md-12">
                 <div id="table">
