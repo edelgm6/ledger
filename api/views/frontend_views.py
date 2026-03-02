@@ -6,9 +6,10 @@ from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.views import View
 
-from api import tasks, utils
+from api import utils
 from api.forms import DocumentForm, UploadTransactionsForm, WalletForm
 from api.services.paystub_services import get_paystubs_table_data
+from api.services.paystub_upload_services import process_paystub_upload
 from api.statement import Trend
 from api.views.journal_entry_helpers import render_paystubs_table
 
@@ -54,9 +55,12 @@ class UploadTransactionsView(View):
     def handle_paystubs_form(self, request):
         form = DocumentForm(request.POST, request.FILES)
         if form.is_valid():
-            s3file = form.create_s3_file()
-            tasks.orchestrate_paystub_extraction.delay(s3file.pk)
-            return self.get_textract_form_html(filename=s3file.user_filename)
+            result = process_paystub_upload(
+                file=form.cleaned_data["document"],
+                prefill=form.cleaned_data["prefill"],
+            )
+            filename = result.s3file.user_filename if result.s3file else None
+            return self.get_textract_form_html(filename=filename)
         return self.get_textract_form_html()
 
     def post(self, request):
