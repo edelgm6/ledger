@@ -10,7 +10,6 @@ from django.forms import BaseModelFormSet, DecimalField
 from django.utils import timezone
 
 from api import utils
-from api.aws_services import upload_file_to_s3
 from api.factories import ReconciliationFactory
 from api.models import (
     Account,
@@ -20,7 +19,6 @@ from api.models import (
     JournalEntryItem,
     Prefill,
     Reconciliation,
-    S3File,
     TaxCharge,
     Transaction,
 )
@@ -44,20 +42,6 @@ class DocumentForm(forms.Form):
         queryset=Prefill.objects.filter(is_closed=False),
         required=True,
     )
-
-    def create_s3_file(self):
-        file = self.cleaned_data["document"]
-        unique_name = upload_file_to_s3(file=file)
-        file_url = (
-            f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{unique_name}"
-        )
-        s3file = S3File.objects.create(
-            prefill=self.cleaned_data["prefill"],
-            url=file_url,
-            user_filename=file.name,
-            s3_filename=unique_name,
-        )
-        return s3file
 
 
 class CommaDecimalField(DecimalField):
