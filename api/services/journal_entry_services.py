@@ -1,5 +1,8 @@
+import logging
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 from django.db import transaction as db_transaction
 from django.db.models import QuerySet
@@ -265,6 +268,21 @@ def validate_journal_entry_balance(
     ]
 
     if len(matching_items) != 1:
+        logger.warning(
+            "Transaction match validation failed: "
+            "transaction.amount=%s, abs=%s, transaction.account=%s (id=%s), "
+            "looking in %s side, items: %s",
+            transaction.amount,
+            abs(transaction.amount),
+            transaction.account,
+            transaction.account_id,
+            "debits" if transaction.amount >= 0 else "credits",
+            [
+                {"amount": item.get("amount"), "amount_type": type(item.get("amount")).__name__,
+                 "account": item.get("account"), "account_id": getattr(item.get("account"), "id", None)}
+                for item in formset_data
+            ],
+        )
         errors.append("Must be one journal entry item with the Transaction's account and amount.")
 
     return ValidationResult(is_valid=len(errors) == 0, errors=errors)
