@@ -16,16 +16,17 @@ from api.models import Account, DocSearch, Prefill
 logger = logging.getLogger(__name__)
 
 
-def build_gemini_prompt(prefill: Prefill) -> str:
+def build_gemini_prompt(prefill: Prefill, doc_searches: Optional[List] = None) -> str:
     """
     Builds a structured prompt for Gemini from DocSearch records.
 
     Each DocSearch maps to either a metadata field (selection like "Company",
     "End Period") or a line item (account with dollar amount).
     """
-    doc_searches = DocSearch.objects.filter(prefill=prefill).select_related(
-        "account", "entity"
-    )
+    if doc_searches is None:
+        doc_searches = DocSearch.objects.filter(prefill=prefill).select_related(
+            "account", "entity"
+        )
 
     metadata_lines = []
     line_item_lines = []
@@ -114,7 +115,7 @@ def call_gemini_api(file_bytes: bytes, prompt: str) -> str:
 
 
 def parse_gemini_response(
-    response_text: str, prefill: Prefill
+    response_text: str, prefill: Prefill, doc_searches: Optional[List] = None
 ) -> Dict[str, Dict[Any, Any]]:
     """
     Parses Gemini's JSON response into the data structure expected by
@@ -137,9 +138,10 @@ def parse_gemini_response(
     pages = parsed.get("pages", [])
 
     # Build lookup from account name -> DocSearch for mapping back
-    doc_searches = DocSearch.objects.filter(prefill=prefill).select_related(
-        "account", "entity"
-    )
+    if doc_searches is None:
+        doc_searches = DocSearch.objects.filter(prefill=prefill).select_related(
+            "account", "entity"
+        )
     account_name_to_ds: Dict[str, DocSearch] = {}
     for ds in doc_searches:
         if ds.account:
@@ -199,6 +201,9 @@ def parse_paystub_with_gemini(
     """
     High-level function: sends PDF to Gemini and returns parsed data structure.
     """
-    prompt = build_gemini_prompt(prefill)
+    doc_searches = list(
+        DocSearch.objects.filter(prefill=prefill).select_related("account", "entity")
+    )
+    prompt = build_gemini_prompt(prefill, doc_searches=doc_searches)
     response_text = call_gemini_api(file_bytes, prompt)
-    return parse_gemini_response(response_text, prefill)
+    return parse_gemini_response(response_text, prefill, doc_searches=doc_searches)
