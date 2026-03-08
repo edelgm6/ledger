@@ -253,7 +253,7 @@ class CreateJournalEntryItemTest(TestCase):
             "amount": Decimal("150.00"),
             "account": new_account,
             "entity": self.entity,
-            "id": existing_item.pk,
+            "id": existing_item,
         }
 
         result = _create_journal_entry_item(
@@ -360,7 +360,7 @@ class SaveJournalEntryTest(TestCase):
                 "account": self.asset_account,
                 "amount": Decimal("150.00"),
                 "entity": self.entity,
-                "id": existing_debit.pk,
+                "id": existing_debit,
             }
         ]
         credits_data = [
@@ -368,7 +368,7 @@ class SaveJournalEntryTest(TestCase):
                 "account": self.expense_account,
                 "amount": Decimal("150.00"),
                 "entity": self.entity,
-                "id": existing_credit.pk,
+                "id": existing_credit,
             }
         ]
 
