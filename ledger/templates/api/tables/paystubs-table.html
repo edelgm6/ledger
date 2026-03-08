@@ -59,12 +59,10 @@
             <div class="row">
                 <div class="col-md-12">
                     <button
-                        class="btn btn-primary"
-                        x-bind:hx-get="`journal-entries/form/${selectedRowId}/?row_index=${rowIndex}&paystub_id={{ paystub_id }}`"
-                        hx-target="#form-div"
-                        x-bind:disabled="!hasSelectedTransaction"
-                        x-bind:class="!hasSelectedTransaction ? 'btn btn-secondary' : 'btn btn-primary'"
-                        x-bind:title="!hasSelectedTransaction ? 'Select a transaction first' : ''"
+                        @click="if (selectedRowId) htmx.ajax('GET', `/journal-entries/form/${selectedRowId}/?row_index=${rowIndex}&paystub_id={{ paystub_id }}`, {target: '#form-div'})"
+                        x-bind:disabled="!selectedRowId"
+                        x-bind:class="!selectedRowId ? 'btn btn-secondary' : 'btn btn-primary'"
+                        x-bind:title="!selectedRowId ? 'Select a transaction first' : ''"
                     >
                         Fill Paystub<br>
                     </button>
