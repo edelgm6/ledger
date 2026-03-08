@@ -25,15 +25,12 @@ class UploadResult:
     error: Optional[str] = None
 
 
-@db_transaction.atomic
 def process_paystub_upload(file, prefill: Prefill) -> UploadResult:
     """
     Orchestrates the full paystub upload + parse flow:
     1. Upload file to S3
-    2. Create S3File record
-    3. Parse PDF with Gemini
-    4. Create Paystub + PaystubValue records
-    5. Mark analysis complete
+    2. Parse PDF with Gemini
+    3. Create S3File + Paystub + PaystubValue records (atomic)
 
     Args:
         file: The uploaded file (Django UploadedFile)
@@ -47,35 +44,32 @@ def process_paystub_upload(file, prefill: Prefill) -> UploadResult:
     file_bytes = file.read()
     file.seek(0)
 
-    # 1. Upload to S3
+    # 1. Upload to S3 (network call, outside transaction)
     unique_name = upload_file_to_s3(file=file)
     if isinstance(unique_name, dict):
         return UploadResult(success=False, error=unique_name.get("message", "Upload failed"))
 
-    # 2. Create S3File record
-    file_url = (
-        f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{unique_name}"
-    )
-    s3file = S3File.objects.create(
-        prefill=prefill,
-        url=file_url,
-        user_filename=file.name,
-        s3_filename=unique_name,
-    )
-
-    # 3. Parse with Gemini
+    # 2. Parse with Gemini (network call, outside transaction)
     try:
         parsed_data = parse_paystub_with_gemini(file_bytes=file_bytes, prefill=prefill)
     except Exception as e:
         logger.error("Gemini parsing failed: %s", str(e))
-        return UploadResult(success=False, s3file=s3file, error=f"Parsing failed: {e}")
+        return UploadResult(success=False, error=f"Parsing failed: {e}")
 
-    # 4. Create Paystub + PaystubValue records
-    create_paystubs_from_data(s3file=s3file, parsed_data=parsed_data, prefill=prefill)
+    # 3. All DB writes in a single atomic block
+    file_url = (
+        f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{unique_name}"
+    )
+    with db_transaction.atomic():
+        s3file = S3File.objects.create(
+            prefill=prefill,
+            url=file_url,
+            user_filename=file.name,
+            s3_filename=unique_name,
+            analysis_complete=timezone.now(),
+        )
 
-    # 5. Mark analysis complete
-    s3file.analysis_complete = timezone.now()
-    s3file.save()
+        create_paystubs_from_data(s3file=s3file, parsed_data=parsed_data, prefill=prefill)
 
     return UploadResult(success=True, s3file=s3file)
 

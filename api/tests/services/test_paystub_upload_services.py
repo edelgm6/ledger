@@ -223,5 +223,5 @@ class ProcessPaystubUploadTest(TestCase):
 
         self.assertFalse(result.success)
         self.assertIn("Parsing failed", result.error)
-        # S3File should still be created
-        self.assertIsNotNone(result.s3file)
+        # S3File is not created since DB writes happen after parsing
+        self.assertIsNone(result.s3file)
