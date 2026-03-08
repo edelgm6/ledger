@@ -109,6 +109,7 @@ def call_gemini_api(file_bytes: bytes, prompt: str) -> str:
             genai.types.Part.from_bytes(data=file_bytes, mime_type="application/pdf"),
             prompt,
         ],
+        config=genai.types.GenerateContentConfig(temperature=0),
     )
 
     return response.text
