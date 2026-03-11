@@ -1,0 +1,15 @@
+{{ table }}
+
+{% if success_message %}
+<div class="alert alert-success mt-2" role="alert">
+    {{ success_message }}
+</div>
+{% endif %}
+
+{% if bulk_form %}
+<hr>
+<h5>Bulk Account Change</h5>
+{{ bulk_form }}
+
+<div id="bulk-preview"></div>
+{% endif %}
