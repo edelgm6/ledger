@@ -1,0 +1,82 @@
+<form
+    id="search-filter-form"
+    method="get"
+    hx-get="{{ get_url }}"
+    hx-target="#search-content"
+    hx-trigger="submit"
+    hx-swap="innerHTML"
+    class="mb-3 form-sm"
+>
+    <div class="row g-3">
+        <!-- Description -->
+        <div class="col-md-2">
+            <div class="form-group">
+                <label for="id_description">Description</label>
+                <input type="text" name="description" id="id_description" class="form-control"
+                       value="{{ form.description.value|default_if_none:'' }}">
+            </div>
+        </div>
+
+        <!-- Date From and Date To -->
+        <div class="col-md-2">
+            <div class="form-group mb-2">
+                <label for="id_date_from">Date From</label>
+                <input type="date" name="date_from" id="id_date_from" class="form-control"
+                       value="{{ form.date_from.value|default_if_none:'' }}">
+            </div>
+            <div class="form-group">
+                <label for="id_date_to">Date To</label>
+                <input type="date" name="date_to" id="id_date_to" class="form-control"
+                       value="{{ form.date_to.value|default_if_none:'' }}">
+            </div>
+        </div>
+
+        <!-- Transaction Account -->
+        <div class="col-md-3">
+            <div class="form-group">
+                <label for="id_account">Account</label>
+                <select name="account" id="id_account" class="form-control" multiple>
+                    {% for account in form.account.field.queryset %}
+                        <option value="{{ account.pk }}" {% if account.pk|stringformat:"s" in form.account.value %}selected{% endif %}>
+                            {{ account }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Related Account -->
+        <div class="col-md-3">
+            <div class="form-group">
+                <label for="id_related_account">Related Account</label>
+                <select name="related_account" id="id_related_account" class="form-control" multiple>
+                    {% for account in form.related_account.field.queryset %}
+                        <option value="{{ account.pk }}" {% if account.pk|stringformat:"s" in form.related_account.value %}selected{% endif %}>
+                            {{ account }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Type -->
+        <div class="col-md-2">
+            <div class="form-group">
+                <label for="id_transaction_type">Type</label>
+                <select name="transaction_type" id="id_transaction_type" class="form-control" multiple>
+                    {% for choice in form.transaction_type.field.choices %}
+                        <option value="{{ choice.0 }}" {% if choice.0 in form.transaction_type.value %}selected{% endif %}>
+                            {{ choice.1 }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-2">
+        <div class="col">
+            <button type="submit" class="btn btn-primary">Search</button>
+        </div>
+    </div>
+</form>

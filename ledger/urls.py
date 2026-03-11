@@ -25,6 +25,7 @@ from api.views.journal_entry_views import (
     TriggerAutoTagView,
 )
 from api.views.reconciliation_views import ReconciliationTableView, ReconciliationView
+from api.views.search_views import SearchBulkUpdateView, SearchContentView, SearchView
 from api.views.statement_views import StatementDetailView, StatementView
 from api.views.tax_views import TaxChargeFormView, TaxChargeTableView, TaxesView
 from api.views.transaction_views import (
@@ -130,6 +131,10 @@ urlpatterns = [
         AmortizeFormView.as_view(),
         name="amortize-form",
     ),
+    # Search & Bulk Update
+    path("search/", SearchView.as_view(), name="search"),
+    path("search/content/", SearchContentView.as_view(), name="search-content"),
+    path("search/bulk-update/", SearchBulkUpdateView.as_view(), name="search-bulk-update"),
     # Tagging balances
     path(
         "tag/journal-entry-item/<int:journal_entry_item_id>/",
