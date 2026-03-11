@@ -1,0 +1,41 @@
+<form id="bulk-account-change-form" method="post">
+    {% csrf_token %}
+    <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <div class="form-group">
+                <label for="id_from_account">FROM Account</label>
+                <select name="from_account" id="id_from_account" class="form-control">
+                    <option value="">---------</option>
+                    {% for account in accounts %}
+                        <option value="{{ account.pk }}">{{ account.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="form-group">
+                <label for="id_to_account">TO Account</label>
+                <select name="to_account" id="id_to_account" class="form-control">
+                    <option value="">---------</option>
+                    {% for account in accounts %}
+                        <option value="{{ account.pk }}">{{ account.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <button
+                type="button"
+                class="btn btn-warning"
+                hx-post="{% url 'search-bulk-update' %}"
+                hx-include="#search-filter-form, #bulk-account-change-form"
+                hx-target="#bulk-preview"
+                hx-swap="innerHTML"
+                name="action"
+                value="preview"
+            >
+                Preview
+            </button>
+        </div>
+    </div>
+</form>

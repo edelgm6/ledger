@@ -437,7 +437,15 @@ class JournalEntryItemForm(forms.ModelForm):
         return instance
 
 
-class TransactionFilterForm(forms.Form):
+IS_CLOSED_CHOICES = (
+    (None, "---------"),
+    (True, "True"),
+    (False, "False"),
+)
+
+
+class BaseFilterForm(forms.Form):
+    """Shared filter fields for transaction search/filter forms."""
     date_from = forms.DateField(required=False)
     date_to = forms.DateField(required=False)
     account = forms.ModelMultipleChoiceField(
@@ -446,11 +454,33 @@ class TransactionFilterForm(forms.Form):
     transaction_type = forms.MultipleChoiceField(
         choices=Transaction.TransactionType.choices, required=False
     )
-    IS_CLOSED_CHOICES = (
-        (None, "---------"),
-        (True, "True"),
-        (False, "False"),
+    related_account = forms.ModelMultipleChoiceField(
+        queryset=Account.objects.all(), required=False
     )
+
+
+class SearchFilterForm(BaseFilterForm):
+    description = forms.CharField(required=False)
+
+
+class BulkAccountChangeForm(forms.Form):
+    from_account = forms.ModelChoiceField(
+        queryset=Account.objects.all(), required=True
+    )
+    to_account = forms.ModelChoiceField(
+        queryset=Account.objects.all(), required=True
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        from_account = cleaned_data.get("from_account")
+        to_account = cleaned_data.get("to_account")
+        if from_account and to_account and from_account == to_account:
+            raise forms.ValidationError("FROM and TO accounts must be different.")
+        return cleaned_data
+
+
+class TransactionFilterForm(BaseFilterForm):
     is_closed = forms.ChoiceField(required=False, choices=IS_CLOSED_CHOICES)
     LINKED_TRANSACTION_CHOICES = (
         (None, "---------"),
@@ -459,9 +489,6 @@ class TransactionFilterForm(forms.Form):
     )
     has_linked_transaction = forms.ChoiceField(
         required=False, choices=LINKED_TRANSACTION_CHOICES
-    )
-    related_account = forms.ModelMultipleChoiceField(
-        queryset=Account.objects.all(), required=False
     )
 
     def clean_is_closed(self):
