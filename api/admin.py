@@ -115,8 +115,18 @@ class PrefillAdmin(admin.ModelAdmin):
         return obj.name
 
 
+class PaystubValueInline(admin.TabularInline):
+    model = PaystubValue
+    extra = 0
+
+
 class PaystubAdmin(admin.ModelAdmin):
     list_display = ("title", "journal_entry")
+    inlines = [PaystubValueInline]
+
+
+class S3FileAdmin(admin.ModelAdmin):
+    list_display = ("user_filename", "prefill", "analysis_complete")
 
 
 # Register your models here
@@ -132,7 +142,7 @@ admin.site.register(TaxCharge)
 admin.site.register(CSVColumnValuePair)
 admin.site.register(Amortization)
 admin.site.register(PrefillItem)
-admin.site.register(S3File)
+admin.site.register(S3File, S3FileAdmin)
 admin.site.register(DocSearch)
 admin.site.register(Paystub, PaystubAdmin)
 admin.site.register(PaystubValue)
