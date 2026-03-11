@@ -1,0 +1,24 @@
+{% if affected_count > 0 %}
+<div class="alert alert-warning mt-2" role="alert">
+    <strong>{{ affected_count }}</strong> journal entry item{{ affected_count|pluralize }} will be changed from
+    <strong>{{ from_account.name }}</strong> to <strong>{{ to_account.name }}</strong>.
+    <br>
+    <button
+        type="button"
+        class="btn btn-danger mt-2"
+        hx-post="{% url 'search-bulk-update' %}"
+        hx-include="#search-filter-form, #bulk-account-change-form"
+        hx-target="#search-content"
+        hx-swap="innerHTML"
+        hx-confirm="Update {{ affected_count }} journal entry items from {{ from_account.name }} to {{ to_account.name }}?"
+        name="action"
+        value="apply"
+    >
+        Confirm Update
+    </button>
+</div>
+{% else %}
+<div class="alert alert-info mt-2" role="alert">
+    No journal entry items match the selected FROM account within the current search results.
+</div>
+{% endif %}
