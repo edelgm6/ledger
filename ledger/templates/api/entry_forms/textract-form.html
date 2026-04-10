@@ -27,6 +27,15 @@
     </div>
 </div>
 <br>
+{% if error %}
+<div class="row">
+    <div class="col">
+        <div class="alert alert-danger" role="alert">
+            Upload failed: {{ error }}
+        </div>
+    </div>
+</div>
+{% endif %}
 {% if filename %}
 <div class="row">
     <div class="col">
