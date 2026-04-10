@@ -6,8 +6,6 @@ from django.db.models import Q
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from textractor.entities.document import Document
-
 from api.aws_services import (
     clean_and_convert_string_to_decimal,
     clean_string,
@@ -77,6 +75,8 @@ class S3File(models.Model):
             PaystubValue.objects.bulk_create(paystub_values)
 
     def _extract_data(self):
+        from textractor.entities.document import Document
+
         textract_job_response = get_textract_results(job_id=self.textract_job_id)
 
         # Load the Textract response from the JSON file using textractor
