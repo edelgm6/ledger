@@ -16,10 +16,10 @@ from api.views.journal_entry_helpers import render_paystubs_table
 
 class UploadTransactionsView(View):
 
-    def get_textract_form_html(self, filename=None):
+    def get_textract_form_html(self, filename=None, error=None):
         form = DocumentForm()
         template = "api/entry_forms/textract-form.html"
-        return render_to_string(template, {"form": form, "filename": filename})
+        return render_to_string(template, {"form": form, "filename": filename, "error": error})
 
     def get_csv_form_html(self, transactions_count=None, account=None):
         form = UploadTransactionsForm()
@@ -59,6 +59,8 @@ class UploadTransactionsView(View):
                 file=form.cleaned_data["document"],
                 prefill=form.cleaned_data["prefill"],
             )
+            if not result.success:
+                return self.get_textract_form_html(error=result.error)
             filename = result.s3file.user_filename if result.s3file else None
             return self.get_textract_form_html(filename=filename)
         return self.get_textract_form_html()
