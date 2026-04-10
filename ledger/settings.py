@@ -119,7 +119,8 @@ INTERNAL_IPS = [
     "127.0.0.1",
 ]
 
-CORS_ALLOWED_ORIGINS = [os.environ.get("APP_ORIGIN")]
+_app_origin = os.environ.get("APP_ORIGIN")
+CORS_ALLOWED_ORIGINS = [_app_origin] if _app_origin else []
 
 CORS_ALLOW_CREDENTIALS = True  # Needed for cookies/authentication with HTMX
 
