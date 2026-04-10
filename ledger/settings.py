@@ -77,10 +77,12 @@ INSTALLED_APPS = [
     "django.contrib.humanize",
     "api",
     "import_export",
-    "debug_toolbar",
     "corsheaders",
     "rest_framework",
 ]
+
+if not IS_HEROKU_APP:
+    INSTALLED_APPS += ["debug_toolbar"]
 
 # Django REST Framework
 REST_FRAMEWORK = {
@@ -107,13 +109,15 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
 ]
+
+if not IS_HEROKU_APP:
+    MIDDLEWARE += ["debug_toolbar.middleware.DebugToolbarMiddleware"]
 
 INTERNAL_IPS = [
     "127.0.0.1",

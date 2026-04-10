@@ -744,7 +744,6 @@ dependencies = [
     { name = "django" },
     { name = "django-cors-headers" },
     { name = "django-crispy-forms" },
-    { name = "django-debug-toolbar" },
     { name = "django-import-export" },
     { name = "django-storages" },
     { name = "djangorestframework" },
@@ -761,6 +760,7 @@ dependencies = [
 dev = [
     { name = "beautifulsoup4" },
     { name = "coverage" },
+    { name = "django-debug-toolbar" },
     { name = "factory-boy" },
     { name = "faker" },
     { name = "flake8" },
@@ -778,7 +778,6 @@ requires-dist = [
     { name = "django", specifier = ">=5.1.4" },
     { name = "django-cors-headers", specifier = ">=4.6.0" },
     { name = "django-crispy-forms", specifier = ">=2.0" },
-    { name = "django-debug-toolbar", specifier = ">=4.2.0" },
     { name = "django-import-export", specifier = ">=3.3.5" },
     { name = "django-storages", specifier = ">=1.14.3" },
     { name = "djangorestframework", specifier = ">=3.14.0" },
@@ -795,6 +794,7 @@ requires-dist = [
 dev = [
     { name = "beautifulsoup4", specifier = ">=4.12.3" },
     { name = "coverage", specifier = ">=7.2.7" },
+    { name = "django-debug-toolbar", specifier = ">=4.2.0" },
     { name = "factory-boy", specifier = ">=3.3.0" },
     { name = "faker", specifier = ">=22.2.0" },
     { name = "flake8", specifier = ">=7.0.0" },
