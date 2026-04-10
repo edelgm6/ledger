@@ -16,7 +16,6 @@ dependencies = [
     "django-storages>=1.14.3",
     # REST API
     "djangorestframework>=3.14.0",
-    "drf-extra-fields>=3.4.1",
     # Database
     "psycopg2-binary>=2.9.10",
     "dj-database-url>=1.2.0",
@@ -32,7 +31,6 @@ dependencies = [
     # Data processing
     "pandas>=2.2.3",
     "python-dateutil>=2.8.2",
-    "pillow>=11.2.1",
 ]
 
 [dependency-groups]
