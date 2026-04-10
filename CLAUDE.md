@@ -6,25 +6,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Run development server
-python manage.py runserver
+uv run python manage.py runserver
 
 # Run all tests
-python manage.py test
+uv run python manage.py test
 
 # Run specific test module
-python manage.py test api.tests.models.test_transaction
-python manage.py test api.tests.statement.test_balance_sheet
+uv run python manage.py test api.tests.models.test_transaction
+uv run python manage.py test api.tests.statement.test_balance_sheet
 
 # Run with coverage
-coverage run --source='.' manage.py test
-coverage report
+uv run coverage run --source='.' manage.py test
+uv run coverage report
 
 # Run Celery worker (for async Textract processing)
-celery -A api worker --loglevel=info
+uv run celery -A api worker --loglevel=info
 
 # Create migrations after model changes
-python manage.py makemigrations
-python manage.py migrate
+uv run python manage.py makemigrations
+uv run python manage.py migrate
 ```
 
 ## Architecture
