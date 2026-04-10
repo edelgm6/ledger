@@ -1,7 +1,7 @@
 from django.test import TestCase
 from decimal import Decimal
 from unittest.mock import patch, MagicMock
-from api.models import S3File, DocSearch, Account, Prefill, Paystub, PaystubValue
+from api.models import S3File, Account, Prefill, Paystub, PaystubValue
 
 
 class S3FileTests(TestCase):
