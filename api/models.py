@@ -29,12 +29,24 @@ class Entity(models.Model):
 
 
 class S3File(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        PROCESSING = "PROCESSING", "Processing"
+        COMPLETE = "COMPLETE", "Complete"
+        FAILED = "FAILED", "Failed"
+
     prefill = models.ForeignKey("Prefill", on_delete=models.PROTECT)
     url = models.URLField(max_length=200, unique=True)
     user_filename = models.CharField(max_length=200)
     s3_filename = models.CharField(max_length=200)
     textract_job_id = models.CharField(max_length=200)
     analysis_complete = models.DateTimeField(blank=True, null=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    error_message = models.TextField(blank=True, default="")
 
     def __str__(self):
         return self.prefill.name + " " + self.s3_filename

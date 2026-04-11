@@ -30,7 +30,10 @@ def render_paystubs_table(data: PaystubsTableData) -> str:
         data: PaystubsTableData containing has_pending_jobs flag and paystubs list.
     """
     if data.has_pending_jobs:
-        return render_to_string("api/tables/paystubs-table-poller.html")
+        return render_to_string(
+            "api/tables/paystubs-table-poller.html",
+            {"pending_files": data.pending_files},
+        )
 
     return render_to_string("api/tables/paystubs-table.html", {"paystubs": data.paystubs})
 
