@@ -164,10 +164,69 @@ class ProcessPaystubUploadTest(TestCase):
             entity=self.entity,
         )
 
-    @patch("api.services.paystub_upload_services.parse_paystub_with_gemini")
+    @patch("api.tasks.process_gemini_paystub")
     @patch("api.services.paystub_upload_services.upload_file_to_s3")
-    def test_successful_upload(self, mock_upload, mock_parse):
+    def test_successful_upload_creates_pending_s3file(self, mock_upload, mock_task):
         mock_upload.return_value = "uuid-test.pdf"
+
+        mock_file = MagicMock()
+        mock_file.name = "paystub.pdf"
+
+        with self.settings(AWS_STORAGE_BUCKET_NAME="test-bucket"):
+            result = process_paystub_upload(file=mock_file, prefill=self.prefill)
+
+        self.assertTrue(result.success)
+        self.assertIsNotNone(result.s3file)
+        # S3File is created immediately in pending state
+        self.assertIsNone(result.s3file.analysis_complete)
+        # Celery task is dispatched
+        mock_task.delay.assert_called_once_with(result.s3file.pk)
+        # No paystubs yet — those are created by the task
+        self.assertEqual(Paystub.objects.count(), 0)
+
+    @patch("api.services.paystub_upload_services.upload_file_to_s3")
+    def test_s3_upload_failure(self, mock_upload):
+        mock_upload.return_value = {"error": "Access Denied", "message": "Upload failed"}
+
+        mock_file = MagicMock()
+        mock_file.name = "paystub.pdf"
+
+        result = process_paystub_upload(file=mock_file, prefill=self.prefill)
+
+        self.assertFalse(result.success)
+        self.assertEqual(result.error, "Upload failed")
+
+
+class ProcessGeminiPaystubTaskTest(TestCase):
+    def setUp(self):
+        self.prefill = PrefillFactory(name="Payroll")
+        self.entity = EntityFactory(name="Employer")
+        self.account = AccountFactory(
+            name="Gross Pay",
+            type=Account.Type.INCOME,
+            sub_type=Account.SubType.SALARY,
+        )
+        DocSearch.objects.create(
+            prefill=self.prefill,
+            keyword="Gross Pay",
+            account=self.account,
+            journal_entry_item_type=JournalEntryItem.JournalEntryType.CREDIT,
+            entity=self.entity,
+        )
+        self.s3file = S3File.objects.create(
+            prefill=self.prefill,
+            url="https://bucket.s3.amazonaws.com/test.pdf",
+            user_filename="paystub.pdf",
+            s3_filename="uuid-test.pdf",
+            analysis_complete=None,
+        )
+
+    @patch("api.tasks.download_file_from_s3")
+    @patch("api.tasks.parse_paystub_with_gemini")
+    def test_task_creates_paystubs_and_marks_complete(self, mock_parse, mock_download):
+        from api.tasks import process_gemini_paystub
+
+        mock_download.return_value = b"fake-pdf"
         mock_parse.return_value = {
             "0": {
                 "Company": "Test Co",
@@ -180,48 +239,31 @@ class ProcessPaystubUploadTest(TestCase):
             }
         }
 
-        mock_file = MagicMock()
-        mock_file.name = "paystub.pdf"
-        mock_file.read.return_value = b"fake-pdf"
+        process_gemini_paystub(self.s3file.pk)
 
-        with self.settings(AWS_STORAGE_BUCKET_NAME="test-bucket"):
-            result = process_paystub_upload(file=mock_file, prefill=self.prefill)
+        self.s3file.refresh_from_db()
+        self.assertIsNotNone(self.s3file.analysis_complete)
 
-        self.assertTrue(result.success)
-        self.assertIsNotNone(result.s3file)
-        self.assertIsNotNone(result.s3file.analysis_complete)
-
-        paystubs = Paystub.objects.filter(document=result.s3file)
+        paystubs = Paystub.objects.filter(document=self.s3file)
         self.assertEqual(paystubs.count(), 1)
         self.assertEqual(paystubs.first().title, "Test Co 01/15/2026")
 
-    @patch("api.services.paystub_upload_services.upload_file_to_s3")
-    def test_s3_upload_failure(self, mock_upload):
-        mock_upload.return_value = {"error": "Access Denied", "message": "Upload failed"}
+        mock_download.assert_called_once_with("uuid-test.pdf")
+        mock_parse.assert_called_once_with(
+            file_bytes=b"fake-pdf", prefill=self.prefill
+        )
 
-        mock_file = MagicMock()
-        mock_file.name = "paystub.pdf"
-        mock_file.read.return_value = b"fake-pdf"
+    @patch("api.tasks.download_file_from_s3")
+    @patch("api.tasks.parse_paystub_with_gemini")
+    def test_task_reraises_on_gemini_failure(self, mock_parse, mock_download):
+        from api.tasks import process_gemini_paystub
 
-        result = process_paystub_upload(file=mock_file, prefill=self.prefill)
-
-        self.assertFalse(result.success)
-        self.assertEqual(result.error, "Upload failed")
-
-    @patch("api.services.paystub_upload_services.parse_paystub_with_gemini")
-    @patch("api.services.paystub_upload_services.upload_file_to_s3")
-    def test_gemini_parse_failure(self, mock_upload, mock_parse):
-        mock_upload.return_value = "uuid-test.pdf"
+        mock_download.return_value = b"fake-pdf"
         mock_parse.side_effect = Exception("API error")
 
-        mock_file = MagicMock()
-        mock_file.name = "paystub.pdf"
-        mock_file.read.return_value = b"fake-pdf"
+        with self.assertRaises(Exception, msg="API error"):
+            process_gemini_paystub(self.s3file.pk)
 
-        with self.settings(AWS_STORAGE_BUCKET_NAME="test-bucket"):
-            result = process_paystub_upload(file=mock_file, prefill=self.prefill)
-
-        self.assertFalse(result.success)
-        self.assertIn("Parsing failed", result.error)
-        # S3File is not created since DB writes happen after parsing
-        self.assertIsNone(result.s3file)
+        # S3File remains in pending state so the poller keeps showing the spinner
+        self.s3file.refresh_from_db()
+        self.assertIsNone(self.s3file.analysis_complete)
