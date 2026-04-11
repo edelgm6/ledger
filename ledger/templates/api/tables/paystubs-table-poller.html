@@ -1,5 +1,31 @@
-<div id="paystubs-table-poller" 
-     hx-get="{% url 'paystub-table' %}" 
+<div id="paystubs-table-poller"
+     hx-get="{% url 'paystub-table' %}"
      hx-trigger="every 2s"
      hx-swap="outerHTML">
+    <br>
+    <h5>Paystubs</h5>
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>File</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s3file in pending_files %}
+            <tr>
+                <td>{{ s3file.user_filename }}</td>
+                <td>
+                    {% if s3file.status == "PENDING" %}
+                        <span class="text-muted">⏳ Queued</span>
+                    {% elif s3file.status == "PROCESSING" %}
+                        <span class="text-primary">⚙️ Sending to Gemini...</span>
+                    {% elif s3file.status == "FAILED" %}
+                        <span class="text-danger">❌ Failed: {{ s3file.error_message }}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>

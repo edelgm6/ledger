@@ -44,6 +44,15 @@ def generate_unique_filename(file):
     return unique_filename
 
 
+def download_file_from_s3(s3_filename: str) -> bytes:
+    s3_client = get_boto3_client(service="s3")
+    response = s3_client.get_object(
+        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+        Key=s3_filename,
+    )
+    return response["Body"].read()
+
+
 def create_textract_job(filename):
     # Boto3 client for Textract
     client = get_boto3_client()

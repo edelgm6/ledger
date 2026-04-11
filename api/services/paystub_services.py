@@ -4,7 +4,7 @@ Service functions for paystub-related operations.
 Contains data fetching logic extracted from views/helpers to maintain
 pure function patterns and separation of concerns.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List
 
 from django.db.models import QuerySet
@@ -17,6 +17,7 @@ class PaystubsTableData:
     """Data for rendering the paystubs table."""
     has_pending_jobs: bool
     paystubs: List[Paystub]
+    pending_files: List[S3File] = field(default_factory=list)
 
 
 @dataclass
@@ -35,10 +36,12 @@ def get_paystubs_table_data() -> PaystubsTableData:
 
     Otherwise returns unlinked paystubs (those without journal entries).
     """
-    has_pending = S3File.objects.filter(analysis_complete__isnull=True).exists()
+    pending_files = list(
+        S3File.objects.filter(analysis_complete__isnull=True).order_by("pk")
+    )
 
-    if has_pending:
-        return PaystubsTableData(has_pending_jobs=True, paystubs=[])
+    if pending_files:
+        return PaystubsTableData(has_pending_jobs=True, paystubs=[], pending_files=pending_files)
 
     paystubs = list(
         Paystub.objects.filter(journal_entry__isnull=True)
