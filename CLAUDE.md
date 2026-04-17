@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Git
+
+Never run `git commit` or `git push` under any circumstances unless the user explicitly instructs you to in that message.
+
 ## Commands
 
 ```bash

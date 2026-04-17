@@ -265,15 +265,8 @@ class GetGroupedEntitiesBalancesTest(TestCase):
             sub_type=Account.SubType.ACCOUNTS_RECEIVABLE,
             is_closed=True,
         )
-        je = JournalEntryFactory()
-        JournalEntryItemFactory(
-            journal_entry=je, account=closed_account, entity=self.entity1,
-            type=JournalEntryItem.JournalEntryType.CREDIT, amount=Decimal("50.00"),
-        )
-        JournalEntryItemFactory(
-            journal_entry=je, account=closed_account, entity=self.entity1,
-            type=JournalEntryItem.JournalEntryType.DEBIT, amount=Decimal("50.00"),
-        )
+        self._make_item(closed_account, self.entity1, JournalEntryItem.JournalEntryType.CREDIT, "50.00")
+        self._make_item(closed_account, self.entity1, JournalEntryItem.JournalEntryType.DEBIT, "50.00")
 
         result = get_grouped_entities_balances(hide_zero=True)
 
@@ -286,15 +279,8 @@ class GetGroupedEntitiesBalancesTest(TestCase):
             sub_type=Account.SubType.ACCOUNTS_RECEIVABLE,
             is_closed=True,
         )
-        je = JournalEntryFactory()
-        JournalEntryItemFactory(
-            journal_entry=je, account=closed_account, entity=self.entity1,
-            type=JournalEntryItem.JournalEntryType.CREDIT, amount=Decimal("50.00"),
-        )
-        JournalEntryItemFactory(
-            journal_entry=je, account=closed_account, entity=self.entity1,
-            type=JournalEntryItem.JournalEntryType.DEBIT, amount=Decimal("50.00"),
-        )
+        self._make_item(closed_account, self.entity1, JournalEntryItem.JournalEntryType.CREDIT, "50.00")
+        self._make_item(closed_account, self.entity1, JournalEntryItem.JournalEntryType.DEBIT, "50.00")
 
         result = get_grouped_entities_balances(hide_zero=False)
 
@@ -315,15 +301,8 @@ class GetGroupedEntitiesBalancesTest(TestCase):
         self.assertIn(closed_account.id, account_ids)
 
     def test_open_account_with_all_zero_balances_still_shown_when_hide_zero(self):
-        je = JournalEntryFactory()
-        JournalEntryItemFactory(
-            journal_entry=je, account=self.ar_account, entity=self.entity1,
-            type=JournalEntryItem.JournalEntryType.CREDIT, amount=Decimal("50.00"),
-        )
-        JournalEntryItemFactory(
-            journal_entry=je, account=self.ar_account, entity=self.entity1,
-            type=JournalEntryItem.JournalEntryType.DEBIT, amount=Decimal("50.00"),
-        )
+        self._make_item(self.ar_account, self.entity1, JournalEntryItem.JournalEntryType.CREDIT, "50.00")
+        self._make_item(self.ar_account, self.entity1, JournalEntryItem.JournalEntryType.DEBIT, "50.00")
 
         result = get_grouped_entities_balances(hide_zero=True)
 
