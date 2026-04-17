@@ -1,13 +1,30 @@
 {% load humanize %}
-<div id="payables-receivables-table" class="table-responsive">
-    <table class="table table-hover table-sm">
+{% if entity_name %}
+    <div class="d-flex align-items-baseline justify-content-between mb-1">
+        <div>
+            <strong>{{ entity_name }}</strong>
+            {% if account_name %}
+                <span class="text-secondary ml-1" style="font-size:.75rem;">
+                    · {{ account_name }}
+                </span>
+            {% endif %}
+        </div>
+        {% if final_balance is not None %}
+            <div class="small {% if final_balance > 0 %}text-success{% elif final_balance < 0 %}text-danger{% else %}text-muted{% endif %}">
+                Balance: <strong>${{ final_balance|floatformat:2|intcomma }}</strong>
+            </div>
+        {% endif %}
+    </div>
+{% endif %}
+<div id="entity-history-table" class="table-responsive" style="max-height:520px; overflow-y:auto;">
+    <table class="table table-hover table-sm mb-0">
         <thead>
             <tr>
-                <th>Date</th>
-                <th>Transaction</th>
-                <th>Account</th>
-                <th>Balance</th>
-                <th>Action</th>
+                <th style="position:sticky; top:0; background:#fff; box-shadow:inset 0 -1px 0 #dee2e6;">Date</th>
+                <th style="position:sticky; top:0; background:#fff; box-shadow:inset 0 -1px 0 #dee2e6;">Transaction</th>
+                <th class="text-right" style="position:sticky; top:0; background:#fff; box-shadow:inset 0 -1px 0 #dee2e6;">Amount</th>
+                <th class="text-right" style="position:sticky; top:0; background:#fff; box-shadow:inset 0 -1px 0 #dee2e6;">Balance</th>
+                <th style="position:sticky; top:0; background:#fff; box-shadow:inset 0 -1px 0 #dee2e6;"></th>
             </tr>
         </thead>
         <tbody>
@@ -15,15 +32,18 @@
                 <tr id="row-{{ entry.id }}">
                     <td>{{ entry.journal_entry.date }}</td>
                     <td>{{ entry.journal_entry.transaction.description|slice:":24" }}{% if entry.journal_entry.transaction.description|length > 24 %}...{% endif %}</td>
-                    <td>{{ entry.account }}</td>
-                    <td>{% if entry.type == "debit" %}-{% endif %}${{ entry.amount|floatformat:2|intcomma }}</td>
-                    <td>${{ entry.balance|floatformat:2|intcomma }}</td>
+                    <td class="text-right{% if entry.type == 'debit' %} text-danger{% endif %}">
+                        {% if entry.type == "debit" %}-{% endif %}${{ entry.amount|floatformat:2|intcomma }}
+                    </td>
+                    <td class="text-right {% if entry.balance > 0 %}text-success{% elif entry.balance < 0 %}text-danger{% else %}text-muted{% endif %}">
+                        ${{ entry.balance|floatformat:2|intcomma }}
+                    </td>
                     <td>
-                        <button 
-                            class="btn btn-primary btn-sm"
-                            style="padding: 0.125rem 0.25rem; font-size: 0.75rem; line-height: 1;"
-                            hx-post="{% url 'untag-journal-entry' entry.id %}" 
-                            hx-target="#table-and-form" 
+                        <button
+                            class="btn btn-outline-secondary btn-sm"
+                            style="padding:.05rem .3rem; font-size:.7rem;"
+                            hx-post="{% url 'untag-journal-entry' entry.id %}"
+                            hx-target="#table-and-form"
                             hx-swap="outerHTML">
                             Untag
                         </button>
