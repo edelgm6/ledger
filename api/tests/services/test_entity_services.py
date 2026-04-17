@@ -153,6 +153,7 @@ class GetGroupedEntitiesBalancesTest(TestCase):
         self.ar_account = AccountFactory(
             type=Account.Type.ASSET,
             sub_type=Account.SubType.ACCOUNTS_RECEIVABLE,
+            is_closed=False,
         )
         self.non_ar_account = AccountFactory(
             type=Account.Type.ASSET,
@@ -257,6 +258,79 @@ class GetGroupedEntitiesBalancesTest(TestCase):
 
     def test_returns_empty_when_no_data(self):
         self.assertEqual(get_grouped_entities_balances(), [])
+
+    def test_closed_account_with_all_zero_balances_excluded_when_hide_zero(self):
+        closed_account = AccountFactory(
+            type=Account.Type.ASSET,
+            sub_type=Account.SubType.ACCOUNTS_RECEIVABLE,
+            is_closed=True,
+        )
+        je = JournalEntryFactory()
+        JournalEntryItemFactory(
+            journal_entry=je, account=closed_account, entity=self.entity1,
+            type=JournalEntryItem.JournalEntryType.CREDIT, amount=Decimal("50.00"),
+        )
+        JournalEntryItemFactory(
+            journal_entry=je, account=closed_account, entity=self.entity1,
+            type=JournalEntryItem.JournalEntryType.DEBIT, amount=Decimal("50.00"),
+        )
+
+        result = get_grouped_entities_balances(hide_zero=True)
+
+        account_ids = [g.account_id for g in result]
+        self.assertNotIn(closed_account.id, account_ids)
+
+    def test_closed_account_with_all_zero_balances_included_when_not_hide_zero(self):
+        closed_account = AccountFactory(
+            type=Account.Type.ASSET,
+            sub_type=Account.SubType.ACCOUNTS_RECEIVABLE,
+            is_closed=True,
+        )
+        je = JournalEntryFactory()
+        JournalEntryItemFactory(
+            journal_entry=je, account=closed_account, entity=self.entity1,
+            type=JournalEntryItem.JournalEntryType.CREDIT, amount=Decimal("50.00"),
+        )
+        JournalEntryItemFactory(
+            journal_entry=je, account=closed_account, entity=self.entity1,
+            type=JournalEntryItem.JournalEntryType.DEBIT, amount=Decimal("50.00"),
+        )
+
+        result = get_grouped_entities_balances(hide_zero=False)
+
+        account_ids = [g.account_id for g in result]
+        self.assertIn(closed_account.id, account_ids)
+
+    def test_closed_account_with_nonzero_balance_always_included(self):
+        closed_account = AccountFactory(
+            type=Account.Type.ASSET,
+            sub_type=Account.SubType.ACCOUNTS_RECEIVABLE,
+            is_closed=True,
+        )
+        self._make_item(closed_account, self.entity1, JournalEntryItem.JournalEntryType.CREDIT, "100.00")
+
+        result = get_grouped_entities_balances(hide_zero=True)
+
+        account_ids = [g.account_id for g in result]
+        self.assertIn(closed_account.id, account_ids)
+
+    def test_open_account_with_all_zero_balances_still_shown_when_hide_zero(self):
+        je = JournalEntryFactory()
+        JournalEntryItemFactory(
+            journal_entry=je, account=self.ar_account, entity=self.entity1,
+            type=JournalEntryItem.JournalEntryType.CREDIT, amount=Decimal("50.00"),
+        )
+        JournalEntryItemFactory(
+            journal_entry=je, account=self.ar_account, entity=self.entity1,
+            type=JournalEntryItem.JournalEntryType.DEBIT, amount=Decimal("50.00"),
+        )
+
+        result = get_grouped_entities_balances(hide_zero=True)
+
+        account_ids = [g.account_id for g in result]
+        self.assertIn(self.ar_account.id, account_ids)
+        self.assertEqual(result[0].rows, [])
+        self.assertEqual(result[0].zero_count, 1)
 
 
 class GetUntaggedJournalEntryItemsTest(TestCase):

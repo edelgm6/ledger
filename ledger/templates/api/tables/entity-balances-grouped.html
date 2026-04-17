@@ -1,7 +1,5 @@
 {% load humanize %}
-<h4 class="mb-1">Balances</h4>
-<div class="d-flex align-items-center justify-content-between mb-2">
-    <span class="text-secondary" style="font-size:.75rem;">All accounts · grouped</span>
+<div class="d-flex justify-content-end mb-2">
     <a href="#"
        hx-get="{% url 'entity-balances' %}?hide_zero={% if hide_zero %}0{% else %}1{% endif %}"
        hx-target="#balances-table"
@@ -15,21 +13,17 @@
 </div>
 
 <div class="row no-gutters">
-    <div class="col-md-7 pr-2">
+    <div class="col-md-6 pr-2">
         {% for group in grouped_balances %}
             <div class="group-section mb-3">
                 <div class="group-header d-flex align-items-baseline justify-content-between">
                     <div>
                         {{ group.account_name }}
-                        <span class="text-secondary ml-2" style="font-size:.7rem; font-weight:normal;">
-                            {% if group.rows %}
-                                {{ group.rows|length }}{% if group.zero_count %} of {{ group.rows|length|add:group.zero_count }}{% endif %}
-                                {{ group.rows|length|pluralize:"entity,entities" }}
-                                {% if group.zero_count %}· {{ group.zero_count }} hidden{% endif %}
-                            {% else %}
-                                {{ group.zero_count }} zero-balance {{ group.zero_count|pluralize:"entity,entities" }} hidden
-                            {% endif %}
-                        </span>
+                        {% if group.zero_count %}
+                            <span class="text-secondary ml-2" style="font-size:.7rem; font-weight:normal;">
+                                {{ group.zero_count }} hidden
+                            </span>
+                        {% endif %}
                     </div>
                     <div class="text-secondary" style="font-size:.7rem;">
                         Net ${{ group.net_balance|floatformat:2|intcomma }}
@@ -69,7 +63,7 @@
             </div>
         {% endfor %}
     </div>
-    <div class="col-md-5 pl-2" style="border-left:1px solid #dee2e6;">
+    <div class="col-md-6 pl-2" style="border-left:1px solid #dee2e6;">
         <div id="history-table" style="position:sticky; top:1rem;">
             {% if entity_history_table %}
                 {{ entity_history_table }}
