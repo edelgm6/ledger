@@ -150,6 +150,7 @@ def get_grouped_entities_balances(hide_zero: bool = True) -> List[GroupedEntityB
         .values(
             "account__id",
             "account__name",
+            "account__is_closed",
             "entity__id",
             "entity__name",
         )
@@ -183,7 +184,7 @@ def get_grouped_entities_balances(hide_zero: bool = True) -> List[GroupedEntityB
 
     raw_groups: dict = {}
     for row in qs:
-        acct_key = (row["account__id"], row["account__name"])
+        acct_key = (row["account__id"], row["account__name"], row["account__is_closed"])
         if acct_key not in raw_groups:
             raw_groups[acct_key] = []
         raw_groups[acct_key].append(
@@ -199,7 +200,7 @@ def get_grouped_entities_balances(hide_zero: bool = True) -> List[GroupedEntityB
         )
 
     result = []
-    for (acct_id, acct_name), all_rows in raw_groups.items():
+    for (acct_id, acct_name, is_closed), all_rows in raw_groups.items():
         net_balance = Decimal("0.00")
         nonzero_rows = []
         zero_count = 0
@@ -209,6 +210,9 @@ def get_grouped_entities_balances(hide_zero: bool = True) -> List[GroupedEntityB
                 zero_count += 1
             else:
                 nonzero_rows.append(r)
+
+        if hide_zero and not nonzero_rows and is_closed:
+            continue
 
         result.append(
             GroupedEntityBalances(
