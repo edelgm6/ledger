@@ -20,6 +20,7 @@ def _render_full_page(
     is_initial_load: bool = False,
     preloaded_entity=None,
     preselected_entity=None,
+    hide_zero: bool = True,
 ) -> str:
     """
     Helper to render the full entities page.
@@ -28,10 +29,13 @@ def _render_full_page(
         is_initial_load: Whether this is the initial page load (shows header)
         preloaded_entity: Entity to pre-select in the form dropdown
         preselected_entity: Entity to highlight in the balances table
+        hide_zero: Whether to hide $0-balance entities in the grouped view
     """
     # Get data via services
     untagged = entity_services.get_untagged_journal_entry_items()
-    balances = entity_services.get_entities_balances()
+    grouped_balances = entity_services.get_grouped_entities_balances(
+        hide_zero=hide_zero
+    )
 
     # Get history if entity selected
     history_html = ""
@@ -48,8 +52,8 @@ def _render_full_page(
             untagged.first_item, preloaded_entity
         )
 
-    balances_html = entity_helpers.render_entity_balances_table(
-        balances, preselected_entity, history_html
+    balances_html = entity_helpers.render_entity_grouped_balances_table(
+        grouped_balances, hide_zero, history_html
     )
 
     return entity_helpers.render_entity_page(
@@ -76,7 +80,9 @@ class EntityHistoryTable(LoginRequiredMixin, View):
     redirect_field_name = "next"
 
     def get(self, request, entity_id):
-        history_data = entity_services.get_entity_history(entity_id)
+        account_id_str = request.GET.get("account")
+        account_id = int(account_id_str) if account_id_str else None
+        history_data = entity_services.get_entity_history(entity_id, account_id)
         html = entity_helpers.render_entity_history_table(history_data)
         return HttpResponse(html)
 
@@ -107,6 +113,23 @@ class TagEntitiesForm(LoginRequiredMixin, View):
         return HttpResponse(html)
 
 
+class EntityGroupedBalancesView(LoginRequiredMixin, View):
+    """Returns just the grouped balances section (for hide-zero toggle)."""
+
+    login_url = "/login/"
+    redirect_field_name = "next"
+
+    def get(self, request):
+        hide_zero = request.GET.get("hide_zero", "1") != "0"
+        grouped_balances = entity_services.get_grouped_entities_balances(
+            hide_zero=hide_zero
+        )
+        html = entity_helpers.render_entity_grouped_balances_table(
+            grouped_balances, hide_zero, history_html=""
+        )
+        return HttpResponse(html)
+
+
 class TagEntitiesView(LoginRequiredMixin, View):
     """Main page for entity tagging (payables/receivables)."""
 
@@ -114,5 +137,6 @@ class TagEntitiesView(LoginRequiredMixin, View):
     redirect_field_name = "next"
 
     def get(self, request):
-        html = _render_full_page(is_initial_load=True)
+        hide_zero = request.GET.get("hide_zero", "1") != "0"
+        html = _render_full_page(is_initial_load=True, hide_zero=hide_zero)
         return HttpResponse(html)
