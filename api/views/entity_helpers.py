@@ -11,7 +11,10 @@ from django.template.loader import render_to_string
 
 from api.forms import JournalEntryItemEntityForm
 from api.models import Entity, JournalEntryItem
-from api.services.entity_services import EntityBalance, EntityHistoryData
+from api.services.entity_services import (
+    EntityHistoryData,
+    GroupedEntityBalances,
+)
 
 
 def render_untagged_entries_table(items: List[JournalEntryItem]) -> Optional[str]:
@@ -29,37 +32,24 @@ def render_untagged_entries_table(items: List[JournalEntryItem]) -> Optional[str
     )
 
 
-def render_entity_balances_table(
-    balances: List[EntityBalance],
-    preselected_entity: Optional[Entity],
+def render_entity_grouped_balances_table(
+    grouped_balances: List[GroupedEntityBalances],
+    hide_zero: bool,
     history_html: str,
 ) -> str:
     """
-    Renders the entity balances table with optional history panel.
+    Renders the grouped entity balances table with history panel.
 
     Args:
-        balances: List of EntityBalance dataclass instances
-        preselected_entity: Entity to highlight in the table
+        grouped_balances: List of GroupedEntityBalances (one per account)
+        hide_zero: Whether $0-balance entities are currently hidden
         history_html: Pre-rendered history table HTML
     """
-    # Convert dataclass instances to dict format expected by template
-    # Template expects entity__id, entity__name, total_debits, total_credits, balance
-    balances_for_template = [
-        {
-            "entity__id": balance.entity_id,
-            "entity__name": balance.entity_name,
-            "total_debits": balance.total_debits,
-            "total_credits": balance.total_credits,
-            "balance": balance.balance,
-        }
-        for balance in balances
-    ]
-
     return render_to_string(
-        "api/tables/entity-balances-table.html",
+        "api/tables/entity-balances-grouped.html",
         {
-            "entities_balances": balances_for_template,
-            "preselected_entity": preselected_entity,
+            "grouped_balances": grouped_balances,
+            "hide_zero": hide_zero,
             "entity_history_table": history_html,
         },
     )
@@ -74,18 +64,22 @@ def render_entity_history_table(history_data: EntityHistoryData) -> str:
     if not history_data.items:
         return ""
 
-    # Transform history items to format expected by template
-    # Template expects journal_entry_items with .balance attribute
     journal_entry_items = []
     for history_item in history_data.items:
         item = history_item.journal_entry_item
-        # Attach balance to the item for template access
         item.balance = history_item.running_balance
         journal_entry_items.append(item)
 
+    final_balance = history_data.items[-1].running_balance
+
     return render_to_string(
         "api/tables/entity-history-table.html",
-        {"journal_entry_items": journal_entry_items},
+        {
+            "journal_entry_items": journal_entry_items,
+            "entity_name": history_data.entity_name,
+            "account_name": history_data.account_name,
+            "final_balance": final_balance,
+        },
     )
 
 
