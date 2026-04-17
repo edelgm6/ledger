@@ -1,0 +1,83 @@
+{% load humanize %}
+<h4 class="mb-1">Balances</h4>
+<div class="d-flex align-items-center justify-content-between mb-2">
+    <span class="text-secondary" style="font-size:.75rem;">All accounts · grouped</span>
+    <a href="#"
+       hx-get="{% url 'entity-balances' %}?hide_zero={% if hide_zero %}0{% else %}1{% endif %}"
+       hx-target="#balances-table"
+       style="font-size:.75rem; text-decoration:none;">
+        {% if hide_zero %}
+            <i class="bi bi-eye"></i> Show zero balances
+        {% else %}
+            <i class="bi bi-eye-slash"></i> Hide zero balances
+        {% endif %}
+    </a>
+</div>
+
+<div class="row no-gutters">
+    <div class="col-md-7 pr-2">
+        {% for group in grouped_balances %}
+            <div class="group-section mb-3">
+                <div class="group-header d-flex align-items-baseline justify-content-between">
+                    <div>
+                        {{ group.account_name }}
+                        <span class="text-secondary ml-2" style="font-size:.7rem; font-weight:normal;">
+                            {% if group.rows %}
+                                {{ group.rows|length }}{% if group.zero_count %} of {{ group.rows|length|add:group.zero_count }}{% endif %}
+                                {{ group.rows|length|pluralize:"entity,entities" }}
+                                {% if group.zero_count %}· {{ group.zero_count }} hidden{% endif %}
+                            {% else %}
+                                {{ group.zero_count }} zero-balance {{ group.zero_count|pluralize:"entity,entities" }} hidden
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="text-secondary" style="font-size:.7rem;">
+                        Net ${{ group.net_balance|floatformat:2|intcomma }}
+                    </div>
+                </div>
+                {% if group.rows %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Entity Name</th>
+                                    <th class="text-right">Total Debits</th>
+                                    <th class="text-right">Total Credits</th>
+                                    <th class="text-right">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in group.rows %}
+                                    <tr class="clickable-row"
+                                        hx-get="{% url 'entity-history' row.entity_id %}?account={{ row.account_id }}"
+                                        hx-target="#history-table">
+                                        <td>{{ row.entity_name }}</td>
+                                        <td class="text-right">${{ row.total_debits|floatformat:2|intcomma }}</td>
+                                        <td class="text-right">${{ row.total_credits|floatformat:2|intcomma }}</td>
+                                        <td class="text-right
+                                            {% if row.balance > 0 %}text-success
+                                            {% elif row.balance < 0 %}text-danger
+                                            {% else %}text-muted{% endif %}">
+                                            ${{ row.balance|floatformat:2|intcomma }}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+    <div class="col-md-5 pl-2" style="border-left:1px solid #dee2e6;">
+        <div id="history-table" style="position:sticky; top:1rem;">
+            {% if entity_history_table %}
+                {{ entity_history_table }}
+            {% else %}
+                <div class="text-muted text-center" style="padding-top:3rem; font-size:.75rem;">
+                    Select an entity to see its transaction history.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
