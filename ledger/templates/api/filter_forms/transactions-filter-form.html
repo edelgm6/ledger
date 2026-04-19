@@ -23,30 +23,12 @@
 
         <!-- Account Field -->
         <div class="col-md-3">
-            <div class="form-group">
-                <label for="id_account">Account</label>
-                <select name="{{ filter_form.account.html_name }}" id="{{ filter_form.account.auto_id }}" class="form-control" multiple>
-                    {% for account in filter_form.account.field.queryset %}
-                        <option value="{{ account.pk }}" {% if account.pk|stringformat:"s" in filter_form.account.value %}selected{% endif %}>
-                            {{ account }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+            {% include "api/components/expandable-multiselect.html" with field=filter_form.account label="Account" %}
         </div>
 
         <!-- Related Account Field -->
         <div class="col-md-3">
-            <div class="form-group">
-                <label for="id_related_account">Related Account</label>
-                <select name="{{ filter_form.related_account.html_name }}" id="{{ filter_form.related_account.auto_id }}" class="form-control" multiple>
-                    {% for account in filter_form.related_account.field.queryset %}
-                        <option value="{{ account.pk }}" {% if account.pk|stringformat:"s" in filter_form.related_account.value %}selected{% endif %}>
-                            {{ account }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+            {% include "api/components/expandable-multiselect.html" with field=filter_form.related_account label="Related Account" %}
         </div>
 
         <!-- Type Field -->

@@ -1,0 +1,24 @@
+<div class="form-group"
+     x-data="{ expanded: false, collapsedHeight: '0px', maxHeight: '0px' }"
+     x-init="
+         $refs.select.style.height = 'auto';
+         collapsedHeight = $refs.select.offsetHeight + 'px';
+         maxHeight = ($refs.select.scrollHeight + 4) + 'px';
+         $refs.select.style.height = '100%';
+     ">
+    <label for="{{ field.auto_id }}"
+           @click="expanded = !expanded"
+           style="cursor: pointer; user-select: none;">
+        {{ label }} <i :class="expanded ? 'bi bi-chevron-up' : 'bi bi-chevron-down'" style="font-size: 0.7em;"></i>
+    </label>
+    <div style="resize: vertical; overflow: auto;"
+         :style="{ height: expanded ? maxHeight : collapsedHeight, minHeight: collapsedHeight, maxHeight: maxHeight }">
+        <select x-ref="select" name="{{ field.html_name }}" id="{{ field.auto_id }}" class="form-control" multiple style="height: 100%;">
+            {% for option in field.field.queryset %}
+                <option value="{{ option.pk }}" {% if option.pk|stringformat:"s" in field.value %}selected{% endif %}>
+                    {{ option }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
