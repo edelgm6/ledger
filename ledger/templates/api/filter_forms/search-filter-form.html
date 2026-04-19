@@ -33,30 +33,12 @@
 
         <!-- Transaction Account -->
         <div class="col-md-3">
-            <div class="form-group">
-                <label for="id_account">Account</label>
-                <select name="account" id="id_account" class="form-control" multiple>
-                    {% for account in form.account.field.queryset %}
-                        <option value="{{ account.pk }}" {% if account.pk|stringformat:"s" in form.account.value %}selected{% endif %}>
-                            {{ account }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+            {% include "api/components/expandable-multiselect.html" with field=form.account label="Account" %}
         </div>
 
         <!-- Related Account -->
         <div class="col-md-3">
-            <div class="form-group">
-                <label for="id_related_account">Related Account</label>
-                <select name="related_account" id="id_related_account" class="form-control" multiple>
-                    {% for account in form.related_account.field.queryset %}
-                        <option value="{{ account.pk }}" {% if account.pk|stringformat:"s" in form.related_account.value %}selected{% endif %}>
-                            {{ account }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+            {% include "api/components/expandable-multiselect.html" with field=form.related_account label="Related Account" %}
         </div>
 
         <!-- Type -->
