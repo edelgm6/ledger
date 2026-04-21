@@ -46,7 +46,7 @@ def render_paystub_detail(data: PaystubDetailData) -> str:
         data: PaystubDetailData containing paystub_values and paystub_id.
     """
     return render_to_string(
-        "api/tables/paystubs-table.html",
+        "api/tables/paystub-detail.html",
         {"paystub_values": data.paystub_values, "paystub_id": data.paystub_id},
     )
 

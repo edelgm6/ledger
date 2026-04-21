@@ -5,11 +5,40 @@
 {{ filter_form }}
 
 <div id="table-and-form">
-    <div x-data="{ selectedRowId: {{ transaction_id|default_if_none:'null' }}, rowIndex: {{index}} }">
+    <div x-data="{
+            selectedRowId: {{ transaction_id|default_if_none:'null' }},
+            rowIndex: {{ index }},
+            expandedPaystubId: null,
+            togglePaystub(id, url) {
+                if (this.expandedPaystubId === id) {
+                    this.expandedPaystubId = null;
+                    return;
+                }
+                this.expandedPaystubId = id;
+                const target = document.getElementById(`paystub-detail-${id}`);
+                if (!target.innerHTML.trim()) {
+                    htmx.ajax('GET', url, {target: target});
+                }
+            },
+            fillPaystub(paystubId) {
+                this.expandedPaystubId = null;
+                if (!this.selectedRowId) return;
+                htmx.ajax(
+                    'GET',
+                    `/journal-entries/form/${this.selectedRowId}/?row_index=${this.rowIndex}&paystub_id=${paystubId}`,
+                    {target: '#form-div'}
+                );
+            }
+         }">
         <div class="row">
-            <div class="col-md-12">
+            <div class="col-md-8">
                 <div id="table">
                     {{ table }}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div id="paystubs">
+                    {{ paystubs_table }}
                 </div>
             </div>
         </div>
@@ -17,13 +46,6 @@
             <div class="col-md-12">
                 <div id="form-div">
                     {{ entry_form }}
-                </div>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-8">
-                <div id="paystubs">
-                    {{ paystubs_table }}
                 </div>
             </div>
         </div>
