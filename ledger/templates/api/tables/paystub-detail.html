@@ -1,0 +1,32 @@
+{% load humanize %}
+{% if paystub_values %}
+<table class="table table-sm mb-2" style="background: transparent;">
+    <thead>
+        <tr>
+            <th>Account</th>
+            <th style="text-align: right;">Value</th>
+            <th>Type</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for paystub_value in paystub_values %}
+        <tr>
+            <td>{{ paystub_value.account }}</td>
+            <td style="text-align: right;">${{ paystub_value.amount }}</td>
+            <td>{{ paystub_value.journal_entry_item_type }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="d-flex justify-content-end">
+    <button
+        @click="fillPaystub({{ paystub_id }})"
+        x-bind:disabled="!selectedRowId"
+        x-bind:class="!selectedRowId ? 'btn btn-secondary btn-sm' : 'btn btn-primary btn-sm'"
+        x-bind:title="!selectedRowId ? 'Select a transaction first' : ''"
+    >
+        Fill Paystub
+    </button>
+</div>
+{% endif %}
