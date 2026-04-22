@@ -612,6 +612,7 @@ class Account(models.Model):
         PURCHASES = "purchases", _("Purchases")
         TAX = "tax", _("Tax")
         INTEREST = "interest", _("Interest Expense")
+        DEPRECIATION = "depreciation", _("Depreciation")
 
     # TODO: Add a test that makes sure every type/subtype is represented here
     SUBTYPE_TO_TYPE_MAP = {
@@ -637,7 +638,7 @@ class Account(models.Model):
             SubType.OTHER_INCOME,
             SubType.UNREALIZED_INVESTMENT_GAINS,
         ],
-        Type.EXPENSE: [SubType.PURCHASES, SubType.INTEREST, SubType.TAX],
+        Type.EXPENSE: [SubType.PURCHASES, SubType.INTEREST, SubType.TAX, SubType.DEPRECIATION],
     }
 
     name = models.CharField(max_length=200, unique=True)
