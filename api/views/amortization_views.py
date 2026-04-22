@@ -4,11 +4,41 @@ from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.views import View
 
-from api.forms import AmortizationForm, DateForm
+from api.forms import AmortizationForm, DateForm, DepreciationForm
 from api.models import Account, Amortization, JournalEntryItem
 
 
 class AmortizationTableMixin:
+    amortizations_content_template = "api/content/amortizations-content.html"
+    unattached_transactions_content = "api/content/unattached-transactions-content.html"
+    unattached_depreciable_assets_content = (
+        "api/content/unattached-depreciable-assets-content.html"
+    )
+    page_template = "api/views/amortizations.html"
+
+    def render_page(self, request):
+        context = {
+            "unattached_transactions": render_to_string(
+                self.unattached_transactions_content,
+                {
+                    "table": self.get_unattached_prepaids_table_html(),
+                    "amortization_form": self.get_amortization_form_html(),
+                },
+            ),
+            "unattached_depreciable_assets": render_to_string(
+                self.unattached_depreciable_assets_content,
+                {
+                    "table": self.get_unattached_depreciable_assets_table_html(),
+                    "depreciation_form": self.get_depreciation_form_html(),
+                },
+            ),
+            "amortize": render_to_string(
+                self.amortizations_content_template,
+                {"table": self.get_amortization_table_html()},
+            ),
+        }
+        return render(request, self.page_template, context)
+
     def get_amortization_table_html(self):
         amortizations = (
             Amortization.objects.select_related(
@@ -44,11 +74,35 @@ class AmortizationTableMixin:
             prepaid_table_template, {"journal_entry_items": unattached_journal_entries}
         )
 
+    def get_unattached_depreciable_assets_table_html(self):
+        table_template = "api/tables/unattached-depreciable-assets.html"
+
+        unattached_journal_entries = (
+            JournalEntryItem.objects.filter(
+                account__type=Account.Type.ASSET,
+                type=JournalEntryItem.JournalEntryType.DEBIT,
+                amortization__isnull=True,
+                journal_entry__transaction__amortization__isnull=True,
+            )
+            .exclude(account__special_type=Account.SpecialType.PREPAID_EXPENSES)
+            .select_related("journal_entry__transaction", "account")
+        )
+        return render_to_string(
+            table_template, {"journal_entry_items": unattached_journal_entries}
+        )
+
     def get_amortization_form_html(self, journal_entry_item=None):
         form = AmortizationForm()
         if journal_entry_item:
             form.initial["accrued_journal_entry_item"] = journal_entry_item
         form_template = "api/entry_forms/amortization-form.html"
+        return render_to_string(form_template, {"form": form})
+
+    def get_depreciation_form_html(self, journal_entry_item=None):
+        form = DepreciationForm()
+        if journal_entry_item:
+            form.initial["accrued_journal_entry_item"] = journal_entry_item
+        form_template = "api/entry_forms/depreciation-form.html"
         return render_to_string(form_template, {"form": form})
 
     def get_amortize_form_html(self, amortization):
@@ -99,64 +153,44 @@ class AmortizationFormView(AmortizationTableMixin, LoginRequiredMixin, View):
         return HttpResponse(amortization_form_html)
 
 
+class DepreciationFormView(AmortizationTableMixin, LoginRequiredMixin, View):
+    login_url = "/login/"
+    redirect_field_name = "next"
+
+    def get(self, request, journal_entry_item_id):
+        journal_entry_item = get_object_or_404(
+            JournalEntryItem, pk=journal_entry_item_id
+        )
+        depreciation_form_html = self.get_depreciation_form_html(journal_entry_item)
+        return HttpResponse(depreciation_form_html)
+
+
 class AmortizationView(AmortizationTableMixin, LoginRequiredMixin, View):
     login_url = "/login/"
     redirect_field_name = "next"
-    amortizations_content_template = "api/content/amortizations-content.html"
-    unattached_transactions_content = "api/content/unattached-transactions-content.html"
-    amortizations_content = "api/content/amortizations-content.html"
 
     def get(self, request, *args, **kwargs):
-
-        # create amortizations
-        unattached_transactions_html = self.get_unattached_prepaids_table_html()
-        amortization_form_html = self.get_amortization_form_html()
-
-        # amortize
-        amortizations_table_html = self.get_amortization_table_html()
-
-        context = {
-            "unattached_transactions": render_to_string(
-                self.unattached_transactions_content,
-                {
-                    "table": unattached_transactions_html,
-                    "amortization_form": amortization_form_html,
-                },
-            ),
-            "amortize": render_to_string(
-                self.amortizations_content_template, {"table": amortizations_table_html}
-            ),
-        }
-
-        template = "api/views/amortizations.html"
-        return render(request, template, context)
+        return self.render_page(request)
 
     def post(self, request):
         form = AmortizationForm(request.POST)
 
         if form.is_valid():
             form.save()
-            unattached_transactions_html = self.get_unattached_prepaids_table_html()
-            amortization_form_html = self.get_amortization_form_html()
+            return self.render_page(request)
 
-            # amortize
-            amortizations_table_html = self.get_amortization_table_html()
+        print(form.errors)
 
-            context = {
-                "unattached_transactions": render_to_string(
-                    self.unattached_transactions_content,
-                    {
-                        "table": unattached_transactions_html,
-                        "amortization_form": amortization_form_html,
-                    },
-                ),
-                "amortize": render_to_string(
-                    self.amortizations_content_template,
-                    {"table": amortizations_table_html},
-                ),
-            }
 
-            template = "api/views/amortizations.html"
-            return render(request, template, context)
+class DepreciationView(AmortizationTableMixin, LoginRequiredMixin, View):
+    login_url = "/login/"
+    redirect_field_name = "next"
+
+    def post(self, request):
+        form = DepreciationForm(request.POST)
+
+        if form.is_valid():
+            form.save()
+            return self.render_page(request)
 
         print(form.errors)
