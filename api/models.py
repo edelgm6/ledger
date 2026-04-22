@@ -593,6 +593,7 @@ class Account(models.Model):
         )
         SECURITIES_RETIREMENT = ("securities_retirement", _("Securities-Retirement"))
         REAL_ESTATE = "real_estate", _("Real Estate")
+        VEHICLES = "vehicles", _("Vehicles")
         # Equity types
         RETAINED_EARNINGS = "retained_earnings", _("Retained Earnings")
         # Income types
@@ -626,6 +627,7 @@ class Account(models.Model):
             SubType.SECURITIES_UNRESTRICTED,
             SubType.SECURITIES_RETIREMENT,
             SubType.REAL_ESTATE,
+            SubType.VEHICLES,
         ],
         Type.EQUITY: [SubType.RETAINED_EARNINGS],
         Type.INCOME: [

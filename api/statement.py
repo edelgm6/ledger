@@ -372,6 +372,7 @@ class CashFlowStatement(Statement):
             Account.SubType.SECURITIES_RETIREMENT,
             Account.SubType.SECURITIES_UNRESTRICTED,
             Account.SubType.REAL_ESTATE,
+            Account.SubType.VEHICLES,
         ]
         exclude_journal_entries_with_sub_types = [
             Account.SubType.UNREALIZED_INVESTMENT_GAINS
