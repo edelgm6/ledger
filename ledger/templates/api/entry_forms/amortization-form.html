@@ -46,6 +46,18 @@
                 </div>
             {% endif %}
         </div>
+
+        <!-- Form group for 'salvage_value' field -->
+        <div class="col-md-2">
+            <input type="text" class="form-control" placeholder="Salvage Value (optional)" id="id_salvage_value" name="salvage_value"
+                value="{{ form.salvage_value.value|default_if_none:'' }}">
+            {% if form.salvage_value.errors %}
+                <div class="invalid-feedback">
+                    {{ form.salvage_value.errors.as_text }}
+                </div>
+            {% endif %}
+        </div>
+
         <!-- Submit button -->
         <div class="col-md-2">
             <div class="form-group">
