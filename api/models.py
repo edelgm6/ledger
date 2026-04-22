@@ -684,7 +684,7 @@ class Account(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["special_type"],
-                condition=~Q(special_type="property_taxes"),
+                condition=~Q(special_type__in=["property_taxes", "prepaid_expenses"]),
                 name="unique_special_type_except_property_taxes",
             )
         ]
