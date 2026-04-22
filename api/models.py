@@ -176,6 +176,9 @@ class Amortization(models.Model):
         "JournalEntryItem", on_delete=models.CASCADE, related_name="amortization"
     )
     amount = models.DecimalField(decimal_places=2, max_digits=12)
+    salvage_value = models.DecimalField(
+        decimal_places=2, max_digits=12, null=True, blank=True
+    )
     periods = models.PositiveSmallIntegerField(null=True, blank=True)
     is_closed = models.BooleanField(default=False)
     description = models.CharField(max_length=200)
@@ -186,6 +189,14 @@ class Amortization(models.Model):
 
     def __str__(self):
         return self.description + " $" + str(self.amount)
+
+    @property
+    def is_depreciation(self):
+        return self.salvage_value is not None
+
+    @property
+    def depreciable_base(self):
+        return self.amount - (self.salvage_value or 0)
 
     @staticmethod
     def _round_down(n, decimals=2):
@@ -200,7 +211,7 @@ class Amortization(models.Model):
         total_amortized = sum(
             [transaction.amount for transaction in related_transactions]
         )
-        remaining_balance = self.amount + total_amortized
+        remaining_balance = self.depreciable_base + total_amortized
 
         related_transactions_count = len(related_transactions)
         remaining_periods = self.periods - related_transactions_count
@@ -220,20 +231,22 @@ class Amortization(models.Model):
             )
             is_final_amortization = True
         else:
-            amortization_amount = self._round_down(self.amount / self.periods)
+            amortization_amount = self._round_down(
+                self.depreciable_base / self.periods
+            )
             is_final_amortization = False
 
-        prepaid_account = Account.objects.get(
-            special_type=Account.SpecialType.PREPAID_EXPENSES
-        )
+        label = "depreciation" if self.is_depreciation else "amortization"
 
         transaction = Transaction.objects.create(
             date=date,
-            account=prepaid_account,
+            account=self.accrued_journal_entry_item.account,
             amount=amortization_amount * -1,
             description=(
                 self.description
-                + " amortization #"
+                + " "
+                + label
+                + " #"
                 + str(len(self.get_related_transactions()) + 1)
             ),
             suggested_account=self.suggested_account,

@@ -3,6 +3,7 @@ Dockerfile
 .vscode
 .DS_Store
 FOR\[garrett\].md
+/prompts
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -121,6 +122,9 @@ __pypackages__/
 # Celery stuff
 celerybeat-schedule
 celerybeat.pid
+
+# Redis (Celery broker) dump file
+dump.rdb
 
 # SageMath parsed files
 *.sage.py
