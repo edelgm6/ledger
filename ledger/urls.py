@@ -7,6 +7,8 @@ from api.views.amortization_views import (
     AmortizationFormView,
     AmortizationView,
     AmortizeFormView,
+    DepreciationFormView,
+    DepreciationView,
 )
 from api.views.entity_views import (
     EntityGroupedBalancesView,
@@ -130,6 +132,16 @@ urlpatterns = [
         "amortization/amortize-form/<int:amortization_id>/",
         AmortizeFormView.as_view(),
         name="amortize-form",
+    ),
+    path(
+        "amortization/depreciation/",
+        DepreciationView.as_view(),
+        name="depreciation",
+    ),
+    path(
+        "amortization/depreciation-form/<int:journal_entry_item_id>/",
+        DepreciationFormView.as_view(),
+        name="depreciation-form",
     ),
     # Search & Bulk Update
     path("search/", SearchView.as_view(), name="search"),

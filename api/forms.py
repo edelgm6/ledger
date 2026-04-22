@@ -120,6 +120,31 @@ class AmortizationForm(forms.ModelForm):
         return instance
 
 
+class DepreciationForm(AmortizationForm):
+    class Meta(AmortizationForm.Meta):
+        fields = AmortizationForm.Meta.fields + ["salvage_value"]
+
+    def clean(self):
+        cleaned = super().clean()
+        salvage = cleaned.get("salvage_value")
+        jei = cleaned.get("accrued_journal_entry_item")
+
+        if salvage is None:
+            self.add_error(
+                "salvage_value", "Salvage value is required for depreciation."
+            )
+        elif salvage <= 0:
+            self.add_error(
+                "salvage_value", "Salvage value must be greater than 0."
+            )
+        elif jei is not None and salvage >= abs(jei.amount):
+            self.add_error(
+                "salvage_value", "Salvage value must be less than asset cost."
+            )
+
+        return cleaned
+
+
 class UploadTransactionsForm(forms.Form):
     account = forms.ModelChoiceField(
         queryset=Account.objects.filter(csv_profile__isnull=False)
