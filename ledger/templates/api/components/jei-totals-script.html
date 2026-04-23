@@ -1,44 +1,38 @@
 <script>
 $(document).ready(function() {
-    // Function to calculate and format totals
+    const FMT = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+    const $form = $('#journal-entry-form');
+    const sign = (n) => n > 0 ? "+" : n < 0 ? "-" : "";
+
     function calculateTotals() {
         let totalDebits = 0;
         let totalCredits = 0;
 
-        // Calculate total for debits
-        $('[name^="debits-"][name$="-amount"]').each(function() {
-            let value = $(this).val().replace(/,/g, ''); // Remove commas
-            totalDebits += parseFloat(value) || 0;
+        $form.find('[name^="debits-"][name$="-amount"]').each(function() {
+            totalDebits += parseFloat($(this).val().replace(/,/g, '')) || 0;
         });
 
-        // Calculate total for credits
-        $('[name^="credits-"][name$="-amount"]').each(function() {
-            let value = $(this).val().replace(/,/g, ''); // Remove commas
-            totalCredits += parseFloat(value) || 0;
+        $form.find('[name^="credits-"][name$="-amount"]').each(function() {
+            totalCredits += parseFloat($(this).val().replace(/,/g, '')) || 0;
         });
 
-        // Calculate deltas
-        let deltaDebits = totalDebits - totalCredits;
-        let deltaCredits = totalCredits - totalDebits;
+        const delta = totalDebits - totalCredits;
 
-        // Format totals with relative delta
         $('#totalDebits').text(
-            totalDebits.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) +
-            ` (${deltaDebits >= 0 ? "+" : ""}${deltaDebits.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+            totalDebits.toLocaleString('en-US', FMT) +
+            ` (${sign(delta)}${Math.abs(delta).toLocaleString('en-US', FMT)})`
         );
 
         $('#totalCredits').text(
-            totalCredits.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) +
-            ` (${deltaCredits >= 0 ? "+" : ""}${deltaCredits.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+            totalCredits.toLocaleString('en-US', FMT) +
+            ` (${sign(-delta)}${Math.abs(delta).toLocaleString('en-US', FMT)})`
         );
 
         console.log("Debits:", totalDebits, "Credits:", totalCredits);
-        console.log("Delta Debits:", deltaDebits, "Delta Credits:", deltaCredits);
+        console.log("Delta Debits:", delta, "Delta Credits:", -delta);
     }
 
-    // Attach event listener for input on amount fields
-    $('#journal-entry-form').on('input', '[name$="-amount"]', function() {
-        calculateTotals();
-    });
+    $form.on('input', '[name$="-amount"]', calculateTotals);
+    calculateTotals();
 });
 </script>
