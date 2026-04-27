@@ -1,0 +1,126 @@
+<form
+    id="transactions-filter-form"
+    method="get"
+    hx-get="{{ get_url }}"
+    hx-target="#table-and-form"
+    hx-trigger="submit"
+    hx-swap="outerHTML"
+    class="je-filters"
+>
+    <div class="je-filter-field">
+        <label class="je-filter-label" for="{{ filter_form.date_from.auto_id }}">Date From</label>
+        <input type="date"
+               class="je-filter-input"
+               name="{{ filter_form.date_from.html_name }}"
+               id="{{ filter_form.date_from.auto_id }}"
+               value="{{ filter_form.date_from.value|default_if_none:'' }}">
+    </div>
+
+    <div class="je-filter-field">
+        <label class="je-filter-label" for="{{ filter_form.date_to.auto_id }}">Date To</label>
+        <input type="date"
+               class="je-filter-input"
+               name="{{ filter_form.date_to.html_name }}"
+               id="{{ filter_form.date_to.auto_id }}"
+               value="{{ filter_form.date_to.value|default_if_none:'' }}">
+    </div>
+
+    <div class="je-filter-field" data-placeholder="Any account">
+        <label class="je-filter-label">Account</label>
+        <div class="je-chip-select" tabindex="0">
+            <span class="je-chip-display"></span>
+            <span class="je-chip-caret">&#9662;</span>
+            <select multiple class="je-chip-source"
+                    name="{{ filter_form.account.html_name }}"
+                    id="{{ filter_form.account.auto_id }}">
+                {% for option in filter_form.account.field.queryset %}
+                    <option value="{{ option.pk }}"
+                            {% if option.pk|stringformat:"s" in filter_form.account.value %}selected{% endif %}>
+                        {{ option }}
+                    </option>
+                {% endfor %}
+            </select>
+            <div class="je-chip-menu"></div>
+        </div>
+    </div>
+
+    <div class="je-filter-field" data-placeholder="Any related">
+        <label class="je-filter-label">Related Account</label>
+        <div class="je-chip-select" tabindex="0">
+            <span class="je-chip-display"></span>
+            <span class="je-chip-caret">&#9662;</span>
+            <select multiple class="je-chip-source"
+                    name="{{ filter_form.related_account.html_name }}"
+                    id="{{ filter_form.related_account.auto_id }}">
+                {% for option in filter_form.related_account.field.queryset %}
+                    <option value="{{ option.pk }}"
+                            {% if option.pk|stringformat:"s" in filter_form.related_account.value %}selected{% endif %}>
+                        {{ option }}
+                    </option>
+                {% endfor %}
+            </select>
+            <div class="je-chip-menu"></div>
+        </div>
+    </div>
+
+    <div class="je-filter-field" data-placeholder="Any type">
+        <label class="je-filter-label">Type</label>
+        <div class="je-chip-select" tabindex="0">
+            <span class="je-chip-display"></span>
+            <span class="je-chip-caret">&#9662;</span>
+            <select multiple class="je-chip-source"
+                    name="{{ filter_form.transaction_type.html_name }}"
+                    id="{{ filter_form.transaction_type.auto_id }}">
+                {% for value, label in filter_form.transaction_type.field.choices %}
+                    <option value="{{ value }}"
+                            {% if value in filter_form.transaction_type.value %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                {% endfor %}
+            </select>
+            <div class="je-chip-menu"></div>
+        </div>
+    </div>
+
+    <div class="je-filter-field">
+        <label class="je-filter-label" for="{{ filter_form.is_closed.auto_id }}">Closed</label>
+        <select class="je-filter-select"
+                name="{{ filter_form.is_closed.html_name }}"
+                id="{{ filter_form.is_closed.auto_id }}">
+            {% for value, label in filter_form.is_closed.field.choices %}
+                <option value="{{ value }}"
+                        {% if value|stringformat:"s" == filter_form.is_closed.value|stringformat:"s" %}selected{% endif %}>
+                    {{ label }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="je-filter-field">
+        <label class="je-filter-label" for="{{ filter_form.has_linked_transaction.auto_id }}">Linked</label>
+        <select class="je-filter-select"
+                name="{{ filter_form.has_linked_transaction.html_name }}"
+                id="{{ filter_form.has_linked_transaction.auto_id }}">
+            {% for value, label in filter_form.has_linked_transaction.field.choices %}
+                <option value="{{ value }}"
+                        {% if value|stringformat:"s" == filter_form.has_linked_transaction.value|stringformat:"s" %}selected{% endif %}>
+                    {{ label }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="je-filter-actions">
+        <button type="submit" class="btn-stamp primary">Filter</button>
+        <button type="button"
+                class="btn-stamp"
+                hx-get="{% url 'trigger-autotag' %}"
+                hx-trigger="click"
+                hx-target="#autotag-success"
+                hx-swap="innerHTML">
+            Run Autotag
+        </button>
+    </div>
+
+    <div id="autotag-success" class="je-autotag-success"></div>
+</form>
