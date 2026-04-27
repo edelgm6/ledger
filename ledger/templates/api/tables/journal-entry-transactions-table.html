@@ -1,0 +1,42 @@
+{% load humanize %}
+<div class="je-ledger">
+    <div class="je-ledger-head">
+        <h2 class="je-ledger-title">
+            Transactions
+            <span class="sub">{{ transactions|length }} OPEN</span>
+        </h2>
+    </div>
+    <div id="transactions-table" class="je-t-scroll">
+        <table class="je-tx">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Account</th>
+                    <th class="num">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for transaction in transactions %}
+                <tr
+                    class="clickable-row{% if forloop.counter0 == index and not no_highlight %} selected{% endif %}"
+                    hx-get="{{ row_url }}form/{{ transaction.id }}/?row_index={{ forloop.counter0 }}"
+                    hx-target="#form-div"
+                    data-transaction-id="{{ transaction.id }}"
+                    @click="selectedRowId = {{ transaction.id }}; rowIndex = {{ forloop.counter0 }}"
+                >
+                    <td class="je-tx-date">{{ transaction.date }}</td>
+                    <td class="je-tx-memo">{{ transaction.description }}</td>
+                    <td>{{ transaction.account }}</td>
+                    <td class="num je-tx-amt {% if transaction.amount >= 0 %}in{% else %}out{% endif %}">
+                        ${{ transaction.amount|floatformat:2|intcomma }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if not transactions %}
+        <div class="je-empty">No pending transactions match the current filter.</div>
+        {% endif %}
+    </div>
+</div>

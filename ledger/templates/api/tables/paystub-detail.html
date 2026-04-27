@@ -1,32 +1,25 @@
 {% load humanize %}
-{% if paystub_values %}
-<table class="table table-sm mb-2" style="background: transparent;">
-    <thead>
-        <tr>
-            <th>Account</th>
-            <th style="text-align: right;">Value</th>
-            <th>Type</th>
-        </tr>
-    </thead>
-    <tbody>
+<div class="je-ps-detail">
+    {% if paystub_values %}
         {% for paystub_value in paystub_values %}
-        <tr>
-            <td>{{ paystub_value.account }}</td>
-            <td style="text-align: right;">${{ paystub_value.amount }}</td>
-            <td>{{ paystub_value.journal_entry_item_type }}</td>
-        </tr>
+        <div class="je-ps-detail-line {% if paystub_value.journal_entry_item_type == 'debit' %}dr{% else %}cr{% endif %}">
+            <span class="kind">{% if paystub_value.journal_entry_item_type == 'debit' %}Dr{% else %}Cr{% endif %}</span>
+            <span class="acct">{{ paystub_value.account }}{% if paystub_value.entity %}<span class="ent">{{ paystub_value.entity }}</span>{% endif %}</span>
+            <span class="amt">${{ paystub_value.amount|floatformat:2|intcomma }}</span>
+        </div>
         {% endfor %}
-    </tbody>
-</table>
-
-<div class="d-flex justify-content-end">
-    <button
-        @click="fillPaystub({{ paystub_id }})"
-        x-bind:disabled="!selectedRowId"
-        x-bind:class="!selectedRowId ? 'btn btn-secondary btn-sm' : 'btn btn-primary btn-sm'"
-        x-bind:title="!selectedRowId ? 'Select a transaction first' : ''"
-    >
-        Fill Paystub
-    </button>
+    {% else %}
+        <div class="je-ps-empty">No line items recorded for this paystub.</div>
+    {% endif %}
+    <div class="je-ps-fill-row">
+        <button
+            type="button"
+            class="je-ps-fill"
+            @click.stop="fillPaystub({{ paystub_id }})"
+            x-bind:disabled="!selectedRowId"
+            x-bind:title="!selectedRowId ? 'Select a transaction first' : ''"
+        >
+            Fill Paystub
+        </button>
+    </div>
 </div>
-{% endif %}

@@ -1,0 +1,1137 @@
+/* ==========================================================================
+   Journal Entries — Rapidfire (Sepia)
+   All selectors namespaced under .je-page so styles never leak elsewhere.
+   Fonts are loaded via <link> in journal-entry-view.html so they don't
+   block render the way an @import in this sheet would.
+   ========================================================================== */
+
+/* Hide the global Bootstrap nav whenever the JE skin is mounted. */
+body:has(.je-page) > nav.navbar.navbar-expand-lg {
+    display: none;
+}
+body:has(.je-page) {
+    background: #efe2c7;
+    margin: 0;
+    padding: 0;
+}
+
+/* Break the JE page out of Bootstrap's fixed-width .container so it spans full viewport. */
+body:has(.je-page) > #container.container,
+body:has(.je-page) #container.container {
+    max-width: none;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+.je-page {
+    --paper:        #efe2c7;
+    --paper-soft:   #e6d6b4;
+    --paper-edge:   #d1bc90;
+    --bar-green:    #d1c196;
+    --bar-dark:     #c9b185;
+    --table-head:   #78583a;
+    --kraft:        #c49f68;
+
+    --ink:          #3a2410;
+    --ink-soft:     #4e3318;
+    --ink-dim:      #78583a;
+    --ink-faint:    #9c7f5c;
+    --ink-ghost:    rgba(58, 36, 16, 0.2);
+
+    --ink-blue:     #4e3318;
+    --stamp-red:    #733318;
+    --stamp-red-hi: #8a4325;
+    --ledger-green: #5c4a22;
+    --brass:        #8a6327;
+
+    --rule:         #4e3318;
+    --rule-soft:    rgba(78, 51, 24, 0.3);
+    --rule-faint:   rgba(78, 51, 24, 0.14);
+
+    --serif:   "Playfair Display", "Libre Caslon Display", Georgia, serif;
+    --display: "DM Serif Display", "Bodoni 72", "Times New Roman", serif;
+    --mono:    "IBM Plex Mono", "Courier Prime", "Courier New", ui-monospace, monospace;
+
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.5;
+    font-feature-settings: "tnum" 1;
+    -webkit-font-smoothing: antialiased;
+    box-sizing: border-box;
+}
+
+.je-page * { box-sizing: border-box; }
+
+/* ==========================================================================
+   Navbar
+   ========================================================================== */
+.je-page .je-navbar {
+    background: var(--paper-soft);
+    border-bottom: 3px double var(--rule);
+    padding: 10px 28px 9px;
+    margin-bottom: 0;
+}
+.je-page .je-nav-inner {
+    max-width: 1660px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 32px;
+}
+.je-page .je-brand {
+    font-family: var(--serif);
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--ink);
+    text-decoration: none;
+    letter-spacing: 0.01em;
+    line-height: 1;
+}
+.je-page .je-brand .co {
+    font-family: var(--display);
+    font-style: italic;
+    font-weight: 400;
+    color: var(--ink-dim);
+    font-size: 18px;
+    margin-left: 4px;
+}
+.je-page .je-nav-links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    gap: 22px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.je-page .je-nav-links a {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    text-decoration: none;
+    padding: 3px 0 2px;
+    border-bottom: 1.5px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.1s, border-color 0.1s;
+}
+.je-page .je-nav-links a:hover { color: var(--ink); }
+.je-page .je-nav-links a.active {
+    color: var(--ink);
+    border-bottom-color: var(--stamp-red);
+    font-weight: 600;
+}
+.je-page .je-nav-dropdown {
+    position: relative;
+}
+.je-page .je-nav-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--paper);
+    border: 1.5px solid var(--rule);
+    box-shadow: 3px 3px 0 var(--rule-faint);
+    min-width: 170px;
+    padding: 4px 0;
+    z-index: 50;
+    display: none;
+}
+.je-page .je-nav-dropdown.open .je-nav-dropdown-menu { display: block; }
+.je-page .je-nav-dropdown-menu a {
+    display: block;
+    padding: 6px 14px;
+    border-bottom: none;
+}
+.je-page .je-nav-dropdown-menu a:hover { background: var(--bar-green); }
+.je-page .je-help-cue {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+.je-page .je-help-cue:hover { color: var(--ink); }
+.je-page .je-help-cue kbd {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    padding: 1px 6px;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    background: var(--paper);
+    color: var(--ink);
+}
+
+/* ==========================================================================
+   Layout wrap
+   ========================================================================== */
+.je-page .je-wrap {
+    max-width: 1660px;
+    margin: 0 auto;
+    padding: 12px 28px 32px;
+    position: relative;
+}
+/* ==========================================================================
+   Filter bar
+   ========================================================================== */
+.je-page .je-filters {
+    display: grid;
+    grid-template-columns: 1.4fr 110px 110px 1.1fr 1.1fr 0.9fr 0.9fr auto;
+    align-items: end;
+    gap: 14px;
+    padding: 9px 16px 11px;
+    background: var(--paper-soft);
+    border: 1px solid var(--rule);
+    border-top: 3px double var(--rule);
+    position: relative;
+    margin: 0 0 14px 0;
+}
+.je-page .je-filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    position: relative;
+}
+.je-page .je-filter-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin: 0;
+}
+.je-page .je-filter-input,
+.je-page .je-filter-select {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--rule);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 3px 2px 2px;
+    outline: none;
+    border-radius: 0;
+    transition: border-color 0.1s, background 0.1s;
+    height: 26px;
+}
+.je-page .je-filter-input:focus,
+.je-page .je-filter-select:focus {
+    border-bottom: 2px solid var(--stamp-red);
+    padding-bottom: 1px;
+    background: rgba(255, 250, 230, 0.5);
+}
+.je-page .je-filter-input::placeholder {
+    color: var(--ink-faint);
+    font-style: italic;
+}
+.je-page .je-filter-actions {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+.je-page .btn-stamp {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    color: var(--ink);
+    cursor: pointer;
+    font-weight: 600;
+    border-radius: 0;
+    transition: all 0.1s;
+    line-height: 1;
+}
+.je-page .btn-stamp:hover {
+    background: var(--ink);
+    color: var(--paper);
+}
+.je-page .btn-stamp.primary {
+    background: var(--ink-blue);
+    color: var(--paper);
+    border-color: var(--ink-blue);
+    box-shadow: 2px 2px 0 var(--ink);
+}
+.je-page .btn-stamp.primary:hover {
+    background: var(--ink);
+    border-color: var(--ink);
+    box-shadow: 3px 3px 0 var(--ink);
+    transform: translate(-1px, -1px);
+}
+.je-page .je-autotag-success {
+    grid-column: 1 / -1;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: var(--ledger-green);
+    min-height: 1em;
+}
+
+/* ==========================================================================
+   Chip multi-select
+   ========================================================================== */
+.je-page .je-chip-select {
+    position: relative;
+    min-height: 26px;
+    border-bottom: 1px solid var(--rule);
+    padding: 2px 18px 1px 2px;
+    cursor: pointer;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    align-items: center;
+    background: transparent;
+    transition: border-color 0.1s, background 0.1s;
+    outline: none;
+}
+.je-page .je-chip-select:hover,
+.je-page .je-chip-select.open {
+    border-bottom: 2px solid var(--stamp-red);
+    padding-bottom: 0;
+    background: rgba(255, 250, 230, 0.5);
+}
+.je-page .je-chip-placeholder {
+    color: var(--ink-faint);
+    font-style: italic;
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 2px 0 1px;
+}
+.je-page .je-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    padding: 1px 4px 1px 6px;
+    border: 1px solid var(--ink);
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 1px;
+    line-height: 1.3;
+}
+.je-page .je-chip .x {
+    color: var(--ink-dim);
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    padding: 0 1px;
+}
+.je-page .je-chip .x:hover { color: var(--stamp-red); }
+.je-page .je-chip-caret {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 9px;
+    color: var(--ink-dim);
+    pointer-events: none;
+}
+.je-page .je-chip-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    background: var(--paper);
+    border: 1.5px solid var(--rule);
+    padding: 3px 0;
+    z-index: 40;
+    max-height: 220px;
+    overflow-y: auto;
+    box-shadow: 3px 3px 0 var(--rule-faint);
+    min-width: 180px;
+}
+.je-page .je-chip-select.open .je-chip-menu { display: block; }
+.je-page .je-chip-menu-item {
+    display: grid;
+    grid-template-columns: 14px 1fr;
+    gap: 8px;
+    align-items: center;
+    padding: 4px 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink);
+    cursor: pointer;
+    transition: background 0.08s;
+    user-select: none;
+}
+.je-page .je-chip-menu-item:hover { background: var(--bar-green); }
+.je-page .je-chip-menu-item .box {
+    width: 12px;
+    height: 12px;
+    border: 1px solid var(--ink);
+    background: var(--paper);
+    display: inline-block;
+    text-align: center;
+    line-height: 10px;
+    font-size: 10px;
+    color: var(--ink);
+    font-weight: 700;
+}
+.je-page .je-chip-menu-item.checked .box::before { content: "\2713"; }
+
+/* The real <select multiple> hidden behind the chip widget. */
+.je-page .je-chip-source {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    left: -10000px;
+}
+
+/* ==========================================================================
+   Two-column ledger pane
+   ========================================================================== */
+.je-page .je-split {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 4px;
+}
+.je-page .je-ledger {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow:
+        0 1px 0 0 var(--paper-edge),
+        0 2px 0 0 var(--rule),
+        0 3px 0 0 var(--paper-edge);
+}
+.je-page .je-ledger-head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 6px 14px 5px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper-soft);
+    min-height: 30px;
+}
+.je-page .je-ledger-title {
+    font-family: var(--serif);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 0;
+}
+.je-page .je-ledger-title .sub {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    font-weight: 400;
+}
+.je-page .je-t-scroll {
+    overflow-y: auto;
+    max-height: 230px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--rule-soft) transparent;
+}
+.je-page .je-t-scroll::-webkit-scrollbar { width: 6px; }
+.je-page .je-t-scroll::-webkit-scrollbar-thumb {
+    background: var(--rule-soft);
+    border-radius: 4px;
+}
+.je-page table.je-tx,
+.je-page table.je-ps {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+    margin: 0;
+    table-layout: fixed;
+}
+.je-page table.je-ps thead th { width: 50%; }
+.je-page table.je-tx thead th,
+.je-page table.je-ps thead th {
+    position: sticky;
+    top: 0;
+    background: var(--table-head);
+    color: var(--paper);
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    padding: 5px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--rule);
+}
+.je-page table.je-tx thead th.num,
+.je-page table.je-ps thead th.num { text-align: right; }
+.je-page table.je-tx thead th:not(:last-child),
+.je-page table.je-ps thead th:not(:last-child) {
+    border-right: 1px solid rgba(242, 235, 212, 0.2);
+}
+.je-page table.je-tx tbody tr:nth-child(odd) td,
+.je-page table.je-ps tbody tr.ps-row:nth-of-type(odd) td {
+    background: var(--bar-green);
+}
+.je-page table.je-tx tbody tr:nth-child(even) td,
+.je-page table.je-ps tbody tr.ps-row:nth-of-type(even) td {
+    background: var(--paper);
+}
+.je-page table.je-tx tbody td,
+.je-page table.je-ps tbody td {
+    padding: 3px 10px;
+    border-bottom: 1px solid var(--rule-faint);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.35;
+    color: var(--ink);
+    vertical-align: middle;
+}
+.je-page table.je-tx tbody td.num,
+.je-page table.je-ps tbody td.num { text-align: right; }
+.je-page table.je-tx tbody td:not(:last-child),
+.je-page table.je-ps tbody td:not(:last-child) {
+    border-right: 1px solid var(--rule-faint);
+}
+.je-page table.je-tx tbody tr {
+    cursor: pointer;
+    position: relative;
+    transition: filter 0.08s;
+}
+.je-page table.je-tx tbody tr:hover td {
+    filter: brightness(1.04);
+    background-color: var(--kraft) !important;
+}
+.je-page table.je-tx tbody tr.selected td {
+    background: var(--kraft) !important;
+    box-shadow: inset 0 -1px 0 var(--ink);
+}
+.je-page table.je-tx tbody tr.selected td:first-child {
+    padding-left: 22px;
+}
+.je-page table.je-tx tbody tr.selected td:first-child::before {
+    content: "\25B6";
+    position: absolute;
+    left: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--stamp-red);
+    font-size: 10px;
+}
+.je-page .je-tx-date {
+    color: var(--ink-soft);
+    font-size: 10.5px;
+    white-space: nowrap;
+}
+.je-page .je-tx-amt { font-weight: 600; color: var(--ink); }
+.je-page .je-tx-amt.in { color: var(--ledger-green); }
+.je-page .je-tx-amt.out { color: var(--stamp-red); }
+.je-page .je-tx-memo { color: var(--ink); font-weight: 500; }
+.je-page .je-tx-memo .sub {
+    color: var(--ink-dim);
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    margin-left: 6px;
+    font-weight: 400;
+    font-style: italic;
+}
+/* Paystubs */
+.je-page table.je-ps tbody tr.ps-row {
+    cursor: pointer;
+}
+.je-page table.je-ps tbody tr.ps-row:hover td {
+    filter: brightness(1.04);
+    background-color: var(--kraft) !important;
+}
+.je-page .je-ps-caret {
+    display: inline-block;
+    width: 10px;
+    color: var(--ink-dim);
+    font-size: 10px;
+    margin-right: 4px;
+    transition: transform 0.12s;
+    transform-origin: center;
+}
+.je-page .je-ps-caret.open {
+    transform: rotate(90deg);
+    color: var(--stamp-red);
+}
+.je-page .je-ps-title {
+    font-weight: 600;
+    color: var(--ink);
+}
+.je-page .je-ps-doc {
+    color: var(--ink-dim);
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    font-style: italic;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.je-page table.je-ps tbody td.je-ps-title-cell {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.je-page .je-ps-fill {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border: 1.2px solid var(--ink);
+    background: var(--paper);
+    color: var(--ink);
+    cursor: pointer;
+    font-weight: 600;
+    border-radius: 0;
+}
+.je-page .je-ps-fill:hover:not(:disabled) {
+    background: var(--ink);
+    color: var(--paper);
+}
+.je-page .je-ps-fill:disabled {
+    opacity: 0.28;
+    cursor: not-allowed;
+    border-color: var(--ink-dim);
+    color: var(--ink-dim);
+}
+.je-page tr.je-ps-detail-row td {
+    background: var(--paper-soft) !important;
+    padding: 0 !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--rule-faint) !important;
+}
+.je-page .je-ps-detail {
+    padding: 5px 14px 7px 22px;
+    border-top: 1px dashed var(--rule-soft);
+}
+.je-page .je-ps-detail-line {
+    display: grid;
+    grid-template-columns: 28px 1fr 80px;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    padding: 1px 0;
+    align-items: baseline;
+}
+.je-page .je-ps-detail-line .kind {
+    font-size: 8.5px;
+    letter-spacing: 0.24em;
+    font-weight: 700;
+}
+.je-page .je-ps-detail-line.dr .kind { color: var(--stamp-red); }
+.je-page .je-ps-detail-line.cr .kind { color: var(--ledger-green); }
+.je-page .je-ps-detail-line .acct { color: var(--ink); }
+.je-page .je-ps-detail-line .ent {
+    color: var(--ink-dim);
+    font-style: italic;
+    font-size: 9.5px;
+    margin-left: 6px;
+}
+.je-page .je-ps-detail-line .amt {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--ink);
+}
+.je-page .je-ps-empty {
+    font-style: italic;
+    color: var(--ink-faint);
+    font-size: 10px;
+    padding: 2px 0;
+}
+.je-page .je-ps-fill-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 6px;
+}
+
+/* Poller (Textract pending) */
+.je-page .je-ps-poller {
+    padding: 16px;
+    text-align: center;
+    color: var(--ink-dim);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+}
+.je-page .je-ps-poller .file { color: var(--ink); font-weight: 600; }
+
+/* ==========================================================================
+   Journal entry form
+   ========================================================================== */
+.je-page .je-form-card {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    margin-top: 14px;
+    position: relative;
+    box-shadow:
+        0 1px 0 0 var(--paper-edge),
+        0 2px 0 0 var(--rule);
+}
+.je-page .je-form-head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: center;
+    padding: 10px 20px 9px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper-soft);
+    position: relative;
+}
+.je-page .je-form-title {
+    font-family: var(--serif);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--ink);
+    letter-spacing: 0.01em;
+    margin: 0;
+}
+.je-page .je-delta-stack {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    justify-content: flex-end;
+}
+.je-page .je-delta-box {
+    min-width: 96px;
+    padding: 3px 10px 4px;
+    border: 1.2px solid var(--rule);
+    background: var(--paper);
+    text-align: right;
+    transition: all 0.12s;
+}
+.je-page .je-delta-box .lab {
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    display: block;
+}
+.je-page .je-delta-box .val {
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: 16px;
+    line-height: 1.15;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+}
+.je-page .je-delta-box .val::before {
+    content: "$";
+    font-family: var(--display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 13px;
+    color: var(--ink-dim);
+    margin-right: 2px;
+    vertical-align: 1px;
+}
+.je-page .je-delta-box.balanced {
+    background: rgba(92, 74, 34, 0.1);
+    border-color: var(--ledger-green);
+}
+.je-page .je-delta-box.balanced .val { color: var(--ledger-green); }
+.je-page .je-delta-box.off {
+    background: rgba(115, 51, 24, 0.1);
+    border-color: var(--stamp-red);
+}
+.je-page .je-delta-box.off .val { color: var(--stamp-red); }
+
+.je-page .je-form-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+}
+.je-page .je-form-col {
+    padding: 12px 18px 14px 28px;
+    position: relative;
+}
+.je-page .je-form-col.debits {
+    border-right: 1px solid var(--rule);
+}
+.je-page .je-col-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+.je-page .je-col-title {
+    font-family: var(--serif);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: 0.01em;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 0;
+}
+.je-page .je-col-title .emb {
+    font-family: var(--display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 11px;
+    color: var(--ink-dim);
+    letter-spacing: 0;
+}
+.je-page .je-col-title .arrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--stamp-red);
+}
+.je-page .credits-title .arrow { color: var(--ledger-green); }
+.je-page .je-col-total {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+}
+.je-page .je-col-total b {
+    color: var(--ink);
+    font-family: var(--serif);
+    font-weight: 700;
+    margin-left: 5px;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+}
+.je-page .je-col-legend {
+    display: grid;
+    grid-template-columns: 1.8fr 1fr 1fr;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    padding-bottom: 3px;
+    margin-bottom: 3px;
+    border-bottom: 1px solid var(--rule);
+}
+.je-page .je-col-legend span.num { text-align: right; }
+
+.je-page .je-line {
+    display: grid;
+    grid-template-columns: 1.8fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 1px;
+    align-items: baseline;
+    position: relative;
+    padding: 0;
+}
+.je-page .je-line .num-idx {
+    position: absolute;
+    left: -22px;
+    top: 5px;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+}
+.je-page .je-cell { position: relative; }
+.je-page .je-cell input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px dotted var(--rule-soft);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 3px 4px 2px;
+    outline: none;
+    border-radius: 0;
+    box-shadow: none;
+    transition: border-color 0.1s, background 0.1s;
+}
+.je-page .je-cell input::placeholder {
+    color: var(--ink-faint);
+    font-style: italic;
+    letter-spacing: 0.02em;
+}
+.je-page .je-cell input:focus {
+    border-bottom: 2px solid var(--stamp-red);
+    padding-bottom: 1px;
+    background: rgba(255, 250, 225, 0.6);
+}
+.je-page .je-cell.amt input {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+}
+.je-page .je-cell.amt::before {
+    content: "$";
+    position: absolute;
+    right: 100%;
+    margin-right: 2px;
+    top: 4px;
+    font-family: var(--display);
+    font-style: italic;
+    font-size: 12px;
+    color: var(--ink-faint);
+    pointer-events: none;
+}
+.je-page .je-form-col.credits .je-cell input:focus {
+    border-bottom-color: var(--ledger-green);
+}
+.je-page .je-cell input.is-invalid {
+    border-bottom: 2px solid var(--stamp-red);
+    background: rgba(115, 51, 24, 0.06);
+}
+.je-page .invalid-feedback {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    color: var(--stamp-red);
+    display: block;
+    margin-top: 1px;
+}
+
+.je-page .je-row-add {
+    background: transparent;
+    border: 1px dashed var(--rule-soft);
+    color: var(--ink-dim);
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    cursor: pointer;
+    margin-top: 8px;
+    width: 100%;
+    border-radius: 0;
+    transition: all 0.1s;
+}
+.je-page .je-row-add:hover {
+    color: var(--ink);
+    border-color: var(--rule);
+    background: rgba(255, 250, 225, 0.4);
+}
+
+.je-page .je-form-foot {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: center;
+    padding: 7px 20px 8px;
+    border-top: 1px solid var(--rule);
+    background: var(--paper-soft);
+}
+.je-page .je-foot-hints {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+}
+.je-page .je-foot-hints kbd {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 1px 5px;
+    margin-right: 4px;
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    color: var(--ink);
+}
+
+.je-page .je-submit {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    padding: 7px 16px;
+    border: 2px solid var(--stamp-red);
+    background: var(--stamp-red);
+    color: var(--paper);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    border-radius: 0;
+    transition: all 0.12s;
+    box-shadow: 2px 2px 0 var(--ink);
+}
+.je-page .je-submit kbd {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 1px 5px;
+    border: 1px solid currentColor;
+    opacity: 0.72;
+}
+.je-page .je-submit:hover {
+    background: var(--stamp-red-hi);
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0 var(--ink);
+}
+.je-page .je-submit:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--ink);
+}
+
+.je-page .je-created-entities {
+    padding: 6px 20px;
+    background: rgba(92, 74, 34, 0.06);
+    border-bottom: 1px solid var(--rule-faint);
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ledger-green);
+}
+.je-page .alert-danger {
+    margin: 0;
+    padding: 8px 20px;
+    background: rgba(115, 51, 24, 0.1);
+    border-bottom: 1px solid var(--stamp-red);
+    color: var(--stamp-red);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.02em;
+    border-radius: 0;
+}
+
+/* ==========================================================================
+   Help overlay
+   ========================================================================== */
+.je-page .je-kb-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(58, 36, 16, 0.62);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+.je-page .je-kb-overlay.show { display: flex; }
+.je-page .je-kb-card {
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    padding: 30px 42px 34px;
+    max-width: 580px;
+    width: 90%;
+    position: relative;
+    box-shadow: 8px 8px 0 var(--ink);
+}
+.je-page .je-kb-card::before {
+    content: "MEMORANDUM";
+    position: absolute;
+    top: -13px;
+    left: 42px;
+    background: var(--paper);
+    padding: 0 10px;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.34em;
+    color: var(--ink-dim);
+}
+.je-page .je-kb-card h3 {
+    font-family: var(--serif);
+    font-size: 30px;
+    font-weight: 700;
+    margin: 0 0 2px;
+    color: var(--ink);
+    letter-spacing: 0.01em;
+}
+.je-page .je-kb-card h3 em {
+    font-family: var(--display);
+    font-style: italic;
+    font-weight: 400;
+    color: var(--ledger-green);
+}
+.je-page .je-kb-card .subh {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    border-bottom: 3px double var(--rule);
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+}
+.je-page .je-kb-card dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px 24px;
+    margin: 0;
+}
+.je-page .je-kb-card dt {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+.je-page .je-kb-card dt kbd {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid var(--ink);
+    margin-right: 4px;
+    background: var(--paper);
+    font-weight: 500;
+}
+.je-page .je-kb-card dd {
+    margin: 0;
+    font-size: 12px;
+    color: var(--ink-soft);
+    letter-spacing: 0.02em;
+}
+.je-page .je-kb-card .close-hint {
+    margin-top: 26px;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    text-align: center;
+    border-top: 1px solid var(--rule-soft);
+    padding-top: 14px;
+}
+.je-page .je-kb-close {
+    cursor: pointer;
+    margin-left: 8px;
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+@media (max-width: 1200px) {
+    .je-page .je-split { grid-template-columns: 1fr; }
+    .je-page .je-filters {
+        grid-template-columns: 1fr 1fr;
+    }
+    .je-page .je-form-body { grid-template-columns: 1fr; }
+    .je-page .je-form-col.debits {
+        border-right: none;
+        border-bottom: 3px double var(--rule);
+    }
+    .je-page .je-form-head { grid-template-columns: 1fr; text-align: center; }
+    .je-page .je-nav-inner { grid-template-columns: 1fr; gap: 10px; justify-items: center; }
+}

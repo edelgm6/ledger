@@ -1,0 +1,37 @@
+<div id="table-and-form" x-data="{
+        selectedRowId: {{ transaction_id|default_if_none:'null' }},
+        rowIndex: {{ index }},
+        expandedPaystubId: null,
+        togglePaystub(id, url) {
+            if (this.expandedPaystubId === id) {
+                this.expandedPaystubId = null;
+                return;
+            }
+            this.expandedPaystubId = id;
+            const target = document.getElementById(`paystub-detail-${id}`);
+            if (!target.innerHTML.trim()) {
+                htmx.ajax('GET', url, {target: target});
+            }
+        },
+        fillPaystub(paystubId) {
+            this.expandedPaystubId = null;
+            if (!this.selectedRowId) return;
+            htmx.ajax(
+                'GET',
+                `/journal-entries/form/${this.selectedRowId}/?row_index=${this.rowIndex}&paystub_id=${paystubId}`,
+                {target: '#form-div'}
+            );
+        }
+     }">
+    <div class="je-split">
+        <div id="table">
+            {{ table }}
+        </div>
+        <div id="paystubs">
+            {{ paystubs_table }}
+        </div>
+    </div>
+    <div id="form-div">
+        {{ entry_form }}
+    </div>
+</div>
