@@ -525,3 +525,66 @@ class JournalEntryPaystubTests(JournalEntryE2EBase):
 
         self.paystub.refresh_from_db()
         self.assertIsNotNone(self.paystub.journal_entry)
+
+
+class JournalEntryDefaultRowsTests(JournalEntryE2EBase):
+    """Form renders with 10 debit + 10 credit lines on initial load."""
+
+    def test_default_form_has_ten_lines_per_column(self):
+        AccountFactory(name="Checking", type=Account.Type.ASSET, is_closed=False)
+        TransactionFactory(
+            account=AccountFactory(name="Salary", type=Account.Type.INCOME, is_closed=False),
+            amount=Decimal("100.00"),
+            type=Transaction.TransactionType.INCOME,
+            is_closed=False,
+        )
+        self.goto_journal_entries()
+
+        self.assertEqual(self.page.locator("#debit-lines .je-line").count(), 10)
+        self.assertEqual(self.page.locator("#credit-lines .je-line").count(), 10)
+
+
+class JournalEntryLastRowSubmitTests(JournalEntryE2EBase):
+    """Submitting the last open transaction highlights the new last row, not row 0."""
+
+    def test_submit_last_row_highlights_new_last_row(self):
+        checking = AccountFactory(name="Checking", type=Account.Type.ASSET, is_closed=False)
+        AccountFactory(name="Groceries", type=Account.Type.EXPENSE, is_closed=False)
+        EntityFactory(name="Vendor", is_closed=False)
+
+        # Explicit dates → table sort (date, account, pk) is deterministic: first, middle, last.
+        first = TransactionFactory(
+            account=checking, amount=Decimal("10.00"),
+            type=Transaction.TransactionType.PURCHASE, is_closed=False,
+            description="FIRST_TXN", date=datetime.date(2024, 1, 1),
+        )
+        TransactionFactory(
+            account=checking, amount=Decimal("20.00"),
+            type=Transaction.TransactionType.PURCHASE, is_closed=False,
+            description="MIDDLE_TXN", date=datetime.date(2024, 1, 2),
+        )
+        last = TransactionFactory(
+            account=checking, amount=Decimal("30.00"),
+            type=Transaction.TransactionType.PURCHASE, is_closed=False,
+            description="LAST_TXN", date=datetime.date(2024, 1, 3),
+        )
+
+        self.goto_journal_entries()
+        self.click_transaction_row(last.id)
+
+        self.page.fill("input[name='debits-0-entity']", "Vendor")
+        self.page.fill("input[name='credits-0-account']", "Groceries")
+        self.page.fill("input[name='credits-0-entity']", "Vendor")
+        self.submit_form(last.id)
+
+        # New last row is now MIDDLE_TXN; FIRST_TXN should NOT be the selected one.
+        rows = self.page.locator("#transactions-table tbody tr[data-transaction-id]")
+        self.assertEqual(rows.count(), 2)
+        last_visible = rows.nth(rows.count() - 1)
+        self.assertIn("selected", last_visible.get_attribute("class") or "")
+        self.assertIn("MIDDLE_TXN", last_visible.text_content())
+
+        # And the form-div should be loaded with that transaction's prefill.
+        first_row = rows.nth(0)
+        self.assertNotIn("selected", first_row.get_attribute("class") or "")
+

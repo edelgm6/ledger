@@ -24,11 +24,12 @@ from api.services.paystub_services import (
     get_paystubs_table_data,
 )
 from api.views.journal_entry_helpers import (
+    render_journal_entry_filter_form,
     render_journal_entry_form,
+    render_journal_entry_paystubs_table,
+    render_journal_entry_transactions_table,
     render_paystub_detail,
-    render_paystubs_table,
 )
-from api.views import transaction_helpers
 
 
 class TriggerAutoTagView(LoginRequiredMixin, View):
@@ -51,7 +52,7 @@ class JournalEntryTableView(LoginRequiredMixin, View):
         form = TransactionFilterForm(request.GET, prefix="filter")
         if form.is_valid():
             transactions = form.get_transactions()
-            table_html = transaction_helpers.render_transaction_table(
+            table_html = render_journal_entry_transactions_table(
                 transactions=transactions, row_url=reverse("journal-entries")
             )
             try:
@@ -60,8 +61,7 @@ class JournalEntryTableView(LoginRequiredMixin, View):
                 transaction = None
             entry_form_html = render_journal_entry_form(transaction=transaction)
             paystubs_table_data = get_paystubs_table_data()
-            paystubs_table_html = render_paystubs_table(paystubs_table_data)
-            view_template = "api/views/journal-entry-view.html"
+            paystubs_table_html = render_journal_entry_paystubs_table(paystubs_table_data)
             context = {
                 "entry_form": entry_form_html,
                 "table": table_html,
@@ -70,7 +70,9 @@ class JournalEntryTableView(LoginRequiredMixin, View):
                 "index": 0,
             }
 
-            html = render_to_string(view_template, context)
+            html = render_to_string(
+                "api/views/journal-entry-table-and-form.html", context
+            )
             return HttpResponse(html)
 
 
@@ -78,7 +80,6 @@ class JournalEntryTableView(LoginRequiredMixin, View):
 class JournalEntryFormView(LoginRequiredMixin, View):
     login_url = "/login/"
     redirect_field_name = "next"
-    item_form_template = "api/entry_forms/journal-entry-item-form.html"
 
     def get(self, request, transaction_id):
         transaction = Transaction.objects.select_related("journal_entry").get(
@@ -98,7 +99,7 @@ class JournalEntryFormView(LoginRequiredMixin, View):
 class PaystubTableView(LoginRequiredMixin, View):
     def get(self, request):
         paystubs_table_data = get_paystubs_table_data()
-        html = render_paystubs_table(paystubs_table_data)
+        html = render_journal_entry_paystubs_table(paystubs_table_data)
         return HttpResponse(html)
 
 
@@ -129,7 +130,7 @@ class JournalEntryView(LoginRequiredMixin, View):
         )
         transactions = filter_result.transactions
 
-        filter_form_html = transaction_helpers.render_transaction_filter_form(
+        filter_form_html = render_journal_entry_filter_form(
             is_closed=False,
             transaction_type=[
                 Transaction.TransactionType.INCOME,
@@ -137,7 +138,7 @@ class JournalEntryView(LoginRequiredMixin, View):
             ],
             get_url=reverse("journal-entries-table"),
         )
-        table_html = transaction_helpers.render_transaction_table(
+        table_html = render_journal_entry_transactions_table(
             transactions=transactions, row_url=reverse("journal-entries")
         )
         try:
@@ -146,7 +147,7 @@ class JournalEntryView(LoginRequiredMixin, View):
             transaction = None
         entry_form_html = render_journal_entry_form(transaction=transaction)
         paystubs_table_data = get_paystubs_table_data()
-        paystubs_table_html = render_paystubs_table(paystubs_table_data)
+        paystubs_table_html = render_journal_entry_paystubs_table(paystubs_table_data)
         context = {
             "filter_form": filter_form_html,
             "table": table_html,
@@ -266,16 +267,16 @@ class JournalEntryView(LoginRequiredMixin, View):
         else:
             entry_form_html = ""
 
-        table_html = transaction_helpers.render_transaction_table(
+        table_html = render_journal_entry_transactions_table(
             transactions=context.transactions,
             index=context.highlighted_index,
             row_url=reverse("journal-entries"),
         )
         paystubs_table_data = get_paystubs_table_data()
-        paystubs_table_html = render_paystubs_table(paystubs_table_data)
+        paystubs_table_html = render_journal_entry_paystubs_table(paystubs_table_data)
 
         html = render_to_string(
-            self.view_template,
+            "api/views/journal-entry-table-and-form.html",
             {
                 "table": table_html,
                 "entry_form": entry_form_html,

@@ -1,0 +1,53 @@
+<nav class="je-navbar">
+    <div class="je-nav-inner">
+        <a class="je-brand" href="{% url 'journal-entries' %}"
+           hx-get="{% url 'journal-entries' %}" hx-target="#container">
+            Ledger<span class="co">&amp; Co.</span>
+        </a>
+
+        <ul class="je-nav-links">
+            <li><a class="{% if request.resolver_match.url_name == 'journal-entries' %}active{% endif %}"
+                   href="{% url 'journal-entries' %}"
+                   hx-get="{% url 'journal-entries' %}" hx-target="#container">Entries</a></li>
+            <li><a class="{% if request.resolver_match.url_name == 'link-transactions' %}active{% endif %}"
+                   href="{% url 'link-transactions' %}"
+                   hx-get="{% url 'link-transactions' %}" hx-target="#container">Links</a></li>
+            <li><a class="{% if request.resolver_match.url_name == 'transactions' %}active{% endif %}"
+                   href="{% url 'transactions' %}"
+                   hx-get="{% url 'transactions' %}" hx-target="#container">Transactions</a></li>
+            <li><a class="{% if request.resolver_match.url_name == 'taxes' %}active{% endif %}"
+                   href="{% url 'taxes' %}"
+                   hx-get="{% url 'taxes' %}" hx-target="#container">Taxes</a></li>
+            <li><a class="{% if request.resolver_match.url_name == 'reconciliation' %}active{% endif %}"
+                   href="{% url 'reconciliation' %}"
+                   hx-get="{% url 'reconciliation' %}" hx-target="#container">Reconciliations</a></li>
+            <li><a class="{% if request.resolver_match.url_name == 'amortization' %}active{% endif %}"
+                   href="{% url 'amortization' %}"
+                   hx-get="{% url 'amortization' %}" hx-target="#container">Amortizations</a></li>
+            <li><a class="{% if request.resolver_match.url_name == 'tag-entities' %}active{% endif %}"
+                   href="{% url 'tag-entities' %}"
+                   hx-get="{% url 'tag-entities' %}" hx-target="#container">Balances</a></li>
+            <li><a class="{% if request.resolver_match.url_name == 'upload-transactions' %}active{% endif %}"
+                   href="{% url 'upload-transactions' %}"
+                   hx-get="{% url 'upload-transactions' %}" hx-target="#container">Upload/Download</a></li>
+            <li><a class="{% if request.resolver_match.url_name == 'search' %}active{% endif %}"
+                   href="{% url 'search' %}"
+                   hx-get="{% url 'search' %}" hx-target="#container">Search</a></li>
+            <li class="je-nav-dropdown">
+                <a class="je-nav-dropdown-toggle" href="#">Financials &#9662;</a>
+                <div class="je-nav-dropdown-menu">
+                    <a href="{% url 'statements' 'income' %}"
+                       hx-get="{% url 'statements' 'income' %}" hx-target="#container" hx-include="#statement-form">Income Statement</a>
+                    <a href="{% url 'statements' 'balance' %}"
+                       hx-get="{% url 'statements' 'balance' %}" hx-target="#container" hx-include="#statement-form">Balance Sheet</a>
+                    <a href="{% url 'statements' 'cash' %}"
+                       hx-get="{% url 'statements' 'cash' %}" hx-target="#container" hx-include="#statement-form">Cash Flow</a>
+                </div>
+            </li>
+        </ul>
+
+        <button type="button" class="je-help-cue" aria-label="Show keyboard shortcuts">
+            Keys <kbd>?</kbd>
+        </button>
+    </div>
+</nav>
