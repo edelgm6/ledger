@@ -468,8 +468,8 @@ def get_post_save_context(
         highlighted_transaction = transactions[current_index]
         highlighted_index = current_index
     except IndexError:
-        highlighted_transaction = transactions[0]
-        highlighted_index = 0
+        highlighted_index = len(transactions) - 1
+        highlighted_transaction = transactions[highlighted_index]
 
     # Extract created entities from formsets
     created_entities = []

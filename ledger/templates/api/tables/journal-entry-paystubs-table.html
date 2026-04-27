@@ -1,0 +1,44 @@
+{% load humanize %}
+<div class="je-ledger">
+    <div class="je-ledger-head">
+        <h2 class="je-ledger-title">
+            Paystubs
+            <span class="sub">{{ paystubs|length }} UNLINKED</span>
+        </h2>
+    </div>
+    {% if paystubs %}
+    <div id="paystubs-table" class="je-t-scroll">
+        <table class="je-ps">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Document</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for paystub in paystubs %}
+                <tr
+                    class="clickable-row ps-row"
+                    @click="togglePaystub({{ paystub.id }}, '{% url 'paystub-detail' paystub.id %}')"
+                >
+                    <td title="{{ paystub.title }}" class="je-ps-title-cell">
+                        <span class="je-ps-caret" :class="expandedPaystubId === {{ paystub.id }} ? 'open' : ''">&#9656;</span>
+                        <span class="je-ps-title">{{ paystub.title }}</span>
+                    </td>
+                    <td title="{{ paystub.document.user_filename }}" class="je-ps-doc">
+                        {{ paystub.document.user_filename }}
+                    </td>
+                </tr>
+                <tr class="je-ps-detail-row" x-show="expandedPaystubId === {{ paystub.id }}" x-cloak>
+                    <td colspan="2">
+                        <div id="paystub-detail-{{ paystub.id }}"></div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="je-ps-poller">No unlinked paystubs.</div>
+    {% endif %}
+</div>

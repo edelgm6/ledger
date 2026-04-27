@@ -619,7 +619,7 @@ class GetPostSaveContextTest(TestCase):
         self.assertNotIn(self.transaction3, context.transactions)
 
     def test_context_handles_index_out_of_bounds(self):
-        """Test resets to index 0 when current index invalid."""
+        """When current index is past the new list, highlight the last row."""
         filter_form = Mock(spec=TransactionFilterForm)
         filter_form.is_valid.return_value = True
         filter_form.get_transactions.return_value = [self.transaction1, self.transaction2]
@@ -638,9 +638,9 @@ class GetPostSaveContextTest(TestCase):
             credit_formset=credit_formset,
         )
 
-        # Should reset to 0
-        self.assertEqual(context.highlighted_index, 0)
-        self.assertEqual(context.highlighted_transaction, self.transaction1)
+        # Should fall back to the new last row (preserves "stay at the bottom").
+        self.assertEqual(context.highlighted_index, 1)
+        self.assertEqual(context.highlighted_transaction, self.transaction2)
 
     def test_context_extracts_created_entities(self):
         """Test collects entities created during form cleaning."""
