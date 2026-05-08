@@ -60,6 +60,6 @@ def get_paystub_detail_data(paystub_id: int) -> PaystubDetailData:
     """
     paystub_values = PaystubValue.objects.filter(
         paystub__pk=paystub_id
-    ).select_related("account", "entity")
+    ).select_related("account")
 
     return PaystubDetailData(paystub_values=paystub_values, paystub_id=paystub_id)
