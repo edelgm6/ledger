@@ -267,13 +267,13 @@ class TaxChargeForm(forms.ModelForm):
 
 class TransactionLinkForm(forms.Form):
     first_transaction = forms.ModelChoiceField(
-        queryset=Transaction.objects.all(),
+        queryset=Transaction.objects.select_related("account__entity"),
         required=True,
         label="Base Transaction",
         widget=forms.HiddenInput(),
     )
     second_transaction = forms.ModelChoiceField(
-        queryset=Transaction.objects.all(),
+        queryset=Transaction.objects.select_related("account__entity"),
         required=True,
         label="Linked Transaction",
         widget=forms.HiddenInput(),
