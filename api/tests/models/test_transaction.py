@@ -1,7 +1,7 @@
 import datetime
 from django.test import TestCase
 from api.models import Transaction, TransactionQuerySet
-from api.tests.testing_factories import TransactionFactory, AccountFactory
+from api.tests.testing_factories import TransactionFactory, AccountFactory, EntityFactory
 
 class TransactionModelTest(TestCase):
 
@@ -53,27 +53,23 @@ class TransactionModelTest(TestCase):
 
     def test_create_link_method(self):
         """Test the create_link method of the Transaction model."""
-        # Create two transaction instances
+        entity = EntityFactory()
+        account2 = AccountFactory(entity=entity)
         transaction1 = TransactionFactory(account=self.account)
-        transaction2 = TransactionFactory(account=self.account)
+        transaction2 = TransactionFactory(account=account2)
 
-        # Ensure the initial state is as expected
         self.assertIsNone(transaction1.linked_transaction, "linked_transaction should initially be None")
         self.assertFalse(transaction2.is_closed, "Transaction should initially be not closed")
 
-        # Use the create_link method to link transaction1 to transaction2
         transaction1.create_link(transaction2)
 
-        # Reload the transactions from the database
         transaction1.refresh_from_db()
         transaction2.refresh_from_db()
 
-        # Check that transaction1 is now linked to transaction2
-        self.assertEqual(transaction1.linked_transaction, transaction2, "Transaction1 should be linked to Transaction2")
-        self.assertEqual(transaction1.suggested_account, transaction2.account, "suggested_account should be set to transaction2's account")
-
-        # Check that transaction2 is now closed
-        self.assertTrue(transaction2.is_closed, "Transaction2 should be marked as closed")
+        self.assertEqual(transaction1.linked_transaction, transaction2)
+        self.assertEqual(transaction1.suggested_account, account2)
+        self.assertEqual(transaction1.suggested_entity, entity)
+        self.assertTrue(transaction2.is_closed)
 
 class TransactionQuerySetTest(TestCase):
 
