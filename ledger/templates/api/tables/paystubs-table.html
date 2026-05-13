@@ -14,7 +14,7 @@
                 <tr
                     class="clickable-row"
                     style="cursor: pointer;"
-                    @click="togglePaystub({{ paystub.id }}, '{% url 'paystub-detail' paystub.id %}')"
+                    @click="togglePaystub({{ paystub.id }}, '{% url 'paystub-detail' paystub.id %}{% if show_fill_button %}?show_fill_button=true{% endif %}')"
                 >
                     <td class="transaction-column" title="{{ paystub.title }}">{{ paystub.title }}</td>
                     <td class="transaction-column" title="{{ paystub.document.user_filename }}">{{ paystub.document.user_filename }}</td>

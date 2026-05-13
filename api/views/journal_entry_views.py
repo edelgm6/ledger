@@ -106,7 +106,8 @@ class PaystubDetailView(LoginRequiredMixin, View):
 
     def get(self, request, paystub_id):
         detail_data = get_paystub_detail_data(paystub_id)
-        html = render_paystub_detail(detail_data)
+        show_fill_button = request.GET.get("show_fill_button") == "true"
+        html = render_paystub_detail(detail_data, show_fill_button=show_fill_button)
         return HttpResponse(html)
 
 
