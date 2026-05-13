@@ -610,7 +610,7 @@ class Account(models.Model):
             _("Unrealized Investment Gains"),
         )
         # Expense Types
-        PURCHASES = "purchases", _("Purchases")
+        OPERATING = "operating", _("Operating")
         TAX = "tax", _("Tax")
         INTEREST = "interest", _("Interest Expense")
         DEPRECIATION = "depreciation", _("Depreciation")
@@ -639,7 +639,7 @@ class Account(models.Model):
             SubType.OTHER_INCOME,
             SubType.UNREALIZED_INVESTMENT_GAINS,
         ],
-        Type.EXPENSE: [SubType.PURCHASES, SubType.INTEREST, SubType.TAX, SubType.DEPRECIATION],
+        Type.EXPENSE: [SubType.OPERATING, SubType.INTEREST, SubType.TAX, SubType.DEPRECIATION],
     }
 
     name = models.CharField(max_length=200, unique=True)

@@ -234,13 +234,13 @@ class Command(BaseCommand):
             ('Other Income', Account.Type.INCOME, Account.SubType.OTHER_INCOME, entities.get('self')),
 
             # Expenses
-            ('Groceries', Account.Type.EXPENSE, Account.SubType.PURCHASES, None),
-            ('Dining', Account.Type.EXPENSE, Account.SubType.PURCHASES, None),
-            ('Utilities', Account.Type.EXPENSE, Account.SubType.PURCHASES, None),
-            ('Insurance', Account.Type.EXPENSE, Account.SubType.PURCHASES, None),
-            ('Entertainment', Account.Type.EXPENSE, Account.SubType.PURCHASES, None),
-            ('Transportation', Account.Type.EXPENSE, Account.SubType.PURCHASES, None),
-            ('Healthcare', Account.Type.EXPENSE, Account.SubType.PURCHASES, None),
+            ('Groceries', Account.Type.EXPENSE, Account.SubType.OPERATING, None),
+            ('Dining', Account.Type.EXPENSE, Account.SubType.OPERATING, None),
+            ('Utilities', Account.Type.EXPENSE, Account.SubType.OPERATING, None),
+            ('Insurance', Account.Type.EXPENSE, Account.SubType.OPERATING, None),
+            ('Entertainment', Account.Type.EXPENSE, Account.SubType.OPERATING, None),
+            ('Transportation', Account.Type.EXPENSE, Account.SubType.OPERATING, None),
+            ('Healthcare', Account.Type.EXPENSE, Account.SubType.OPERATING, None),
             ('Mortgage Interest', Account.Type.EXPENSE, Account.SubType.INTEREST, None),
 
             # Equity

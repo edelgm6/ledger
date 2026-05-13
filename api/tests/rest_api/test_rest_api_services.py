@@ -72,7 +72,7 @@ class CreateJournalEntryFromAPITest(TestCase):
         self.groceries = AccountFactory(
             name="Groceries",
             type=Account.Type.EXPENSE,
-            sub_type=Account.SubType.PURCHASES,
+            sub_type=Account.SubType.OPERATING,
         )
 
     def test_creates_journal_entry(self):
@@ -162,7 +162,7 @@ class CreateJournalEntryFromAPITest(TestCase):
         rent = AccountFactory(
             name="Rent",
             type=Account.Type.EXPENSE,
-            sub_type=Account.SubType.PURCHASES,
+            sub_type=Account.SubType.OPERATING,
         )
         transaction = TransactionFactory(
             account=self.checking,
@@ -219,7 +219,7 @@ class BulkCreateJournalEntriesTest(TestCase):
         self.groceries = AccountFactory(
             name="Groceries",
             type=Account.Type.EXPENSE,
-            sub_type=Account.SubType.PURCHASES,
+            sub_type=Account.SubType.OPERATING,
         )
 
     def test_bulk_creates_multiple_entries(self):

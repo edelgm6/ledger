@@ -37,12 +37,12 @@ def create_cash_flow_scenario():
     accounts['groceries'] = Account.objects.create(
         name='5000-Groceries',
         type='expense',
-        sub_type='purchases'
+        sub_type='operating'
     )
     accounts['insurance'] = Account.objects.create(
         name='6000-Insurance',
         type='expense',
-        sub_type='purchases'
+        sub_type='operating'
     )
     accounts['vanguard'] = Account.objects.create(
         name='7000-Vanguard',

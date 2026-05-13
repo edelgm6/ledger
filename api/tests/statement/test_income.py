@@ -37,12 +37,12 @@ def create_income_statement_scenario():
     accounts['groceries'] = Account.objects.create(
         name='5000-Groceries',
         type='expense',
-        sub_type='purchases'
+        sub_type='operating'
     )
     accounts['insurance'] = Account.objects.create(
         name='6000-Insurance',
         type='expense',
-        sub_type='purchases'
+        sub_type='operating'
     )
     # Note: In income test, Vanguard is INCOME/UNREALIZED_INVESTMENT_GAINS
     accounts['vanguard'] = Account.objects.create(

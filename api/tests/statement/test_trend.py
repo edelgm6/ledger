@@ -26,12 +26,12 @@ class TrendTest(TestCase):
         groceries = Account.objects.create(
             name='5000-Groceries',
             type='expense',
-            sub_type='purchases'
+            sub_type='operating'
         )
         insurance = Account.objects.create(
             name='6000-Insurance',
             type='expense',
-            sub_type='purchases'
+            sub_type='operating'
         )
         ally = Account.objects.create(
             name='1000-Ally',

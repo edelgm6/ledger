@@ -67,9 +67,9 @@ class Command(BaseCommand):
                 "sub_type": Account.SubType.SALARY,
             },
             {
-                "name": "Purchases",
+                "name": "Operating",
                 "type": Account.Type.EXPENSE,
-                "sub_type": Account.SubType.PURCHASES,
+                "sub_type": Account.SubType.OPERATING,
             },
         ]
 
