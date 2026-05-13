@@ -20,23 +20,23 @@ class TrendTest(TestCase):
 
         chase = Account.objects.create(
             name='1200-Chase',
-            type='liability',
-            sub_type='short_term_debt'
+            type=Account.Type.LIABILITY,
+            sub_type=Account.SubType.SHORT_TERM_DEBT
         )
         groceries = Account.objects.create(
             name='5000-Groceries',
-            type='expense',
-            sub_type='purchases'
+            type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.OPERATING
         )
         insurance = Account.objects.create(
             name='6000-Insurance',
-            type='expense',
-            sub_type='purchases'
+            type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.OPERATING
         )
         ally = Account.objects.create(
             name='1000-Ally',
-            type='asset',
-            sub_type='cash'
+            type=Account.Type.ASSET,
+            sub_type=Account.SubType.CASH
         )
         income = Account.objects.create(
             name='8000-Income',
