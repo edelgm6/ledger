@@ -11,7 +11,10 @@ from api.forms import DocumentForm, UploadTransactionsForm, WalletForm
 from api.services.paystub_services import get_paystubs_table_data
 from api.services.paystub_upload_services import process_paystub_upload
 from api.statement import Trend
-from api.views.journal_entry_helpers import render_paystubs_table
+from api.views.journal_entry_helpers import (
+    render_paystubs_table,
+    render_paystubs_table_oob_swap,
+)
 
 
 class UploadTransactionsView(View):
@@ -32,7 +35,9 @@ class UploadTransactionsView(View):
         template = "api/views/upload-transactions.html"
         csv_form_html = self.get_csv_form_html()
         textract_form_html = self.get_textract_form_html()
-        paystub_table_html = render_paystubs_table(get_paystubs_table_data())
+        paystub_table_html = render_paystubs_table(
+            get_paystubs_table_data(), show_fill_button=False
+        )
         return render(
             request,
             template,
@@ -69,12 +74,15 @@ class UploadTransactionsView(View):
 
         if "transactions" in request.POST:
             form_html = self.handle_transactions_form(request)
+            return HttpResponse(form_html)
         elif "paystubs" in request.POST:
             form_html = self.handle_paystubs_form(request)
+            oob_html = render_paystubs_table_oob_swap(
+                get_paystubs_table_data(), show_fill_button=False
+            )
+            return HttpResponse(form_html + oob_html)
         else:
             return HttpResponse("Unrecognized form submission.", status=400)
-
-        return HttpResponse(form_html)
 
 
 # ------------------Wallet Transactions View-----------------------
