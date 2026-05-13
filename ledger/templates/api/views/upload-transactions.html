@@ -13,8 +13,23 @@
 
 <div class="row">
     <div class="col-md-4">
-        <div id="paystubs">
-            {{ paystubs_table }}
+        <div x-data="{
+                expandedPaystubId: null,
+                togglePaystub(id, url) {
+                    if (this.expandedPaystubId === id) {
+                        this.expandedPaystubId = null;
+                        return;
+                    }
+                    this.expandedPaystubId = id;
+                    const target = document.getElementById(`paystub-detail-${id}`);
+                    if (!target.innerHTML.trim()) {
+                        htmx.ajax('GET', url, {target: target});
+                    }
+                }
+             }">
+            <div id="paystubs">
+                {{ paystubs_table }}
+            </div>
         </div>
     </div>
 </div>

@@ -19,7 +19,7 @@ from api.services.journal_entry_services import (
 from api.services.paystub_services import PaystubDetailData, PaystubsTableData
 
 
-def render_paystubs_table(data: PaystubsTableData) -> str:
+def render_paystubs_table(data: PaystubsTableData, show_fill_button: bool = True) -> str:
     """
     Renders the paystubs table HTML.
 
@@ -28,6 +28,7 @@ def render_paystubs_table(data: PaystubsTableData) -> str:
 
     Args:
         data: PaystubsTableData containing has_pending_jobs flag and paystubs list.
+        show_fill_button: Whether row-click detail should include the Fill Paystub button.
     """
     if data.has_pending_jobs:
         return render_to_string(
@@ -35,19 +36,38 @@ def render_paystubs_table(data: PaystubsTableData) -> str:
             {"pending_files": data.pending_files},
         )
 
-    return render_to_string("api/tables/paystubs-table.html", {"paystubs": data.paystubs})
+    return render_to_string(
+        "api/tables/paystubs-table.html",
+        {"paystubs": data.paystubs, "show_fill_button": show_fill_button},
+    )
 
 
-def render_paystub_detail(data: PaystubDetailData) -> str:
+def render_paystubs_table_oob_swap(
+    data: PaystubsTableData, show_fill_button: bool = True
+) -> str:
+    """Renders the paystubs table wrapped for an HTMX out-of-band swap into #paystubs."""
+    table_html = render_paystubs_table(data, show_fill_button=show_fill_button)
+    return render_to_string(
+        "api/tables/paystubs-oob-wrapper.html",
+        {"paystubs_table_html": table_html},
+    )
+
+
+def render_paystub_detail(data: PaystubDetailData, show_fill_button: bool = True) -> str:
     """
     Renders the paystub detail view HTML.
 
     Args:
         data: PaystubDetailData containing paystub_values and paystub_id.
+        show_fill_button: Whether to render the Fill Paystub button.
     """
     return render_to_string(
         "api/tables/paystub-detail.html",
-        {"paystub_values": data.paystub_values, "paystub_id": data.paystub_id},
+        {
+            "paystub_values": data.paystub_values,
+            "paystub_id": data.paystub_id,
+            "show_fill_button": show_fill_button,
+        },
     )
 
 

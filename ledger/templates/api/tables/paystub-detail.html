@@ -19,6 +19,7 @@
     </tbody>
 </table>
 
+{% if show_fill_button %}
 <div class="d-flex justify-content-end">
     <button
         @click="fillPaystub({{ paystub_id }})"
@@ -29,4 +30,5 @@
         Fill Paystub
     </button>
 </div>
+{% endif %}
 {% endif %}
