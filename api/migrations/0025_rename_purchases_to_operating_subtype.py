@@ -6,6 +6,11 @@ def rename_purchases_to_operating(apps, schema_editor):
     Account.objects.filter(sub_type='purchases').update(sub_type='operating')
 
 
+def reverse_rename(apps, schema_editor):
+    Account = apps.get_model('api', 'Account')
+    Account.objects.filter(sub_type='operating').update(sub_type='purchases')
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -13,7 +18,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(rename_purchases_to_operating, migrations.RunPython.noop),
+        migrations.RunPython(rename_purchases_to_operating, reverse_rename),
         migrations.AlterField(
             model_name='account',
             name='sub_type',
