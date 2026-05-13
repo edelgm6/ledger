@@ -33,13 +33,13 @@ class SearchTransactionsTests(TestCase):
         self.account_groceries = AccountFactory(
             name="Groceries",
             type=Account.Type.EXPENSE,
-            sub_type=Account.SubType.PURCHASES,
+            sub_type=Account.SubType.OPERATING,
             is_closed=False,
         )
         self.account_premium_groceries = AccountFactory(
             name="Premium Groceries",
             type=Account.Type.EXPENSE,
-            sub_type=Account.SubType.PURCHASES,
+            sub_type=Account.SubType.OPERATING,
             is_closed=False,
         )
         self.entity = EntityFactory(name="Whole Foods")
@@ -142,13 +142,13 @@ class PreviewBulkAccountChangeTests(TestCase):
         self.account_groceries = AccountFactory(
             name="Groceries",
             type=Account.Type.EXPENSE,
-            sub_type=Account.SubType.PURCHASES,
+            sub_type=Account.SubType.OPERATING,
             is_closed=False,
         )
         self.account_premium = AccountFactory(
             name="Premium Groceries",
             type=Account.Type.EXPENSE,
-            sub_type=Account.SubType.PURCHASES,
+            sub_type=Account.SubType.OPERATING,
             is_closed=False,
         )
 
@@ -231,13 +231,13 @@ class ApplyBulkAccountChangeTests(TestCase):
         self.account_groceries = AccountFactory(
             name="Groceries",
             type=Account.Type.EXPENSE,
-            sub_type=Account.SubType.PURCHASES,
+            sub_type=Account.SubType.OPERATING,
             is_closed=False,
         )
         self.account_premium = AccountFactory(
             name="Premium Groceries",
             type=Account.Type.EXPENSE,
-            sub_type=Account.SubType.PURCHASES,
+            sub_type=Account.SubType.OPERATING,
             is_closed=False,
         )
 

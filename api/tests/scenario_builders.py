@@ -196,17 +196,17 @@ def create_chart_of_accounts(include_special=True):
     result['accounts']['groceries'] = Account.objects.create(
         name='Groceries',
         type=Account.Type.EXPENSE,
-        sub_type=Account.SubType.PURCHASES,
+        sub_type=Account.SubType.OPERATING,
     )
     result['accounts']['utilities'] = Account.objects.create(
         name='Utilities',
         type=Account.Type.EXPENSE,
-        sub_type=Account.SubType.PURCHASES,
+        sub_type=Account.SubType.OPERATING,
     )
     result['accounts']['dining'] = Account.objects.create(
         name='Dining Out',
         type=Account.Type.EXPENSE,
-        sub_type=Account.SubType.PURCHASES,
+        sub_type=Account.SubType.OPERATING,
     )
     result['accounts']['interest_expense'] = Account.objects.create(
         name='Interest Expense',
@@ -444,12 +444,12 @@ class StatementTestScenario:
         self.accounts['groceries'] = Account.objects.create(
             name='5000-Groceries',
             type=Account.Type.EXPENSE,
-            sub_type=Account.SubType.PURCHASES,
+            sub_type=Account.SubType.OPERATING,
         )
         self.accounts['insurance'] = Account.objects.create(
             name='6000-Insurance',
             type=Account.Type.EXPENSE,
-            sub_type=Account.SubType.PURCHASES,
+            sub_type=Account.SubType.OPERATING,
         )
 
     def _create_transactions(self):

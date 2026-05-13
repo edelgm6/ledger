@@ -88,7 +88,7 @@ class AccountListViewTest(TestCase):
 
     def test_filter_by_type(self):
         AccountFactory(name="Income Acct", type=Account.Type.INCOME, sub_type=Account.SubType.SALARY)
-        AccountFactory(name="Expense Acct", type=Account.Type.EXPENSE, sub_type=Account.SubType.PURCHASES)
+        AccountFactory(name="Expense Acct", type=Account.Type.EXPENSE, sub_type=Account.SubType.OPERATING)
         response = self.client.get("/api/v1/accounts/?type=income")
         for acct in response.data["accounts"]:
             self.assertEqual(acct["type"], "income")
@@ -114,7 +114,7 @@ class JournalEntryCreateViewTest(TestCase):
         self.groceries = AccountFactory(
             name="Groceries",
             type=Account.Type.EXPENSE,
-            sub_type=Account.SubType.PURCHASES,
+            sub_type=Account.SubType.OPERATING,
         )
 
     def test_create_single_journal_entry(self):
@@ -226,7 +226,7 @@ class JournalEntryCreateViewTest(TestCase):
         rent = AccountFactory(
             name="Rent",
             type=Account.Type.EXPENSE,
-            sub_type=Account.SubType.PURCHASES,
+            sub_type=Account.SubType.OPERATING,
         )
         transaction = TransactionFactory(
             account=self.checking,
