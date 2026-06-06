@@ -22,6 +22,16 @@ class UploadResult:
     error: Optional[str] = None
 
 
+def _dispatch_gemini_processing(s3file_pk: int) -> None:
+    """Dispatches the async Gemini paystub task.
+
+    The import is local because api.tasks imports from this module.
+    """
+    from api.tasks import process_gemini_paystub
+
+    process_gemini_paystub.delay(s3file_pk)
+
+
 def process_paystub_upload(file, prefill: Prefill) -> UploadResult:
     """
     Orchestrates the paystub upload flow:
@@ -36,8 +46,6 @@ def process_paystub_upload(file, prefill: Prefill) -> UploadResult:
     Returns:
         UploadResult with the created S3File on success
     """
-    from api.tasks import process_gemini_paystub
-
     # 1. Upload to S3 (network call)
     unique_name = upload_file_to_s3(file=file)
     if isinstance(unique_name, dict):
@@ -56,7 +64,25 @@ def process_paystub_upload(file, prefill: Prefill) -> UploadResult:
     )
 
     # 3. Dispatch Celery task — Gemini call and DB writes happen on the worker
-    process_gemini_paystub.delay(s3file.pk)
+    _dispatch_gemini_processing(s3file.pk)
+
+    return UploadResult(success=True, s3file=s3file)
+
+
+def retry_paystub_processing(s3file_id: int) -> UploadResult:
+    """
+    Resets a failed S3File to PENDING and re-dispatches the Gemini task.
+
+    Used by the Retry button on the paystubs poller when Gemini returns a
+    transient error (e.g. 503 UNAVAILABLE).
+    """
+    s3file = S3File.objects.get(pk=s3file_id)
+    s3file.status = S3File.Status.PENDING
+    s3file.error_message = ""
+    s3file.analysis_complete = None
+    s3file.save(update_fields=["status", "error_message", "analysis_complete"])
+
+    _dispatch_gemini_processing(s3file.pk)
 
     return UploadResult(success=True, s3file=s3file)
 

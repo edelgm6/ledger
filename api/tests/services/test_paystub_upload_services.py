@@ -14,6 +14,7 @@ from api.models import (
 from api.services.paystub_upload_services import (
     create_paystubs_from_data,
     process_paystub_upload,
+    retry_paystub_processing,
 )
 from api.tests.testing_factories import AccountFactory, EntityFactory, PrefillFactory
 
@@ -267,3 +268,29 @@ class ProcessGeminiPaystubTaskTest(TestCase):
         # S3File remains in pending state so the poller keeps showing the spinner
         self.s3file.refresh_from_db()
         self.assertIsNone(self.s3file.analysis_complete)
+
+
+class RetryPaystubProcessingTest(TestCase):
+    def setUp(self):
+        self.prefill = PrefillFactory(name="Payroll")
+        self.s3file = S3File.objects.create(
+            prefill=self.prefill,
+            url="https://bucket.s3.amazonaws.com/test.pdf",
+            user_filename="paystub.pdf",
+            s3_filename="uuid-test.pdf",
+            status=S3File.Status.FAILED,
+            error_message="503 UNAVAILABLE. Model is experiencing high demand.",
+        )
+
+    @patch("api.tasks.process_gemini_paystub")
+    def test_resets_failed_file_and_redispatches(self, mock_task):
+        result = retry_paystub_processing(self.s3file.pk)
+
+        self.assertTrue(result.success)
+
+        self.s3file.refresh_from_db()
+        self.assertEqual(self.s3file.status, S3File.Status.PENDING)
+        self.assertEqual(self.s3file.error_message, "")
+        self.assertIsNone(self.s3file.analysis_complete)
+
+        mock_task.delay.assert_called_once_with(self.s3file.pk)

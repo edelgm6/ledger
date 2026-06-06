@@ -33,7 +33,10 @@ def render_paystubs_table(data: PaystubsTableData, show_fill_button: bool = True
     if data.has_pending_jobs:
         return render_to_string(
             "api/tables/paystubs-table-poller.html",
-            {"pending_files": data.pending_files},
+            {
+                "pending_files": data.pending_files,
+                "has_active_jobs": data.has_active_jobs,
+            },
         )
 
     return render_to_string(

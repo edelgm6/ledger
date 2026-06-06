@@ -18,6 +18,7 @@ class PaystubsTableData:
     has_pending_jobs: bool
     paystubs: List[Paystub]
     pending_files: List[S3File] = field(default_factory=list)
+    has_active_jobs: bool = False
 
 
 @dataclass
@@ -41,7 +42,16 @@ def get_paystubs_table_data() -> PaystubsTableData:
     )
 
     if pending_files:
-        return PaystubsTableData(has_pending_jobs=True, paystubs=[], pending_files=pending_files)
+        has_active_jobs = any(
+            f.status in (S3File.Status.PENDING, S3File.Status.PROCESSING)
+            for f in pending_files
+        )
+        return PaystubsTableData(
+            has_pending_jobs=True,
+            paystubs=[],
+            pending_files=pending_files,
+            has_active_jobs=has_active_jobs,
+        )
 
     paystubs = list(
         Paystub.objects.filter(journal_entry__isnull=True)
