@@ -23,6 +23,7 @@ from api.services.paystub_services import (
     get_paystub_detail_data,
     get_paystubs_table_data,
 )
+from api.services.paystub_upload_services import retry_paystub_processing
 from api.views.journal_entry_helpers import (
     render_journal_entry_form,
     render_paystub_detail,
@@ -99,6 +100,13 @@ class PaystubTableView(LoginRequiredMixin, View):
     def get(self, request):
         paystubs_table_data = get_paystubs_table_data()
         html = render_paystubs_table(paystubs_table_data)
+        return HttpResponse(html)
+
+
+class PaystubRetryView(LoginRequiredMixin, View):
+    def post(self, request, s3file_id):
+        retry_paystub_processing(s3file_id)
+        html = render_paystubs_table(get_paystubs_table_data())
         return HttpResponse(html)
 
 

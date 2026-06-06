@@ -91,6 +91,39 @@ class GetPaystubsTableDataTest(TestCase):
         self.assertFalse(result.has_pending_jobs)
         self.assertEqual(result.paystubs, [])
 
+    def test_has_active_jobs_true_when_file_processing(self):
+        """has_active_jobs=True when a pending file is still PENDING/PROCESSING."""
+        S3File.objects.create(
+            prefill=self.prefill,
+            url="https://example.com/processing.pdf",
+            user_filename="processing.pdf",
+            s3_filename="processing.pdf",
+            status=S3File.Status.PROCESSING,
+            analysis_complete=None,
+        )
+
+        result = get_paystubs_table_data()
+
+        self.assertTrue(result.has_pending_jobs)
+        self.assertTrue(result.has_active_jobs)
+
+    def test_has_active_jobs_false_when_only_failed(self):
+        """has_active_jobs=False when all pending files are terminal (FAILED)."""
+        S3File.objects.create(
+            prefill=self.prefill,
+            url="https://example.com/failed.pdf",
+            user_filename="failed.pdf",
+            s3_filename="failed.pdf",
+            status=S3File.Status.FAILED,
+            error_message="503 UNAVAILABLE",
+            analysis_complete=None,
+        )
+
+        result = get_paystubs_table_data()
+
+        self.assertTrue(result.has_pending_jobs)
+        self.assertFalse(result.has_active_jobs)
+
     def test_paystubs_ordered_by_title(self):
         """Paystubs returned in title order."""
         s3file = S3File.objects.create(

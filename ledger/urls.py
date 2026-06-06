@@ -21,6 +21,7 @@ from api.views.journal_entry_views import (
     JournalEntryTableView,
     JournalEntryView,
     PaystubDetailView,
+    PaystubRetryView,
     PaystubTableView,
     TriggerAutoTagView,
 )
@@ -74,6 +75,11 @@ urlpatterns = [
         name="journal-entries-table",
     ),
     path("paystubs/", PaystubTableView.as_view(), name="paystub-table"),
+    path(
+        "paystubs/<int:s3file_id>/retry/",
+        PaystubRetryView.as_view(),
+        name="paystub-retry",
+    ),
     path(
         "paystubs/<int:paystub_id>/", PaystubDetailView.as_view(), name="paystub-detail"
     ),
