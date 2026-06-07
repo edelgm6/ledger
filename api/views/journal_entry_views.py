@@ -206,6 +206,14 @@ class JournalEntryView(LoginRequiredMixin, View):
         )
         metadata_form = JournalEntryMetadataForm(request.POST)
 
+        # Preserve paystub linkage and row index across error re-renders so a
+        # validation failure doesn't disassociate the form from its paystub.
+        submitted_paystub_id = request.POST.get("paystub_id") or None
+        try:
+            submitted_index = int(request.POST.get("index") or 0)
+        except ValueError:
+            submitted_index = 0
+
         # 2. Validate forms (field-level)
         if not (
             debit_formset.is_valid()
@@ -215,6 +223,8 @@ class JournalEntryView(LoginRequiredMixin, View):
             # Render form with field errors
             entry_form_html = render_journal_entry_form(
                 transaction=transaction,
+                index=submitted_index,
+                paystub_id=submitted_paystub_id,
                 debit_formset=debit_formset,
                 credit_formset=credit_formset,
                 form_errors=[],
@@ -234,6 +244,8 @@ class JournalEntryView(LoginRequiredMixin, View):
             # Render form with validation errors
             entry_form_html = render_journal_entry_form(
                 transaction=transaction,
+                index=submitted_index,
+                paystub_id=submitted_paystub_id,
                 debit_formset=debit_formset,
                 credit_formset=credit_formset,
                 form_errors=validation_result.errors,
