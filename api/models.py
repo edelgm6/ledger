@@ -964,7 +964,7 @@ class CSVProfile(models.Model):
     category = models.CharField(max_length=200)
     clear_prepended_until_value = models.CharField(max_length=200, blank=True)
     clear_values_column_pairs = models.ManyToManyField(
-        CSVColumnValuePair, null=True, blank=True
+        CSVColumnValuePair, blank=True
     )
     inflow = models.CharField(max_length=200)
     outflow = models.CharField(max_length=200)

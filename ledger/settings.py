@@ -45,8 +45,6 @@ else:
     ALLOWED_HOSTS = [".localhost", "127.0.0.1", "[::1]", "0.0.0.0", "[::]"]
 
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-STATIC_URL = "/api/static/"
-STATICFILES_DIRS = (os.path.join(BASE_DIR, "api/static"),)
 
 # AWS
 AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
