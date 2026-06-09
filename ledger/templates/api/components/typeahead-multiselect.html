@@ -1,0 +1,96 @@
+{% comment %}
+Type-to-filter multi-select (Option B: count + checkbox menu).
+
+The field stays one line showing "N selected"; clicking opens the full,
+scrollable option list with
+checkboxes and a search box at the top. Selected options pin to the top under
+"Selected (N)" so they stay visible while you scroll or search.
+
+The real <select multiple> is kept in the DOM (visually hidden) so the form
+submits exactly as before; the Alpine UI mirrors its <option> selection state.
+
+Params:
+  field      - bound form field (ModelMultipleChoiceField or multi ChoiceField)
+  label      - visible label / empty-state placeholder
+  all_label  - section header for unselected options (default "All")
+{% endcomment %}
+<div class="form-group ta-field"
+     x-data="typeaheadMultiselect()"
+     @click.outside="closeMenu()"
+     @keydown.escape="closeMenu()">
+
+    <label class="ta-label" @click="toggleMenu()">
+        {{ label }}
+        <template x-if="count > 0"><span class="ta-badge" x-text="count"></span></template>
+    </label>
+
+    <div class="ta-anchor">
+        <button type="button" class="ta-trigger" :class="{ 'is-empty': count === 0 }" @click="toggleMenu()">
+            <span class="ta-trigger-text" x-text="summary"></span>
+            <span class="ta-caret">&#9662;</span>
+        </button>
+
+        <div class="ta-popover" x-show="open" x-cloak>
+            <input type="text" class="ta-search" placeholder="Type to search&hellip;"
+                   x-ref="search" x-model="query">
+
+            <div class="ta-popover-list">
+                <!-- Pinned selected -->
+                <template x-if="selectedOptions.length > 0">
+                    <div class="ta-pinned">
+                        <div class="ta-section-label">Selected (<span x-text="selectedOptions.length"></span>)</div>
+                        <template x-for="opt in selectedOptions" :key="opt.value">
+                            <label class="ta-check ta-check--on">
+                                <input type="checkbox" :checked="opt.selected" @click.prevent="toggle(opt)">
+                                <span x-text="opt.label"></span>
+                            </label>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- Section header for the rest -->
+                <template x-if="selectedOptions.length > 0 && restOptions.length > 0">
+                    <div class="ta-section-label" x-text="sectionLabel"></div>
+                </template>
+
+                <!-- Unselected options -->
+                <template x-for="opt in restOptions" :key="opt.value">
+                    <label class="ta-check">
+                        <input type="checkbox" :checked="opt.selected" @click.prevent="toggle(opt)">
+                        <span x-html="highlight(opt.label)"></span>
+                    </label>
+                </template>
+
+                <!-- Empty state -->
+                <template x-if="typing && restOptions.length === 0">
+                    <div class="ta-empty" x-text="selectedOptions.length ? 'No more matches' : 'No matches'"></div>
+                </template>
+            </div>
+
+            <div class="ta-toolbar">
+                <button type="button" class="ta-link" @click="selectAll()" x-text="selectAllLabel"></button>
+                <span class="ta-toolbar-sep">&middot;</span>
+                <button type="button" class="ta-link" @click="clearAll()">Clear</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Real form field: hidden but still submitted by the form -->
+    <select x-ref="native"
+            name="{{ field.html_name }}"
+            id="{{ field.auto_id }}"
+            data-placeholder="{{ label }}"
+            data-all-label="{{ all_label|default:'All' }}"
+            multiple
+            style="display: none;">
+        {% if field.field.queryset %}
+            {% for option in field.field.queryset %}
+                <option value="{{ option.pk }}" {% if option.pk|stringformat:"s" in field.value %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+        {% else %}
+            {% for choice in field.field.choices %}
+                <option value="{{ choice.0 }}" {% if choice.0 in field.value %}selected{% endif %}>{{ choice.1 }}</option>
+            {% endfor %}
+        {% endif %}
+    </select>
+</div>

@@ -80,7 +80,114 @@
             text-overflow: ellipsis;
         }
 
+        /* --- Typeahead multi-select (Option B: count + checkbox menu) --- */
+        [x-cloak] { display: none !important; }
+        .ta-field { position: relative; }
+        /* Field labels across all compact forms (the direct-child selector excludes
+           the in-popover checkbox labels, .ta-check, which style themselves) */
+        .form-sm .form-group > label { font-size: .75rem; font-weight: 500; margin-bottom: 3px; }
+        .ta-label { color: #212529; cursor: pointer; user-select: none; }
+        .ta-badge { background: #007bff; color: #fff; font-size: .62rem; font-weight: 600; line-height: 1;
+                    padding: 2px 6px; border-radius: .7rem; margin-left: 5px; vertical-align: middle; }
+        .ta-anchor { position: relative; }
+        .ta-trigger { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%;
+                      text-align: left; background: #fff; border: 1px solid #dee2e6; border-radius: .25rem;
+                      padding: .3rem .5rem; font-size: .75rem; color: #212529; cursor: pointer;
+                      min-height: calc(1.5em + .6rem + 2px); }
+        .ta-trigger.is-empty .ta-trigger-text { color: #6c757d; }
+        .ta-trigger:focus { border-color: #80bdff; box-shadow: 0 0 0 .2rem rgba(0,123,255,.25); outline: 0; }
+        .ta-trigger-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ta-caret { color: #6c757d; font-size: .7rem; }
+        .ta-popover { position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; margin-top: 2px;
+                      background: #fff; border: 1px solid rgba(0,0,0,.15); border-radius: .25rem;
+                      padding: .45rem; min-width: 210px; box-shadow: 0 .5rem 1rem rgba(0,0,0,.15); }
+        .ta-search { width: 100%; border: 1px solid #dee2e6; border-radius: .2rem; font-size: .75rem;
+                     padding: .28rem .4rem; margin-bottom: .4rem; }
+        .ta-search:focus { outline: 0; border-color: #80bdff; box-shadow: 0 0 0 .15rem rgba(0,123,255,.2); }
+        .ta-popover-list { max-height: 220px; overflow: auto; }
+        .ta-check { display: flex; align-items: center; gap: 8px; font-size: .75rem; padding: .22rem .25rem;
+                    margin: 0; cursor: pointer; font-weight: 400; border-radius: .15rem; }
+        .ta-check:hover { background: #f1f3f5; }
+        .ta-check--on { background: #f1f6ff; }
+        .ta-check--on:hover { background: #e7f1ff; }
+        .ta-pinned { border-bottom: 1px solid #e9ecef; padding-bottom: .2rem; margin-bottom: .25rem; }
+        .ta-section-label { font-size: .64rem; text-transform: uppercase; letter-spacing: .05em;
+                            color: #6c757d; font-weight: 600; padding: .15rem .25rem; }
+        .ta-mark { font-weight: 700; }
+        .ta-empty { padding: .45rem .55rem; font-size: .72rem; color: #6c757d; }
+        .ta-toolbar { display: flex; align-items: center; gap: 9px; padding: .4rem .35rem .15rem;
+                      border-top: 1px solid #e9ecef; margin-top: .35rem; }
+        .ta-link { border: 0; background: transparent; color: #007bff; font-size: .72rem; padding: 0; cursor: pointer; }
+        .ta-link:hover { text-decoration: underline; }
+        .ta-toolbar-sep { color: #ced4da; font-size: .72rem; }
+
     </style>
+
+    <!-- Typeahead multi-select Alpine component (Option B). Registered once,
+         before Alpine inits, so it is available to htmx-swapped filter forms. -->
+    <script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('typeaheadMultiselect', () => ({
+            open: false,
+            query: '',
+            options: [],          // [{ value, label, selected }]
+            placeholder: 'Select',
+            allLabel: 'All',
+            init() {
+                const sel = this.$refs.native;
+                this.placeholder = sel.dataset.placeholder || this.placeholder;
+                this.allLabel = sel.dataset.allLabel || this.allLabel;
+                this.options = Array.from(sel.options).map(o => ({
+                    value: o.value, label: o.text.trim(), selected: o.selected,
+                }));
+            },
+            get typing() { return this.query.trim().length > 0; },
+            get matches() {
+                const q = this.query.trim().toLowerCase();
+                if (!q) return this.options;
+                return this.options.filter(o => o.label.toLowerCase().includes(q));
+            },
+            get selectedOptions() { return this.options.filter(o => o.selected); },
+            get restOptions() { return this.matches.filter(o => !o.selected); },
+            get count() { return this.selectedOptions.length; },
+            get summary() { return this.count ? this.count + ' selected' : this.placeholder; },
+            get sectionLabel() { return this.typing ? 'Matches' : this.allLabel; },
+            get selectAllLabel() {
+                return this.typing ? 'Select all (' + this.matches.length + ')' : 'Select all';
+            },
+            syncNative() {
+                const state = {};
+                this.options.forEach(o => { state[o.value] = o.selected; });
+                Array.from(this.$refs.native.options).forEach(o => { o.selected = !!state[o.value]; });
+            },
+            toggle(opt) { opt.selected = !opt.selected; this.syncNative(); },
+            selectAll() {
+                (this.typing ? this.matches : this.options).forEach(o => { o.selected = true; });
+                this.syncNative();
+            },
+            clearAll() { this.options.forEach(o => { o.selected = false; }); this.syncNative(); },
+            openMenu() {
+                this.open = true;
+                this.$nextTick(() => { if (this.$refs.search) this.$refs.search.focus(); });
+            },
+            closeMenu() { this.open = false; this.query = ''; },
+            toggleMenu() { this.open ? this.closeMenu() : this.openMenu(); },
+            escapeHtml(s) {
+                return String(s).replace(/[&<>"']/g, c =>
+                    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            },
+            highlight(label) {
+                const q = this.query.trim();
+                if (!q) return this.escapeHtml(label);
+                const i = label.toLowerCase().indexOf(q.toLowerCase());
+                if (i < 0) return this.escapeHtml(label);
+                return this.escapeHtml(label.slice(0, i))
+                    + '<strong class="ta-mark">' + this.escapeHtml(label.slice(i, i + q.length)) + '</strong>'
+                    + this.escapeHtml(label.slice(i + q.length));
+            },
+        }));
+    });
+    </script>
 
 
     {% block extra_head %}{% endblock %}
