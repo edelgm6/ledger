@@ -33,26 +33,17 @@
 
         <!-- Transaction Account -->
         <div class="col-md-3">
-            {% include "api/components/expandable-multiselect.html" with field=form.account label="Account" %}
+            {% include "api/components/typeahead-multiselect.html" with field=form.account label="Account" all_label="All accounts" %}
         </div>
 
         <!-- Related Account -->
         <div class="col-md-3">
-            {% include "api/components/expandable-multiselect.html" with field=form.related_account label="Related Account" %}
+            {% include "api/components/typeahead-multiselect.html" with field=form.related_account label="Related Account" all_label="All accounts" %}
         </div>
 
         <!-- Type -->
         <div class="col-md-2">
-            <div class="form-group">
-                <label for="id_transaction_type">Type</label>
-                <select name="transaction_type" id="id_transaction_type" class="form-control" multiple>
-                    {% for choice in form.transaction_type.field.choices %}
-                        <option value="{{ choice.0 }}" {% if choice.0 in form.transaction_type.value %}selected{% endif %}>
-                            {{ choice.1 }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+            {% include "api/components/typeahead-multiselect.html" with field=form.transaction_type label="Type" all_label="All types" %}
         </div>
     </div>
 
