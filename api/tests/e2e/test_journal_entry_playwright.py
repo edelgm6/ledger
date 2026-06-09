@@ -20,7 +20,7 @@ from decimal import Decimal
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 
 from django.contrib.auth.models import User
-from django.test import Client, LiveServerTestCase
+from django.test import Client, LiveServerTestCase, tag
 from django.utils import timezone
 from playwright.sync_api import sync_playwright
 
@@ -40,6 +40,7 @@ from api.tests.testing_factories import (
 )
 
 
+@tag("e2e")
 class JournalEntryE2EBase(LiveServerTestCase):
     """Base class: spins up Playwright Chromium and handles auth cookie injection."""
 
