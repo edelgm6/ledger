@@ -303,3 +303,99 @@ class CashFlowTest(TestCase):
         ]
         account = Account.objects.get(name='7000-Vanguard')
         self.assertIn((account, 150), balance_names)
+
+
+class DepreciationCashFlowTest(TestCase):
+    """
+    A depreciable Vehicle (sub_type VEHICLES) is purchased for cash and then
+    drawn down over time via depreciation entries (Cr Vehicle / Dr Depreciation
+    Expense). The drawdown is non-cash and must land in operations as an
+    add-back, while the original purchase (and any later sale) stays in
+    investing.
+    """
+
+    START_DATE = '2023-01-01'
+    END_DATE = '2023-01-31'
+    TXN_DATE = '2023-01-28'
+
+    def setUp(self):
+        self.cash = Account.objects.create(
+            name='900-Ally',
+            type=Account.Type.ASSET,
+            sub_type=Account.SubType.CASH,
+        )
+        self.vehicle = Account.objects.create(
+            name='Vehicle',
+            type=Account.Type.ASSET,
+            sub_type=Account.SubType.VEHICLES,
+        )
+        self.depreciation = Account.objects.create(
+            name='Depreciation Expense',
+            type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.OPERATING,
+            is_depreciation=True,
+        )
+
+        # Buy the vehicle for cash: Dr Vehicle 1000 / Cr Cash 1000
+        create_closed_transaction_with_journal_entry(
+            date=self.TXN_DATE,
+            debit_account=self.vehicle,
+            credit_account=self.cash,
+            amount=Decimal('1000'),
+            transaction_account=self.vehicle,
+        )
+        # Depreciate: Dr Depreciation Expense 100 / Cr Vehicle 100
+        create_closed_transaction_with_journal_entry(
+            date=self.TXN_DATE,
+            debit_account=self.depreciation,
+            credit_account=self.vehicle,
+            amount=Decimal('100'),
+            transaction_account=self.vehicle,
+        )
+
+    def _build_statement(self):
+        return CashFlowStatement(
+            IncomeStatement(end_date=self.END_DATE, start_date=self.START_DATE),
+            BalanceSheet(end_date=self.START_DATE),
+            BalanceSheet(end_date=self.END_DATE),
+        )
+
+    def test_depreciation_excluded_from_investing(self):
+        # Investing should reflect only the $1000 purchase, not the $100
+        # depreciation drawdown.
+        balances = self._build_statement().get_cash_from_investing_balances()
+        vehicle_amount = sum(
+            b.amount for b in balances if b.account == self.vehicle
+        )
+        self.assertEqual(vehicle_amount, -1000)
+
+    def test_depreciation_added_back_to_operations(self):
+        balances = self._build_statement().get_cash_from_operations_balances()
+        # The add-back is keyed to the real depreciation expense account, not a
+        # synthetic aggregate line.
+        depreciation_addback = sum(
+            b.amount for b in balances if b.account == self.depreciation
+        )
+        self.assertEqual(depreciation_addback, 100)
+
+    def test_depreciation_is_net_cash_flow_neutral(self):
+        # The only real cash event is the $1000 purchase; the depreciation
+        # drawdown moves no cash and must not change net cash flow.
+        self.assertEqual(self._build_statement().net_cash_flow, -1000)
+
+    def test_vehicle_sale_stays_in_investing(self):
+        # Sell the vehicle at book value: Dr Cash 900 / Cr Vehicle 900. This
+        # entry touches no depreciation account, so it remains in investing.
+        create_closed_transaction_with_journal_entry(
+            date=self.TXN_DATE,
+            debit_account=self.cash,
+            credit_account=self.vehicle,
+            amount=Decimal('900'),
+            transaction_account=self.cash,
+        )
+        balances = self._build_statement().get_cash_from_investing_balances()
+        vehicle_amount = sum(
+            b.amount for b in balances if b.account == self.vehicle
+        )
+        # -1000 purchase + 900 sale proceeds; -100 depreciation still excluded.
+        self.assertEqual(vehicle_amount, -100)

@@ -623,7 +623,6 @@ class Account(models.Model):
         OPERATING = "operating", _("Operating")
         TAX = "tax", _("Tax")
         INTEREST = "interest", _("Interest Expense")
-        DEPRECIATION = "depreciation", _("Depreciation")
 
     # TODO: Add a test that makes sure every type/subtype is represented here
     SUBTYPE_TO_TYPE_MAP = {
@@ -649,7 +648,7 @@ class Account(models.Model):
             SubType.OTHER_INCOME,
             SubType.UNREALIZED_INVESTMENT_GAINS,
         ],
-        Type.EXPENSE: [SubType.OPERATING, SubType.INTEREST, SubType.TAX, SubType.DEPRECIATION],
+        Type.EXPENSE: [SubType.OPERATING, SubType.INTEREST, SubType.TAX],
     }
 
     name = models.CharField(max_length=200, unique=True)
@@ -666,6 +665,14 @@ class Account(models.Model):
         max_length=30, choices=SpecialType.choices, null=True, blank=True
     )
     is_closed = models.BooleanField(default=False)
+    is_depreciation = models.BooleanField(
+        default=False,
+        help_text=(
+            "Marks an expense account as depreciation. Depreciation draws a "
+            "depreciable asset down without moving cash, so the cash flow "
+            "statement adds it back to operations and keeps it out of investing."
+        ),
+    )
     entity = models.ForeignKey(
         "Entity",
         on_delete=models.SET_NULL,
