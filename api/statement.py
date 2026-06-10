@@ -2,7 +2,7 @@ from collections import namedtuple
 from datetime import date, datetime, timedelta
 
 from dateutil.relativedelta import relativedelta
-from django.db.models import Case, DecimalField, Sum, Value, When
+from django.db.models import Case, DecimalField, Q, Sum, Value, When
 
 from api.models import Account, JournalEntryItem
 
@@ -329,6 +329,15 @@ class CashFlowStatement(Statement):
                 date=self.end_balance_sheet.end_date,
             )
         ]
+        # Depreciation is a non-cash expense baked into net income above. Add
+        # each depreciation account back (expense balances are positive) so it
+        # nets out of operations; its asset drawdown is kept out of investing
+        # by get_cash_from_investing_balances.
+        depreciation = [
+            balance
+            for balance in self.income_statement.balances
+            if balance.account.is_depreciation
+        ]
         accounts_receivable_accounts = [
             balance
             for balance in self.balance_sheet_deltas
@@ -351,6 +360,7 @@ class CashFlowStatement(Statement):
         ]
         return (
             net_income_less_gains_and_losses
+            + depreciation
             + accounts_receivable_accounts
             + prepaid_expenses_accounts
             + short_term_debt_accounts
@@ -374,9 +384,12 @@ class CashFlowStatement(Statement):
             Account.SubType.REAL_ESTATE,
             Account.SubType.VEHICLES,
         ]
-        exclude_journal_entries_with_sub_types = [
-            Account.SubType.UNREALIZED_INVESTMENT_GAINS
-        ]
+        # Drop entries whose offsetting leg is non-cash: an unrealized-gain mark
+        # or a depreciation drawdown. A real purchase or sale touches neither,
+        # so it stays in investing. One .exclude() keeps it to a single subquery.
+        is_non_cash_offset = Q(
+            journal_entry__journal_entry_items__account__sub_type=Account.SubType.UNREALIZED_INVESTMENT_GAINS
+        ) | Q(journal_entry__journal_entry_items__account__is_depreciation=True)
 
         # Use select_related to fetch related Account objects
         journal_entry_items = (
@@ -385,9 +398,7 @@ class CashFlowStatement(Statement):
                 journal_entry__date__lte=end_date,
                 account__sub_type__in=account_sub_types,
             )
-            .exclude(
-                journal_entry__journal_entry_items__account__sub_type__in=exclude_journal_entries_with_sub_types
-            )
+            .exclude(is_non_cash_offset)
             .select_related("account")
         )
 
