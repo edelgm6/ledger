@@ -25,6 +25,11 @@
         .form-sm .form-control {
             padding: .3rem; /* smaller padding */
             font-size: 0.75rem; /* smaller font-size */
+            /* Match height to the reduced padding (Bootstrap's default height assumes
+               .75rem padding). This is the same formula .ta-trigger uses, so date
+               inputs, selects, text inputs and typeahead triggers are all the same
+               height and every filter column lines up row-for-row. */
+            height: calc(1.5em + .6rem + 2px);
         }
         .form-sm .input-group-text {
             padding: .3rem .5rem; /* smaller padding */
@@ -86,6 +91,10 @@
         /* Field labels across all compact forms (the direct-child selector excludes
            the in-popover checkbox labels, .ta-check, which style themselves) */
         .form-sm .form-group > label { font-size: .75rem; font-weight: 500; margin-bottom: 3px; }
+        /* Vertical gap between fields stacked in the same column. Owned here once
+           (not via per-field mb-* utilities) so every column lines up row-for-row.
+           .ta-field is also a .form-group, so typeaheads participate automatically. */
+        .form-sm .form-group + .form-group { margin-top: .25rem; }
         .ta-label { color: #212529; cursor: pointer; user-select: none; }
         .ta-badge { background: #007bff; color: #fff; font-size: .62rem; font-weight: 600; line-height: 1;
                     padding: 2px 6px; border-radius: .7rem; margin-left: 5px; vertical-align: middle; }
