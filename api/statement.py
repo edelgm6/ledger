@@ -360,11 +360,11 @@ class CashFlowStatement(Statement):
         ]
         return (
             net_income_less_gains_and_losses
-            + depreciation
             + accounts_receivable_accounts
             + prepaid_expenses_accounts
             + short_term_debt_accounts
             + taxes_payable_accounts
+            + depreciation
         )
 
     def get_cash_from_financing_balances(self):
