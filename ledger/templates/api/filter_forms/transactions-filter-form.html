@@ -14,9 +14,10 @@
         <div class="col-md-2">
             <div class="form-group">
                 <label for="id_date_from">Date From</label>
-                <input type="date" name="{{ filter_form.date_from.html_name }}" id="{{ filter_form.date_from.auto_id }}" class="form-control mb-2"
+                <input type="date" name="{{ filter_form.date_from.html_name }}" id="{{ filter_form.date_from.auto_id }}" class="form-control"
                        value="{{ filter_form.date_from.value|default_if_none:'' }}">
-
+            </div>
+            <div class="form-group">
                 <label for="id_date_to">Date To</label>
                 <input type="date" name="{{ filter_form.date_to.html_name }}" id="{{ filter_form.date_to.auto_id }}" class="form-control"
                        value="{{ filter_form.date_to.value|default_if_none:'' }}">
@@ -36,7 +37,7 @@
 
         <!-- Stacked Is Closed and Linked Fields -->
         <div class="col-md-2">
-            <div class="form-group mb-2">
+            <div class="form-group">
                 <label for="id_is_closed">Is Closed</label>
                 <select name="{{ filter_form.is_closed.html_name }}" id="{{ filter_form.is_closed.auto_id }}" class="form-control">
                     {% for option in filter_form.is_closed %}
