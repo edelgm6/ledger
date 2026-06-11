@@ -14,6 +14,7 @@ from api.forms import JournalEntryItemEntityForm
 from api.models import JournalEntryItem
 from api.services import entity_services
 from api.views import entity_helpers
+from api.views.page_utils import render_full_page
 
 
 def _render_full_page(
@@ -139,4 +140,4 @@ class TagEntitiesView(LoginRequiredMixin, View):
     def get(self, request):
         hide_zero = request.GET.get("hide_zero", "1") != "0"
         html = _render_full_page(is_initial_load=True, hide_zero=hide_zero)
-        return HttpResponse(html)
+        return render_full_page(request, html)
