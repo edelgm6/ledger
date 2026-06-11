@@ -81,8 +81,21 @@
                     {% for account in tax_accounts %}
                     <tr>
                         <th scope="row">{{ account.name }}</th>
-                        <td class="copyable">
-                            ${{ account.recommended_tax|floatformat:2|intcomma }} <i class="bi bi-clipboard"></i>
+                        <td>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>${{ account.recommended_tax|floatformat:2|intcomma }}</span>
+                                {% if account.recommended_tax is not None %}
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-primary btn-sm py-0"
+                                    style="font-size: 0.75rem; line-height: 1.4;"
+                                    title="Apply this amount to the tax charge"
+                                    hx-post="{% url 'apply-tax-recommendation' account_pk=account.pk end_date=end_date|date:'Y-m-d' %}"
+                                    hx-target="#table-and-form"
+                                    hx-include="#taxes-filter-form"
+                                >Autofill</button>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -91,37 +104,3 @@
         </div>
     </div>
 </div>
-
-{% block extra_js %}
-<script>
-  document.querySelectorAll(".copyable").forEach((el) => {
-    const icon = el.querySelector("i");
-
-    icon.addEventListener("click", async (event) => {
-      event.stopPropagation(); // prevent bubbling
-
-      const input = document.querySelector("#id_amount");
-      if (!input) return;
-
-      // Get the text of the parent element (without icon text)
-      const textToCopy = el.textContent.replace(icon.textContent, "").trim();
-
-      // Remove any dollar signs or commas before setting the value
-      const numericValue = textToCopy.replace(/[\$,]/g, "");
-
-      // Fill the input
-      input.value = numericValue;
-
-      // Change icon to check
-      icon.classList.remove("bi-clipboard");
-      icon.classList.add("bi-check2", "text-success");
-
-      // Revert after 3 seconds
-      setTimeout(() => {
-        icon.classList.remove("bi-check2", "text-success");
-        icon.classList.add("bi-clipboard");
-      }, 3000);
-    });
-  });
-</script>
-{% endblock %}
