@@ -1,4 +1,5 @@
 from api.models import Account, Reconciliation, TaxCharge
+from api.services.tax_services import get_tax_accounts
 
 
 class ReconciliationFactory:
@@ -32,13 +33,7 @@ class TaxChargeFactory:
     @staticmethod
     def create_bulk_tax_charges(date):
         tax_charges = TaxCharge.objects.filter(date=date)
-        tax_accounts = Account.objects.filter(
-            special_type__in=[
-                Account.SpecialType.FEDERAL_TAXES,
-                Account.SpecialType.PROPERTY_TAXES,
-                Account.SpecialType.STATE_TAXES,
-            ]
-        )
+        tax_accounts = get_tax_accounts()
 
         for account in tax_accounts:
             existing_tax_charge = [
