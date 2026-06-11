@@ -1,11 +1,12 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.views import View
 
 from api.forms import AmortizationForm, DateForm
 from api.models import Account, Amortization, JournalEntryItem
+from api.views.page_utils import render_full_page
 
 
 class AmortizationTableMixin:
@@ -13,7 +14,7 @@ class AmortizationTableMixin:
     unattached_transactions_content = "api/content/unattached-transactions-content.html"
     page_template = "api/views/amortizations.html"
 
-    def render_page(self, request):
+    def render_page_html(self):
         context = {
             "unattached_transactions": render_to_string(
                 self.unattached_transactions_content,
@@ -27,7 +28,7 @@ class AmortizationTableMixin:
                 {"table": self.get_amortization_table_html()},
             ),
         }
-        return render(request, self.page_template, context)
+        return render_to_string(self.page_template, context)
 
     def get_amortization_table_html(self):
         amortizations = (
@@ -125,13 +126,13 @@ class AmortizationView(AmortizationTableMixin, LoginRequiredMixin, View):
     redirect_field_name = "next"
 
     def get(self, request, *args, **kwargs):
-        return self.render_page(request)
+        return render_full_page(request, self.render_page_html())
 
     def post(self, request):
         form = AmortizationForm(request.POST)
 
         if form.is_valid():
             form.save()
-            return self.render_page(request)
+            return HttpResponse(self.render_page_html())
 
         print(form.errors)

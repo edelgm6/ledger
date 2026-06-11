@@ -30,6 +30,7 @@ from api.views.journal_entry_helpers import (
     render_paystubs_table,
 )
 from api.views import transaction_helpers
+from api.views.page_utils import render_full_page
 
 
 class TriggerAutoTagView(LoginRequiredMixin, View):
@@ -167,7 +168,7 @@ class JournalEntryView(LoginRequiredMixin, View):
         }
 
         html = render_to_string(self.view_template, context)
-        return HttpResponse(html)
+        return render_full_page(request, html)
 
     def post(self, request, transaction_id):
         """
