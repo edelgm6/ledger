@@ -154,6 +154,22 @@ def enrich_tax_charges_with_rates(
     return enriched_charges
 
 
+def get_tax_accounts() -> QuerySet:
+    """
+    Return the tax expense accounts (federal, state, property).
+
+    Single source of truth for "which accounts are taxes" — shared by the
+    recommendations service, the tax forms, and bulk tax-charge creation.
+    """
+    return Account.objects.filter(
+        special_type__in=[
+            Account.SpecialType.FEDERAL_TAXES,
+            Account.SpecialType.STATE_TAXES,
+            Account.SpecialType.PROPERTY_TAXES,
+        ]
+    )
+
+
 def get_tax_account_recommendations(
     taxable_income: Decimal,
 ) -> List[TaxAccountRecommendation]:
@@ -170,13 +186,7 @@ def get_tax_account_recommendations(
     Returns:
         List of TaxAccountRecommendation objects.
     """
-    tax_accounts = Account.objects.filter(
-        special_type__in=[
-            Account.SpecialType.FEDERAL_TAXES,
-            Account.SpecialType.STATE_TAXES,
-            Account.SpecialType.PROPERTY_TAXES,
-        ]
-    )
+    tax_accounts = get_tax_accounts()
 
     recommendations: List[TaxAccountRecommendation] = []
 

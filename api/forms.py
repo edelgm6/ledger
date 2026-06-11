@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from api import utils
 from api.factories import ReconciliationFactory
+from api.services.tax_services import get_tax_accounts
 from api.models import (
     Account,
     Amortization,
@@ -201,13 +202,7 @@ class TaxChargeFilterForm(forms.Form):
     date_to = forms.ChoiceField(required=False, choices=[])
     tax_type = forms.ModelChoiceField(
         required=False,
-        queryset=Account.objects.filter(
-            special_type__in=[
-                Account.SpecialType.FEDERAL_TAXES,
-                Account.SpecialType.STATE_TAXES,
-                Account.SpecialType.PROPERTY_TAXES,
-            ]
-        ),
+        queryset=get_tax_accounts(),
     )
 
     def __init__(self, *args, **kwargs):
@@ -255,14 +250,7 @@ class TaxChargeForm(forms.ModelForm):
         self.fields["date"].choices = last_days_of_month_tuples
         last_day_of_last_month = last_days_of_month_tuples[0][0]
         self.fields["date"].initial = last_day_of_last_month
-        tax_accounts = Account.objects.filter(
-            special_type__in=[
-                Account.SpecialType.FEDERAL_TAXES,
-                Account.SpecialType.STATE_TAXES,
-                Account.SpecialType.PROPERTY_TAXES,
-            ]
-        )
-        self.fields["account"].queryset = tax_accounts
+        self.fields["account"].queryset = get_tax_accounts()
 
 
 class TransactionLinkForm(forms.Form):

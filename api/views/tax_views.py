@@ -28,33 +28,14 @@ def _parse_date(value):
     return date.fromisoformat(str(value))
 
 
-def _render_updated_content(post_data) -> str:
+def _build_table_and_form(tax_charges, end_date: date):
     """
-    Re-render the taxes table + form for an HTMX update.
+    Build the tax table + form HTML for a set of charges and the month-end date.
 
-    Honors the submitted filter form (date range / tax type) so the refreshed
-    content matches the user's current filter, falling back to the default
-    six-month window when the filter form is absent or invalid.
+    Returns a (table_html, form_html) tuple. Shared by every taxes view so the
+    enrich → taxable-income → recommendations → render pipeline lives in one
+    place.
     """
-    filter_form = TaxChargeFilterForm(post_data)
-    if filter_form.is_valid():
-        date_from = _parse_date(filter_form.cleaned_data["date_from"])
-        date_to = _parse_date(filter_form.cleaned_data["date_to"])
-        tax_charges = tax_services.get_filtered_tax_charges(
-            date_from=date_from,
-            date_to=date_to,
-            tax_type=filter_form.cleaned_data.get("tax_type"),
-        )
-        end_date = date_to
-    else:
-        # Fallback to default date range
-        initial_end_date = utils.get_last_day_of_last_month()
-        six_months_ago = utils.get_last_days_of_month_tuples()[5][0]
-        tax_charges = tax_services.get_filtered_tax_charges(
-            date_from=six_months_ago, date_to=initial_end_date
-        )
-        end_date = initial_end_date
-
     enriched = tax_services.enrich_tax_charges_with_rates(tax_charges)
     taxable_income = tax_services.get_taxable_income(end_date)
     recommendations = tax_services.get_tax_account_recommendations(
@@ -65,6 +46,35 @@ def _render_updated_content(post_data) -> str:
     form_html = tax_helpers.render_tax_form(
         None, taxable_income.amount, recommendations, end_date
     )
+    return table_html, form_html
+
+
+def _render_updated_content(data) -> str:
+    """
+    Re-render the taxes table + form for an HTMX update.
+
+    Honors the submitted filter form (date range / tax type) so the refreshed
+    content matches the user's current filter, falling back to the default
+    six-month window when the filter form is absent or invalid.
+    """
+    filter_form = TaxChargeFilterForm(data)
+    if filter_form.is_valid():
+        date_from = _parse_date(filter_form.cleaned_data["date_from"])
+        end_date = _parse_date(filter_form.cleaned_data["date_to"])
+        tax_charges = tax_services.get_filtered_tax_charges(
+            date_from=date_from,
+            date_to=end_date,
+            tax_type=filter_form.cleaned_data.get("tax_type"),
+        )
+    else:
+        # Fallback to default date range
+        end_date = utils.get_last_day_of_last_month()
+        six_months_ago = utils.get_last_days_of_month_tuples()[5][0]
+        tax_charges = tax_services.get_filtered_tax_charges(
+            date_from=six_months_ago, date_to=end_date
+        )
+
+    table_html, form_html = _build_table_and_form(tax_charges, end_date)
     return tax_helpers.render_taxes_content(table_html, form_html)
 
 
@@ -75,29 +85,7 @@ class TaxChargeTableView(LoginRequiredMixin, View):
     redirect_field_name = "next"
 
     def get(self, request, *args, **kwargs):
-        form = TaxChargeFilterForm(request.GET)
-        if form.is_valid():
-            date_from = _parse_date(form.cleaned_data["date_from"])
-            date_to = _parse_date(form.cleaned_data["date_to"])
-
-            tax_charges = tax_services.get_filtered_tax_charges(
-                date_from=date_from,
-                date_to=date_to,
-                tax_type=form.cleaned_data.get("tax_type"),
-            )
-            enriched = tax_services.enrich_tax_charges_with_rates(tax_charges)
-            table_html = tax_helpers.render_tax_table(enriched)
-
-            taxable_income = tax_services.get_taxable_income(date_to)
-            recommendations = tax_services.get_tax_account_recommendations(
-                taxable_income.amount
-            )
-            form_html = tax_helpers.render_tax_form(
-                None, taxable_income.amount, recommendations, date_to
-            )
-
-            html = tax_helpers.render_taxes_content(table_html, form_html)
-            return HttpResponse(html)
+        return HttpResponse(_render_updated_content(request.GET))
 
 
 class TaxChargeFormView(LoginRequiredMixin, View):
@@ -136,17 +124,8 @@ class TaxesView(LoginRequiredMixin, View):
         tax_charges = tax_services.get_filtered_tax_charges(
             date_from=six_months_ago, date_to=initial_end_date
         )
-        enriched = tax_services.enrich_tax_charges_with_rates(tax_charges)
 
-        taxable_income = tax_services.get_taxable_income(initial_end_date)
-        recommendations = tax_services.get_tax_account_recommendations(
-            taxable_income.amount
-        )
-
-        table_html = tax_helpers.render_tax_table(enriched)
-        form_html = tax_helpers.render_tax_form(
-            None, taxable_income.amount, recommendations, initial_end_date
-        )
+        table_html, form_html = _build_table_and_form(tax_charges, initial_end_date)
         filter_html = tax_helpers.render_tax_filter_form()
 
         html = tax_helpers.render_taxes_page(table_html, form_html, filter_html)
