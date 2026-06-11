@@ -28,7 +28,12 @@ from api.views.journal_entry_views import (
 from api.views.reconciliation_views import ReconciliationTableView, ReconciliationView
 from api.views.search_views import SearchBulkUpdateView, SearchContentView, SearchView
 from api.views.statement_views import StatementDetailView, StatementView
-from api.views.tax_views import TaxChargeFormView, TaxChargeTableView, TaxesView
+from api.views.tax_views import (
+    ApplyTaxRecommendationView,
+    TaxChargeFormView,
+    TaxChargeTableView,
+    TaxesView,
+)
 from api.views.transaction_views import (
     LinkTransactionsContentView,
     LinkTransactionsView,
@@ -115,6 +120,11 @@ urlpatterns = [
     # Taxes page
     path("taxes/", TaxesView.as_view(), name="taxes"),
     path("taxes/<int:pk>/", TaxesView.as_view(), name="edit-tax-charge"),
+    path(
+        "taxes/apply/<int:account_pk>/<str:end_date>/",
+        ApplyTaxRecommendationView.as_view(),
+        name="apply-tax-recommendation",
+    ),
     path("tax-charge-table/", TaxChargeTableView.as_view(), name="tax-charge-table"),
     path("taxes/form/", TaxChargeFormView.as_view(), name="tax-form"),
     path("taxes/form/<int:pk>/", TaxChargeFormView.as_view(), name="tax-form-bound"),

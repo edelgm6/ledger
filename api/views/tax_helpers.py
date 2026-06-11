@@ -5,6 +5,7 @@ These pure functions handle all HTML rendering for tax views,
 replacing the rendering logic from TaxChargeMixIn.
 """
 
+from datetime import date
 from decimal import Decimal
 from typing import List, Optional
 
@@ -33,6 +34,7 @@ def render_tax_form(
     tax_charge: Optional[TaxCharge],
     taxable_income: Decimal,
     tax_accounts: List[TaxAccountRecommendation],
+    end_date: date,
 ) -> str:
     """
     Render the tax charge entry form HTML.
@@ -41,6 +43,8 @@ def render_tax_form(
         tax_charge: Optional existing tax charge to edit.
         taxable_income: Current taxable income amount.
         tax_accounts: List of tax accounts with recommended amounts.
+        end_date: Month-end date the recommendations apply to (used by the
+            per-account apply buttons).
 
     Returns:
         HTML string for the tax form.
@@ -63,6 +67,7 @@ def render_tax_form(
         "taxable_income": taxable_income,
         "tax_accounts": accounts_with_recommendations,
         "tax_charge": tax_charge,
+        "end_date": end_date,
     }
 
     return render_to_string(
