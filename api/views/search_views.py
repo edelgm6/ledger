@@ -16,6 +16,7 @@ from api.models import Account
 from api.services import search_services
 from api.services.transaction_services import TransactionFilterResult
 from api.views import search_helpers
+from api.views.page_utils import render_full_page
 
 
 def _get_search_results_from_form(form):
@@ -60,7 +61,7 @@ class SearchView(LoginRequiredMixin, View):
             "search_content": "",
         }
         html = render_to_string("api/views/search.html", context)
-        return HttpResponse(html)
+        return render_full_page(request, html)
 
 
 class SearchContentView(LoginRequiredMixin, View):

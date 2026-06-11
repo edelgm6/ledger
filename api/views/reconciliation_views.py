@@ -1,7 +1,7 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.forms import modelformset_factory
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.views import View
 
@@ -10,6 +10,7 @@ from api.factories import ReconciliationFactory
 from api.forms import ReconciliationFilterForm, ReconciliationForm
 from api.models import Reconciliation
 from api.statement import BalanceSheet
+from api.views.page_utils import render_full_page
 
 
 class ReconciliationTableMixin:
@@ -98,7 +99,8 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
             ),
         }
 
-        return render(request, template, context)
+        html = render_to_string(template, context)
+        return render_full_page(request, html)
 
     def post(self, request):
         if request.POST.get("plug"):

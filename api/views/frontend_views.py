@@ -15,6 +15,7 @@ from api.views.journal_entry_helpers import (
     render_paystubs_table,
     render_paystubs_table_oob_swap,
 )
+from api.views.page_utils import render_full_page
 
 
 class UploadTransactionsView(View):
@@ -38,8 +39,7 @@ class UploadTransactionsView(View):
         paystub_table_html = render_paystubs_table(
             get_paystubs_table_data(), show_fill_button=False
         )
-        return render(
-            request,
+        html = render_to_string(
             template,
             {
                 "form": csv_form_html,
@@ -47,6 +47,7 @@ class UploadTransactionsView(View):
                 "paystubs_table": paystub_table_html,
             },
         )
+        return render_full_page(request, html)
 
     def handle_transactions_form(self, request):
         form = UploadTransactionsForm(request.POST, request.FILES)

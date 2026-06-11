@@ -18,6 +18,7 @@ from api.forms import TaxChargeFilterForm, TaxChargeForm
 from api.models import TaxCharge
 from api.services import tax_services
 from api.views import tax_helpers
+from api.views.page_utils import render_full_page
 
 
 def _parse_date(value):
@@ -109,7 +110,7 @@ class TaxesView(LoginRequiredMixin, View):
         filter_html = tax_helpers.render_tax_filter_form()
 
         html = tax_helpers.render_taxes_page(table_html, form_html, filter_html)
-        return HttpResponse(html)
+        return render_full_page(request, html)
 
     def post(self, request, pk=None, *args, **kwargs):
         tax_charge = get_object_or_404(TaxCharge, pk=pk) if pk else None
