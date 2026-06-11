@@ -15,6 +15,7 @@ from api.forms import FromToDateForm
 from api.services import statement_services
 from api.statement import BalanceSheet, IncomeStatement
 from api.views import statement_helpers
+from api.views.page_utils import render_full_page
 
 
 class StatementDetailView(LoginRequiredMixin, View):
@@ -79,7 +80,8 @@ class StatementView(LoginRequiredMixin, View):
             "title": title,
         }
         template = "api/views/statement.html"
-        return HttpResponse(render_to_string(template, context))
+        html = render_to_string(template, context)
+        return render_full_page(request, html)
 
     def _get_default_dates(self):
         """Get last month date range."""

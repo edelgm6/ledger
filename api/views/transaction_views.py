@@ -19,6 +19,7 @@ from api.forms import TransactionFilterForm, TransactionForm, TransactionLinkFor
 from api.models import Transaction
 from api.services import transaction_services
 from api.views import transaction_helpers
+from api.views.page_utils import render_full_page
 
 
 # ------------------Transactions View-----------------------
@@ -111,7 +112,7 @@ class TransactionsView(LoginRequiredMixin, View):
 
         view_template = "api/views/transactions.html"
         html = render_to_string(view_template, context)
-        return HttpResponse(html)
+        return render_full_page(request, html)
 
     def post(self, request, transaction_id=None):
         # Parse filter form to get current transaction list
@@ -257,7 +258,7 @@ class LinkTransactionsView(LoginRequiredMixin, View):
 
         view_template = "api/views/transactions-linking.html"
         html = render_to_string(view_template, context)
-        return HttpResponse(html)
+        return render_full_page(request, html)
 
     def post(self, request):
         # Parse link form
