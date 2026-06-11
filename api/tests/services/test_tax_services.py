@@ -16,9 +16,11 @@ from django.test import TestCase
 
 from api.models import Account, TaxCharge, Transaction
 from api.services.tax_services import (
+    ApplyRecommendationResult,
     TaxableIncomeData,
     TaxChargeWithRate,
     TaxAccountRecommendation,
+    apply_tax_recommendation,
     get_taxable_income,
     enrich_tax_charges_with_rates,
     get_tax_account_recommendations,
@@ -303,6 +305,133 @@ class GetTaxAccountRecommendationsTest(TestCase):
         # Should only return the federal tax account
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].account.special_type, Account.SpecialType.FEDERAL_TAXES)
+
+
+class ApplyTaxRecommendationTest(TestCase):
+    """Tests for apply_tax_recommendation() function."""
+
+    def setUp(self):
+        """Create a tax account (with payable) and a percentage rate."""
+        self.tax_payable = AccountFactory(type=Account.Type.LIABILITY)
+        self.federal_account = AccountFactory(
+            type=Account.Type.EXPENSE,
+            special_type=Account.SpecialType.FEDERAL_TAXES,
+            tax_payable_account=self.tax_payable,
+            tax_rate=Decimal("0.25"),
+            tax_amount=None,
+        )
+        self.end_date = date(2024, 1, 31)
+
+    @patch("api.services.tax_services.get_taxable_income")
+    def test_updates_existing_charge_amount(self, mock_get_taxable_income):
+        """Applies tax_rate * taxable_income to an existing charge."""
+        mock_get_taxable_income.return_value = TaxableIncomeData(
+            amount=Decimal("10000.00"),
+            start_date=date(2024, 1, 1),
+            end_date=self.end_date,
+        )
+        existing = TaxCharge.objects.create(
+            account=self.federal_account, date=self.end_date, amount=Decimal("0")
+        )
+
+        result = apply_tax_recommendation(self.federal_account.pk, self.end_date)
+
+        self.assertIsInstance(result, ApplyRecommendationResult)
+        self.assertTrue(result.success)
+        self.assertEqual(result.tax_charge.pk, existing.pk)
+        existing.refresh_from_db()
+        self.assertEqual(existing.amount, Decimal("2500.00"))
+
+    @patch("api.services.tax_services.get_taxable_income")
+    def test_updates_related_transaction(self, mock_get_taxable_income):
+        """The cascade through TaxCharge.save() updates the transaction amount."""
+        mock_get_taxable_income.return_value = TaxableIncomeData(
+            amount=Decimal("10000.00"),
+            start_date=date(2024, 1, 1),
+            end_date=self.end_date,
+        )
+        existing = TaxCharge.objects.create(
+            account=self.federal_account, date=self.end_date, amount=Decimal("0")
+        )
+
+        apply_tax_recommendation(self.federal_account.pk, self.end_date)
+
+        existing.refresh_from_db()
+        self.assertEqual(existing.transaction.amount, Decimal("2500.00"))
+
+    @patch("api.services.tax_services.get_taxable_income")
+    def test_creates_charge_when_none_exists(self, mock_get_taxable_income):
+        """Creates a charge for the account/date when none exists yet."""
+        mock_get_taxable_income.return_value = TaxableIncomeData(
+            amount=Decimal("10000.00"),
+            start_date=date(2024, 1, 1),
+            end_date=self.end_date,
+        )
+
+        result = apply_tax_recommendation(self.federal_account.pk, self.end_date)
+
+        self.assertTrue(result.success)
+        charge = TaxCharge.objects.get(
+            account=self.federal_account, date=self.end_date
+        )
+        self.assertEqual(charge.amount, Decimal("2500.00"))
+
+    @patch("api.services.tax_services.get_taxable_income")
+    def test_uses_flat_tax_amount(self, mock_get_taxable_income):
+        """Uses the flat tax_amount for fixed (e.g. property) taxes."""
+        mock_get_taxable_income.return_value = TaxableIncomeData(
+            amount=Decimal("10000.00"),
+            start_date=date(2024, 1, 1),
+            end_date=self.end_date,
+        )
+        property_payable = AccountFactory(type=Account.Type.LIABILITY)
+        property_account = AccountFactory(
+            type=Account.Type.EXPENSE,
+            special_type=Account.SpecialType.PROPERTY_TAXES,
+            tax_payable_account=property_payable,
+            tax_rate=None,
+            tax_amount=Decimal("500.00"),
+        )
+
+        result = apply_tax_recommendation(property_account.pk, self.end_date)
+
+        self.assertTrue(result.success)
+        result.tax_charge.refresh_from_db()
+        self.assertEqual(result.tax_charge.amount, Decimal("500.00"))
+
+    @patch("api.services.tax_services.get_taxable_income")
+    def test_returns_error_when_no_rate_or_amount(self, mock_get_taxable_income):
+        """Returns failure when the account has neither a rate nor a flat amount."""
+        mock_get_taxable_income.return_value = TaxableIncomeData(
+            amount=Decimal("10000.00"),
+            start_date=date(2024, 1, 1),
+            end_date=self.end_date,
+        )
+        no_rate_payable = AccountFactory(type=Account.Type.LIABILITY)
+        no_rate_account = AccountFactory(
+            type=Account.Type.EXPENSE,
+            special_type=Account.SpecialType.STATE_TAXES,
+            tax_payable_account=no_rate_payable,
+            tax_rate=None,
+            tax_amount=None,
+        )
+
+        result = apply_tax_recommendation(no_rate_account.pk, self.end_date)
+
+        self.assertFalse(result.success)
+        self.assertIsNone(result.tax_charge)
+        self.assertFalse(
+            TaxCharge.objects.filter(
+                account=no_rate_account, date=self.end_date
+            ).exists()
+        )
+
+    def test_returns_error_for_missing_account(self):
+        """Returns failure when the account does not exist."""
+        result = apply_tax_recommendation(999999, self.end_date)
+
+        self.assertFalse(result.success)
+        self.assertEqual(result.error, "Account not found")
 
 
 class GetFilteredTaxChargesTest(TestCase):

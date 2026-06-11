@@ -13,6 +13,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Dict, List, Optional
 
+from django.db import transaction as db_transaction
 from django.db.models import QuerySet
 
 from api.models import Account, TaxCharge
@@ -42,6 +43,32 @@ class TaxAccountRecommendation:
     """Tax account with recommended tax amount."""
     account: Account
     recommended_tax: Optional[Decimal]
+
+
+@dataclass
+class ApplyRecommendationResult:
+    """Result of applying a recommended tax amount to a tax charge."""
+    success: bool
+    tax_charge: Optional[TaxCharge] = None
+    error: Optional[str] = None
+
+
+def _recommended_amount_for(
+    account: Account,
+    taxable_income: Decimal,
+) -> Optional[Decimal]:
+    """
+    Compute the recommended tax amount for a single account.
+
+    Uses account.tax_rate * taxable_income for percentage-based taxes,
+    or the flat account.tax_amount for fixed taxes (e.g. property tax).
+    Returns None when the account has neither configured.
+    """
+    if account.tax_rate:
+        return account.tax_rate * taxable_income
+    if account.tax_amount:
+        return account.tax_amount
+    return None
 
 
 def get_taxable_income(end_date: date) -> TaxableIncomeData:
@@ -154,21 +181,55 @@ def get_tax_account_recommendations(
     recommendations: List[TaxAccountRecommendation] = []
 
     for account in tax_accounts:
-        if account.tax_rate:
-            recommended_tax = account.tax_rate * taxable_income
-        elif account.tax_amount:
-            recommended_tax = account.tax_amount
-        else:
-            recommended_tax = None
-
         recommendations.append(
             TaxAccountRecommendation(
                 account=account,
-                recommended_tax=recommended_tax,
+                recommended_tax=_recommended_amount_for(account, taxable_income),
             )
         )
 
     return recommendations
+
+
+@db_transaction.atomic
+def apply_tax_recommendation(
+    account_pk: int,
+    end_date: date,
+) -> ApplyRecommendationResult:
+    """
+    Apply the recommended tax amount directly to an account's tax charge.
+
+    Recomputes the recommendation server-side (never trusting a client value),
+    then finds or creates the TaxCharge for the given account and month-end date
+    and sets its amount. TaxCharge.save() cascades to the related transaction,
+    journal entry, and reconciliation.
+
+    Args:
+        account_pk: Primary key of the tax account to update.
+        end_date: The month-end date the recommendation was computed for.
+
+    Returns:
+        ApplyRecommendationResult with the updated tax charge or an error.
+    """
+    account = Account.objects.filter(pk=account_pk).first()
+    if account is None:
+        return ApplyRecommendationResult(success=False, error="Account not found")
+
+    taxable_income = get_taxable_income(end_date).amount
+    amount = _recommended_amount_for(account, taxable_income)
+    if amount is None:
+        return ApplyRecommendationResult(
+            success=False, error="No recommendation available for account"
+        )
+
+    tax_charge, created = TaxCharge.objects.get_or_create(
+        account=account, date=end_date, defaults={"amount": amount}
+    )
+    if not created:
+        tax_charge.amount = amount
+        tax_charge.save()
+
+    return ApplyRecommendationResult(success=True, tax_charge=tax_charge)
 
 
 def get_filtered_tax_charges(
