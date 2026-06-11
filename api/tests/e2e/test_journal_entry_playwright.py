@@ -142,7 +142,9 @@ class JournalEntryFilterTests(JournalEntryE2EBase):
         self.assertIn("INCOME_TXN_TEST", content)
         self.assertIn("PURCHASE_TXN_TEST", content)
 
-        self.page.select_option("select[name='filter-transaction_type']", ["income"])
+        self.page.select_option(
+            "select[name='filter-transaction_type']", ["income"], force=True
+        )
         self.apply_filter()
 
         content = self.page.content()
@@ -176,7 +178,7 @@ class JournalEntryFilterTests(JournalEntryE2EBase):
         self.goto_journal_entries()
 
         self.page.select_option(
-            "select[name='filter-transaction_type']", ["income", "purchase"]
+            "select[name='filter-transaction_type']", ["income", "purchase"], force=True
         )
         self.apply_filter()
 
@@ -273,7 +275,9 @@ class JournalEntryFilterTests(JournalEntryE2EBase):
 
         self.goto_journal_entries()
 
-        self.page.select_option("select[name='filter-transaction_type']", ["income"])
+        self.page.select_option(
+            "select[name='filter-transaction_type']", ["income"], force=True
+        )
         self.page.select_option("select[name='filter-is_closed']", "False")
         self.apply_filter()
 
@@ -301,7 +305,9 @@ class JournalEntryEmptyStateTests(JournalEntryE2EBase):
         self.goto_journal_entries()
 
         # Filter to PAYMENT — no payment transactions exist
-        self.page.select_option("select[name='filter-transaction_type']", ["payment"])
+        self.page.select_option(
+            "select[name='filter-transaction_type']", ["payment"], force=True
+        )
         self.apply_filter()
 
         rows = self.page.locator("#transactions-table tbody tr")
