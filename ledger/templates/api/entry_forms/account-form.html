@@ -1,0 +1,103 @@
+{{ subtype_map|json_script:"subtype-map" }}
+<div class="set-form"
+     x-data="{
+        type: '{{ values.type }}',
+        subtype: '{{ values.sub_type }}',
+        map: JSON.parse(document.getElementById('subtype-map').textContent),
+        subtypeOptions() { return this.map[this.type] || []; },
+        subtypeValues() { return this.subtypeOptions().map(o => o.value); },
+        normalize() { if (!this.subtypeValues().includes(this.subtype)) this.subtype = this.subtypeValues()[0] || ''; },
+        init() { this.normalize(); }
+     }">
+
+  <div class="set-form-header">
+    {% if account %}Edit · {{ account.name }}{% else %}New account{% endif %}
+  </div>
+
+  {% if change == "create" %}
+    <div class="set-alert set-alert-success">Account created.</div>
+  {% elif change == "update" %}
+    <div class="set-alert set-alert-success">Account updated.</div>
+  {% elif change == "delete" %}
+    <div class="set-alert set-alert-success">Account deleted.</div>
+  {% endif %}
+  {% if error %}
+    <div class="set-alert set-alert-danger">{{ error }}</div>
+  {% endif %}
+  {% if form.non_field_errors %}
+    <div class="set-alert set-alert-danger">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <form method="post"
+        {% if account %}hx-post="{% url 'settings-account' account.id %}"{% else %}hx-post="{% url 'settings' %}"{% endif %}
+        hx-target="#settings-content"
+        hx-swap="innerHTML">
+    {% csrf_token %}
+
+    <div class="set-grid-1">
+      <div>
+        <label class="set-label">Name</label>
+        <input class="set-input" name="name" value="{{ values.name }}" placeholder="Account name" />
+        {% for e in form.name.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="set-label">Type</label>
+        <select class="set-select" name="type" x-model="type" @change="normalize()">
+          {% for value, label in type_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+        </select>
+        {% for e in form.type.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="set-label">Sub-type</label>
+        <select class="set-select" name="sub_type" x-model="subtype">
+          <template x-for="opt in subtypeOptions()" :key="opt.value">
+            <option :value="opt.value" x-text="opt.label"></option>
+          </template>
+        </select>
+        {% for e in form.sub_type.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+      </div>
+    </div>
+
+    <div class="set-grid-2">
+      <div>
+        <label class="set-label">Default Entity</label>
+        <select class="set-select" name="entity">
+          <option value="" {% if not values.entity %}selected{% endif %}>Select…</option>
+          {% for entity in entities %}
+          <option value="{{ entity.id }}" {% if values.entity == entity.id|stringformat:'s' %}selected{% endif %}>{{ entity.name }}</option>
+          {% endfor %}
+        </select>
+        {% for e in form.entity.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="set-label">CSV Profile</label>
+        <select class="set-select" name="csv_profile">
+          <option value="" {% if not values.csv_profile %}selected{% endif %}>Select…</option>
+          {% for profile in csv_profiles %}
+          <option value="{{ profile.id }}" {% if values.csv_profile == profile.id|stringformat:'s' %}selected{% endif %}>{{ profile.name }}</option>
+          {% endfor %}
+        </select>
+        {% for e in form.csv_profile.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="set-checks">
+        <label class="set-check">
+          <input type="checkbox" name="is_closed" {% if values.is_closed %}checked{% endif %} />Closed
+        </label>
+        <label class="set-check">
+          <input type="checkbox" name="is_depreciation" {% if values.is_depreciation %}checked{% endif %} />Depreciation
+        </label>
+      </div>
+    </div>
+
+    <div class="set-actions">
+      <button type="submit" name="action" value="save" class="set-btn set-btn-primary">{% if account %}Save{% else %}Create{% endif %}</button>
+      {% if account %}
+      <button type="submit" name="action" value="delete" class="set-btn set-btn-danger">Delete</button>
+      {% endif %}
+      <button type="button" class="set-btn set-btn-clear"
+              @click="selectedId = null"
+              hx-get="{% url 'settings-account-new-form' %}"
+              hx-target="#account-form-div">Clear</button>
+    </div>
+  </form>
+</div>

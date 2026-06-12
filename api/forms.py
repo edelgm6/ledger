@@ -15,6 +15,7 @@ from api.services.tax_services import get_tax_accounts
 from api.models import (
     Account,
     Amortization,
+    CSVProfile,
     Entity,
     JournalEntry,
     JournalEntryItem,
@@ -625,3 +626,49 @@ class WalletForm(forms.ModelForm):
             instance.save()
 
         return instance
+
+
+class AccountForm(forms.ModelForm):
+    """User-facing form for creating/editing accounts via the Settings page.
+
+    Exposes a curated subset of fields. System-managed fields (special_type,
+    tax_payable_account, tax_rate, tax_amount) are intentionally hidden so users
+    can't corrupt tax/statement behavior.
+    """
+
+    entity = forms.ModelChoiceField(
+        queryset=Entity.objects.all().order_by("name"),
+        required=False,
+    )
+    csv_profile = forms.ModelChoiceField(
+        queryset=CSVProfile.objects.all().order_by("name"),
+        required=False,
+    )
+
+    class Meta:
+        model = Account
+        fields = [
+            "name",
+            "type",
+            "sub_type",
+            "entity",
+            "csv_profile",
+            "is_closed",
+            "is_depreciation",
+        ]
+
+    def clean(self):
+        cleaned_data = super().clean()
+        account_type = cleaned_data.get("type")
+        sub_type = cleaned_data.get("sub_type")
+
+        # Validate that the chosen sub_type is valid for the chosen type.
+        if account_type and sub_type:
+            valid_sub_types = Account.SUBTYPE_TO_TYPE_MAP.get(account_type, [])
+            if sub_type not in valid_sub_types:
+                self.add_error(
+                    "sub_type",
+                    f"'{sub_type}' is not a valid sub-type for {account_type} accounts.",
+                )
+
+        return cleaned_data

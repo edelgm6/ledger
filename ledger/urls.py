@@ -27,6 +27,7 @@ from api.views.journal_entry_views import (
 )
 from api.views.reconciliation_views import ReconciliationTableView, ReconciliationView
 from api.views.search_views import SearchBulkUpdateView, SearchContentView, SearchView
+from api.views.settings_views import AccountFormView, SettingsView
 from api.views.statement_views import StatementDetailView, StatementView
 from api.views.tax_views import (
     ApplyTaxRecommendationView,
@@ -156,6 +157,23 @@ urlpatterns = [
         "tag/journal-entry-item/<int:journal_entry_item_id>/",
         UntagJournalEntryView.as_view(),
         name="untag-journal-entry",
+    ),
+    # Settings (user-facing CRUD for config models)
+    path("settings/", SettingsView.as_view(), name="settings"),
+    path(
+        "settings/accounts/new/form/",
+        AccountFormView.as_view(),
+        name="settings-account-new-form",
+    ),
+    path(
+        "settings/accounts/<int:account_id>/",
+        SettingsView.as_view(),
+        name="settings-account",
+    ),
+    path(
+        "settings/accounts/<int:account_id>/form/",
+        AccountFormView.as_view(),
+        name="settings-account-form",
     ),
     path("tag/", TagEntitiesView.as_view(), name="tag-entities"),
     path("tag/balances/", EntityGroupedBalancesView.as_view(), name="entity-balances"),
