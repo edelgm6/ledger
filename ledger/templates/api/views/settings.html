@@ -1,0 +1,123 @@
+<style>
+  /* ---- Settings page (design: "Ledger Settings (Interactive)", Direction A) ---- */
+  .set-page { max-width: 1160px; margin: 0 auto; padding: 30px 24px 60px;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+  .set-layout { display: flex; gap: 38px; }
+
+  .set-menu { width: 160px; flex: none; }
+  .set-menu-title { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
+                    color: #aeb4ba; margin-bottom: 13px; padding-left: 11px; }
+  .set-menu-list { display: flex; flex-direction: column; }
+  .set-menu-item { font-size: 14px; color: #6c757d; font-weight: 400; padding: 7px 0 7px 11px;
+                   border-left: 2px solid transparent; cursor: pointer; }
+  .set-menu-item.active { color: #007bff; font-weight: 600; border-left-color: #007bff; }
+
+  .set-main { flex: 1; min-width: 0; }
+
+  .set-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
+  .set-head-left { display: flex; align-items: baseline; gap: 9px; }
+  .set-h2 { margin: 0; font-size: 16px; font-weight: 600; color: #212529; }
+  .set-count { font-size: 12px; color: #9aa0a6; }
+  .set-head-right { display: flex; align-items: center; gap: 10px; }
+
+  .set-search { display: flex; align-items: center; gap: 7px; width: 230px; height: 30px;
+                border: 1px solid #ced4da; border-radius: 4px; padding: 0 9px; background: #fff; }
+  .set-search input { border: none; outline: none; font-size: 12px; color: #212529; background: transparent;
+                      width: 100%; font-family: inherit; }
+  .set-search input::placeholder { color: #aeb4ba; }
+
+  .set-btn { height: 30px; padding: 0 14px; border: none; border-radius: 4px; font-size: 12px;
+             font-weight: 500; cursor: pointer; font-family: inherit; }
+  .set-btn-primary { background: #007bff; color: #fff; }
+  .set-btn-danger { background: #dc3545; color: #fff; }
+  .set-btn-clear { background: #f1f3f5; color: #6c757d; border: 1px solid #e2e5e8; }
+
+  /* Fixed-height table area: the list scrolls internally so the edit form
+     below is always visible no matter how many accounts exist. */
+  .set-table-scroll { max-height: 340px; overflow-y: auto; }
+  .set-table { width: 100%; border-collapse: collapse; }
+  .set-table th { padding: 8px 12px; font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+                  color: #9aa0a6; font-weight: 600; border-bottom: 1px solid #e2e5e8; text-align: left;
+                  position: sticky; top: 0; background: #fff; z-index: 1; }
+  .set-table th.center { text-align: center; }
+  .set-row { cursor: pointer; border-bottom: 1px solid #f0f2f4; }
+  .set-row:hover { background: #f7f9fb; }
+  .set-row.selected { background: #f2f8ff; box-shadow: inset 2px 0 0 #007bff; }
+  .set-td { padding: 8px 12px; font-size: 12px; white-space: nowrap; }
+  .set-td-name { color: #212529; font-weight: 500; }
+  .set-row.selected .set-td-name { font-weight: 600; }
+  .set-td-type { color: #343a40; }
+  .set-td-sub { color: #6c757d; }
+  .set-td-entity { color: #495057; }
+  .set-td-entity.empty { color: #b6bcc2; }
+  .set-td-closed { color: #6c757d; text-align: center; }
+  .set-empty { padding: 22px 12px; font-size: 12px; color: #9aa0a6; text-align: center; }
+
+  .set-form { margin-top: 22px; padding-top: 18px; border-top: 1px solid #e9ecef; }
+  .set-form-header { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+                     color: #9aa0a6; margin-bottom: 15px; }
+  .set-grid-1 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 14px 18px; margin-bottom: 14px; }
+  .set-grid-2 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 18px; align-items: end; margin-bottom: 18px; }
+  .set-label { display: block; font-size: 11px; color: #6c757d; margin-bottom: 5px; }
+  .set-input, .set-select { height: 30px; border: 1px solid #ced4da; border-radius: 4px; padding: 0 9px;
+                            font-size: 12px; color: #212529; background: #fff; width: 100%;
+                            font-family: inherit; outline: none; }
+  .set-select { padding: 0 7px; cursor: pointer; }
+  .set-checks { display: flex; gap: 20px; padding-bottom: 7px; }
+  .set-check { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: #212529; cursor: pointer; }
+  .set-check input { width: 14px; height: 14px; accent-color: #007bff; cursor: pointer; margin: 0; }
+  .set-actions { display: flex; gap: 9px; }
+  .set-field-error { font-size: 11px; color: #dc3545; margin-top: 4px; }
+  .set-alert { font-size: 12px; border-radius: 4px; padding: 8px 11px; margin-bottom: 14px; }
+  .set-alert-success { background: #e9f7ef; color: #1e7e44; }
+  .set-alert-danger { background: #fdecee; color: #b02a37; }
+
+  .set-stub { border: 1px dashed #d8dce0; border-radius: 8px; padding: 46px 24px; text-align: center; background: #fafbfc; }
+  .set-stub-title { font-size: 13px; color: #868e96; font-weight: 500; }
+  .set-stub-sub { font-size: 12px; color: #aeb4ba; margin-top: 4px; }
+</style>
+
+<div class="set-page"
+     x-data="{
+        section: 'Accounts',
+        sections: ['Accounts', 'Entities', 'Paystubs', 'Auto Tags', 'CSV Profiles'],
+        stubs: {
+          'Entities': 'Counterparties money moves to and from — banks, employers, landlords.',
+          'Paystubs': 'Saved paystub templates parsed via AWS Textract.',
+          'Auto Tags': 'Rules that auto-categorize incoming transactions.',
+          'CSV Profiles': 'Column mappings for each bank\'s CSV export format.'
+        }
+     }">
+  <div class="set-layout">
+
+    <!-- flat menu -->
+    <div class="set-menu">
+      <div class="set-menu-title">Settings</div>
+      <div class="set-menu-list">
+        <template x-for="s in sections" :key="s">
+          <span class="set-menu-item" :class="{ active: section === s }"
+                @click="section = s" x-text="s"></span>
+        </template>
+      </div>
+    </div>
+
+    <!-- main -->
+    <div class="set-main">
+      <!-- Accounts (functional) -->
+      <div x-show="section === 'Accounts'">
+        <div id="settings-content">{{ content }}</div>
+      </div>
+
+      <!-- Stub sections -->
+      <div x-show="section !== 'Accounts'" x-cloak>
+        <h2 class="set-h2" style="margin-bottom: 4px;" x-text="section"></h2>
+        <p style="margin: 0 0 26px; font-size: 12px; color: #9aa0a6;" x-text="stubs[section]"></p>
+        <div class="set-stub">
+          <div class="set-stub-title"><span x-text="section"></span> settings</div>
+          <div class="set-stub-sub">List + form for this section follows the same pattern as Accounts.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
