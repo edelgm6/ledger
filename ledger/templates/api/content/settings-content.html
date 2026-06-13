@@ -68,6 +68,24 @@
   </table>
   </div>
 
+  <div class="set-list">
+    {% for account in accounts %}
+    <div class="set-mrow"
+         data-search="{{ account.name|lower }} {{ account.get_type_display|lower }} {{ account.get_sub_type_display|lower }}"
+         :class="{ selected: selectedId === {{ account.id }} }"
+         x-show="matches($el)"
+         @click="selectedId = {{ account.id }}"
+         hx-get="{% url 'settings-account-form' account.id %}"
+         hx-target="#account-form-div">
+      <div class="set-mrow-top">
+        <span class="set-mname">{{ account.name }}</span>
+        <span class="set-mtype">{{ account.get_type_display }}</span>
+      </div>
+      <div class="set-mmeta">{{ account.get_sub_type_display }} · {% if account.entity %}{{ account.entity.name }}{% else %}No entity{% endif %}{% if account.is_closed %} · Closed{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+
   <div class="set-empty" x-show="visible() === 0" x-cloak>
     No accounts match "<span x-text="q"></span>".
   </div>
