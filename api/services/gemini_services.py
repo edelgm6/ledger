@@ -151,6 +151,17 @@ def call_gemini_text(text: str, prompt: str) -> str:
     return response.text
 
 
+def _loads_gemini_json(response_text: str) -> Dict[str, Any]:
+    """Parses a Gemini JSON response, stripping a leading/trailing markdown
+    code fence (```json ... ```) if present."""
+    text = response_text.strip()
+    if text.startswith("```"):
+        # Remove the opening fence line (```json or ```) and the closing ```.
+        lines = text.split("\n")
+        text = "\n".join(lines[1:-1])
+    return json.loads(text)
+
+
 def parse_gemini_response(
     response_text: str, prefill: Prefill, doc_searches: Optional[List] = None
 ) -> Dict[str, Dict[Any, Any]]:
@@ -164,14 +175,7 @@ def parse_gemini_response(
         - "End Period": str
         - Account objects as keys mapping to {"value": Decimal, "entry_type": str, "entity": Entity}
     """
-    # Strip markdown code fences if present
-    text = response_text.strip()
-    if text.startswith("```"):
-        # Remove first line (```json or ```) and last line (```)
-        lines = text.split("\n")
-        text = "\n".join(lines[1:-1])
-
-    parsed = json.loads(text)
+    parsed = _loads_gemini_json(response_text)
     pages = parsed.get("pages", [])
 
     # Build lookup from account name -> DocSearch for mapping back
@@ -287,12 +291,7 @@ def parse_bill_response(response_text: str, prefill: Prefill) -> Dict[str, Any]:
     normalized UtilityBill fields. A bill is treated as a single-page document,
     so only pages[0] is read.
     """
-    text = response_text.strip()
-    if text.startswith("```"):
-        lines = text.split("\n")
-        text = "\n".join(lines[1:-1])
-
-    parsed = json.loads(text)
+    parsed = _loads_gemini_json(response_text)
     pages = parsed.get("pages", [])
     page = pages[0] if pages else {}
 
@@ -316,7 +315,9 @@ def parse_bill_with_gemini(email_text: str, prefill: Prefill) -> Dict[str, Any]:
     High-level function: sends an email body to Gemini using the bill prefill's
     DocSearch config and returns normalized UtilityBill fields.
     """
-    doc_searches = list(DocSearch.objects.filter(prefill=prefill))
+    doc_searches = list(
+        DocSearch.objects.filter(prefill=prefill).select_related("account", "entity")
+    )
     prompt = build_gemini_prompt(prefill, doc_searches=doc_searches)
     response_text = call_gemini_text(email_text, prompt)
     return parse_bill_response(response_text, prefill)

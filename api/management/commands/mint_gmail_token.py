@@ -17,7 +17,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         from google_auth_oauthlib.flow import InstalledAppFlow
 
-        from api.services.gmail_services import GMAIL_SCOPES
+        from api.services.gmail_services import GMAIL_SCOPES, GMAIL_TOKEN_URI
 
         client_id = settings.GMAIL_CLIENT_ID
         client_secret = settings.GMAIL_CLIENT_SECRET
@@ -31,7 +31,7 @@ class Command(BaseCommand):
                 "client_id": client_id,
                 "client_secret": client_secret,
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token",
+                "token_uri": GMAIL_TOKEN_URI,
                 "redirect_uris": ["http://localhost"],
             }
         }
@@ -48,9 +48,7 @@ class Command(BaseCommand):
 
         # Persist to a file as well as stdout, so backgrounded/interactive runs
         # don't lose the token to stdout-capture quirks.
-        from django.conf import settings as dj_settings
-
-        token_path = Path(dj_settings.BASE_DIR) / ".gmail_refresh_token"
+        token_path = Path(settings.BASE_DIR) / ".gmail_refresh_token"
         token_path.write_text(credentials.refresh_token)
 
         self.stdout.write(self.style.SUCCESS("GMAIL_REFRESH_TOKEN:"))

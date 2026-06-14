@@ -19,16 +19,6 @@ logger = logging.getLogger(__name__)
 DEFAULT_PREFILL_NAME = "Utility Bill"
 DATE_WINDOW_DAYS = 45
 
-PARSED_FIELDS = (
-    "vendor",
-    "account_number",
-    "amount",
-    "service_address",
-    "bill_date",
-    "due_date",
-    "payment_date",
-)
-
 
 def _normalize_account_number(value: str) -> str:
     """Lowercase and strip non-alphanumerics so formatting differences (spaces,
@@ -88,8 +78,8 @@ def ingest_message(source_message_id: str, email: dict) -> Optional[UtilityBill]
         bill.save()
         return bill
 
-    for field in PARSED_FIELDS:
-        value = parsed.get(field)
+    # parse_bill_with_gemini returns only valid, coerced UtilityBill fields.
+    for field, value in parsed.items():
         if value is not None:
             setattr(bill, field, value)
     bill.save()
@@ -177,23 +167,25 @@ def match_transactions_to_bills(transactions: Iterable[Transaction]) -> int:
     if not bills or not txns:
         return 0
 
-    # Build candidate edges, then keep only 1:1 unique matches.
-    edges = [
-        (txn, bill)
-        for txn in txns
-        for bill in bills
-        if _bill_matches_transaction(bill, txn)
-    ]
-    txn_degree: dict = defaultdict(int)
-    bill_degree: dict = defaultdict(int)
-    for txn, bill in edges:
-        txn_degree[id(txn)] += 1
-        bill_degree[bill.id] += 1
+    # Group candidate matches both ways so we can keep only unique 1:1 pairs.
+    # Transactions are keyed by id() because they may be unsaved bulk_create
+    # results without reliable pk/__eq__; bills always have a stable pk.
+    txns_for_bill: dict = defaultdict(list)
+    bills_for_txn: dict = defaultdict(list)
+    for bill in bills:
+        for txn in txns:
+            if _bill_matches_transaction(bill, txn):
+                txns_for_bill[bill.id].append(txn)
+                bills_for_txn[id(txn)].append(bill)
 
     txns_to_update: List[Transaction] = []
     bills_to_update: List[UtilityBill] = []
-    for txn, bill in edges:
-        if txn_degree[id(txn)] != 1 or bill_degree[bill.id] != 1:
+    for bill in bills:
+        candidates = txns_for_bill[bill.id]
+        if len(candidates) != 1:
+            continue
+        txn = candidates[0]
+        if len(bills_for_txn[id(txn)]) != 1:
             continue
         txn.suggested_account = bill.account
         txn.suggested_entity = bill.entity

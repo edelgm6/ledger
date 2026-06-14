@@ -132,6 +132,7 @@ class S3FileAdmin(admin.ModelAdmin):
 
 
 class UtilityBillRuleAdmin(admin.ModelAdmin):
+    list_select_related = ("account",)
     list_display = (
         "from_address",
         "subject",
@@ -142,6 +143,11 @@ class UtilityBillRuleAdmin(admin.ModelAdmin):
 
 
 class UtilityBillAdmin(admin.ModelAdmin):
+    list_select_related = (
+        "account",
+        "matched_transaction",
+        "matched_transaction__account",
+    )
     list_display = (
         "vendor",
         "account_number",
