@@ -491,10 +491,15 @@ def apply_autotags_to_open_transactions() -> int:
     Applies autotags to all open transactions.
     Returns count of updated transactions.
     """
-    open_transactions = Transaction.objects.filter(is_closed=False)
+    open_transactions = list(Transaction.objects.filter(is_closed=False))
     Transaction.apply_autotags(open_transactions)
-    open_transactions.bulk_update(
+    Transaction.objects.bulk_update(
         open_transactions,
         ["suggested_account", "prefill", "type", "suggested_entity"],
     )
-    return open_transactions.count()
+
+    # Also re-attempt utility-bill matches so newly-arrived bills get applied.
+    from api.services.bill_services import match_transactions_to_bills
+
+    match_transactions_to_bills(open_transactions)
+    return len(open_transactions)

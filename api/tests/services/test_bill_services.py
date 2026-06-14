@@ -1,0 +1,296 @@
+import datetime
+from decimal import Decimal
+from unittest.mock import patch
+
+from django.test import TestCase
+
+from api.models import Account, Prefill, Transaction, UtilityBill, UtilityBillRule
+from api.services.bill_services import (
+    ingest_message,
+    match_transactions_to_bills,
+    resolve_bill_account,
+)
+from api.tests.testing_factories import AccountFactory, PrefillFactory, TransactionFactory
+
+
+def utility_bill_prefill():
+    # Reuse the Prefill seeded by migration 0029 (created in the test DB).
+    return Prefill.objects.filter(name="Utility Bill").first() or PrefillFactory(
+        name="Utility Bill"
+    )
+
+
+def make_rule(**kwargs):
+    defaults = {
+        "from_address": "billing@dominionenergy.com",
+        "subject": "Your bill is ready",
+        "prefill": utility_bill_prefill(),
+        "account_number": "1234567890",
+        "transaction_description_match": "DOMINION",
+        "account": AccountFactory(type=Account.Type.EXPENSE),
+    }
+    defaults.update(kwargs)
+    return UtilityBillRule.objects.create(**defaults)
+
+
+def make_bill(**kwargs):
+    defaults = {
+        "source_message_id": "msg-1",
+        "amount": Decimal("88.42"),
+        "account_number": "1234567890",
+        "status": UtilityBill.Status.PENDING,
+    }
+    defaults.update(kwargs)
+    return UtilityBill.objects.create(**defaults)
+
+
+class ResolveBillAccountTest(TestCase):
+    def test_exact_account_number_match(self):
+        rule = make_rule(account_number="1234567890")
+        bill = make_bill(account_number="1234567890")
+
+        match = resolve_bill_account(bill)
+
+        self.assertEqual(match, rule)
+        self.assertEqual(bill.status, UtilityBill.Status.PARSED)
+        self.assertEqual(bill.account, rule.account)
+        self.assertEqual(bill.rule, rule)
+
+    def test_account_number_normalized_match(self):
+        rule = make_rule(account_number="123-456-7890")
+        bill = make_bill(account_number="1234567890")
+
+        self.assertEqual(resolve_bill_account(bill), rule)
+        self.assertEqual(bill.status, UtilityBill.Status.PARSED)
+
+    def test_address_hint_fallback(self):
+        rule = make_rule(account_number="0000", address_hint="Oak")
+        bill = make_bill(account_number="", service_address="127 O****k Oak Lane")
+
+        self.assertEqual(resolve_bill_account(bill), rule)
+        self.assertEqual(bill.account, rule.account)
+
+    def test_no_rule_is_unresolved(self):
+        bill = make_bill(account_number="9999")
+
+        self.assertIsNone(resolve_bill_account(bill))
+        self.assertEqual(bill.status, UtilityBill.Status.UNRESOLVED)
+        self.assertIsNone(bill.account)
+
+
+class MatchTransactionsToBillsTest(TestCase):
+    def setUp(self):
+        self.bank = AccountFactory(type=Account.Type.ASSET)
+        self.today = datetime.date.today()
+
+    def _parsed_bill(self, rule, **kwargs):
+        defaults = {
+            "source_message_id": "m",
+            "amount": Decimal("88.42"),
+            "account_number": rule.account_number,
+            "status": UtilityBill.Status.PARSED,
+            "rule": rule,
+            "account": rule.account,
+            "bill_date": self.today,
+        }
+        defaults.update(kwargs)
+        return UtilityBill.objects.create(**defaults)
+
+    def _txn(self, **kwargs):
+        defaults = {
+            "account": self.bank,
+            "amount": Decimal("-88.42"),
+            "description": "DOMINION ENERGY PAYMENT",
+            "date": self.today,
+            "type": Transaction.TransactionType.PURCHASE,
+        }
+        defaults.update(kwargs)
+        return TransactionFactory(**defaults)
+
+    def test_in_window_match(self):
+        rule = make_rule()
+        bill = self._parsed_bill(rule, source_message_id="b1")
+        txn = self._txn()
+
+        count = match_transactions_to_bills([txn])
+
+        self.assertEqual(count, 1)
+        txn.refresh_from_db()
+        bill.refresh_from_db()
+        self.assertEqual(txn.suggested_account, rule.account)
+        self.assertEqual(bill.status, UtilityBill.Status.MATCHED)
+        self.assertEqual(bill.matched_transaction, txn)
+
+    def test_out_of_window_skipped(self):
+        rule = make_rule()
+        self._parsed_bill(rule, source_message_id="b1", bill_date=self.today)
+        txn = self._txn(date=self.today - datetime.timedelta(days=60))
+
+        self.assertEqual(match_transactions_to_bills([txn]), 0)
+
+    def test_null_bill_date_matches_on_amount_and_vendor(self):
+        rule = make_rule()
+        self._parsed_bill(rule, source_message_id="b1", bill_date=None)
+        txn = self._txn(date=self.today - datetime.timedelta(days=300))
+
+        self.assertEqual(match_transactions_to_bills([txn]), 1)
+
+    def test_due_date_anchors_window_when_no_bill_date(self):
+        rule = make_rule()
+        self._parsed_bill(
+            rule, source_message_id="b1", bill_date=None, due_date=self.today
+        )
+        in_window = self._txn(date=self.today - datetime.timedelta(days=10))
+        self.assertEqual(match_transactions_to_bills([in_window]), 1)
+
+    def test_due_date_window_excludes_far_transaction(self):
+        rule = make_rule()
+        self._parsed_bill(
+            rule, source_message_id="b1", bill_date=None, due_date=self.today
+        )
+        far = self._txn(date=self.today - datetime.timedelta(days=60))
+        self.assertEqual(match_transactions_to_bills([far]), 0)
+
+    def test_due_date_preferred_over_bill_date(self):
+        # Due date is in-window even though bill_date would be out-of-window.
+        rule = make_rule()
+        self._parsed_bill(
+            rule,
+            source_message_id="b1",
+            bill_date=self.today - datetime.timedelta(days=120),
+            due_date=self.today,
+        )
+        txn = self._txn(date=self.today)
+        self.assertEqual(match_transactions_to_bills([txn]), 1)
+
+    def test_payment_date_preferred_over_due_date(self):
+        # Payment date is in-window; due_date would put it out-of-window.
+        rule = make_rule()
+        self._parsed_bill(
+            rule,
+            source_message_id="b1",
+            bill_date=None,
+            due_date=self.today - datetime.timedelta(days=120),
+            payment_date=self.today,
+        )
+        txn = self._txn(date=self.today)
+        self.assertEqual(match_transactions_to_bills([txn]), 1)
+
+    def test_amount_collision_is_ambiguous(self):
+        rule = make_rule()
+        self._parsed_bill(rule, source_message_id="b1")
+        self._parsed_bill(rule, source_message_id="b2")
+        txn = self._txn()
+
+        # One transaction matches two bills -> ambiguous, leave for review.
+        self.assertEqual(match_transactions_to_bills([txn]), 0)
+
+    def test_wrong_vendor_description_no_match(self):
+        rule = make_rule(transaction_description_match="DOMINION")
+        self._parsed_bill(rule, source_message_id="b1")
+        txn = self._txn(description="CITY GAS PAYMENT")
+
+        self.assertEqual(match_transactions_to_bills([txn]), 0)
+
+
+class IngestMessageTest(TestCase):
+    def test_dedupe_skips_existing_message(self):
+        UtilityBill.objects.create(
+            source_message_id="dup", status=UtilityBill.Status.PARSED
+        )
+        result = ingest_message("dup", {"from_address": "x", "text": "y"})
+        self.assertIsNone(result)
+        self.assertEqual(UtilityBill.objects.filter(source_message_id="dup").count(), 1)
+
+    @patch("api.services.bill_services.parse_bill_with_gemini")
+    def test_failed_record_is_retried(self, mock_parse):
+        rule = make_rule()
+        UtilityBill.objects.create(
+            source_message_id="retry-me",
+            status=UtilityBill.Status.FAILED,
+            error_message="transient 503",
+        )
+        mock_parse.return_value = {
+            "account_number": rule.account_number,
+            "amount": Decimal("88.42"),
+        }
+
+        bill = ingest_message(
+            "retry-me",
+            {"from_address": rule.from_address, "text": "body"},
+        )
+
+        self.assertIsNotNone(bill)
+        self.assertEqual(bill.status, UtilityBill.Status.PARSED)
+        self.assertEqual(bill.error_message, "")
+        # Still exactly one row for that message id (reused, not duplicated).
+        self.assertEqual(
+            UtilityBill.objects.filter(source_message_id="retry-me").count(), 1
+        )
+
+    @patch("api.services.bill_services.parse_bill_with_gemini")
+    def test_ingest_parses_and_resolves(self, mock_parse):
+        rule = make_rule()
+        mock_parse.return_value = {
+            "vendor": "Dominion Energy",
+            "account_number": rule.account_number,
+            "amount": Decimal("88.42"),
+            "bill_date": datetime.date.today(),
+        }
+
+        bill = ingest_message(
+            "new-msg",
+            {"from_address": rule.from_address, "subject": "x", "text": "body"},
+        )
+
+        self.assertIsNotNone(bill)
+        self.assertEqual(bill.status, UtilityBill.Status.PARSED)
+        self.assertEqual(bill.account, rule.account)
+        self.assertEqual(bill.amount, Decimal("88.42"))
+
+    @patch("api.services.bill_services.parse_bill_with_gemini")
+    def test_ingest_records_parse_failure(self, mock_parse):
+        make_rule()
+        mock_parse.side_effect = ValueError("bad json")
+
+        bill = ingest_message(
+            "fail-msg",
+            {"from_address": "billing@dominionenergy.com", "text": "body"},
+        )
+
+        self.assertEqual(bill.status, UtilityBill.Status.FAILED)
+        self.assertIn("bad json", bill.error_message)
+
+
+class TriggerWiringTest(TestCase):
+    """The manual autotag trigger also applies utility-bill matches."""
+
+    def test_apply_autotags_trigger_matches_bills(self):
+        from api.services.journal_entry_services import (
+            apply_autotags_to_open_transactions,
+        )
+
+        rule = make_rule()
+        today = datetime.date.today()
+        UtilityBill.objects.create(
+            source_message_id="b1",
+            amount=Decimal("88.42"),
+            account_number=rule.account_number,
+            status=UtilityBill.Status.PARSED,
+            rule=rule,
+            account=rule.account,
+            bill_date=today,
+        )
+        txn = TransactionFactory(
+            account=AccountFactory(type=Account.Type.ASSET),
+            amount=Decimal("-88.42"),
+            description="DOMINION ENERGY PAYMENT",
+            date=today,
+            is_closed=False,
+            type=Transaction.TransactionType.PURCHASE,
+        )
+
+        apply_autotags_to_open_transactions()
+
+        txn.refresh_from_db()
+        self.assertEqual(txn.suggested_account, rule.account)

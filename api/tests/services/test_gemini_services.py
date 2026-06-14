@@ -1,3 +1,4 @@
+import datetime
 import json
 from decimal import Decimal
 from unittest.mock import patch, MagicMock
@@ -8,6 +9,8 @@ from api.models import Account, DocSearch, JournalEntryItem, Prefill
 from api.services.gemini_services import (
     build_gemini_prompt,
     call_gemini_api,
+    parse_bill_response,
+    parse_bill_with_gemini,
     parse_gemini_response,
     parse_paystub_with_gemini,
 )
@@ -243,3 +246,80 @@ class ParsePaystubWithGeminiTest(TestCase):
         self.assertIn("0", result)
         self.assertEqual(result["0"]["Company"], "Test Co")
         self.assertEqual(result["0"][self.account]["value"], Decimal("4500.00"))
+
+
+class BillPromptSchemaTest(TestCase):
+    """The dynamic builder keeps line_items for paystubs and drops them for
+    metadata-only bill prefills."""
+
+    def test_paystub_prefill_includes_line_items(self):
+        prefill = PrefillFactory(name="Payroll")
+        account = AccountFactory(name="Gross Pay", type=Account.Type.INCOME)
+        DocSearch.objects.create(
+            prefill=prefill,
+            keyword="Gross Pay",
+            account=account,
+            journal_entry_item_type=JournalEntryItem.JournalEntryType.CREDIT,
+        )
+        self.assertIn("line_items", build_gemini_prompt(prefill))
+
+    def test_bill_prefill_omits_line_items(self):
+        prefill = PrefillFactory(name="Utility Bill")
+        DocSearch.objects.create(
+            prefill=prefill, keyword="Account Number", selection="Account Number"
+        )
+        DocSearch.objects.create(
+            prefill=prefill, keyword="Amount Due", selection="Amount Due"
+        )
+        prompt = build_gemini_prompt(prefill)
+        self.assertIn('"Account Number"', prompt)
+        self.assertNotIn("line_items", prompt)
+
+
+class ParseBillResponseTest(TestCase):
+    def setUp(self):
+        self.prefill = PrefillFactory(name="Utility Bill")
+
+    def test_parses_bill_fields(self):
+        response = json.dumps({
+            "pages": [{
+                "Vendor": "Dominion Energy",
+                "Account Number": "1234567890",
+                "Amount Due": 88.42,
+                "Service Address": "127 O****k Lane",
+                "Bill Date": "06/01/2026",
+                "Due Date": "06/20/2026",
+            }]
+        })
+
+        result = parse_bill_response(response, self.prefill)
+
+        self.assertEqual(result["vendor"], "Dominion Energy")
+        self.assertEqual(result["account_number"], "1234567890")
+        self.assertEqual(result["amount"], Decimal("88.42"))
+        self.assertEqual(result["service_address"], "127 O****k Lane")
+        self.assertEqual(result["bill_date"], datetime.date(2026, 6, 1))
+        self.assertEqual(result["due_date"], datetime.date(2026, 6, 20))
+
+    def test_handles_markdown_and_dollar_amount(self):
+        response = '```json\n{"pages": [{"Amount Due": "$1,088.42"}]}\n```'
+        result = parse_bill_response(response, self.prefill)
+        self.assertEqual(result["amount"], Decimal("1088.42"))
+
+    def test_missing_fields_omitted(self):
+        result = parse_bill_response(json.dumps({"pages": [{}]}), self.prefill)
+        self.assertEqual(result, {})
+
+
+class ParseBillWithGeminiTest(TestCase):
+    @patch("api.services.gemini_services.call_gemini_text")
+    def test_end_to_end(self, mock_call):
+        prefill = PrefillFactory(name="Utility Bill")
+        mock_call.return_value = json.dumps(
+            {"pages": [{"Vendor": "X", "Amount Due": 50}]}
+        )
+
+        result = parse_bill_with_gemini("email body", prefill)
+
+        self.assertEqual(result["vendor"], "X")
+        self.assertEqual(result["amount"], Decimal("50.00"))
