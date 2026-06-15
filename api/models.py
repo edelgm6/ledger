@@ -916,14 +916,6 @@ class DocSearch(models.Model):
         ("Company", "Company"),
         ("Begin Period", "Begin Period"),
         ("End Period", "End Period"),
-        # Utility-bill metadata labels (see UtilityBill / bill_services)
-        ("Vendor", "Vendor"),
-        ("Account Number", "Account Number"),
-        ("Amount Due", "Amount Due"),
-        ("Service Address", "Service Address"),
-        ("Bill Date", "Bill Date"),
-        ("Due Date", "Due Date"),
-        ("Payment Date", "Payment Date"),
     ]
     selection = models.CharField(
         max_length=20, choices=STRING_CHOICES, null=True, blank=True
@@ -1089,7 +1081,6 @@ class UtilityBillRule(models.Model):
     # How to find the email
     from_address = models.CharField(max_length=200)
     subject = models.CharField(max_length=200)
-    prefill = models.ForeignKey("Prefill", on_delete=models.PROTECT)
 
     # How to resolve the property
     account_number = models.CharField(max_length=100)

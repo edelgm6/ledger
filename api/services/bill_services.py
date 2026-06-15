@@ -11,12 +11,11 @@ from typing import Iterable, List, Optional
 
 from django.db import transaction as db_transaction
 
-from api.models import Prefill, Transaction, UtilityBill, UtilityBillRule
+from api.models import Transaction, UtilityBill, UtilityBillRule
 from api.services.gemini_services import parse_bill_with_gemini
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PREFILL_NAME = "Utility Bill"
 DATE_WINDOW_DAYS = 45
 
 
@@ -24,19 +23,6 @@ def _normalize_account_number(value: str) -> str:
     """Lowercase and strip non-alphanumerics so formatting differences (spaces,
     dashes) don't defeat the otherwise-exact account-number match."""
     return re.sub(r"[^a-z0-9]", "", (value or "").lower())
-
-
-def _prefill_for_source(from_address: str) -> Optional[Prefill]:
-    """The extraction prefill for an email: the prefill of any rule matching the
-    sender, else the default 'Utility Bill' prefill."""
-    rule = (
-        UtilityBillRule.objects.filter(from_address=from_address)
-        .select_related("prefill")
-        .first()
-    )
-    if rule:
-        return rule.prefill
-    return Prefill.objects.filter(name=DEFAULT_PREFILL_NAME).first()
 
 
 @db_transaction.atomic
@@ -62,15 +48,8 @@ def ingest_message(source_message_id: str, email: dict) -> Optional[UtilityBill]
     bill.error_message = ""
     bill.save()
 
-    prefill = _prefill_for_source(bill.from_address)
-    if prefill is None:
-        bill.status = UtilityBill.Status.FAILED
-        bill.error_message = "No Utility Bill prefill configured."
-        bill.save()
-        return bill
-
     try:
-        parsed = parse_bill_with_gemini(bill.raw_text, prefill)
+        parsed = parse_bill_with_gemini(bill.raw_text)
     except Exception as exc:  # noqa: BLE001 - record any parse failure
         logger.exception("Failed to parse bill %s", source_message_id)
         bill.status = UtilityBill.Status.FAILED

@@ -4,27 +4,19 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from api.models import Account, Prefill, Transaction, UtilityBill, UtilityBillRule
+from api.models import Account, Transaction, UtilityBill, UtilityBillRule
 from api.services.bill_services import (
     ingest_message,
     match_transactions_to_bills,
     resolve_bill_account,
 )
-from api.tests.testing_factories import AccountFactory, PrefillFactory, TransactionFactory
-
-
-def utility_bill_prefill():
-    # Reuse the Prefill seeded by migration 0029 (created in the test DB).
-    return Prefill.objects.filter(name="Utility Bill").first() or PrefillFactory(
-        name="Utility Bill"
-    )
+from api.tests.testing_factories import AccountFactory, TransactionFactory
 
 
 def make_rule(**kwargs):
     defaults = {
         "from_address": "billing@dominionenergy.com",
         "subject": "Your bill is ready",
-        "prefill": utility_bill_prefill(),
         "account_number": "1234567890",
         "transaction_description_match": "DOMINION",
         "account": AccountFactory(type=Account.Type.EXPENSE),
