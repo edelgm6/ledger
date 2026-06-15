@@ -13,6 +13,7 @@ from api.aws_services import (
     create_textract_job,
     get_textract_results,
 )
+from api.utils import short_error_label
 from api.validators import non_zero
 
 
@@ -54,12 +55,7 @@ class S3File(models.Model):
     @property
     def short_error(self) -> str:
         """A compact, human-friendly label for the stored error_message."""
-        msg = self.error_message or ""
-        if "503" in msg or "UNAVAILABLE" in msg:
-            return "server busy (503)"
-        if "429" in msg:
-            return "rate limited (429)"
-        return "processing error"
+        return short_error_label(self.error_message)
 
     def create_textract_job(self):
         job_id = create_textract_job(filename=self.s3_filename)
@@ -1172,3 +1168,8 @@ class UtilityBill(models.Model):
 
     def __str__(self):
         return f"{self.vendor or self.from_address} ${self.amount} [{self.status}]"
+
+    @property
+    def short_error(self) -> str:
+        """A compact, human-friendly label for the stored error_message."""
+        return short_error_label(self.error_message)

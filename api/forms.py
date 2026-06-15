@@ -23,6 +23,7 @@ from api.models import (
     Reconciliation,
     TaxCharge,
     Transaction,
+    UtilityBillRule,
 )
 
 
@@ -672,3 +673,32 @@ class AccountForm(forms.ModelForm):
                 )
 
         return cleaned_data
+
+
+class UtilityBillRuleForm(forms.ModelForm):
+    """User-facing form for creating/editing utility-bill rules via Settings.
+
+    A rule maps a utility account number (extracted from the bill email) to the
+    ledger account a matching bank transaction should be tagged with.
+    """
+
+    account = forms.ModelChoiceField(
+        queryset=Account.objects.filter(is_closed=False).order_by("name"),
+    )
+    entity = forms.ModelChoiceField(
+        queryset=Entity.objects.all().order_by("name"),
+        required=False,
+    )
+
+    class Meta:
+        model = UtilityBillRule
+        fields = [
+            "from_address",
+            "subject",
+            "account_number",
+            "address_hint",
+            "transaction_description_match",
+            "account",
+            "entity",
+            "transaction_type",
+        ]

@@ -72,3 +72,19 @@ def is_last_day_of_month(date):
     first_of_next_month = some_day_next_month.replace(day=1)
     last_day_of_month = first_of_next_month - timedelta(days=1)
     return date == last_day_of_month
+
+
+def short_error_label(error_message: str) -> str:
+    """Compact, human-friendly label for a stored Gemini/processing error.
+
+    Shared by the document (S3File) and utility-bill (UtilityBill) failure
+    surfaces so the two stay in sync.
+    """
+    msg = error_message or ""
+    if "503" in msg or "UNAVAILABLE" in msg:
+        return "server busy (503)"
+    if "429" in msg or "RESOURCE_EXHAUSTED" in msg:
+        return "rate limited (429)"
+    if not msg:
+        return ""
+    return "processing error"
