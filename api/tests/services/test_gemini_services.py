@@ -262,15 +262,13 @@ class BuildBillPromptTest(TestCase):
 class ParseBillResponseTest(TestCase):
     def test_parses_bill_fields(self):
         response = json.dumps({
-            "pages": [{
-                "Vendor": "Dominion Energy",
-                "Account Number": "1234567890",
-                "Amount Due": 88.42,
-                "Service Address": "127 O****k Lane",
-                "Bill Date": "06/01/2026",
-                "Due Date": "06/20/2026",
-                "Payment Date": "06/18/2026",
-            }]
+            "Vendor": "Dominion Energy",
+            "Account Number": "1234567890",
+            "Amount Due": 88.42,
+            "Service Address": "127 O****k Lane",
+            "Bill Date": "06/01/2026",
+            "Due Date": "06/20/2026",
+            "Payment Date": "06/18/2026",
         })
 
         result = parse_bill_response(response)
@@ -284,21 +282,25 @@ class ParseBillResponseTest(TestCase):
         self.assertEqual(result["payment_date"], datetime.date(2026, 6, 18))
 
     def test_handles_markdown_and_dollar_amount(self):
-        response = '```json\n{"pages": [{"Amount Due": "$1,088.42"}]}\n```'
+        response = '```json\n{"Amount Due": "$1,088.42"}\n```'
         result = parse_bill_response(response)
         self.assertEqual(result["amount"], Decimal("1088.42"))
 
     def test_missing_fields_omitted(self):
-        result = parse_bill_response(json.dumps({"pages": [{}]}))
+        result = parse_bill_response(json.dumps({}))
         self.assertEqual(result, {})
+
+    def test_tolerates_pages_wrapper(self):
+        # Backward-compatible: a stray {"pages": [...]} wrapper still parses.
+        response = json.dumps({"pages": [{"Amount Due": 50}]})
+        result = parse_bill_response(response)
+        self.assertEqual(result["amount"], Decimal("50.00"))
 
 
 class ParseBillWithGeminiTest(TestCase):
     @patch("api.services.gemini_services.call_gemini_text")
     def test_end_to_end(self, mock_call):
-        mock_call.return_value = json.dumps(
-            {"pages": [{"Vendor": "X", "Amount Due": 50}]}
-        )
+        mock_call.return_value = json.dumps({"Vendor": "X", "Amount Due": 50})
 
         result = parse_bill_with_gemini("email body")
 

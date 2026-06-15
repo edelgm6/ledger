@@ -268,17 +268,13 @@ Fields:
 
 Return ONLY valid JSON in this exact format (no markdown, no explanation):
 {{
-  "pages": [
-    {{
-      "Account Number": "...",
-      "Amount Due": 1234.56,
-      "...": "..."
-    }}
-  ]
+  "Account Number": "...",
+  "Amount Due": 1234.56,
+  "...": "..."
 }}
 
 Rules:
-- Return a single object inside "pages".
+- Return a single JSON object.
 - Return amounts as numeric values only (no $ sign, no commas).
 - Return values as shown; addresses may be partially masked, so return them exactly as shown.
 - If a field is not present, omit it from the object."""
@@ -312,12 +308,12 @@ def _coerce_bill_date(value: Any) -> Optional[datetime.date]:
 def parse_bill_response(response_text: str) -> Dict[str, Any]:
     """
     Parses Gemini's JSON response for a utility-bill email into a flat dict of
-    normalized UtilityBill fields. A bill is treated as a single-page document,
-    so only pages[0] is read.
+    normalized UtilityBill fields.
     """
-    parsed = _loads_gemini_json(response_text)
-    pages = parsed.get("pages", [])
-    page = pages[0] if pages else {}
+    page = _loads_gemini_json(response_text)
+    # The prompt asks for a bare object; tolerate a stray {"pages": [...]} wrapper.
+    if isinstance(page.get("pages"), list):
+        page = page["pages"][0] if page["pages"] else {}
 
     result: Dict[str, Any] = {}
     for label, field, kind, _hint in BILL_FIELDS:
