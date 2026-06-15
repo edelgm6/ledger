@@ -252,8 +252,6 @@ BILL_FIELDS = [
     ("Payment Date", "payment_date", "date",
      "the date the payment was made or scheduled"),
 ]
-BILL_LABEL_TO_FIELD = {label: field for label, field, _kind, _hint in BILL_FIELDS}
-_BILL_FIELD_KINDS = {field: kind for _label, field, kind, _hint in BILL_FIELDS}
 
 
 def build_bill_prompt() -> str:
@@ -284,6 +282,10 @@ Rules:
 - Return amounts as numeric values only (no $ sign, no commas).
 - Return values as shown; addresses may be partially masked, so return them exactly as shown.
 - If a field is not present, omit it from the object."""
+
+
+# The bill prompt is invariant (derived only from BILL_FIELDS), so build it once.
+BILL_PROMPT = build_bill_prompt()
 
 
 def _coerce_bill_amount(value: Any) -> Optional[Decimal]:
@@ -318,11 +320,10 @@ def parse_bill_response(response_text: str) -> Dict[str, Any]:
     page = pages[0] if pages else {}
 
     result: Dict[str, Any] = {}
-    for label, field in BILL_LABEL_TO_FIELD.items():
+    for label, field, kind, _hint in BILL_FIELDS:
         if label not in page:
             continue
         value = page[label]
-        kind = _BILL_FIELD_KINDS[field]
         if kind == "number":
             result[field] = _coerce_bill_amount(value)
         elif kind == "date":
@@ -338,5 +339,5 @@ def parse_bill_with_gemini(email_text: str) -> Dict[str, Any]:
     High-level function: sends an email body to Gemini with the fixed bill
     prompt and returns normalized UtilityBill fields.
     """
-    response_text = call_gemini_text(email_text, build_bill_prompt())
+    response_text = call_gemini_text(email_text, BILL_PROMPT)
     return parse_bill_response(response_text)

@@ -1073,7 +1073,7 @@ class UtilityBillRule(models.Model):
     """
     Config (one row per property+utility) that ties a utility account to a
     ledger account. Holds both how to find the bill email (from_address +
-    subject + prefill) and how to book the matching bank transaction
+    subject) and how to book the matching bank transaction
     (account_number resolves the property; transaction_description_match,
     account, entity, transaction_type drive the match).
     """
