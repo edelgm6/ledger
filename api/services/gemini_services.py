@@ -4,11 +4,13 @@ Service functions for Gemini-based paystub parsing.
 Replaces Textract for extracting structured data from paystub PDFs.
 Uses Google Gemini to read PDFs directly and return structured JSON.
 """
+import datetime
 import json
 import logging
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
 
+from dateutil import parser as date_parser
 from django.conf import settings
 
 from api.models import Account, DocSearch, Prefill
@@ -115,6 +117,35 @@ def call_gemini_api(file_bytes: bytes, prompt: str) -> str:
     return response.text
 
 
+def call_gemini_text(text: str, prompt: str) -> str:
+    """
+    Sends plain text (e.g. an email body) + prompt to Gemini and returns the
+    raw text response. Mirrors call_gemini_api but without a PDF Part.
+    """
+    from google import genai
+
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
+
+    response = client.models.generate_content(
+        model=settings.GEMINI_MODEL,
+        contents=[text, prompt],
+        config=genai.types.GenerateContentConfig(temperature=0),
+    )
+
+    return response.text
+
+
+def _loads_gemini_json(response_text: str) -> Dict[str, Any]:
+    """Parses a Gemini JSON response, stripping a leading/trailing markdown
+    code fence (```json ... ```) if present."""
+    text = response_text.strip()
+    if text.startswith("```"):
+        # Remove the opening fence line (```json or ```) and the closing ```.
+        lines = text.split("\n")
+        text = "\n".join(lines[1:-1])
+    return json.loads(text)
+
+
 def parse_gemini_response(
     response_text: str, prefill: Prefill, doc_searches: Optional[List] = None
 ) -> Dict[str, Dict[Any, Any]]:
@@ -128,14 +159,7 @@ def parse_gemini_response(
         - "End Period": str
         - Account objects as keys mapping to {"value": Decimal, "entry_type": str, "entity": Entity}
     """
-    # Strip markdown code fences if present
-    text = response_text.strip()
-    if text.startswith("```"):
-        # Remove first line (```json or ```) and last line (```)
-        lines = text.split("\n")
-        text = "\n".join(lines[1:-1])
-
-    parsed = json.loads(text)
+    parsed = _loads_gemini_json(response_text)
     pages = parsed.get("pages", [])
 
     # Build lookup from account name -> DocSearch for mapping back
@@ -208,3 +232,108 @@ def parse_paystub_with_gemini(
     prompt = build_gemini_prompt(prefill, doc_searches=doc_searches)
     response_text = call_gemini_api(file_bytes, prompt)
     return parse_gemini_response(response_text, prefill, doc_searches=doc_searches)
+
+
+# --- Utility-bill email extraction -----------------------------------------
+#
+# Unlike paystubs (which vary by employer and use DocSearch config), the bill
+# field set is fixed, so it lives here in code as a single source of truth:
+# (JSON label, UtilityBill field, kind, extraction hint).
+BILL_FIELDS = [
+    ("Vendor", "vendor", "string", "the utility company / biller name"),
+    ("Account Number", "account_number", "string",
+     "the utility account number (may be partially masked)"),
+    ("Amount Due", "amount", "number",
+     "the Payment Amount or Amount Due (the total dollar amount)"),
+    ("Service Address", "service_address", "string",
+     "the service address (may be partially masked)"),
+    ("Bill Date", "bill_date", "date", "the statement or bill date"),
+    ("Due Date", "due_date", "date", "the payment due date"),
+    ("Payment Date", "payment_date", "date",
+     "the date the payment was made or scheduled"),
+]
+
+
+def build_bill_prompt() -> str:
+    """Builds the fixed Gemini prompt for extracting utility-bill fields."""
+    type_notes = {"number": " (numeric only, no $ sign or commas)", "date": " (a date)", "string": ""}
+    field_lines = "\n".join(
+        f'- "{label}": {hint}{type_notes[kind]}'
+        for label, _field, kind, hint in BILL_FIELDS
+    )
+    return f"""Extract the following fields from this utility bill email and return as JSON.
+
+Fields:
+{field_lines}
+
+Return ONLY valid JSON in this exact format (no markdown, no explanation):
+{{
+  "Account Number": "...",
+  "Amount Due": 1234.56,
+  "...": "..."
+}}
+
+Rules:
+- Return a single JSON object.
+- Return amounts as numeric values only (no $ sign, no commas).
+- Return values as shown; addresses may be partially masked, so return them exactly as shown.
+- If a field is not present, omit it from the object."""
+
+
+# The bill prompt is invariant (derived only from BILL_FIELDS), so build it once.
+BILL_PROMPT = build_bill_prompt()
+
+
+def _coerce_bill_amount(value: Any) -> Optional[Decimal]:
+    if value is None or value == "":
+        return None
+    cleaned = str(value).replace("$", "").replace(",", "").strip()
+    try:
+        return Decimal(cleaned).quantize(Decimal("0.01"))
+    except (InvalidOperation, ValueError):
+        logger.warning("Could not convert bill amount '%s'", value)
+        return None
+
+
+def _coerce_bill_date(value: Any) -> Optional[datetime.date]:
+    if not value:
+        return None
+    try:
+        return date_parser.parse(str(value)).date()
+    except (ValueError, OverflowError):
+        logger.warning("Could not parse bill date '%s'", value)
+        return None
+
+
+def parse_bill_response(response_text: str) -> Dict[str, Any]:
+    """
+    Parses Gemini's JSON response for a utility-bill email into a flat dict of
+    normalized UtilityBill fields.
+    """
+    page = _loads_gemini_json(response_text)
+    # The prompt asks for a bare object; tolerate a stray {"pages": [...]} wrapper.
+    if isinstance(page.get("pages"), list):
+        page = page["pages"][0] if page["pages"] else {}
+
+    result: Dict[str, Any] = {}
+    for label, field, kind, _hint in BILL_FIELDS:
+        if label not in page:
+            continue
+        value = page[label]
+        if kind == "number":
+            result[field] = _coerce_bill_amount(value)
+        elif kind == "date":
+            result[field] = _coerce_bill_date(value)
+        else:
+            result[field] = str(value).strip()
+
+    return result
+
+
+def parse_bill_with_gemini(email_text: str) -> Dict[str, Any]:
+    """
+    High-level function: sends an email body to Gemini with the fixed bill
+    prompt and returns normalized UtilityBill fields.
+    """
+    response_text = call_gemini_text(email_text, BILL_PROMPT)
+    return parse_bill_response(response_text)

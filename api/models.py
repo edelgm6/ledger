@@ -1004,7 +1004,13 @@ class CSVProfile(models.Model):
             transactions_list.append(transaction)
 
         Transaction.apply_autotags(transactions_list)
-        Transaction.objects.bulk_create(transactions_list)
+        created = Transaction.objects.bulk_create(transactions_list)
+
+        # Tag any transactions that match a parsed utility bill. Imported
+        # locally to avoid a models <-> services import cycle.
+        from api.services.bill_services import match_transactions_to_bills
+
+        match_transactions_to_bills(created)
 
         return len(transactions_list)
 
@@ -1061,3 +1067,108 @@ class CSVProfile(models.Model):
                 cleaned_rows.append(row)
 
         return cleaned_rows
+
+
+class UtilityBillRule(models.Model):
+    """
+    Config (one row per property+utility) that ties a utility account to a
+    ledger account. Holds both how to find the bill email (from_address +
+    subject) and how to book the matching bank transaction
+    (account_number resolves the property; transaction_description_match,
+    account, entity, transaction_type drive the match).
+    """
+
+    # How to find the email
+    from_address = models.CharField(max_length=200)
+    subject = models.CharField(max_length=200)
+
+    # How to resolve the property
+    account_number = models.CharField(max_length=100)
+    address_hint = models.CharField(max_length=200, blank=True)
+
+    # How to match and book the bank transaction
+    transaction_description_match = models.CharField(max_length=200)
+    account = models.ForeignKey("Account", on_delete=models.PROTECT)
+    entity = models.ForeignKey(
+        "Entity",
+        related_name="utility_bill_rules",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+    )
+    transaction_type = models.CharField(
+        max_length=25,
+        choices=Transaction.TransactionType.choices,
+        default=Transaction.TransactionType.PURCHASE,
+    )
+
+    def __str__(self):
+        return f"{self.from_address} #{self.account_number} -> {self.account}"
+
+
+class UtilityBill(models.Model):
+    """Runtime record: one row per utility-bill email ingested from Gmail."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("Pending")
+        PARSED = "parsed", _("Parsed")
+        UNRESOLVED = "unresolved", _("Unresolved")
+        MATCHED = "matched", _("Matched")
+        FAILED = "failed", _("Failed")
+
+    # Dedupe guard (Gmail message ID today; source-neutral name on purpose)
+    source_message_id = models.CharField(max_length=200, unique=True)
+
+    # Raw email
+    from_address = models.CharField(max_length=200, blank=True)
+    subject = models.CharField(max_length=500, blank=True)
+    raw_text = models.TextField(blank=True)
+    received_at = models.DateTimeField(null=True, blank=True)
+
+    # Parsed values
+    vendor = models.CharField(max_length=200, blank=True)
+    account_number = models.CharField(max_length=100, blank=True)
+    amount = models.DecimalField(
+        decimal_places=2, max_digits=12, null=True, blank=True
+    )
+    service_address = models.CharField(max_length=200, blank=True)
+    bill_date = models.DateField(null=True, blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    payment_date = models.DateField(null=True, blank=True)
+
+    # Resolution
+    rule = models.ForeignKey(
+        "UtilityBillRule", on_delete=models.SET_NULL, null=True, blank=True
+    )
+    account = models.ForeignKey(
+        "Account",
+        related_name="utility_bills",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+    )
+    entity = models.ForeignKey(
+        "Entity",
+        related_name="utility_bills",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+    )
+
+    # Link to the bank transaction it tagged
+    matched_transaction = models.ForeignKey(
+        "Transaction",
+        related_name="utility_bills",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+
+    status = models.CharField(
+        max_length=25, choices=Status.choices, default=Status.PENDING
+    )
+    error_message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.vendor or self.from_address} ${self.amount} [{self.status}]"
