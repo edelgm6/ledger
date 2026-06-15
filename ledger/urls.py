@@ -27,6 +27,11 @@ from api.views.journal_entry_views import (
 )
 from api.views.reconciliation_views import ReconciliationTableView, ReconciliationView
 from api.views.search_views import SearchBulkUpdateView, SearchContentView, SearchView
+from api.views.bill_settings_views import (
+    BillRuleFormView,
+    BillRulesView,
+    BillsView,
+)
 from api.views.settings_views import AccountFormView, SettingsView
 from api.views.statement_views import StatementDetailView, StatementView
 from api.views.tax_views import (
@@ -175,6 +180,28 @@ urlpatterns = [
         AccountFormView.as_view(),
         name="settings-account-form",
     ),
+    # Settings — utility-bill rules (config CRUD) and bills monitor
+    path(
+        "settings/bill-rules/",
+        BillRulesView.as_view(),
+        name="settings-bill-rules",
+    ),
+    path(
+        "settings/bill-rules/new/form/",
+        BillRuleFormView.as_view(),
+        name="settings-bill-rule-new-form",
+    ),
+    path(
+        "settings/bill-rules/<int:rule_id>/",
+        BillRulesView.as_view(),
+        name="settings-bill-rule",
+    ),
+    path(
+        "settings/bill-rules/<int:rule_id>/form/",
+        BillRuleFormView.as_view(),
+        name="settings-bill-rule-form",
+    ),
+    path("settings/bills/", BillsView.as_view(), name="settings-bills"),
     path("tag/", TagEntitiesView.as_view(), name="tag-entities"),
     path("tag/balances/", EntityGroupedBalancesView.as_view(), name="entity-balances"),
     path(

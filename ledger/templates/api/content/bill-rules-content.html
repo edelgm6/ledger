@@ -1,0 +1,92 @@
+<div x-data="{
+        q: '',
+        selectedId: {{ selected_id|default:'null' }},
+        total: {{ total }},
+        matches(el) { return !this.q.trim() || el.dataset.search.includes(this.q.toLowerCase()); },
+        visible() {
+          if (!this.q.trim()) return this.total;
+          const needle = this.q.toLowerCase();
+          return Array.from(this.$root.querySelectorAll('tr[data-search]'))
+            .filter(tr => tr.dataset.search.includes(needle)).length;
+        },
+        countLabel() {
+          return this.q.trim() ? (this.visible() + ' of ' + this.total) : (this.total + ' rules');
+        }
+     }">
+
+  <div class="set-head">
+    <div class="set-head-left">
+      <h2 class="set-h2">Bill Rules</h2>
+      <span class="set-count" x-text="countLabel()"></span>
+    </div>
+    <div class="set-head-right">
+      <div class="set-search">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#adb5bd" stroke-width="1.6">
+          <circle cx="7" cy="7" r="4.5"></circle><line x1="10.6" y1="10.6" x2="14" y2="14"></line>
+        </svg>
+        <input x-model="q" placeholder="Search rules" />
+      </div>
+      <button class="set-btn set-btn-primary"
+              @click="selectedId = null"
+              hx-get="{% url 'settings-bill-rule-new-form' %}"
+              hx-target="#bill-rule-form-div">New Rule</button>
+    </div>
+  </div>
+
+  <div class="set-table-scroll">
+  <table class="set-table">
+    <thead>
+      <tr>
+        <th>From</th>
+        <th>Subject</th>
+        <th>Account #</th>
+        <th>Account</th>
+        <th>Txn match</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rule in rules %}
+      <tr class="set-row"
+          data-search="{{ rule.from_address|lower }} {{ rule.subject|lower }} {{ rule.account_number|lower }} {{ rule.account.name|lower }} {{ rule.transaction_description_match|lower }}"
+          :class="{ selected: selectedId === {{ rule.id }} }"
+          x-show="matches($el)"
+          @click="selectedId = {{ rule.id }}"
+          hx-get="{% url 'settings-bill-rule-form' rule.id %}"
+          hx-target="#bill-rule-form-div">
+        <td class="set-td set-td-name">{{ rule.from_address }}</td>
+        <td class="set-td set-td-sub">{{ rule.subject }}</td>
+        <td class="set-td set-td-type">{{ rule.account_number }}</td>
+        <td class="set-td set-td-entity">{{ rule.account.name }}</td>
+        <td class="set-td set-td-sub">{{ rule.transaction_description_match }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <div class="set-list">
+    {% for rule in rules %}
+    <div class="set-mrow"
+         data-search="{{ rule.from_address|lower }} {{ rule.subject|lower }} {{ rule.account_number|lower }} {{ rule.account.name|lower }} {{ rule.transaction_description_match|lower }}"
+         :class="{ selected: selectedId === {{ rule.id }} }"
+         x-show="matches($el)"
+         @click="selectedId = {{ rule.id }}"
+         hx-get="{% url 'settings-bill-rule-form' rule.id %}"
+         hx-target="#bill-rule-form-div">
+      <div class="set-mrow-top">
+        <span class="set-mname">{{ rule.account.name }}</span>
+        <span class="set-mtype">{{ rule.account_number }}</span>
+      </div>
+      <div class="set-mmeta">{{ rule.from_address }} · {{ rule.transaction_description_match }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="set-empty" x-show="visible() === 0" x-cloak>
+    No rules match "<span x-text="q"></span>".
+  </div>
+
+  <div id="bill-rule-form-div">
+    {{ rule_form }}
+  </div>
+</div>

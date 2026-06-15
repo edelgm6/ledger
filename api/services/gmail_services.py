@@ -35,12 +35,15 @@ def build_gmail_service():
 
 
 def search_messages(
-    service, from_address: str, subject: str, newer_than: str = "60d"
+    service, from_address: str, subject: str, newer_than: str = None
 ) -> List[str]:
     """
     Returns Gmail message IDs matching `from:<from_address> subject:"<subject>"`
-    (optionally bounded by a `newer_than:` window). Handles pagination.
+    (bounded by a `newer_than:` window). Handles pagination. The window defaults
+    to GMAIL_SEARCH_WINDOW_DAYS when not given explicitly.
     """
+    if newer_than is None:
+        newer_than = f"{settings.GMAIL_SEARCH_WINDOW_DAYS}d"
     query = f'from:{from_address} subject:"{subject}"'
     if newer_than:
         query += f" newer_than:{newer_than}"

@@ -8,7 +8,9 @@ from api.models import Account, Transaction, UtilityBill, UtilityBillRule
 from api.services.bill_services import (
     ingest_message,
     match_transactions_to_bills,
+    poll_bill_emails,
     resolve_bill_account,
+    retry_bill,
 )
 from api.tests.testing_factories import AccountFactory, TransactionFactory
 
@@ -252,6 +254,67 @@ class IngestMessageTest(TestCase):
 
         self.assertEqual(bill.status, UtilityBill.Status.FAILED)
         self.assertIn("bad json", bill.error_message)
+
+
+class PollBillEmailsTest(TestCase):
+    def test_no_rules_short_circuits(self):
+        # No Gmail call should be attempted when nothing is configured.
+        result = poll_bill_emails()
+        self.assertEqual(result.fetched, 0)
+        self.assertEqual(result.new, 0)
+
+    @patch("api.services.bill_services.parse_bill_with_gemini")
+    @patch("api.services.bill_services.get_message_text")
+    @patch("api.services.bill_services.search_messages")
+    @patch("api.services.bill_services.build_gmail_service")
+    def test_ingests_new_message(
+        self, mock_build, mock_search, mock_get, mock_parse
+    ):
+        rule = make_rule(account_number="123")
+        mock_build.return_value = object()
+        mock_search.return_value = ["m1"]
+        mock_get.return_value = {
+            "from_address": rule.from_address,
+            "subject": rule.subject,
+            "text": "body",
+        }
+        mock_parse.return_value = {
+            "account_number": "123",
+            "amount": Decimal("88.42"),
+        }
+
+        result = poll_bill_emails()
+
+        self.assertEqual(result.fetched, 1)
+        self.assertEqual(result.new, 1)
+        self.assertEqual(result.parsed, 1)
+        self.assertTrue(UtilityBill.objects.filter(source_message_id="m1").exists())
+
+
+class RetryBillTest(TestCase):
+    @patch("api.services.bill_services.parse_bill_with_gemini")
+    def test_retry_reparses_failed_bill(self, mock_parse):
+        rule = make_rule(account_number="123")
+        bill = UtilityBill.objects.create(
+            source_message_id="r1",
+            status=UtilityBill.Status.FAILED,
+            from_address=rule.from_address,
+            raw_text="body",
+            error_message="boom",
+        )
+        mock_parse.return_value = {
+            "account_number": "123",
+            "amount": Decimal("88.42"),
+        }
+
+        out = retry_bill(bill.id)
+
+        self.assertIsNotNone(out)
+        self.assertEqual(out.status, UtilityBill.Status.PARSED)
+        self.assertEqual(out.error_message, "")
+
+    def test_retry_missing_returns_none(self):
+        self.assertIsNone(retry_bill(99999))
 
 
 class TriggerWiringTest(TestCase):
