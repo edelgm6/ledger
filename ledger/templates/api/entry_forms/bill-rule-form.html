@@ -1,0 +1,102 @@
+<div class="set-form">
+
+  <div class="set-form-header">
+    {% if rule %}Edit · {{ rule.account.name }} ({{ rule.account_number }}){% else %}New rule{% endif %}
+  </div>
+
+  {% if change == "create" %}
+    <div class="set-alert set-alert-success">Rule created.</div>
+  {% elif change == "update" %}
+    <div class="set-alert set-alert-success">Rule updated.</div>
+  {% elif change == "delete" %}
+    <div class="set-alert set-alert-success">Rule deleted.</div>
+  {% endif %}
+  {% if error %}
+    <div class="set-alert set-alert-danger">{{ error }}</div>
+  {% endif %}
+  {% if form.non_field_errors %}
+    <div class="set-alert set-alert-danger">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <form method="post"
+        {% if rule %}hx-post="{% url 'settings-bill-rule' rule.id %}"{% else %}hx-post="{% url 'settings-bill-rules' %}"{% endif %}
+        hx-target="#bill-rules-content"
+        hx-swap="innerHTML">
+    {% csrf_token %}
+
+    <div class="set-grid-1">
+      <div>
+        <label class="set-label">From address</label>
+        <input class="set-input" name="from_address" value="{{ values.from_address }}" placeholder="billing@vendor.com" />
+        {% for e in form.from_address.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="set-label">Subject</label>
+        <input class="set-input" name="subject" value="{{ values.subject }}" placeholder="Your bill is ready" />
+        {% for e in form.subject.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="set-label">Account number</label>
+        <input class="set-input" name="account_number" value="{{ values.account_number }}" placeholder="1234567890" />
+        {% for e in form.account_number.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+      </div>
+    </div>
+
+    <div class="set-grid-1">
+      <div>
+        <label class="set-label">Transaction description match</label>
+        <input class="set-input" name="transaction_description_match" value="{{ values.transaction_description_match }}" placeholder="DOMINION" />
+        {% for e in form.transaction_description_match.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="set-label">Address hint <span class="set-label-optional">(optional)</span></label>
+        <input class="set-input" name="address_hint" value="{{ values.address_hint }}" placeholder="Oak Ln" />
+        {% for e in form.address_hint.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div></div>
+    </div>
+
+    <div class="set-grid-2">
+      <div>
+        <label class="set-label">Account</label>
+        <select class="set-select" name="account">
+          <option value="" {% if not values.account %}selected{% endif %}>Select…</option>
+          {% for account in accounts %}
+          <option value="{{ account.id }}" {% if values.account == account.id|stringformat:'s' %}selected{% endif %}>{{ account.name }}</option>
+          {% endfor %}
+        </select>
+        {% for e in form.account.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="set-label">Default Entity <span class="set-label-optional">(optional)</span></label>
+        <select class="set-select" name="entity">
+          <option value="" {% if not values.entity %}selected{% endif %}>Select…</option>
+          {% for entity in entities %}
+          <option value="{{ entity.id }}" {% if values.entity == entity.id|stringformat:'s' %}selected{% endif %}>{{ entity.name }}</option>
+          {% endfor %}
+        </select>
+        {% for e in form.entity.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="set-label">Transaction type</label>
+        <select class="set-select" name="transaction_type">
+          {% for value, label in type_choices %}
+          <option value="{{ value }}" {% if values.transaction_type == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        {% for e in form.transaction_type.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+      </div>
+    </div>
+
+    <div class="set-actions">
+      <button type="submit" name="action" value="save" class="set-btn set-btn-primary">{% if rule %}Save{% else %}Create{% endif %}</button>
+      {% if rule %}
+      <button type="submit" name="action" value="delete" class="set-btn set-btn-danger">Delete</button>
+      {% endif %}
+      <button type="button" class="set-btn set-btn-clear"
+              @click="selectedId = null"
+              hx-get="{% url 'settings-bill-rule-new-form' %}"
+              hx-target="#bill-rule-form-div">Clear</button>
+    </div>
+  </form>
+</div>

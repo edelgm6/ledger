@@ -61,6 +61,10 @@ GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 GMAIL_CLIENT_ID = os.environ.get("GMAIL_CLIENT_ID")
 GMAIL_CLIENT_SECRET = os.environ.get("GMAIL_CLIENT_SECRET")
 GMAIL_REFRESH_TOKEN = os.environ.get("GMAIL_REFRESH_TOKEN")
+# How far back the bill poller searches Gmail each run. The poll is scheduled
+# daily, so a small window keeps every run cheap; a few days of slack covers a
+# skipped/failed run. Dedupe on source_message_id makes the exact value safe.
+GMAIL_SEARCH_WINDOW_DAYS = int(os.environ.get("GMAIL_SEARCH_WINDOW_DAYS", "7"))
 
 # Configure Django Storages
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"

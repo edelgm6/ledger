@@ -29,7 +29,7 @@ class SearchMessagesTest(TestCase):
         _, kwargs = messages.list.call_args
         self.assertIn("from:billing@x.com", kwargs["q"])
         self.assertIn('subject:"Your bill"', kwargs["q"])
-        self.assertIn("newer_than:60d", kwargs["q"])
+        self.assertIn("newer_than:7d", kwargs["q"])
 
     def test_paginates(self):
         service = MagicMock()

@@ -7,12 +7,18 @@ All DB writes for the bill feature live here (per the service-layer pattern).
 import logging
 import re
 from collections import defaultdict
+from dataclasses import dataclass
 from typing import Iterable, List, Optional
 
 from django.db import transaction as db_transaction
 
 from api.models import Transaction, UtilityBill, UtilityBillRule
 from api.services.gemini_services import parse_bill_with_gemini
+from api.services.gmail_services import (
+    build_gmail_service,
+    get_message_text,
+    search_messages,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +54,19 @@ def ingest_message(source_message_id: str, email: dict) -> Optional[UtilityBill]
     bill.error_message = ""
     bill.save()
 
+    return _parse_and_resolve_bill(bill)
+
+
+def _parse_and_resolve_bill(bill: UtilityBill) -> UtilityBill:
+    """Parses the bill's saved raw_text via Gemini, applies the extracted
+    fields, and resolves its account. Records FAILED + error_message on a parse
+    error. Assumes the raw email fields are already saved on `bill`; shared by
+    ingest_message and retry_bill so re-parsing has one definition.
+    """
     try:
         parsed = parse_bill_with_gemini(bill.raw_text)
     except Exception as exc:  # noqa: BLE001 - record any parse failure
-        logger.exception("Failed to parse bill %s", source_message_id)
+        logger.exception("Failed to parse bill %s", bill.source_message_id)
         bill.status = UtilityBill.Status.FAILED
         bill.error_message = str(exc)
         bill.save()
@@ -61,6 +76,7 @@ def ingest_message(source_message_id: str, email: dict) -> Optional[UtilityBill]
     for field, value in parsed.items():
         if value is not None:
             setattr(bill, field, value)
+    bill.error_message = ""
     bill.save()
 
     resolve_bill_account(bill)
@@ -184,3 +200,70 @@ def match_transactions_to_bills(transactions: Iterable[Transaction]) -> int:
         )
 
     return len(txns_to_update)
+
+
+@dataclass
+class PollResult:
+    """Counts from a single Gmail poll run."""
+    fetched: int = 0
+    new: int = 0
+    parsed: int = 0
+    unresolved: int = 0
+    failed: int = 0
+
+
+def poll_bill_emails() -> PollResult:
+    """
+    Searches Gmail for each configured (from_address, subject) pair and ingests
+    any new messages. Idempotent via source_message_id dedupe. Shared by the
+    scheduled management command and the Settings "Poll now" action.
+    """
+    result = PollResult()
+
+    # Search each distinct (from_address, subject) once, even when several rules
+    # share a vendor; account_number resolves the property afterward.
+    search_keys = set(
+        UtilityBillRule.objects.values_list("from_address", "subject")
+    )
+    if not search_keys:
+        return result
+
+    service = build_gmail_service()
+    for from_address, subject in sorted(search_keys):
+        for message_id in search_messages(service, from_address, subject):
+            result.fetched += 1
+            email = get_message_text(service, message_id)
+            bill = ingest_message(message_id, email)
+            if bill is None:
+                continue  # already ingested
+            result.new += 1
+            if bill.status == UtilityBill.Status.PARSED:
+                result.parsed += 1
+            elif bill.status == UtilityBill.Status.UNRESOLVED:
+                result.unresolved += 1
+            elif bill.status == UtilityBill.Status.FAILED:
+                result.failed += 1
+    return result
+
+
+def get_bills(limit: int = 200) -> List[UtilityBill]:
+    """Returns the most recently ingested bills (newest first) for the monitor."""
+    return list(
+        UtilityBill.objects.select_related(
+            "account", "matched_transaction"
+        ).order_by("-created_at")[:limit]
+    )
+
+
+@db_transaction.atomic
+def retry_bill(bill_id: int) -> Optional[UtilityBill]:
+    """
+    Re-parses a stored bill's saved raw_text via Gemini and re-resolves its
+    account. Used by the Settings "Retry" action on FAILED bills (no Gmail
+    round-trip — the email body is already stored).
+    """
+    try:
+        bill = UtilityBill.objects.get(pk=bill_id)
+    except UtilityBill.DoesNotExist:
+        return None
+    return _parse_and_resolve_bill(bill)
