@@ -21,6 +21,8 @@ from .models import (
     S3File,
     TaxCharge,
     Transaction,
+    UtilityBill,
+    UtilityBillRule,
 )
 from .resources import (
     AccountResource,
@@ -129,6 +131,37 @@ class S3FileAdmin(admin.ModelAdmin):
     list_display = ("user_filename", "prefill", "analysis_complete")
 
 
+class UtilityBillRuleAdmin(admin.ModelAdmin):
+    list_select_related = ("account",)
+    list_display = (
+        "from_address",
+        "subject",
+        "account_number",
+        "account",
+        "transaction_description_match",
+    )
+
+
+class UtilityBillAdmin(admin.ModelAdmin):
+    list_select_related = (
+        "account",
+        "matched_transaction",
+        "matched_transaction__account",
+    )
+    list_display = (
+        "vendor",
+        "account_number",
+        "amount",
+        "due_date",
+        "payment_date",
+        "status",
+        "account",
+        "matched_transaction",
+    )
+    list_filter = ("status",)
+    search_fields = ("vendor", "account_number", "from_address", "subject")
+
+
 # Register your models here
 admin.site.register(Prefill, PrefillAdmin)
 admin.site.register(Account, AccountAdmin)
@@ -147,3 +180,5 @@ admin.site.register(DocSearch)
 admin.site.register(Paystub, PaystubAdmin)
 admin.site.register(PaystubValue)
 admin.site.register(Entity)
+admin.site.register(UtilityBillRule, UtilityBillRuleAdmin)
+admin.site.register(UtilityBill, UtilityBillAdmin)

@@ -1,3 +1,4 @@
+import datetime
 import json
 from decimal import Decimal
 from unittest.mock import patch, MagicMock
@@ -6,8 +7,11 @@ from django.test import TestCase
 
 from api.models import Account, DocSearch, JournalEntryItem, Prefill
 from api.services.gemini_services import (
+    build_bill_prompt,
     build_gemini_prompt,
     call_gemini_api,
+    parse_bill_response,
+    parse_bill_with_gemini,
     parse_gemini_response,
     parse_paystub_with_gemini,
 )
@@ -243,3 +247,62 @@ class ParsePaystubWithGeminiTest(TestCase):
         self.assertIn("0", result)
         self.assertEqual(result["0"]["Company"], "Test Co")
         self.assertEqual(result["0"][self.account]["value"], Decimal("4500.00"))
+
+
+class BuildBillPromptTest(TestCase):
+    def test_includes_all_field_labels(self):
+        prompt = build_bill_prompt()
+        for label in ("Vendor", "Account Number", "Amount Due", "Service Address",
+                      "Bill Date", "Due Date", "Payment Date"):
+            self.assertIn(label, prompt)
+        # The amount hint must mention the payment-confirmation wording.
+        self.assertIn("Payment Amount", prompt)
+
+
+class ParseBillResponseTest(TestCase):
+    def test_parses_bill_fields(self):
+        response = json.dumps({
+            "Vendor": "Dominion Energy",
+            "Account Number": "1234567890",
+            "Amount Due": 88.42,
+            "Service Address": "127 O****k Lane",
+            "Bill Date": "06/01/2026",
+            "Due Date": "06/20/2026",
+            "Payment Date": "06/18/2026",
+        })
+
+        result = parse_bill_response(response)
+
+        self.assertEqual(result["vendor"], "Dominion Energy")
+        self.assertEqual(result["account_number"], "1234567890")
+        self.assertEqual(result["amount"], Decimal("88.42"))
+        self.assertEqual(result["service_address"], "127 O****k Lane")
+        self.assertEqual(result["bill_date"], datetime.date(2026, 6, 1))
+        self.assertEqual(result["due_date"], datetime.date(2026, 6, 20))
+        self.assertEqual(result["payment_date"], datetime.date(2026, 6, 18))
+
+    def test_handles_markdown_and_dollar_amount(self):
+        response = '```json\n{"Amount Due": "$1,088.42"}\n```'
+        result = parse_bill_response(response)
+        self.assertEqual(result["amount"], Decimal("1088.42"))
+
+    def test_missing_fields_omitted(self):
+        result = parse_bill_response(json.dumps({}))
+        self.assertEqual(result, {})
+
+    def test_tolerates_pages_wrapper(self):
+        # Backward-compatible: a stray {"pages": [...]} wrapper still parses.
+        response = json.dumps({"pages": [{"Amount Due": 50}]})
+        result = parse_bill_response(response)
+        self.assertEqual(result["amount"], Decimal("50.00"))
+
+
+class ParseBillWithGeminiTest(TestCase):
+    @patch("api.services.gemini_services.call_gemini_text")
+    def test_end_to_end(self, mock_call):
+        mock_call.return_value = json.dumps({"Vendor": "X", "Amount Due": 50})
+
+        result = parse_bill_with_gemini("email body")
+
+        self.assertEqual(result["vendor"], "X")
+        self.assertEqual(result["amount"], Decimal("50.00"))
