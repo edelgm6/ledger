@@ -111,11 +111,55 @@ def get_paystub_initial_data(
     return debits_initial_data, credits_initial_data
 
 
+def get_loan_initial_data(
+    transaction: Transaction,
+) -> Tuple[List[Dict[str, str | int]], List[Dict[str, str | int]]]:
+    """Splits a loan payment into its principal/interest debits against the full
+    payment credited to the bank account. Mirrors get_paystub_initial_data:
+    returns real amounts so the journal entry is pre-balanced for confirmation."""
+    payment = transaction.loan_payment
+    loan = payment.loan
+    entity_name = loan.entity.name if loan.entity else None
+
+    debits_initial_data = [
+        {
+            "account": loan.principal_account.name,
+            "amount": payment.principal_amount,
+            "entity": entity_name,
+        }
+    ]
+    if payment.interest_amount and payment.interest_amount > 0:
+        debits_initial_data.append(
+            {
+                "account": loan.interest_account.name,
+                "amount": payment.interest_amount,
+                "entity": entity_name,
+            }
+        )
+
+    credits_initial_data = [
+        {
+            "account": transaction.account.name,
+            "amount": abs(transaction.amount),
+            "entity": (
+                transaction.account.entity.name
+                if transaction.account.entity
+                else None
+            ),
+        }
+    ]
+    return debits_initial_data, credits_initial_data
+
+
 def get_initial_data(
     transaction: Transaction, paystub_id: Optional[int] = None
 ) -> Tuple[List[Dict[str, str | int]], List[Dict[str, str | int]]]:
     if paystub_id:
         return get_paystub_initial_data(paystub_id)
+
+    # A transaction auto-matched to a loan carries a pre-computed split.
+    if getattr(transaction, "loan_payment", None) is not None:
+        return get_loan_initial_data(transaction)
 
     if transaction.amount >= 0:
         transaction_account_is_debit = True
