@@ -1,0 +1,86 @@
+{% load humanize %}
+<div class="set-form" style="margin-top: 18px;">
+  <div class="set-head">
+    <div class="set-head-left">
+      <h2 class="set-h2">Schedule · {{ loan.name }}</h2>
+      <span class="set-count">remaining ${{ remaining_balance|intcomma }}{% if loan.is_closed %} · paid off{% endif %}</span>
+    </div>
+  </div>
+
+  {% if message %}
+    <div class="set-alert set-alert-success">{{ message }}</div>
+  {% endif %}
+
+  <style>
+    .loan-sched { table-layout: fixed; width: 100%; }
+    .loan-sched td.set-td, .loan-sched th { white-space: normal; word-break: break-word; padding: 6px 5px; }
+    .loan-sched .set-input { width: 100%; box-sizing: border-box; padding: 3px 5px; }
+    .loan-sched .ls-bal { display: flex; align-items: center; gap: 4px; }
+    .loan-sched .ls-bal .set-input { flex: 1; min-width: 0; }
+    .loan-sched .ls-actions { display: flex; flex-direction: column; gap: 4px; }
+    .loan-sched .ls-actions .set-btn { width: 100%; padding: 0 6px; height: 24px; font-size: 11px; }
+  </style>
+
+  <div class="set-table-scroll" style="max-height: 640px;">
+  <table class="set-table loan-sched">
+    <colgroup>
+      <col style="width: 5%;" />
+      <col style="width: 13%;" />
+      <col style="width: 18%;" />
+      <col style="width: 18%;" />
+      <col style="width: 20%;" />
+      <col style="width: 6%;" />
+      <col style="width: 20%;" />
+    </colgroup>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Date</th>
+        <th>Principal</th>
+        <th>Interest</th>
+        <th>Balance</th>
+        <th class="center">Paid</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td class="set-td set-td-sub">{{ row.sequence }}</td>
+        <td class="set-td set-td-type">{{ row.date|date:"Y-m-d" }}</td>
+        <td class="set-td">
+          <input class="set-input" name="principal_amount" value="{{ row.principal_amount }}" />
+        </td>
+        <td class="set-td">
+          <input class="set-input" name="interest_amount" value="{{ row.interest_amount }}" />
+        </td>
+        <td class="set-td">
+          {# Saving the row anchors this balance as the new baseline. #}
+          <div class="ls-bal">
+            <input class="set-input" name="balance_override" value="{{ row.remaining_balance|intcomma }}" />
+            {% if row.is_anchored %}<span title="Balance anchored here">⚓</span>{% endif %}
+          </div>
+        </td>
+        <td class="set-td set-td-closed">{% if row.transaction_id %}✓{% endif %}</td>
+        <td class="set-td">
+          <div class="ls-actions">
+            <button type="button" class="set-btn set-btn-primary"
+                    hx-post="{% url 'settings-loan-schedule-row' row.id %}"
+                    hx-include="closest tr"
+                    hx-target="#loan-schedule-div" hx-swap="innerHTML">Save</button>
+            {% if row.is_anchored %}
+            <button type="button" class="set-btn set-btn-clear"
+                    hx-post="{% url 'settings-loan-schedule-row' row.id %}"
+                    hx-vals='{"action": "clear_balance"}'
+                    hx-target="#loan-schedule-div" hx-swap="innerHTML">Clear</button>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td class="set-empty" colspan="7">No schedule rows.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>

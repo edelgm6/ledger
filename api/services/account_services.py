@@ -9,10 +9,10 @@ dataclass result objects.
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from django.db import transaction as db_transaction
-from django.db.models import ProtectedError, QuerySet
+from django.db.models import QuerySet
 
 from api.models import Account, CSVProfile, Entity
+from api.services import crud
 
 
 @dataclass
@@ -49,7 +49,6 @@ ACCOUNT_FIELDS = (
 )
 
 
-@db_transaction.atomic
 def save_account(
     cleaned_data: Dict[str, Any], instance: Optional[Account] = None
 ) -> AccountResult:
@@ -59,14 +58,8 @@ def save_account(
     ``instance`` is the account being edited (None to create). Returns an
     AccountResult; on any DB error the transaction rolls back.
     """
-    try:
-        account = instance or Account()
-        for field in ACCOUNT_FIELDS:
-            setattr(account, field, cleaned_data.get(field))
-        account.save()
-        return AccountResult(success=True, account=account)
-    except Exception as e:  # pragma: no cover - defensive
-        return AccountResult(success=False, error=str(e))
+    account, error = crud.save_model(Account, ACCOUNT_FIELDS, cleaned_data, instance)
+    return AccountResult(success=error is None, account=account, error=error)
 
 
 def delete_account(account_id: int) -> AccountResult:
@@ -76,21 +69,14 @@ def delete_account(account_id: int) -> AccountResult:
     paystub values, amortizations, etc. Rather than 500ing on a ProtectedError,
     we return a friendly message so the UI can display it inline.
     """
-    try:
-        account = Account.objects.get(pk=account_id)
-    except Account.DoesNotExist:
-        return AccountResult(success=False, error="Account not found.")
-
-    try:
-        account.delete()
-        return AccountResult(success=True, account=account)
-    except ProtectedError:
-        return AccountResult(
-            success=False,
-            account=account,
-            error=(
-                f"Can't delete '{account.name}' — it's still used by other "
-                "records (transactions, journal entries, paystub values, etc.). "
-                "Close it instead to archive it."
-            ),
-        )
+    account, error = crud.delete_model(
+        Account,
+        account_id,
+        not_found="Account not found.",
+        protected=lambda a: (
+            f"Can't delete '{a.name}' — it's still used by other "
+            "records (transactions, journal entries, paystub values, etc.). "
+            "Close it instead to archive it."
+        ),
+    )
+    return AccountResult(success=error is None, account=account, error=error)
