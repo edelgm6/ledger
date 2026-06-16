@@ -709,8 +709,9 @@ class LoanForm(forms.ModelForm):
     """User-facing form for creating/editing a loan via Settings.
 
     Saving (re)generates the amortization schedule in the service layer. The
-    principal account must be a LIABILITY and the interest account an EXPENSE;
-    the optional payment account scopes which transactions can auto-match.
+    principal account must be a LIABILITY and the interest account an EXPENSE.
+    At least one of payment account / description match is required, since those
+    scope which transactions auto-match to this loan.
     """
 
     original_amount = CommaDecimalField(
@@ -769,3 +770,17 @@ class LoanForm(forms.ModelForm):
         if term_months < 1:
             raise ValidationError("Term must be at least 1 month.")
         return term_months
+
+    def clean(self):
+        cleaned = super().clean()
+        # At least one scope is required, otherwise the matcher would treat
+        # every outflow as a payment on this loan.
+        if not cleaned.get("payment_account") and not (
+            cleaned.get("description_match") or ""
+        ).strip():
+            self.add_error(
+                "payment_account",
+                "Set a payment account and/or a description match so payments "
+                "can be matched to this loan.",
+            )
+        return cleaned

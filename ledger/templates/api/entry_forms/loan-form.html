@@ -92,7 +92,7 @@
 
     <div class="lf-grid">
       <div>
-        <label class="set-label">Payment account <span class="set-label-optional">(optional)</span></label>
+        <label class="set-label">Payment account <span class="set-label-optional">(this and/or description match)</span></label>
         <select class="set-select" name="payment_account">
           <option value="" {% if not values.payment_account %}selected{% endif %}>Any</option>
           {% for account in payment_accounts %}
@@ -102,7 +102,7 @@
         {% for e in form.payment_account.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
       </div>
       <div>
-        <label class="set-label">Description match <span class="set-label-optional">(optional)</span></label>
+        <label class="set-label">Description match <span class="set-label-optional">(this and/or payment account)</span></label>
         <input class="set-input" name="description_match" value="{{ values.description_match }}" placeholder="WELLS FARGO MTG" />
         {% for e in form.description_match.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
       </div>
