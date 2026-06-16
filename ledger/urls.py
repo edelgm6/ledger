@@ -32,6 +32,11 @@ from api.views.bill_settings_views import (
     BillRulesView,
     BillsView,
 )
+from api.views.loan_views import (
+    LoanFormView,
+    LoanScheduleView,
+    LoanSettingsView,
+)
 from api.views.settings_views import AccountFormView, SettingsView
 from api.views.statement_views import StatementDetailView, StatementView
 from api.views.tax_views import (
@@ -202,6 +207,37 @@ urlpatterns = [
         name="settings-bill-rule-form",
     ),
     path("settings/bills/", BillsView.as_view(), name="settings-bills"),
+    # Settings — loans (amortization-schedule config CRUD + schedule view)
+    path(
+        "settings/loans/",
+        LoanSettingsView.as_view(),
+        name="settings-loans",
+    ),
+    path(
+        "settings/loans/new/form/",
+        LoanFormView.as_view(),
+        name="settings-loan-new-form",
+    ),
+    path(
+        "settings/loans/<int:loan_id>/",
+        LoanSettingsView.as_view(),
+        name="settings-loan",
+    ),
+    path(
+        "settings/loans/<int:loan_id>/form/",
+        LoanFormView.as_view(),
+        name="settings-loan-form",
+    ),
+    path(
+        "settings/loans/<int:loan_id>/schedule/",
+        LoanScheduleView.as_view(),
+        name="settings-loan-schedule",
+    ),
+    path(
+        "settings/loans/schedule-row/<int:row_id>/",
+        LoanScheduleView.as_view(),
+        name="settings-loan-schedule-row",
+    ),
     path("tag/", TagEntitiesView.as_view(), name="tag-entities"),
     path("tag/balances/", EntityGroupedBalancesView.as_view(), name="entity-balances"),
     path(

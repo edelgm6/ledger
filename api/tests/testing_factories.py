@@ -1,5 +1,8 @@
+import datetime
+from decimal import Decimal
+
 import factory
-from api.models import Account, CSVProfile, Entity, Transaction, Amortization, Reconciliation, JournalEntry, JournalEntryItem, AutoTag, Prefill, PrefillItem, TaxCharge
+from api.models import Account, CSVProfile, Entity, Transaction, Amortization, Reconciliation, JournalEntry, JournalEntryItem, AutoTag, Prefill, PrefillItem, TaxCharge, Loan, LoanPayment
 
 
 # Entity Factory
@@ -126,4 +129,46 @@ class TaxChargeFactory(factory.django.DjangoModelFactory):
     transaction = factory.SubFactory(TransactionFactory)
     date = factory.Faker('date_object')
     amount = factory.Faker('pydecimal', left_digits=10, right_digits=2, positive=True)
+
+
+# Loan Factory
+class LoanFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Loan
+
+    name = factory.Sequence(lambda n: f"Loan {n}")
+    original_amount = Decimal("300000.00")
+    annual_interest_rate = Decimal("0.0650")
+    term_months = 360
+    start_date = factory.LazyFunction(lambda: datetime.date(2026, 7, 1))
+    payment_amount = None
+    principal_account = factory.SubFactory(
+        AccountFactory, type=Account.Type.LIABILITY,
+        sub_type=Account.SubType.LONG_TERM_DEBT, is_closed=False,
+    )
+    interest_account = factory.SubFactory(
+        AccountFactory, type=Account.Type.EXPENSE,
+        sub_type=Account.SubType.INTEREST, is_closed=False,
+    )
+    payment_account = None
+    description_match = ""
+    date_window_days = 7
+    entity = None
+    is_closed = False
+
+
+# LoanPayment Factory
+class LoanPaymentFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = LoanPayment
+
+    loan = factory.SubFactory(LoanFactory)
+    sequence = factory.Sequence(lambda n: n + 1)
+    date = factory.LazyFunction(lambda: datetime.date(2026, 7, 1))
+    payment_amount = Decimal("1896.20")
+    principal_amount = Decimal("271.20")
+    interest_amount = Decimal("1625.00")
+    remaining_balance = Decimal("299728.80")
+    kind = LoanPayment.Kind.SCHEDULED
+    transaction = None
 

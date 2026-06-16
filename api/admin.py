@@ -13,6 +13,8 @@ from .models import (
     Entity,
     JournalEntry,
     JournalEntryItem,
+    Loan,
+    LoanPayment,
     Paystub,
     PaystubValue,
     Prefill,
@@ -182,3 +184,5 @@ admin.site.register(PaystubValue)
 admin.site.register(Entity)
 admin.site.register(UtilityBillRule, UtilityBillRuleAdmin)
 admin.site.register(UtilityBill, UtilityBillAdmin)
+admin.site.register(Loan)
+admin.site.register(LoanPayment)
