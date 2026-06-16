@@ -19,6 +19,7 @@ from api.models import (
     Entity,
     JournalEntry,
     JournalEntryItem,
+    Loan,
     Prefill,
     Reconciliation,
     TaxCharge,
@@ -702,3 +703,69 @@ class UtilityBillRuleForm(forms.ModelForm):
             "entity",
             "transaction_type",
         ]
+
+
+class LoanForm(forms.ModelForm):
+    """User-facing form for creating/editing a loan via Settings.
+
+    Saving (re)generates the amortization schedule in the service layer. The
+    principal account must be a LIABILITY and the interest account an EXPENSE;
+    the optional payment account scopes which transactions can auto-match.
+    """
+
+    original_amount = CommaDecimalField(
+        decimal_places=2,
+        max_digits=12,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    annual_interest_rate = CommaDecimalField(
+        decimal_places=4,
+        max_digits=6,
+        validators=[MinValueValidator(Decimal("0"))],
+    )
+    payment_amount = CommaDecimalField(
+        required=False,
+        decimal_places=2,
+        max_digits=12,
+    )
+    principal_account = forms.ModelChoiceField(
+        queryset=Account.objects.filter(
+            type=Account.Type.LIABILITY, is_closed=False
+        ).order_by("name"),
+    )
+    interest_account = forms.ModelChoiceField(
+        queryset=Account.objects.filter(
+            type=Account.Type.EXPENSE, is_closed=False
+        ).order_by("name"),
+    )
+    payment_account = forms.ModelChoiceField(
+        queryset=Account.objects.filter(is_closed=False).order_by("name"),
+        required=False,
+    )
+    entity = forms.ModelChoiceField(
+        queryset=Entity.objects.all().order_by("name"),
+        required=False,
+    )
+
+    class Meta:
+        model = Loan
+        fields = [
+            "name",
+            "original_amount",
+            "annual_interest_rate",
+            "term_months",
+            "start_date",
+            "payment_amount",
+            "principal_account",
+            "interest_account",
+            "payment_account",
+            "description_match",
+            "date_window_days",
+            "entity",
+        ]
+
+    def clean_term_months(self):
+        term_months = self.cleaned_data["term_months"]
+        if term_months < 1:
+            raise ValidationError("Term must be at least 1 month.")
+        return term_months

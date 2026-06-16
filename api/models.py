@@ -1,6 +1,8 @@
+import calendar
 import datetime
 import math
 import re
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.db.models import Q
 from django.core.exceptions import ValidationError
@@ -1002,11 +1004,13 @@ class CSVProfile(models.Model):
         Transaction.apply_autotags(transactions_list)
         created = Transaction.objects.bulk_create(transactions_list)
 
-        # Tag any transactions that match a parsed utility bill. Imported
-        # locally to avoid a models <-> services import cycle.
+        # Tag any transactions that match a parsed utility bill or a loan
+        # schedule. Imported locally to avoid a models <-> services import cycle.
         from api.services.bill_services import match_transactions_to_bills
+        from api.services.loan_services import match_transactions_to_loans
 
         match_transactions_to_bills(created)
+        match_transactions_to_loans(created)
 
         return len(transactions_list)
 
@@ -1173,3 +1177,235 @@ class UtilityBill(models.Model):
     def short_error(self) -> str:
         """A compact, human-friendly label for the stored error_message."""
         return short_error_label(self.error_message)
+
+
+class Loan(models.Model):
+    """
+    A loan with a generated amortization schedule. Each loan books its principal
+    against a dedicated LIABILITY account and its interest against a dedicated
+    EXPENSE account, so an imported payment can be split automatically.
+
+    The schedule (LoanPayment rows) is computed from the terms but every row's
+    principal/interest is editable to match the lender exactly. Off-schedule
+    principal-only payments and early payoffs are recorded as their own rows and
+    the remaining schedule is re-amortized.
+    """
+
+    name = models.CharField(max_length=200, unique=True)
+    original_amount = models.DecimalField(decimal_places=2, max_digits=12)
+    # Stored as a decimal fraction, e.g. 0.0650 for 6.5% APR.
+    annual_interest_rate = models.DecimalField(decimal_places=4, max_digits=6)
+    term_months = models.PositiveSmallIntegerField()
+    start_date = models.DateField()  # date of the first scheduled payment
+    # Computed from the terms when left blank.
+    payment_amount = models.DecimalField(
+        decimal_places=2, max_digits=12, null=True, blank=True
+    )
+
+    principal_account = models.ForeignKey(
+        "Account", related_name="loans_principal", on_delete=models.PROTECT
+    )
+    interest_account = models.ForeignKey(
+        "Account", related_name="loans_interest", on_delete=models.PROTECT
+    )
+    # Bank account payments are drawn from; scopes which transactions can match.
+    payment_account = models.ForeignKey(
+        "Account",
+        related_name="loans_payment",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+    )
+    # Substring matched against a transaction's description (like a bill rule).
+    description_match = models.CharField(max_length=200, blank=True)
+    date_window_days = models.PositiveSmallIntegerField(default=7)
+
+    entity = models.ForeignKey(
+        "Entity",
+        related_name="loans",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+    )
+    is_closed = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.name} ${self.original_amount}"
+
+    @staticmethod
+    def _round(value, places=2):
+        return Decimal(value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    @staticmethod
+    def _add_months(base, count):
+        """base shifted forward by ``count`` whole months, clamping the day to
+        the target month's length (so the 31st becomes the 28th/30th)."""
+        month_index = base.month - 1 + count
+        year = base.year + month_index // 12
+        month = month_index % 12 + 1
+        day = min(base.day, calendar.monthrange(year, month)[1])
+        return datetime.date(year, month, day)
+
+    def _month_offset(self, date):
+        """Whole months from the loan's start_date to ``date`` (a payment's
+        position in the monthly cadence; the first payment is offset 0)."""
+        return (date.year - self.start_date.year) * 12 + (
+            date.month - self.start_date.month
+        )
+
+    def compute_monthly_payment(self):
+        """Standard fully-amortizing payment: P*r/(1-(1+r)^-n)."""
+        principal = self.original_amount
+        periods = self.term_months
+        rate = self.annual_interest_rate / 12
+        if rate == 0:
+            return self._round(principal / periods)
+        factor = (1 + rate) ** periods
+        payment = principal * rate * factor / (factor - 1)
+        return self._round(payment)
+
+    def _fixed_rows(self):
+        """Rows that fix the balance: actual (paid) payments and balance anchors,
+        in chronological order."""
+        return list(
+            self.payments.filter(
+                Q(transaction__isnull=False) | Q(balance_override__isnull=False)
+            ).order_by("date", "sequence")
+        )
+
+    def _running_balance(self, rows, persist=False):
+        """Rolls the balance forward through ``rows``: a balance anchor resets
+        the running balance, otherwise each payment's principal reduces it.
+        When ``persist`` is set, writes each row's resulting remaining_balance."""
+        balance = self.original_amount
+        for row in rows:
+            if row.balance_override is not None:
+                balance = self._round(row.balance_override)
+            else:
+                balance = self._round(balance - row.principal_amount)
+            if persist:
+                row.remaining_balance = balance
+        return balance
+
+    def remaining_balance(self):
+        """Outstanding principal, honoring any balance-anchor reset."""
+        return self._round(self._running_balance(self._fixed_rows()))
+
+    def _build_schedule(self, balance, first_date, start_sequence, payment):
+        rate = self.annual_interest_rate / 12
+        rows = []
+        sequence = start_sequence
+        date = first_date
+        max_rows = self.term_months + 2  # guard against rounding loops
+        while balance > 0 and len(rows) < max_rows:
+            interest = self._round(balance * rate)
+            principal = payment - interest
+            if principal >= balance:
+                # Final payment absorbs the remaining balance and rounding.
+                principal = balance
+                row_payment = self._round(principal + interest)
+            else:
+                row_payment = payment
+            balance = self._round(balance - principal)
+            rows.append(
+                LoanPayment(
+                    loan=self,
+                    sequence=sequence,
+                    date=date,
+                    payment_amount=row_payment,
+                    principal_amount=principal,
+                    interest_amount=interest,
+                    remaining_balance=balance,
+                    kind=LoanPayment.Kind.SCHEDULED,
+                )
+            )
+            sequence += 1
+            date = self._add_months(date, 1)
+        LoanPayment.objects.bulk_create(rows)
+
+    def generate_schedule(self):
+        """Rebuild the forecast rows, preserving fixed rows (paid payments and
+        balance anchors).
+
+        Used at creation (no fixed rows -> full schedule) and to re-amortize
+        after an off-schedule/edited payment or a balance reset: the running
+        balance is rolled forward through the fixed rows (honoring any anchor),
+        then the remaining periods are forecast from the current balance.
+        """
+        # Drop only the disposable forecast rows — keep paid payments and any
+        # balance-anchored row.
+        self.payments.filter(
+            transaction__isnull=True, balance_override__isnull=True
+        ).delete()
+        payment = self.payment_amount or self.compute_monthly_payment()
+        if self.payment_amount != payment:
+            self.payment_amount = payment
+            self.save(update_fields=["payment_amount"])
+
+        fixed = self._fixed_rows()
+        balance = self._running_balance(fixed, persist=True)
+        if fixed:
+            LoanPayment.objects.bulk_update(fixed, ["remaining_balance"])
+
+        if balance <= 0 or self.is_closed:
+            return
+
+        # Continue the forecast on the original monthly cadence, picking up one
+        # slot after the latest *scheduled* fixed row's calendar position. Using
+        # the position (not a raw count) keeps the dates right even when a fixed
+        # row sits later in the schedule (e.g. a balance anchored mid-loan).
+        # Off-schedule (principal-only/payoff) payments reduce the balance but
+        # don't consume a calendar slot, so they never shift the due dates.
+        scheduled_offsets = [
+            self._month_offset(p.date)
+            for p in fixed
+            if p.kind == LoanPayment.Kind.SCHEDULED
+        ]
+        consumed = (max(scheduled_offsets) + 1) if scheduled_offsets else 0
+        first_date = self._add_months(self.start_date, consumed)
+        start_sequence = max((p.sequence for p in fixed), default=0) + 1
+        self._build_schedule(balance, first_date, start_sequence, payment)
+
+
+class LoanPayment(models.Model):
+    """One amortization-schedule row (or recorded off-schedule payment)."""
+
+    class Kind(models.TextChoices):
+        SCHEDULED = "scheduled", _("Scheduled")
+        PRINCIPAL_ONLY = "principal_only", _("Principal-only")
+        PAYOFF = "payoff", _("Payoff")
+
+    loan = models.ForeignKey("Loan", related_name="payments", on_delete=models.CASCADE)
+    sequence = models.PositiveSmallIntegerField()
+    date = models.DateField()
+    payment_amount = models.DecimalField(decimal_places=2, max_digits=12)
+    principal_amount = models.DecimalField(decimal_places=2, max_digits=12)
+    interest_amount = models.DecimalField(decimal_places=2, max_digits=12, default=0)
+    remaining_balance = models.DecimalField(decimal_places=2, max_digits=12)
+    # When set, the outstanding principal is forced to this value as of this row
+    # (a user "reset" of the balance) and the forward schedule amortizes from it,
+    # ignoring any unreliable computed history before it.
+    balance_override = models.DecimalField(
+        decimal_places=2, max_digits=12, null=True, blank=True
+    )
+    kind = models.CharField(
+        max_length=20, choices=Kind.choices, default=Kind.SCHEDULED
+    )
+    transaction = models.OneToOneField(
+        "Transaction",
+        related_name="loan_payment",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["loan", "sequence"]
+
+    @property
+    def is_anchored(self):
+        """True when the outstanding balance has been manually reset here."""
+        return self.balance_override is not None
+
+    def __str__(self):
+        return f"{self.loan.name} #{self.sequence} {self.date} ${self.payment_amount}"

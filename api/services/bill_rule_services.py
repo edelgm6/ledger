@@ -9,10 +9,10 @@ pattern). Mirrors account_services.
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from django.db import transaction as db_transaction
-from django.db.models import ProtectedError, QuerySet
+from django.db.models import QuerySet
 
 from api.models import Account, Entity, UtilityBillRule
+from api.services import crud
 
 
 @dataclass
@@ -52,7 +52,6 @@ RULE_FIELDS = (
 )
 
 
-@db_transaction.atomic
 def save_bill_rule(
     cleaned_data: Dict[str, Any], instance: Optional[UtilityBillRule] = None
 ) -> BillRuleResult:
@@ -62,14 +61,8 @@ def save_bill_rule(
     ``instance`` is the rule being edited (None to create). Returns a
     BillRuleResult; on any DB error the transaction rolls back.
     """
-    try:
-        rule = instance or UtilityBillRule()
-        for field in RULE_FIELDS:
-            setattr(rule, field, cleaned_data.get(field))
-        rule.save()
-        return BillRuleResult(success=True, rule=rule)
-    except Exception as e:  # pragma: no cover - defensive
-        return BillRuleResult(success=False, error=str(e))
+    rule, error = crud.save_model(UtilityBillRule, RULE_FIELDS, cleaned_data, instance)
+    return BillRuleResult(success=error is None, rule=rule, error=error)
 
 
 def delete_bill_rule(rule_id: int) -> BillRuleResult:
@@ -79,17 +72,10 @@ def delete_bill_rule(rule_id: int) -> BillRuleResult:
     normally safe; the ProtectedError guard mirrors account deletion in case a
     future PROTECT relation is added.
     """
-    try:
-        rule = UtilityBillRule.objects.get(pk=rule_id)
-    except UtilityBillRule.DoesNotExist:
-        return BillRuleResult(success=False, error="Rule not found.")
-
-    try:
-        rule.delete()
-        return BillRuleResult(success=True, rule=rule)
-    except ProtectedError:
-        return BillRuleResult(
-            success=False,
-            rule=rule,
-            error="Can't delete this rule — it's still referenced by other records.",
-        )
+    rule, error = crud.delete_model(
+        UtilityBillRule,
+        rule_id,
+        not_found="Rule not found.",
+        protected="Can't delete this rule — it's still referenced by other records.",
+    )
+    return BillRuleResult(success=error is None, rule=rule, error=error)

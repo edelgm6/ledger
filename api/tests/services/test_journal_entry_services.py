@@ -692,3 +692,58 @@ class GetPostSaveContextTest(TestCase):
         self.assertIsNone(context.highlighted_transaction)
         self.assertEqual(context.highlighted_index, 0)
         self.assertEqual(len(context.created_entities), 0)
+
+
+class GetLoanInitialDataTest(TestCase):
+    """get_initial_data should split a loan payment into principal/interest."""
+
+    def _build(self, principal, interest, payment, txn_amount):
+        from api.models import LoanPayment
+        from api.services.journal_entry_services import get_initial_data
+        from api.tests.testing_factories import LoanFactory
+
+        bank = AccountFactory(name="Checking", type=Account.Type.ASSET)
+        loan = LoanFactory(
+            principal_account=AccountFactory(
+                name="Loan Principal", type=Account.Type.LIABILITY
+            ),
+            interest_account=AccountFactory(
+                name="Loan Interest", type=Account.Type.EXPENSE
+            ),
+        )
+        txn = TransactionFactory(account=bank, amount=txn_amount)
+        LoanPayment.objects.create(
+            loan=loan,
+            sequence=1,
+            date=txn.date,
+            payment_amount=payment,
+            principal_amount=principal,
+            interest_amount=interest,
+            remaining_balance=Decimal("0.00"),
+            transaction=txn,
+        )
+        txn.refresh_from_db()
+        return loan, txn, get_initial_data(txn)
+
+    def test_scheduled_split_three_lines(self):
+        loan, txn, (debits, credits) = self._build(
+            Decimal("271.20"), Decimal("1625.00"),
+            Decimal("1896.20"), Decimal("-1896.20"),
+        )
+        self.assertEqual(len(debits), 2)
+        self.assertEqual(debits[0]["account"], "Loan Principal")
+        self.assertEqual(debits[0]["amount"], Decimal("271.20"))
+        self.assertEqual(debits[1]["account"], "Loan Interest")
+        self.assertEqual(debits[1]["amount"], Decimal("1625.00"))
+        self.assertEqual(len(credits), 1)
+        self.assertEqual(credits[0]["account"], "Checking")
+        self.assertEqual(credits[0]["amount"], Decimal("1896.20"))
+
+    def test_principal_only_omits_interest_line(self):
+        loan, txn, (debits, credits) = self._build(
+            Decimal("5000.00"), Decimal("0.00"),
+            Decimal("5000.00"), Decimal("-5000.00"),
+        )
+        self.assertEqual(len(debits), 1)
+        self.assertEqual(debits[0]["account"], "Loan Principal")
+        self.assertEqual(credits[0]["amount"], Decimal("5000.00"))

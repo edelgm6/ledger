@@ -146,7 +146,7 @@
 <div class="set-page"
      x-data="{
         section: 'Accounts',
-        sections: ['Accounts', 'Bill Rules', 'Utility Bills', 'Entities', 'Paystubs', 'Auto Tags', 'CSV Profiles'],
+        sections: ['Accounts', 'Bill Rules', 'Utility Bills', 'Loans', 'Entities', 'Paystubs', 'Auto Tags', 'CSV Profiles'],
         stubs: {
           'Entities': 'Counterparties money moves to and from — banks, employers, landlords.',
           'Paystubs': 'Saved paystub templates parsed via AWS Textract.',
@@ -186,6 +186,14 @@
       <div x-show="section === 'Utility Bills'">
         <div id="bills-content"
              hx-get="{% url 'settings-bills' %}" hx-trigger="load">
+          <div class="set-empty">Loading…</div>
+        </div>
+      </div>
+
+      <!-- Loans (functional, lazy-loaded) -->
+      <div x-show="section === 'Loans'">
+        <div id="loans-content"
+             hx-get="{% url 'settings-loans' %}" hx-trigger="load">
           <div class="set-empty">Loading…</div>
         </div>
       </div>
