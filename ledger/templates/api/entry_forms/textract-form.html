@@ -1,47 +1,29 @@
-<div class="row">
-    <div class="col">
-        <h3>Upload paystubs</h3>
-        <form
-            method="post"
-            enctype="multipart/form-data"
-            hx-post="{% url 'upload-transactions' %}"
-            hx-target="#textract"
-            hx-trigger="submit"
-        >
-        {% csrf_token %}
+<h3 class="card-title mb-3">Upload paystubs</h3>
+<form
+    method="post"
+    enctype="multipart/form-data"
+    hx-post="{% url 'upload-transactions' %}"
+    hx-target="#textract"
+    hx-trigger="submit"
+>
+{% csrf_token %}
 
-            <div class="mb-3">
-                <input type="file" name="document" id="id_document" class="form-control-file">
-            </div>
-            <div class="mb-3">
-                <select name="{{ form.prefill.name }}" id="id_prefill" class="form-control">
-                    {% for choice in form.prefill.field.queryset %}
-                        <option value="{{ choice.pk }}">
-                            {{ choice }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <button type="submit" name="paystubs" class="btn btn-primary">Submit</button>
-        </form>
+    <div class="field">
+        <input type="file" name="document" id="id_document" class="file-input">
     </div>
-</div>
-<br>
+    <div class="field">
+        <select name="{{ form.prefill.name }}" id="id_prefill" class="select">
+            {% for choice in form.prefill.field.queryset %}
+                <option value="{{ choice.pk }}">{{ choice }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" name="paystubs" class="btn btn-primary">Submit</button>
+</form>
+
 {% if error %}
-<div class="row">
-    <div class="col">
-        <div class="alert alert-danger" role="alert">
-            Upload failed: {{ error }}
-        </div>
-    </div>
-</div>
+<div class="alert alert-danger mt-3" role="alert">Upload failed: {{ error }}</div>
 {% endif %}
 {% if filename %}
-<div class="row">
-    <div class="col">
-        <div class="alert alert-success" role="alert">
-            Uploaded {{ filename }}
-        </div>
-    </div>
-</div>
+<div class="alert alert-success mt-3" role="alert">Uploaded {{ filename }}</div>
 {% endif %}

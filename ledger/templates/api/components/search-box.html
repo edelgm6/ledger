@@ -1,0 +1,10 @@
+{% comment %}
+Search box for the Settings list fragments. Rendered inside an x-data scope
+that exposes `q` (the live query). Pass `placeholder`.
+{% endcomment %}
+<div class="search">
+  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+    <circle cx="7" cy="7" r="4.5"></circle><line x1="10.6" y1="10.6" x2="14" y2="14"></line>
+  </svg>
+  <input x-model="q" placeholder="{{ placeholder }}" />
+</div>

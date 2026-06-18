@@ -227,6 +227,10 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 
+# Project-level static files (mirrors the TEMPLATE_DIR convention above).
+# This is where the central design system, ledger/static/css/app.css, lives.
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "ledger/static")]
+
 STORAGES = {
     # Enable WhiteNoise's GZip and Brotli compression of static assets:
     # https://whitenoise.readthedocs.io/en/latest/django.html#add-compression-and-caching-support

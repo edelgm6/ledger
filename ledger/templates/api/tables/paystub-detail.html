@@ -1,18 +1,18 @@
 {% load humanize %}
 {% if paystub_values %}
-<table class="table table-sm mb-2" style="background: transparent;">
+<table class="table mb-2" style="background: transparent;">
     <thead>
         <tr>
             <th>Account</th>
-            <th style="text-align: right;">Value</th>
+            <th class="right">Value</th>
             <th>Type</th>
         </tr>
     </thead>
     <tbody>
         {% for paystub_value in paystub_values %}
         <tr>
-            <td>{{ paystub_value.account }}</td>
-            <td style="text-align: right;">${{ paystub_value.amount }}</td>
+            <td class="td-name">{{ paystub_value.account }}</td>
+            <td class="right">${{ paystub_value.amount }}</td>
             <td>{{ paystub_value.journal_entry_item_type }}</td>
         </tr>
         {% endfor %}
@@ -20,7 +20,7 @@
 </table>
 
 {% if show_fill_button %}
-<div class="d-flex justify-content-end">
+<div class="flex justify-end">
     <button
         @click="fillPaystub({{ paystub_id }})"
         x-bind:disabled="!selectedRowId"

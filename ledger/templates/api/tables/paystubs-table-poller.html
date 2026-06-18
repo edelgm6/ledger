@@ -2,9 +2,8 @@
      hx-get="{% url 'paystub-table' %}"
      {% if has_active_jobs %}hx-trigger="every 2s"{% endif %}
      hx-swap="outerHTML">
-    <br>
-    <h5>Paystubs</h5>
-    <table class="table table-sm">
+    <h5 class="card-title mt-4 mb-3">Paystubs</h5>
+    <table class="table">
         <thead>
             <tr>
                 <th>File</th>
@@ -14,18 +13,20 @@
         <tbody>
             {% for s3file in pending_files %}
             <tr>
-                <td>{{ s3file.user_filename }}</td>
+                <td class="td-name">{{ s3file.user_filename }}</td>
                 <td>
                     {% if s3file.status == "PENDING" %}
                         <span class="text-muted">⏳ Queued</span>
                     {% elif s3file.status == "PROCESSING" %}
                         <span class="text-primary">⚙️ Sending to Gemini...</span>
                     {% elif s3file.status == "FAILED" %}
-                        <span class="text-danger" title="{{ s3file.error_message }}">❌ Failed — {{ s3file.short_error }}</span>
-                        <button type="button" class="btn btn-sm btn-outline-secondary ms-2"
-                                hx-post="{% url 'paystub-retry' s3file.id %}"
-                                hx-target="#paystubs-table-poller"
-                                hx-swap="outerHTML">↻ Retry</button>
+                        <span class="status-line">
+                            <span class="text-danger" title="{{ s3file.error_message }}">❌ Failed — {{ s3file.short_error }}</span>
+                            <button type="button" class="btn btn-secondary btn-sm"
+                                    hx-post="{% url 'paystub-retry' s3file.id %}"
+                                    hx-target="#paystubs-table-poller"
+                                    hx-swap="outerHTML">↻ Retry</button>
+                        </span>
                     {% endif %}
                 </td>
             </tr>

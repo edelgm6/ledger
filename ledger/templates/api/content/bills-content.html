@@ -12,13 +12,13 @@
         }
      }">
 
-  <div class="set-head">
-    <div class="set-head-left">
-      <h2 class="set-h2">Utility Bills</h2>
-      <span class="set-count" x-text="countLabel()"></span>
+  <div class="card-head">
+    <div class="card-head-left">
+      <h2 class="card-title">Utility Bills</h2>
+      <span class="card-count" x-text="countLabel()"></span>
     </div>
-    <div class="set-head-right">
-      <select class="set-select" style="width: 150px;" x-model="status">
+    <div class="card-head-right">
+      <select class="select" style="width: 150px;" x-model="status">
         <option value="">All statuses</option>
         <option value="parsed">Parsed</option>
         <option value="matched">Matched</option>
@@ -26,8 +26,8 @@
         <option value="failed">Failed</option>
         <option value="pending">Pending</option>
       </select>
-      <span id="bills-poll-busy" class="set-busy">⚙️ Polling…</span>
-      <button class="set-btn set-btn-primary"
+      <span id="bills-poll-busy" class="busy">⚙️ Polling…</span>
+      <button class="btn btn-primary"
               hx-post="{% url 'settings-bills' %}"
               hx-vals='{"action": "poll"}'
               hx-target="#bills-content"
@@ -38,11 +38,11 @@
   </div>
 
   {% if message %}
-  <div class="set-alert set-alert-success">{{ message }}</div>
+  <div class="alert alert-success">{{ message }}</div>
   {% endif %}
 
-  <div class="set-bills-table">
-  <table class="set-table">
+  <div class="table-scroll">
+  <table class="table">
     <thead>
       <tr>
         <th>Received</th>
@@ -57,33 +57,33 @@
     <tbody>
       {% for bill in bills %}
       <tr data-status="{{ bill.status }}" x-show="matches($el)">
-        <td class="set-td set-td-sub">{{ bill.received_at|default:bill.created_at|date:"M j, Y" }}</td>
-        <td class="set-td set-td-name">{{ bill.vendor|default:"—" }}</td>
-        <td class="set-td set-td-type">{{ bill.account_number|default:"—" }}</td>
-        <td class="set-td set-td-type">{% if bill.amount is not None %}${{ bill.amount }}{% else %}—{% endif %}</td>
-        <td class="set-td set-td-status">
-          <span class="set-status-line">
-            <span class="set-badge set-badge-{{ bill.status }}">{{ bill.get_status_display }}</span>
+        <td class="td-muted">{{ bill.received_at|default:bill.created_at|date:"M j, Y" }}</td>
+        <td class="td-name">{{ bill.vendor|default:"—" }}</td>
+        <td class="td-2">{{ bill.account_number|default:"—" }}</td>
+        <td class="td-2">{% if bill.amount is not None %}${{ bill.amount }}{% else %}—{% endif %}</td>
+        <td>
+          <span class="status-line">
+            <span class="badge badge-{{ bill.status }}">{{ bill.get_status_display }}</span>
             {% if bill.status == failed_status %}
             {% if bill.short_error %}
-            <span class="set-err">
-              <span class="set-err-short">{{ bill.short_error }}</span>
-              <span class="set-err-tip">{{ bill.error_message }}</span>
+            <span class="err">
+              <span class="err-short">{{ bill.short_error }}</span>
+              <span class="err-tip">{{ bill.error_message }}</span>
             </span>
             {% endif %}
-            <button class="set-btn set-btn-clear set-btn-retry"
+            <button class="btn btn-ghost btn-sm"
                     hx-post="{% url 'settings-bills' %}"
                     hx-vals='{"action": "retry", "bill_id": "{{ bill.id }}"}'
                     hx-target="#bills-content"
                     hx-swap="innerHTML"
                     hx-indicator="#bill-retry-busy-{{ bill.id }}"
                     hx-disabled-elt="this">↻ Retry</button>
-            <span id="bill-retry-busy-{{ bill.id }}" class="set-busy">⚙️ Reparsing…</span>
+            <span id="bill-retry-busy-{{ bill.id }}" class="busy">⚙️ Reparsing…</span>
             {% endif %}
           </span>
         </td>
-        <td class="set-td set-td-entity{% if not bill.account %} empty{% endif %}">{{ bill.account.name|default:"—" }}</td>
-        <td class="set-td set-td-sub">{% if bill.matched_transaction %}{{ bill.matched_transaction.description|truncatechars:28 }}{% else %}—{% endif %}</td>
+        <td class="{% if not bill.account %}td-faint{% else %}td-3{% endif %}">{{ bill.account.name|default:"—" }}</td>
+        <td class="td-muted">{% if bill.matched_transaction %}{{ bill.matched_transaction.description|truncatechars:28 }}{% else %}—{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -91,9 +91,9 @@
   </div>
 
   {% if not bills %}
-  <div class="set-empty">No bills ingested yet. Configure a rule, then "Poll now".</div>
+  <div class="table-empty">No bills ingested yet. Configure a rule, then "Poll now".</div>
   {% endif %}
-  <div class="set-empty" x-show="total !== 0 && visible() === 0" x-cloak>
+  <div class="table-empty" x-show="total !== 0 && visible() === 0" x-cloak>
     No bills with that status.
   </div>
 </div>

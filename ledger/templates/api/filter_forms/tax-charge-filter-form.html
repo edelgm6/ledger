@@ -1,55 +1,41 @@
 <form
     id="taxes-filter-form"
     method="get"
-    class="form-sm"
     hx-get="{% url 'tax-charge-table' %}"
     hx-target="#table-and-form"
-    hx-tigger="submit"
+    hx-trigger="submit"
 >
     <!-- CSRF token is not required for GET requests -->
-    <div class="row">
-        <!-- Date From Field -->
-        <div class="col-md-2">
-            <div class="form-group">
-                <label for="id_date_from">Date From</label>
-                <select name="date_from" id="id_date_from" class="form-control" value="{{ filter_form.date_from.value }}">
-                    {% for option in filter_form.date_from %}
-                        {{ option }}
-                    {% endfor %}
-                </select>
-            </div>
+    <div class="filter-bar">
+        <div class="field fw-date">
+            <label class="label" for="id_date_from">Date From</label>
+            <select name="date_from" id="id_date_from" class="select">
+                {% for option in filter_form.date_from %}
+                    {{ option }}
+                {% endfor %}
+            </select>
         </div>
 
-        <!-- Date To Field -->
-        <div class="col-md-2">
-            <div class="form-group">
-                <label for="id_date_to">Date To</label>
-                <select name="date_to" id="id_date_to" class="form-control">
-                    {% for option in filter_form.date_to %}
-                        {{ option }}
-                    {% endfor %}
-                </select>
-            </div>
+        <div class="field fw-date">
+            <label class="label" for="id_date_to">Date To</label>
+            <select name="date_to" id="id_date_to" class="select">
+                {% for option in filter_form.date_to %}
+                    {{ option }}
+                {% endfor %}
+            </select>
         </div>
 
-        <!-- Type Field -->
-        <div class="col-md-2">
-            <div class="form-group">
-                <label for="id_tax_type">Type</label>
-                <select name="tax_type" id="id_tax_type" class="form-control">
-                    {% for option in filter_form.tax_type %}
-                        {{ option }}
-                    {% endfor %}
-                </select>
-            </div>
+        <div class="field">
+            <label class="label" for="id_tax_type">Type</label>
+            <select name="tax_type" id="id_tax_type" class="select">
+                {% for option in filter_form.tax_type %}
+                    {{ option }}
+                {% endfor %}
+            </select>
         </div>
 
-        <!-- Submit Button -->
-        <div class="col-md-2">
-            <div class="form-group">
-                <label>&nbsp;</label> <!-- Empty label for alignment -->
-                <button type="submit" class="btn btn-primary form-control">Filter</button>
-            </div>
+        <div class="fw-auto">
+            <button type="submit" class="btn btn-primary">Filter</button>
         </div>
     </div>
 </form>

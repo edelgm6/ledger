@@ -1,102 +1,80 @@
 {% load humanize %}
 {% load math_filters %}
-<div class="row">
-    <div class="col">
-        {{ filter_form }}
+{{ filter_form }}
+
+<div class="kpi-row">
+    <div class="kpi">
+        <div class="kpi-value">{{ savings_rate|multiply:100|floatformat:1 }}%</div>
+        <div class="kpi-label">Savings Rate</div>
+    </div>
+    <div class="kpi">
+        <div class="kpi-value">{{ tax_rate|multiply:100|floatformat:1 }}%</div>
+        <div class="kpi-label">Tax Rate</div>
     </div>
 </div>
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="row text-center">
-                <!-- Savings Rate -->
-                <div class="col-md-2">
-                    <h5 class="font-weight-bold">{{ savings_rate|multiply:100|floatformat:1 }}%</h5>
-                    <p class="text-secondary">Savings Rate</p>
-                </div>
-                <!-- Tax Rate -->
-                <div class="col-md-2">
-                    <h5 class="font-weight-bold">{{ tax_rate|multiply:100|floatformat:1 }}%</h5>
-                    <p class="text-secondary">Tax Rate</p>
-                </div>
-                <!-- Additional metrics can be added here -->
-            </div>
-        </div>
-    </div>
 
-    <div class="row">
-        <div class="col-md-8">
+<div class="grid grid-main-side">
+    <div>
+        <h4>Net Income: ${{ summary.equity.total|floatformat:"0"|intcomma }}</h4>
+        <table class="table mb-4">
+            <tbody>
+                {% for account in summary.equity.balances %}
+                    {% for balance in account.balances %}
+                    <tr>
+                        <td class="td-name">{{ balance.account }}</td>
+                        <td class="right">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
 
-            <div class="row">
-                <div class="col-md-6">
-                    <h4>Net Income: ${{ summary.equity.total|floatformat:"0"|intcomma }}</h4>
-                    <table class="table table-hover table-sm">
-                        <tbody>
-                            {% for account in summary.equity.balances %}
-                                {% for balance in account.balances %}
-                                <tr>
-                                    <td class="col-8">{{ balance.account }}</td>
-                                    <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
-                                </tr>
-                                {% endfor %}
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-md-6">
-                    <h4>Income: ${{ summary.income.total|floatformat:"0"|intcomma }}</h4>
-                    <table class="table table-hover table-sm">
-                        <tbody>
-                            {% for account in summary.income.balances %}
-                                {% for balance in account.balances %}
-                                <tr 
-                                    class="clickable-row"
-                                    hx-get="{% url 'statement-detail' balance.account.id %}?from_date={{ from_date|date:"Y-m-d" }}&to_date={{ to_date|date:"Y-m-d" }}"
-                                    hx-target="#detail"
-                                >
-                                    <td class="col-8">{{ balance.account }}</td>
-                                    <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
-                                </tr>
-                                {% endfor %}
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="col-md-6">
-                    <h4>Expenses: ${{ summary.expense.total|floatformat:"0"|intcomma }}</h4>
-                    {% for account in summary.expense.balances %}
-                    <table class="table table-hover table-sm">
-                        <tbody>
-                            <tr>
-                                <td class="col-8"><strong>{{ account.name }}</strong></td>
-                                <td class="col-4"><strong>${{ account.total|floatformat:"0"|intcomma }}</strong></td>
-                            </tr>
+        <div class="grid grid-2">
+            <div>
+                <h4>Income: ${{ summary.income.total|floatformat:"0"|intcomma }}</h4>
+                <table class="table">
+                    <tbody>
+                        {% for account in summary.income.balances %}
                             {% for balance in account.balances %}
-                            <tr 
+                            <tr
                                 class="clickable-row"
                                 hx-get="{% url 'statement-detail' balance.account.id %}?from_date={{ from_date|date:"Y-m-d" }}&to_date={{ to_date|date:"Y-m-d" }}"
                                 hx-target="#detail"
                             >
-                                <td class="col-8">{{ balance.account }}</td>
-                                <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                                <td class="td-name">{{ balance.account }}</td>
+                                <td class="right">${{ balance.amount|floatformat:"0"|intcomma }}</td>
                             </tr>
                             {% endfor %}
-                        </tbody>
-                    </table>
-                    {% endfor %}
-                </div>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-        </div>
-        <div class="col-md-4">
-            <div class="row">
-                <div class="col-md-12">
-                    <div id="detail">
-                    </div>
-                </div>
+
+            <div>
+                <h4>Expenses: ${{ summary.expense.total|floatformat:"0"|intcomma }}</h4>
+                {% for account in summary.expense.balances %}
+                <table class="table mb-3">
+                    <tbody>
+                        <tr>
+                            <td class="td-strong">{{ account.name }}</td>
+                            <td class="right td-strong">${{ account.total|floatformat:"0"|intcomma }}</td>
+                        </tr>
+                        {% for balance in account.balances %}
+                        <tr
+                            class="clickable-row"
+                            hx-get="{% url 'statement-detail' balance.account.id %}?from_date={{ from_date|date:"Y-m-d" }}&to_date={{ to_date|date:"Y-m-d" }}"
+                            hx-target="#detail"
+                        >
+                            <td class="td-name">{{ balance.account }}</td>
+                            <td class="right">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endfor %}
             </div>
         </div>
     </div>
+
+    <div id="detail"></div>
 </div>

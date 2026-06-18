@@ -5,50 +5,42 @@
     hx-target="#table-and-form"
     hx-trigger="submit"
     hx-swap="outerHTML"
-    class="mb-3 form-sm"
 >
-    <details open>
-        <summary class="mb-2" style="cursor: pointer;"><strong>Filters</strong></summary>
-    <div class="row g-3">
-        <!-- Stacked Date From and Date To Fields -->
-        <div class="col-md-2">
-            <div class="form-group">
-                <label for="id_date_from">Date From</label>
-                <input type="date" name="{{ filter_form.date_from.html_name }}" id="{{ filter_form.date_from.auto_id }}" class="form-control"
+    <div class="filter-bar">
+        <div class="filter-col">
+            <div class="field">
+                <label class="label" for="id_date_from">Date From</label>
+                <input type="date" name="{{ filter_form.date_from.html_name }}" id="{{ filter_form.date_from.auto_id }}" class="input"
                        value="{{ filter_form.date_from.value|default_if_none:'' }}">
             </div>
-            <div class="form-group">
-                <label for="id_date_to">Date To</label>
-                <input type="date" name="{{ filter_form.date_to.html_name }}" id="{{ filter_form.date_to.auto_id }}" class="form-control"
+            <div class="field">
+                <label class="label" for="id_date_to">Date To</label>
+                <input type="date" name="{{ filter_form.date_to.html_name }}" id="{{ filter_form.date_to.auto_id }}" class="input"
                        value="{{ filter_form.date_to.value|default_if_none:'' }}">
             </div>
         </div>
 
-        <!-- Stacked Account and Related Account Fields -->
-        <div class="col-md-3">
+        <div class="filter-col">
             {% include "api/components/typeahead-multiselect.html" with field=filter_form.account label="Account" all_label="All accounts" %}
             {% include "api/components/typeahead-multiselect.html" with field=filter_form.related_account label="Related Account" all_label="All accounts" %}
         </div>
 
-        <!-- Type Field -->
-        <div class="col-md-2">
+        <div>
             {% include "api/components/typeahead-multiselect.html" with field=filter_form.transaction_type label="Type" all_label="All types" %}
         </div>
 
-        <!-- Stacked Is Closed and Linked Fields -->
-        <div class="col-md-2">
-            <div class="form-group">
-                <label for="id_is_closed">Is Closed</label>
-                <select name="{{ filter_form.is_closed.html_name }}" id="{{ filter_form.is_closed.auto_id }}" class="form-control">
+        <div class="filter-col">
+            <div class="field">
+                <label class="label" for="id_is_closed">Is Closed</label>
+                <select name="{{ filter_form.is_closed.html_name }}" id="{{ filter_form.is_closed.auto_id }}" class="select">
                     {% for option in filter_form.is_closed %}
                         {{ option }}
                     {% endfor %}
                 </select>
             </div>
-
-            <div class="form-group">
-                <label for="id_has_linked_transaction">Linked</label>
-                <select name="{{ filter_form.has_linked_transaction.html_name }}" id="{{ filter_form.has_linked_transaction.auto_id }}" class="form-control">
+            <div class="field">
+                <label class="label" for="id_has_linked_transaction">Linked</label>
+                <select name="{{ filter_form.has_linked_transaction.html_name }}" id="{{ filter_form.has_linked_transaction.auto_id }}" class="select">
                     {% for option_value, option_label in filter_form.has_linked_transaction.field.choices %}
                         <option value="{{ option_value }}" {% if option_value == filter_form.has_linked_transaction.value %}selected{% endif %}>
                             {{ option_label }}
@@ -58,26 +50,20 @@
             </div>
         </div>
 
-        <!-- Submit + Rerun tag Button -->
-        <div class="col-md-3">
-            <div class="form-group">
-                <label>&nbsp;</label> <!-- Empty label for alignment (matches other filter forms) -->
-                <div>
-                    <button type="submit" class="btn btn-primary">Filter</button>
-                    <!-- New Button -->
-                    <button
-                        type="button"
-                        class="btn btn-secondary"
-                        hx-get="{% url 'trigger-autotag' %}"
-                        hx-trigger="click"
-                        hx-target="#autotag-success"
-                        hx-swap="innerHTML">
-                        Run Autotag
-                    </button>
-                    <div id="autotag-success"></div>
-                </div>
+        <div class="fw-auto">
+            <div class="actions">
+                <button type="submit" class="btn btn-primary">Filter</button>
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    hx-get="{% url 'trigger-autotag' %}"
+                    hx-trigger="click"
+                    hx-target="#autotag-success"
+                    hx-swap="innerHTML">
+                    Run Autotag
+                </button>
             </div>
+            <div id="autotag-success"></div>
         </div>
     </div>
-    </details>
 </form>

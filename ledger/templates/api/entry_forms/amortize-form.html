@@ -1,19 +1,19 @@
 {% load humanize %}
-<div class="row">
-    <div class="col-md-6">
-        <div id="amortization-transactions-table" class="table-responsive" style="max-height: 200px; overflow-y: auto;">
-            <table class="table table-sm">
+<div class="grid grid-2">
+    <div>
+        <div id="amortization-transactions-table" class="table-scroll table-scroll-sm">
+            <table class="table">
                 <thead>
                     <tr>
-                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Date</th>
-                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Amount</th>
-                        <th style="position: sticky; top: 0; background: white; z-index: 10;">Description</th>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Description</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for transaction in transactions %}
                     <tr>
-                        <td>{{ transaction.date }}</td>
+                        <td class="td-name">{{ transaction.date }}</td>
                         <td>${{ transaction.amount|floatformat:2|intcomma }}</td>
                         <td>{{ transaction.description }}</td>
                     </tr>
@@ -22,32 +22,23 @@
             </table>
         </div>
     </div>
-    <div class="col-md-3">
+    <div>
         <form
-            class="form-sm"
             hx-post="{% url 'amortize-form' amortization.id %}"
             hx-target="#table-and-form"
-            hx-tigger="submit"
+            hx-trigger="submit"
         >
-            <!-- Date Field -->
-            <div class="col">
-                <div class="form-group">
-                    <select name="date" id="id_date" class="form-control">
-                        {% for option in date_form.date %}
-                            {{ option }}
-                        {% endfor %}
-                    </select>
-                </div>
+            <div class="field">
+                <label class="label" for="id_date">Date</label>
+                <select name="date" id="id_date" class="select">
+                    {% for option in date_form.date %}
+                        {{ option }}
+                    {% endfor %}
+                </select>
             </div>
-            <div class="col">
-                <button
-                    id="clear-button"
-                    class="btn btn-primary form-control"
-                >Amortize</button>
+            <div class="actions">
+                <button id="clear-button" class="btn btn-primary">Amortize</button>
             </div>
         </form>
     </div>
 </div>
-
-
-

@@ -1,31 +1,23 @@
 <form
     id="reconciliation-filter-form"
     method="get"
-    class="form-sm"
     hx-get="{% url 'reconciliation-table' %}"
     hx-target="#table-and-form"
-    hx-tigger="submit"
+    hx-trigger="submit"
 >
     <!-- CSRF token is not required for GET requests -->
-    <div class="row">
-        <!-- Date Field -->
-        <div class="col-md-2">
-            <div class="form-group">
-                <label for="id_date">Date</label>
-                <select name="date" id="id_date" class="form-control">
-                    {% for option in filter_form.date %}
-                        {{ option }}
-                    {% endfor %}
-                </select>
-            </div>
+    <div class="filter-bar">
+        <div class="field fw-narrow">
+            <label class="label" for="id_date">Date</label>
+            <select name="date" id="id_date" class="select">
+                {% for option in filter_form.date %}
+                    {{ option }}
+                {% endfor %}
+            </select>
         </div>
 
-        <!-- Submit Button -->
-        <div class="col-md-2">
-            <div class="form-group">
-                <label>&nbsp;</label> <!-- Empty label for alignment -->
-                <button type="submit" class="btn btn-primary form-control">Filter</button>
-            </div>
+        <div class="fw-auto">
+            <button type="submit" class="btn btn-primary">Filter</button>
         </div>
     </div>
 </form>
