@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% load static %}<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -6,131 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
 
-    <!-- Include jQuery -->
+    <!-- Include jQuery (independent of the removed Bootstrap; powers behavior scripts) -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <!-- htmx -->
     <script src="https://unpkg.com/htmx.org"></script>
 
-    <!-- Bootstrap -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+    <!-- Bootstrap Icons (icon font only; framework removed in favor of app.css) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
 
+    <!-- Central design system: the single source of truth for all styling -->
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-
-
-    <style>
-
-        .form-sm .form-control {
-            padding: .3rem; /* smaller padding */
-            font-size: 0.75rem; /* smaller font-size */
-            /* Match height to the reduced padding (Bootstrap's default height assumes
-               .75rem padding). This is the same formula .ta-trigger uses, so date
-               inputs, selects, text inputs and typeahead triggers are all the same
-               height and every filter column lines up row-for-row. */
-            height: calc(1.5em + .6rem + 2px);
-        }
-        .form-sm .input-group-text {
-            padding: .3rem .5rem; /* smaller padding */
-            font-size: 0.75rem; /* smaller font-size */
-        }
-        .form-sm .row {
-            margin-bottom: .5rem; /* less space between rows */
-        }
-        .form-sm h3 {
-            font-size: 1rem; /* smaller heading */
-        }
-        .form-sm .btn {
-            padding: .25rem .5rem; /* smaller button padding */
-            font-size: 0.75rem; /* smaller font-size */
-        }
-
-        .input-group-sm .input-group-prepend .input-group-text {
-            padding: 2px 4px; /* Match the padding to the input field */
-            font-size: 0.8em; /* Match the font size to the input field */
-            /* You may need to adjust the height if it's not automatically aligning */
-            height: calc(1.7rem + 1px); /* This is Bootstrap's default height for small form controls, adjust the calc() as necessary */
-        }
-
-        .table-sm th, .table-sm td {
-            padding: .3rem; /* smaller padding */
-            white-space: nowrap; /* prevents wrapping */
-            font-size: 0.75rem; /* smaller font-size */
-        }
-
-        .highlight-yellow {
-            background-color: #fcfcd5; /* Dull yellow color */
-        }
-
-        /* Style to make the table container fixed and scrollable */
-        .fixed-table-container {
-            position: fixed;
-            top: 120px; /* Adjust as needed */
-            bottom: 20px; /* Adjust as needed */
-            width: 400px; /* Adjust as needed */
-            max-height: 70vh; /* Adjust as needed */
-            overflow-y: auto;
-        }
-        .fixed-header {
-            position: sticky;
-            top: 0;
-            background: white;
-            z-index: 1;
-        }
-        .transaction-column {
-            max-width: 250px; /* Adjust as necessary */
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* --- Typeahead multi-select (Option B: count + checkbox menu) --- */
-        [x-cloak] { display: none !important; }
-        .ta-field { position: relative; }
-        /* Field labels across all compact forms (the direct-child selector excludes
-           the in-popover checkbox labels, .ta-check, which style themselves) */
-        .form-sm .form-group > label { font-size: .75rem; font-weight: 500; margin-bottom: 3px; }
-        /* Vertical gap between fields stacked in the same column. Owned here once
-           (not via per-field mb-* utilities) so every column lines up row-for-row.
-           .ta-field is also a .form-group, so typeaheads participate automatically. */
-        .form-sm .form-group + .form-group { margin-top: .25rem; }
-        .ta-label { color: #212529; cursor: pointer; user-select: none; }
-        .ta-badge { background: #007bff; color: #fff; font-size: .62rem; font-weight: 600; line-height: 1;
-                    padding: 2px 6px; border-radius: .7rem; margin-left: 5px; vertical-align: middle; }
-        .ta-anchor { position: relative; }
-        .ta-trigger { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%;
-                      text-align: left; background: #fff; border: 1px solid #dee2e6; border-radius: .25rem;
-                      padding: .3rem .5rem; font-size: .75rem; color: #212529; cursor: pointer;
-                      min-height: calc(1.5em + .6rem + 2px); }
-        .ta-trigger.is-empty .ta-trigger-text { color: #6c757d; }
-        .ta-trigger:focus { border-color: #80bdff; box-shadow: 0 0 0 .2rem rgba(0,123,255,.25); outline: 0; }
-        .ta-trigger-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .ta-caret { color: #6c757d; font-size: .7rem; }
-        .ta-popover { position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; margin-top: 2px;
-                      background: #fff; border: 1px solid rgba(0,0,0,.15); border-radius: .25rem;
-                      padding: .45rem; min-width: 210px; box-shadow: 0 .5rem 1rem rgba(0,0,0,.15); }
-        .ta-search { width: 100%; border: 1px solid #dee2e6; border-radius: .2rem; font-size: .75rem;
-                     padding: .28rem .4rem; margin-bottom: .4rem; }
-        .ta-search:focus { outline: 0; border-color: #80bdff; box-shadow: 0 0 0 .15rem rgba(0,123,255,.2); }
-        .ta-popover-list { max-height: 220px; overflow: auto; }
-        .ta-check { display: flex; align-items: center; gap: 8px; font-size: .75rem; padding: .22rem .25rem;
-                    margin: 0; cursor: pointer; font-weight: 400; border-radius: .15rem; }
-        .ta-check:hover { background: #f1f3f5; }
-        .ta-check--on { background: #f1f6ff; }
-        .ta-check--on:hover { background: #e7f1ff; }
-        .ta-pinned { border-bottom: 1px solid #e9ecef; padding-bottom: .2rem; margin-bottom: .25rem; }
-        .ta-section-label { font-size: .64rem; text-transform: uppercase; letter-spacing: .05em;
-                            color: #6c757d; font-weight: 600; padding: .15rem .25rem; }
-        .ta-mark { font-weight: 700; }
-        .ta-empty { padding: .45rem .55rem; font-size: .72rem; color: #6c757d; }
-        .ta-toolbar { display: flex; align-items: center; gap: 9px; padding: .4rem .35rem .15rem;
-                      border-top: 1px solid #e9ecef; margin-top: .35rem; }
-        .ta-link { border: 0; background: transparent; color: #007bff; font-size: .72rem; padding: 0; cursor: pointer; }
-        .ta-link:hover { text-decoration: underline; }
-        .ta-toolbar-sep { color: #ced4da; font-size: .72rem; }
-
-    </style>
 
     <!-- Typeahead multi-select Alpine component (Option B). Registered once,
          before Alpine inits, so it is available to htmx-swapped filter forms. -->
@@ -195,6 +82,25 @@
                     + this.escapeHtml(label.slice(i + q.length));
             },
         }));
+
+        // Live search + selection state shared by the Settings list fragments
+        // (Accounts, Loans, Bill Rules). Rows carry data-search; the desktop
+        // <tr data-search> set drives the visible count.
+        Alpine.data('searchList', (total, noun, selectedId = null) => ({
+            q: '',
+            selectedId: selectedId,
+            total: total,
+            matches(el) { return !this.q.trim() || el.dataset.search.includes(this.q.toLowerCase()); },
+            visible() {
+                if (!this.q.trim()) return this.total;
+                const needle = this.q.toLowerCase();
+                return Array.from(this.$root.querySelectorAll('tr[data-search]'))
+                    .filter(tr => tr.dataset.search.includes(needle)).length;
+            },
+            countLabel() {
+                return this.q.trim() ? (this.visible() + ' of ' + this.total) : (this.total + ' ' + noun);
+            },
+        }));
     });
     </script>
 
@@ -205,7 +111,7 @@
 <body>
 
     {% include "api/components/nav.html" %}
-    <div id="container" class="container">
+    <div id="container" class="page">
         {% block content %}{% endblock %}
     </div>
 

@@ -1,31 +1,21 @@
-<div class="set-form loan-form">
+<div class="form">
 
-  <style>
-    .loan-form.set-form { margin-top: 14px; padding-top: 12px; }
-    .loan-form .set-form-header { margin-bottom: 10px; }
-    .loan-form .lf-grid { display: grid; grid-template-columns: repeat(4, 1fr);
-                          gap: 6px 12px; margin-bottom: 8px; align-items: end; }
-    .loan-form .set-label { margin-bottom: 2px; }
-    .loan-form .set-input, .loan-form .set-select { height: 26px; padding: 0 7px; }
-    .loan-form .set-actions { margin-top: 4px; }
-  </style>
-
-  <div class="set-form-header">
+  <div class="form-header">
     {% if loan %}Edit · {{ loan.name }}{% else %}New loan{% endif %}
   </div>
 
   {% if change == "create" %}
-    <div class="set-alert set-alert-success">Loan created — schedule generated.</div>
+    <div class="alert alert-success">Loan created — schedule generated.</div>
   {% elif change == "update" %}
-    <div class="set-alert set-alert-success">Loan updated — schedule regenerated.</div>
+    <div class="alert alert-success">Loan updated — schedule regenerated.</div>
   {% elif change == "delete" %}
-    <div class="set-alert set-alert-success">Loan deleted.</div>
+    <div class="alert alert-success">Loan deleted.</div>
   {% endif %}
   {% if error %}
-    <div class="set-alert set-alert-danger">{{ error }}</div>
+    <div class="alert alert-danger">{{ error }}</div>
   {% endif %}
   {% if form.non_field_errors %}
-    <div class="set-alert set-alert-danger">{{ form.non_field_errors }}</div>
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
   {% endif %}
 
   <form method="post"
@@ -34,101 +24,101 @@
         hx-swap="innerHTML">
     {% csrf_token %}
 
-    <div class="lf-grid">
+    <div class="grid grid-4">
       <div>
-        <label class="set-label">Name</label>
-        <input class="set-input" name="name" value="{{ values.name }}" placeholder="Mortgage — 123 Oak Ln" />
-        {% for e in form.name.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+        <label class="label">Name</label>
+        <input class="input" name="name" value="{{ values.name }}" placeholder="Mortgage — 123 Oak Ln" />
+        {% for e in form.name.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
       </div>
       <div>
-        <label class="set-label">Original amount</label>
-        <input class="set-input" name="original_amount" value="{{ values.original_amount }}" placeholder="300,000.00" />
-        {% for e in form.original_amount.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+        <label class="label">Original amount</label>
+        <input class="input" name="original_amount" value="{{ values.original_amount }}" placeholder="300,000.00" />
+        {% for e in form.original_amount.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
       </div>
       <div>
-        <label class="set-label">Annual rate <span class="set-label-optional">(0.0650 = 6.5%)</span></label>
-        <input class="set-input" name="annual_interest_rate" value="{{ values.annual_interest_rate }}" placeholder="0.0650" />
-        {% for e in form.annual_interest_rate.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+        <label class="label">Annual rate <span class="label-optional">(0.0650 = 6.5%)</span></label>
+        <input class="input" name="annual_interest_rate" value="{{ values.annual_interest_rate }}" placeholder="0.0650" />
+        {% for e in form.annual_interest_rate.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
       </div>
       <div>
-        <label class="set-label">Term (months)</label>
-        <input class="set-input" name="term_months" value="{{ values.term_months }}" placeholder="360" />
-        {% for e in form.term_months.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+        <label class="label">Term (months)</label>
+        <input class="input" name="term_months" value="{{ values.term_months }}" placeholder="360" />
+        {% for e in form.term_months.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
       </div>
     </div>
 
-    <div class="lf-grid">
+    <div class="grid grid-4">
       <div>
-        <label class="set-label">First payment date</label>
-        <input class="set-input" type="date" name="start_date" value="{{ values.start_date }}" />
-        {% for e in form.start_date.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+        <label class="label">First payment date</label>
+        <input class="input" type="date" name="start_date" value="{{ values.start_date }}" />
+        {% for e in form.start_date.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
       </div>
       <div>
-        <label class="set-label">Payment <span class="set-label-optional">(blank = computed)</span></label>
-        <input class="set-input" name="payment_amount" value="{{ values.payment_amount }}" placeholder="1,896.20" />
-        {% for e in form.payment_amount.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+        <label class="label">Payment <span class="label-optional">(blank = computed)</span></label>
+        <input class="input" name="payment_amount" value="{{ values.payment_amount }}" placeholder="1,896.20" />
+        {% for e in form.payment_amount.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
       </div>
       <div>
-        <label class="set-label">Principal account <span class="set-label-optional">(liability)</span></label>
-        <select class="set-select" name="principal_account">
+        <label class="label">Principal account <span class="label-optional">(liability)</span></label>
+        <select class="select" name="principal_account">
           <option value="" {% if not values.principal_account %}selected{% endif %}>Select…</option>
           {% for account in liability_accounts %}
           <option value="{{ account.id }}" {% if values.principal_account == account.id|stringformat:'s' %}selected{% endif %}>{{ account.name }}</option>
           {% endfor %}
         </select>
-        {% for e in form.principal_account.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+        {% for e in form.principal_account.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
       </div>
       <div>
-        <label class="set-label">Interest account <span class="set-label-optional">(expense)</span></label>
-        <select class="set-select" name="interest_account">
+        <label class="label">Interest account <span class="label-optional">(expense)</span></label>
+        <select class="select" name="interest_account">
           <option value="" {% if not values.interest_account %}selected{% endif %}>Select…</option>
           {% for account in expense_accounts %}
           <option value="{{ account.id }}" {% if values.interest_account == account.id|stringformat:'s' %}selected{% endif %}>{{ account.name }}</option>
           {% endfor %}
         </select>
-        {% for e in form.interest_account.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+        {% for e in form.interest_account.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
       </div>
     </div>
 
-    <div class="lf-grid">
+    <div class="grid grid-4">
       <div>
-        <label class="set-label">Payment account <span class="set-label-optional">(optional)</span></label>
-        <select class="set-select" name="payment_account">
+        <label class="label">Payment account <span class="label-optional">(optional)</span></label>
+        <select class="select" name="payment_account">
           <option value="" {% if not values.payment_account %}selected{% endif %}>Any</option>
           {% for account in payment_accounts %}
           <option value="{{ account.id }}" {% if values.payment_account == account.id|stringformat:'s' %}selected{% endif %}>{{ account.name }}</option>
           {% endfor %}
         </select>
-        {% for e in form.payment_account.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+        {% for e in form.payment_account.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
       </div>
       <div>
-        <label class="set-label">Description match <span class="set-label-optional">(optional)</span></label>
-        <input class="set-input" name="description_match" value="{{ values.description_match }}" placeholder="WELLS FARGO MTG" />
-        {% for e in form.description_match.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+        <label class="label">Description match <span class="label-optional">(optional)</span></label>
+        <input class="input" name="description_match" value="{{ values.description_match }}" placeholder="WELLS FARGO MTG" />
+        {% for e in form.description_match.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
       </div>
       <div>
-        <label class="set-label">Date window (days)</label>
-        <input class="set-input" name="date_window_days" value="{{ values.date_window_days }}" placeholder="7" />
-        {% for e in form.date_window_days.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+        <label class="label">Date window (days)</label>
+        <input class="input" name="date_window_days" value="{{ values.date_window_days }}" placeholder="7" />
+        {% for e in form.date_window_days.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
       </div>
       <div>
-        <label class="set-label">Entity <span class="set-label-optional">(optional)</span></label>
-        <select class="set-select" name="entity">
+        <label class="label">Entity <span class="label-optional">(optional)</span></label>
+        <select class="select" name="entity">
           <option value="" {% if not values.entity %}selected{% endif %}>Select…</option>
           {% for entity in entities %}
           <option value="{{ entity.id }}" {% if values.entity == entity.id|stringformat:'s' %}selected{% endif %}>{{ entity.name }}</option>
           {% endfor %}
         </select>
-        {% for e in form.entity.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+        {% for e in form.entity.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
       </div>
     </div>
 
-    <div class="set-actions">
-      <button type="submit" name="action" value="save" class="set-btn set-btn-primary">{% if loan %}Save{% else %}Create{% endif %}</button>
+    <div class="actions">
+      <button type="submit" name="action" value="save" class="btn btn-primary">{% if loan %}Save{% else %}Create{% endif %}</button>
       {% if loan %}
-      <button type="submit" name="action" value="delete" class="set-btn set-btn-danger">Delete</button>
+      <button type="submit" name="action" value="delete" class="btn btn-danger">Delete</button>
       {% endif %}
-      <button type="button" class="set-btn set-btn-clear"
+      <button type="button" class="btn btn-ghost"
               @click="selectedId = null"
               hx-get="{% url 'settings-loan-new-form' %}"
               hx-target="#loan-form-div">Clear</button>

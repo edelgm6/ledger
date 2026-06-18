@@ -30,24 +30,16 @@
                 );
             }
          }">
-        <div class="row">
-            <div class="col-md-8">
-                <div id="table">
-                    {{ table }}
-                </div>
+        <div class="grid grid-main-side">
+            <div id="table">
+                {{ table }}
             </div>
-            <div class="col-md-4">
-                <div id="paystubs">
-                    {{ paystubs_table }}
-                </div>
+            <div id="paystubs">
+                {{ paystubs_table }}
             </div>
         </div>
-        <div class="row">
-            <div class="col-md-12">
-                <div id="form-div">
-                    {{ entry_form }}
-                </div>
-            </div>
+        <div id="form-div" class="mt-4">
+            {{ entry_form }}
         </div>
     </div>
 </div>

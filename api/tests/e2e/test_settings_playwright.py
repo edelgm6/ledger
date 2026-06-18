@@ -54,31 +54,31 @@ class SettingsSmokeTest(LiveServerTestCase):
         self.page.goto(self.live_server_url + "/settings/")
         self.page.wait_for_load_state("networkidle")
         self.page.wait_for_function("typeof Alpine !== 'undefined'")
-        self.page.wait_for_selector(".set-table")
+        self.page.wait_for_selector(".table")
 
     def test_interactions(self):
         self.goto_settings()
 
         # Count label
-        count = self.page.inner_text(".set-count")
+        count = self.page.inner_text(".card-count")
         self.assertIn("3 accounts", count)
 
         # Search filters live + updates count
-        self.page.fill(".set-search input", "ally")
+        self.page.fill(".search input", "ally")
         self.page.wait_for_timeout(150)
-        self.assertIn("1 of 3", self.page.inner_text(".set-count"))
+        self.assertIn("1 of 3", self.page.inner_text(".card-count"))
         visible = self.page.eval_on_selector_all(
-            "tr.set-row",
-            "els => els.filter(e => e.offsetParent !== null).map(e => e.querySelector('.set-td-name').innerText)",
+            "tr.row",
+            "els => els.filter(e => e.offsetParent !== null).map(e => e.querySelector('.td-name').innerText)",
         )
         self.assertEqual(visible, ["Ally Checking"])
 
         # Clear search, select a row -> form loads + row highlighted
-        self.page.fill(".set-search input", "")
+        self.page.fill(".search input", "")
         with self.page.expect_response(lambda r: "/form/" in r.url):
-            self.page.click("tr.set-row:has-text('Federal Taxes')")
-        self.page.wait_for_selector(".set-form-header:has-text('Edit · Federal Taxes')")
-        selected_name = self.page.inner_text("tr.set-row.selected .set-td-name")
+            self.page.click("tr.row:has-text('Federal Taxes')")
+        self.page.wait_for_selector(".form-header:has-text('Edit · Federal Taxes')")
+        selected_name = self.page.inner_text("tr.row.selected .td-name")
         self.assertEqual(selected_name, "Federal Taxes")
 
         # Type -> Sub-type dependency: switch Type to Income, sub-type options change
@@ -93,14 +93,14 @@ class SettingsSmokeTest(LiveServerTestCase):
         # New Account -> blank create form
         with self.page.expect_response(lambda r: "new/form" in r.url):
             self.page.click("button:has-text('New Account')")
-        self.page.wait_for_selector(".set-form-header:has-text('New account')")
-        self.assertEqual(self.page.input_value(".set-input[name='name']"), "")
+        self.page.wait_for_selector(".form-header:has-text('New account')")
+        self.assertEqual(self.page.input_value(".input[name='name']"), "")
 
         # Create a new account -> appears in list, count grows
-        self.page.fill(".set-input[name='name']", "New Brokerage")
+        self.page.fill(".input[name='name']", "New Brokerage")
         self.page.select_option("select[name='type']", "asset")
         with self.page.expect_response(lambda r: r.request.method == "POST"):
             self.page.click("button:has-text('Create')")
-        self.page.wait_for_selector("tr.set-row:has-text('New Brokerage')")
-        self.assertIn("4 accounts", self.page.inner_text(".set-count"))
+        self.page.wait_for_selector("tr.row:has-text('New Brokerage')")
+        self.assertIn("4 accounts", self.page.inner_text(".card-count"))
         self.assertTrue(Account.objects.filter(name="New Brokerage").exists())

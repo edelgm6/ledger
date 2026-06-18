@@ -14,7 +14,7 @@ Params:
   label      - visible label / empty-state placeholder
   all_label  - section header for unselected options (default "All")
 {% endcomment %}
-<div class="form-group ta-field"
+<div class="field ta-field"
      x-data="typeaheadMultiselect()"
      @click.outside="closeMenu()"
      @keydown.escape="closeMenu()">

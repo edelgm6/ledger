@@ -1,5 +1,5 @@
 {{ subtype_map|json_script:"subtype-map" }}
-<div class="set-form"
+<div class="form"
      x-data="{
         type: '{{ values.type }}',
         subtype: '{{ values.sub_type }}',
@@ -10,22 +10,22 @@
         init() { this.normalize(); }
      }">
 
-  <div class="set-form-header">
+  <div class="form-header">
     {% if account %}Edit · {{ account.name }}{% else %}New account{% endif %}
   </div>
 
   {% if change == "create" %}
-    <div class="set-alert set-alert-success">Account created.</div>
+    <div class="alert alert-success">Account created.</div>
   {% elif change == "update" %}
-    <div class="set-alert set-alert-success">Account updated.</div>
+    <div class="alert alert-success">Account updated.</div>
   {% elif change == "delete" %}
-    <div class="set-alert set-alert-success">Account deleted.</div>
+    <div class="alert alert-success">Account deleted.</div>
   {% endif %}
   {% if error %}
-    <div class="set-alert set-alert-danger">{{ error }}</div>
+    <div class="alert alert-danger">{{ error }}</div>
   {% endif %}
   {% if form.non_field_errors %}
-    <div class="set-alert set-alert-danger">{{ form.non_field_errors }}</div>
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
   {% endif %}
 
   <form method="post"
@@ -34,67 +34,67 @@
         hx-swap="innerHTML">
     {% csrf_token %}
 
-    <div class="set-grid-1">
+    <div class="grid grid-wide-first">
       <div>
-        <label class="set-label">Name</label>
-        <input class="set-input" name="name" value="{{ values.name }}" placeholder="Account name" />
-        {% for e in form.name.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+        <label class="label">Name</label>
+        <input class="input" name="name" value="{{ values.name }}" placeholder="Account name" />
+        {% for e in form.name.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
       </div>
       <div>
-        <label class="set-label">Type</label>
-        <select class="set-select" name="type" x-model="type" @change="normalize()">
+        <label class="label">Type</label>
+        <select class="select" name="type" x-model="type" @change="normalize()">
           {% for value, label in type_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
         </select>
-        {% for e in form.type.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+        {% for e in form.type.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
       </div>
       <div>
-        <label class="set-label">Sub-type</label>
-        <select class="set-select" name="sub_type" x-model="subtype">
+        <label class="label">Sub-type</label>
+        <select class="select" name="sub_type" x-model="subtype">
           <template x-for="opt in subtypeOptions()" :key="opt.value">
             <option :value="opt.value" x-text="opt.label"></option>
           </template>
         </select>
-        {% for e in form.sub_type.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+        {% for e in form.sub_type.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
       </div>
     </div>
 
-    <div class="set-grid-2">
+    <div class="grid grid-3 grid-end">
       <div>
-        <label class="set-label">Default Entity</label>
-        <select class="set-select" name="entity">
+        <label class="label">Default Entity</label>
+        <select class="select" name="entity">
           <option value="" {% if not values.entity %}selected{% endif %}>Select…</option>
           {% for entity in entities %}
           <option value="{{ entity.id }}" {% if values.entity == entity.id|stringformat:'s' %}selected{% endif %}>{{ entity.name }}</option>
           {% endfor %}
         </select>
-        {% for e in form.entity.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+        {% for e in form.entity.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
       </div>
       <div>
-        <label class="set-label">CSV Profile</label>
-        <select class="set-select" name="csv_profile">
+        <label class="label">CSV Profile</label>
+        <select class="select" name="csv_profile">
           <option value="" {% if not values.csv_profile %}selected{% endif %}>Select…</option>
           {% for profile in csv_profiles %}
           <option value="{{ profile.id }}" {% if values.csv_profile == profile.id|stringformat:'s' %}selected{% endif %}>{{ profile.name }}</option>
           {% endfor %}
         </select>
-        {% for e in form.csv_profile.errors %}<div class="set-field-error">{{ e }}</div>{% endfor %}
+        {% for e in form.csv_profile.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
       </div>
-      <div class="set-checks">
-        <label class="set-check">
+      <div class="checks">
+        <label class="check">
           <input type="checkbox" name="is_closed" {% if values.is_closed %}checked{% endif %} />Closed
         </label>
-        <label class="set-check">
+        <label class="check">
           <input type="checkbox" name="is_depreciation" {% if values.is_depreciation %}checked{% endif %} />Depreciation
         </label>
       </div>
     </div>
 
-    <div class="set-actions">
-      <button type="submit" name="action" value="save" class="set-btn set-btn-primary">{% if account %}Save{% else %}Create{% endif %}</button>
+    <div class="actions">
+      <button type="submit" name="action" value="save" class="btn btn-primary">{% if account %}Save{% else %}Create{% endif %}</button>
       {% if account %}
-      <button type="submit" name="action" value="delete" class="set-btn set-btn-danger">Delete</button>
+      <button type="submit" name="action" value="delete" class="btn btn-danger">Delete</button>
       {% endif %}
-      <button type="button" class="set-btn set-btn-clear"
+      <button type="button" class="btn btn-ghost"
               @click="selectedId = null"
               hx-get="{% url 'settings-account-new-form' %}"
               hx-target="#account-form-div">Clear</button>

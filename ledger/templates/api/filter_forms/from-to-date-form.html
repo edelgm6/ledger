@@ -4,35 +4,27 @@
     hx-get="{{ get_url }}"
     hx-target="#container"
     hx-trigger="submit"
-    class="mb-3 form-sm"
 >
-    <div class="row">
+    <div class="filter-bar">
         {% if statement_type != 'balance' %}
-        <!-- Date From Field -->
-        <div class="col-md-2">
-            <div class="form-group">
-                <input type="date" name="{{ filter_form.date_from.html_name }}" id="{{ filter_form.date_from.auto_id }}" class="form-control"
-                       value="{{ filter_form.date_from.value|default_if_none:'' }}" placeholder="Start Date">
-            </div>
+        <div class="field fw-date">
+            <label class="label" for="{{ filter_form.date_from.auto_id }}">Start Date</label>
+            <input type="date" name="{{ filter_form.date_from.html_name }}" id="{{ filter_form.date_from.auto_id }}" class="input"
+                   value="{{ filter_form.date_from.value|default_if_none:'' }}">
         </div>
         {% else %}
-                <input hidden="true" type="date" name="{{ filter_form.date_from.html_name }}" id="{{ filter_form.date_from.auto_id }}" class="form-control"
-                       value="{{ filter_form.date_from.value|default_if_none:'' }}" placeholder="Start Date">
+            <input hidden="true" type="date" name="{{ filter_form.date_from.html_name }}" id="{{ filter_form.date_from.auto_id }}"
+                   value="{{ filter_form.date_from.value|default_if_none:'' }}">
         {% endif %}
 
-        <!-- Date To Field -->
-        <div class="col-md-2">
-            <div class="form-group">
-                <input type="date" name="{{ filter_form.date_to.html_name }}" id="{{ filter_form.date_to.auto_id }}" class="form-control"
-                       value="{{ filter_form.date_to.value|default_if_none:'' }}" placeholder="End Date">
-            </div>
+        <div class="field fw-date">
+            <label class="label" for="{{ filter_form.date_to.auto_id }}">End Date</label>
+            <input type="date" name="{{ filter_form.date_to.html_name }}" id="{{ filter_form.date_to.auto_id }}" class="input"
+                   value="{{ filter_form.date_to.value|default_if_none:'' }}">
         </div>
 
-        <div class="col-md-2">
-            <!-- Submit Button -->
-            <div class="form-group">
-                <button type="submit" class="btn btn-primary">Filter</button>
-            </div>
+        <div class="fw-auto">
+            <button type="submit" class="btn btn-primary">Filter</button>
         </div>
     </div>
 </form>
