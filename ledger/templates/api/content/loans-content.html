@@ -1,40 +1,21 @@
-<div x-data="{
-        q: '',
-        selectedId: {{ selected_id|default:'null' }},
-        total: {{ total }},
-        matches(el) { return !this.q.trim() || el.dataset.search.includes(this.q.toLowerCase()); },
-        visible() {
-          if (!this.q.trim()) return this.total;
-          const needle = this.q.toLowerCase();
-          return Array.from(this.$root.querySelectorAll('tr[data-search]'))
-            .filter(tr => tr.dataset.search.includes(needle)).length;
-        },
-        countLabel() {
-          return this.q.trim() ? (this.visible() + ' of ' + this.total) : (this.total + ' loans');
-        }
-     }">
+<div x-data="searchList({{ total }}, 'loans', {{ selected_id|default:'null' }})">
 
-  <div class="set-head">
-    <div class="set-head-left">
-      <h2 class="set-h2">Loans</h2>
-      <span class="set-count" x-text="countLabel()"></span>
+  <div class="card-head">
+    <div class="card-head-left">
+      <h2 class="card-title">Loans</h2>
+      <span class="card-count" x-text="countLabel()"></span>
     </div>
-    <div class="set-head-right">
-      <div class="set-search">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#adb5bd" stroke-width="1.6">
-          <circle cx="7" cy="7" r="4.5"></circle><line x1="10.6" y1="10.6" x2="14" y2="14"></line>
-        </svg>
-        <input x-model="q" placeholder="Search loans" />
-      </div>
-      <button class="set-btn set-btn-primary"
+    <div class="card-head-right">
+      {% include "api/components/search-box.html" with placeholder="Search loans" %}
+      <button class="btn btn-primary"
               @click="selectedId = null"
               hx-get="{% url 'settings-loan-new-form' %}"
               hx-target="#loan-form-div">New Loan</button>
     </div>
   </div>
 
-  <div class="set-table-scroll">
-  <table class="set-table">
+  <div class="table-scroll has-list">
+  <table class="table">
     <thead>
       <tr>
         <th>Name</th>
@@ -48,45 +29,45 @@
     </thead>
     <tbody>
       {% for loan in loans %}
-      <tr class="set-row"
+      <tr class="row"
           data-search="{{ loan.name|lower }} {{ loan.principal_account.name|lower }} {{ loan.interest_account.name|lower }} {{ loan.description_match|lower }}"
           :class="{ selected: selectedId === {{ loan.id }} }"
           x-show="matches($el)"
           @click="selectedId = {{ loan.id }}"
           hx-get="{% url 'settings-loan-form' loan.id %}"
           hx-target="#loan-form-div">
-        <td class="set-td set-td-name">{{ loan.name }}</td>
-        <td class="set-td set-td-type">${{ loan.original_amount }}</td>
-        <td class="set-td set-td-sub">{{ loan.annual_interest_rate }}</td>
-        <td class="set-td set-td-sub">{{ loan.term_months }}mo</td>
-        <td class="set-td set-td-entity">{{ loan.principal_account.name }}</td>
-        <td class="set-td set-td-entity">{{ loan.interest_account.name }}</td>
-        <td class="set-td set-td-closed">{% if loan.is_closed %}✓{% endif %}</td>
+        <td class="td-name">{{ loan.name }}</td>
+        <td class="td-2">${{ loan.original_amount }}</td>
+        <td class="td-muted">{{ loan.annual_interest_rate }}</td>
+        <td class="td-muted">{{ loan.term_months }}mo</td>
+        <td class="td-3">{{ loan.principal_account.name }}</td>
+        <td class="td-3">{{ loan.interest_account.name }}</td>
+        <td class="td-muted center">{% if loan.is_closed %}✓{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
   </div>
 
-  <div class="set-list">
+  <div class="list">
     {% for loan in loans %}
-    <div class="set-mrow"
+    <div class="lrow"
          data-search="{{ loan.name|lower }} {{ loan.principal_account.name|lower }} {{ loan.interest_account.name|lower }} {{ loan.description_match|lower }}"
          :class="{ selected: selectedId === {{ loan.id }} }"
          x-show="matches($el)"
          @click="selectedId = {{ loan.id }}"
          hx-get="{% url 'settings-loan-form' loan.id %}"
          hx-target="#loan-form-div">
-      <div class="set-mrow-top">
-        <span class="set-mname">{{ loan.name }}</span>
-        <span class="set-mtype">${{ loan.original_amount }}</span>
+      <div class="lrow-top">
+        <span class="lname">{{ loan.name }}</span>
+        <span class="lmeta-right">${{ loan.original_amount }}</span>
       </div>
-      <div class="set-mmeta">{{ loan.annual_interest_rate }} · {{ loan.term_months }}mo · {{ loan.principal_account.name }}</div>
+      <div class="lmeta">{{ loan.annual_interest_rate }} · {{ loan.term_months }}mo · {{ loan.principal_account.name }}</div>
     </div>
     {% endfor %}
   </div>
 
-  <div class="set-empty" x-show="visible() === 0" x-cloak>
+  <div class="table-empty" x-show="visible() === 0" x-cloak>
     No loans match "<span x-text="q"></span>".
   </div>
 

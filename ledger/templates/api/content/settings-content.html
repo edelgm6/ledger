@@ -1,40 +1,21 @@
-<div x-data="{
-        q: '',
-        selectedId: {{ selected_id|default:'null' }},
-        total: {{ total }},
-        matches(el) { return !this.q.trim() || el.dataset.search.includes(this.q.toLowerCase()); },
-        visible() {
-          if (!this.q.trim()) return this.total;
-          const needle = this.q.toLowerCase();
-          return Array.from(this.$root.querySelectorAll('tr[data-search]'))
-            .filter(tr => tr.dataset.search.includes(needle)).length;
-        },
-        countLabel() {
-          return this.q.trim() ? (this.visible() + ' of ' + this.total) : (this.total + ' accounts');
-        }
-     }">
+<div x-data="searchList({{ total }}, 'accounts', {{ selected_id|default:'null' }})">
 
-  <div class="set-head">
-    <div class="set-head-left">
-      <h2 class="set-h2">Accounts</h2>
-      <span class="set-count" x-text="countLabel()"></span>
+  <div class="card-head">
+    <div class="card-head-left">
+      <h2 class="card-title">Accounts</h2>
+      <span class="card-count" x-text="countLabel()"></span>
     </div>
-    <div class="set-head-right">
-      <div class="set-search">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#adb5bd" stroke-width="1.6">
-          <circle cx="7" cy="7" r="4.5"></circle><line x1="10.6" y1="10.6" x2="14" y2="14"></line>
-        </svg>
-        <input x-model="q" placeholder="Search accounts" />
-      </div>
-      <button class="set-btn set-btn-primary"
+    <div class="card-head-right">
+      {% include "api/components/search-box.html" with placeholder="Search accounts" %}
+      <button class="btn btn-primary"
               @click="selectedId = null"
               hx-get="{% url 'settings-account-new-form' %}"
               hx-target="#account-form-div">New Account</button>
     </div>
   </div>
 
-  <div class="set-table-scroll">
-  <table class="set-table">
+  <div class="table-scroll has-list">
+  <table class="table">
     <thead>
       <tr>
         <th>Name</th>
@@ -46,47 +27,47 @@
     </thead>
     <tbody>
       {% for account in accounts %}
-      <tr class="set-row"
+      <tr class="row"
           data-search="{{ account.name|lower }} {{ account.get_type_display|lower }} {{ account.get_sub_type_display|lower }}"
           :class="{ selected: selectedId === {{ account.id }} }"
           x-show="matches($el)"
           @click="selectedId = {{ account.id }}"
           hx-get="{% url 'settings-account-form' account.id %}"
           hx-target="#account-form-div">
-        <td class="set-td set-td-name">{{ account.name }}</td>
-        <td class="set-td set-td-type">{{ account.get_type_display }}</td>
-        <td class="set-td set-td-sub">{{ account.get_sub_type_display }}</td>
+        <td class="td-name">{{ account.name }}</td>
+        <td class="td-2">{{ account.get_type_display }}</td>
+        <td class="td-muted">{{ account.get_sub_type_display }}</td>
         {% if account.entity %}
-        <td class="set-td set-td-entity">{{ account.entity.name }}</td>
+        <td class="td-3">{{ account.entity.name }}</td>
         {% else %}
-        <td class="set-td set-td-entity empty">—</td>
+        <td class="td-faint">—</td>
         {% endif %}
-        <td class="set-td set-td-closed">{% if account.is_closed %}Yes{% else %}No{% endif %}</td>
+        <td class="td-muted center">{% if account.is_closed %}Yes{% else %}No{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
   </div>
 
-  <div class="set-list">
+  <div class="list">
     {% for account in accounts %}
-    <div class="set-mrow"
+    <div class="lrow"
          data-search="{{ account.name|lower }} {{ account.get_type_display|lower }} {{ account.get_sub_type_display|lower }}"
          :class="{ selected: selectedId === {{ account.id }} }"
          x-show="matches($el)"
          @click="selectedId = {{ account.id }}"
          hx-get="{% url 'settings-account-form' account.id %}"
          hx-target="#account-form-div">
-      <div class="set-mrow-top">
-        <span class="set-mname">{{ account.name }}</span>
-        <span class="set-mtype">{{ account.get_type_display }}</span>
+      <div class="lrow-top">
+        <span class="lname">{{ account.name }}</span>
+        <span class="lmeta-right">{{ account.get_type_display }}</span>
       </div>
-      <div class="set-mmeta">{{ account.get_sub_type_display }} · {% if account.entity %}{{ account.entity.name }}{% else %}No entity{% endif %}{% if account.is_closed %} · Closed{% endif %}</div>
+      <div class="lmeta">{{ account.get_sub_type_display }} · {% if account.entity %}{{ account.entity.name }}{% else %}No entity{% endif %}{% if account.is_closed %} · Closed{% endif %}</div>
     </div>
     {% endfor %}
   </div>
 
-  <div class="set-empty" x-show="visible() === 0" x-cloak>
+  <div class="table-empty" x-show="visible() === 0" x-cloak>
     No accounts match "<span x-text="q"></span>".
   </div>
 

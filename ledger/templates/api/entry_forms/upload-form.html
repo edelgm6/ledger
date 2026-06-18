@@ -1,40 +1,30 @@
 {% load humanize %}
 
-<div class="row">
-    <div class="col">
-        <h3>Upload transaction CSVs</h3>
-        <form
-            method="post"
-            enctype="multipart/form-data"
-            hx-post="{% url 'upload-transactions' %}"
-            hx-target="#csv-upload"
-            hx-trigger="submit"
-        >
-        {% csrf_token %}
-            <!-- Render the 'transaction_csv' field -->
-            <div class="mb-3">
-                <input type="file" name="transaction_csv" id="id_transaction_csv" class="form-control-file">
-            </div>
-            <!-- Render the 'account' field -->
-            <div class="mb-3">
-                <select name="account" id="id_account" class="form-control">
-                    {% for account in form.account.field.queryset %}
-                        <option value="{{ account.pk }}">{{ account }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+<h3 class="card-title mb-3">Upload transaction CSVs</h3>
+<form
+    method="post"
+    enctype="multipart/form-data"
+    hx-post="{% url 'upload-transactions' %}"
+    hx-target="#csv-upload"
+    hx-trigger="submit"
+>
+{% csrf_token %}
+    <div class="field">
+        <input type="file" name="transaction_csv" id="id_transaction_csv" class="file-input">
+    </div>
+    <div class="field">
+        <select name="account" id="id_account" class="select">
+            {% for account in form.account.field.queryset %}
+                <option value="{{ account.pk }}">{{ account }}</option>
+            {% endfor %}
+        </select>
+    </div>
 
-            <button type="submit" name="transactions" class="btn btn-primary">Submit</button>
-        </form>
-    </div>
-</div>
-<br>
+    <button type="submit" name="transactions" class="btn btn-primary">Submit</button>
+</form>
+
 {% if count %}
-<div class="row">
-    <div class="col">
-        <div class="alert alert-success" role="alert">
-            Uploaded {{ count }} transactions to {{ account.name }}
-        </div>
-    </div>
+<div class="alert alert-success mt-3" role="alert">
+    Uploaded {{ count }} transactions to {{ account.name }}
 </div>
 {% endif %}

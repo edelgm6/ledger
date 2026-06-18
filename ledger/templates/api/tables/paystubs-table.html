@@ -1,23 +1,22 @@
 {% load humanize %}
 <div id="paystubs-table-wrapper">
     {% if paystubs %}
-    <div id="paystubs-table" class="table-responsive">
-        <table class="table table-hover table-sm" style="table-layout: fixed; width: 100%;">
+    <div id="paystubs-table" class="table-scroll table-scroll-lg">
+        <table class="table" style="table-layout: fixed; width: 100%;">
             <thead>
                 <tr>
-                    <th class="fixed-header" style="width: 45%;">Title</th>
-                    <th class="fixed-header" style="width: 55%;">Document</th>
+                    <th style="width: 45%;">Title</th>
+                    <th style="width: 55%;">Document</th>
                 </tr>
             </thead>
             <tbody>
                 {% for paystub in paystubs %}
                 <tr
                     class="clickable-row"
-                    style="cursor: pointer;"
                     @click="togglePaystub({{ paystub.id }}, '{% url 'paystub-detail' paystub.id %}{% if show_fill_button %}?show_fill_button=true{% endif %}')"
                 >
-                    <td class="transaction-column" title="{{ paystub.title }}">{{ paystub.title }}</td>
-                    <td class="transaction-column" title="{{ paystub.document.user_filename }}">{{ paystub.document.user_filename }}</td>
+                    <td class="cell-clip td-name" title="{{ paystub.title }}">{{ paystub.title }}</td>
+                    <td class="cell-clip" title="{{ paystub.document.user_filename }}">{{ paystub.document.user_filename }}</td>
                 </tr>
                 <tr x-show="expandedPaystubId === {{ paystub.id }}" x-cloak>
                     <td colspan="2" class="bg-light">
@@ -29,6 +28,6 @@
         </table>
     </div>
     {% else %}
-    <p class="text-muted"><small>No unlinked paystubs.</small></p>
+    <p class="text-muted small">No unlinked paystubs.</p>
     {% endif %}
 </div>

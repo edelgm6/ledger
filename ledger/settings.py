@@ -227,17 +227,25 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 
-STORAGES = {
-    # Enable WhiteNoise's GZip and Brotli compression of static assets:
-    # https://whitenoise.readthedocs.io/en/latest/django.html#add-compression-and-caching-support
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-}
+# Project-level static files (mirrors the TEMPLATE_DIR convention above).
+# This is where the central design system, ledger/static/css/app.css, lives.
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "ledger/static")]
 
-# Don't store the original (un-hashed filename) version of static files, to reduce slug size:
-# https://whitenoise.readthedocs.io/en/latest/django.html#WHITENOISE_KEEP_ONLY_HASHED_FILES
-WHITENOISE_KEEP_ONLY_HASHED_FILES = True
+# Hashed + compressed static files (WhiteNoise's manifest storage) only on the
+# real Heroku app, where `collectstatic` runs at build time to produce the
+# manifest. Locally and in CI we use Django's default storage so {% static %}
+# resolves straight from the finders without requiring a collected manifest.
+if IS_HEROKU_APP:
+    STORAGES = {
+        # Enable WhiteNoise's GZip and Brotli compression of static assets:
+        # https://whitenoise.readthedocs.io/en/latest/django.html#add-compression-and-caching-support
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+    # Don't store the original (un-hashed filename) version of static files, to reduce slug size:
+    # https://whitenoise.readthedocs.io/en/latest/django.html#WHITENOISE_KEEP_ONLY_HASHED_FILES
+    WHITENOISE_KEEP_ONLY_HASHED_FILES = True
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field

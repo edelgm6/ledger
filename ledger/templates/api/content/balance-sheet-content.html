@@ -1,118 +1,108 @@
 {% load humanize %}
 {% load math_filters %}
-<div class="row">
-    <div class="col">
-        {{ filter_form }}
+{{ filter_form }}
+
+{% if unbalanced_entries %}
+<div class="page-narrow">
+    <div class="alert alert-danger small mb-2" role="alert">
+    ⚠️ <strong>{{ unbalanced_entries|length }}</strong> unbalanced journal entr{{ unbalanced_entries|length|pluralize:"y,ies" }} detected.
+    </div>
+    <table class="table mb-4">
+        <thead>
+        <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Description</th>
+            <th scope="col" class="right">Debits</th>
+            <th scope="col" class="right">Credits</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for entry in unbalanced_entries %}
+            <tr>
+            <td>{{ entry.id }}</td>
+            <td class="td-name">{{ entry.transaction.description }}</td>
+            <td class="right">${{ entry.total_debits|default:0|floatformat:2 }}</td>
+            <td class="right">${{ entry.total_credits|default:0|floatformat:2 }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="kpi-row">
+    <div class="kpi">
+        <div class="kpi-value">{{ cash_percent_assets|multiply:100|floatformat:1 }}%</div>
+        <div class="kpi-label">Cash % Assets</div>
+    </div>
+    <div class="kpi">
+        <div class="kpi-value">{{ liquid_percent_assets|multiply:100|floatformat:1 }}%</div>
+        <div class="kpi-label">% Liquid</div>
+    </div>
+    <div class="kpi">
+        <div class="kpi-value">{{ debt_to_equity_ratio|floatformat:2 }}x</div>
+        <div class="kpi-label">Debt to Equity</div>
     </div>
 </div>
-<div class="container-fluid">
-    {% if unbalanced_entries %}
 
-    <div class="row">
-        <div class="col-md-4">
-            <div class="alert alert-danger py-1 px-2 small mb-2" role="alert">
-            ⚠️ <strong>{{ unbalanced_entries|length }}</strong> unbalanced journal entr{{ unbalanced_entries|length|pluralize:"y,ies" }} detected.
-            </div>
-            <table class="table table-sm table-striped align-middle mb-4">
-                <thead class="table-light">
+<div class="grid grid-3">
+    <div>
+        <h4>Assets: ${{ summary.asset.total|floatformat:"0"|intcomma }}</h4>
+        {% for account in summary.asset.balances %}
+        <table class="table mb-3">
+            <tbody>
                 <tr>
-                    <th scope="col">ID</th>
-                    <th scope="col">Description</th>
-                    <th scope="col" class="text-end">Debits</th>
-                    <th scope="col" class="text-end">Credits</th>
+                    <td class="td-strong">{{ account.name }}</td>
+                    <td class="right td-strong">${{ account.total|floatformat:"0"|intcomma }}</td>
                 </tr>
-                </thead>
-                <tbody>
-                {% for entry in unbalanced_entries %}
-                    <tr>
-                    <td>{{ entry.id }}</td>
-                    <td>{{ entry.transaction.description }}</td>
-                    <td class="text-end">${{ entry.total_debits|default:0|floatformat:2 }}</td>
-                    <td class="text-end">${{ entry.total_credits|default:0|floatformat:2 }}</td>
-                    </tr>
+                {% for balance in account.balances %}
+                <tr>
+                    <td class="td-name">{{ balance.account }}</td>
+                    <td class="right">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                </tr>
                 {% endfor %}
-                </tbody>
-            </table>
-        </div>
+            </tbody>
+        </table>
+        {% endfor %}
     </div>
-    {% endif %}
-    <div class="row">
-        <div class="col-md-12">
-            <div class="row text-center">
-                <div class="col-md-2">
-                    <h5 class="font-weight-bold">{{ cash_percent_assets|multiply:100|floatformat:1 }}%</h5>
-                    <p class="text-secondary">Cash % Assets</p>
-                </div>
-                <div class="col-md-2">
-                    <h5 class="font-weight-bold">{{ liquid_percent_assets|multiply:100|floatformat:1 }}%</h5>
-                    <p class="text-secondary">% Liquid</p>
-                </div>
-                <div class="col-md-2">
-                    <h5 class="font-weight-bold">{{ debt_to_equity_ratio|floatformat:2 }}x</h5>
-                    <p class="text-secondary">Debt to Equity</p>
-                </div>
-            </div>
-        </div>
+
+    <div>
+        <h4>Liabilities: ${{ summary.liability.total|floatformat:"0"|intcomma }}</h4>
+        {% for account in summary.liability.balances %}
+        <table class="table mb-3">
+            <tbody>
+                <tr>
+                    <td class="td-strong">{{ account.name }}</td>
+                    <td class="right td-strong">${{ account.total|floatformat:"0"|intcomma }}</td>
+                </tr>
+                {% for balance in account.balances %}
+                <tr>
+                    <td class="td-name">{{ balance.account }}</td>
+                    <td class="right">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endfor %}
     </div>
-    <div class="row">
-        <div class="col-md-4">
-            <h4>Assets: ${{ summary.asset.total|floatformat:"0"|intcomma }}</h4>
-            {% for account in summary.asset.balances %}
-            <table class="table table-hover table-sm">
-                <tbody>
-                    <tr>
-                        <td class="col-8"><strong>{{ account.name }}</strong></td>
-                        <td class="col-4"><strong>${{ account.total|floatformat:"0"|intcomma }}</strong></td>
-                    </tr>
-                    {% for balance in account.balances %}
-                    <tr>
-                        <td class="col-8">{{ balance.account }}</td>
-                        <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% endfor %}
-        </div>
 
-        <div class="col-md-4">
-            <h4>Liabilities: ${{ summary.liability.total|floatformat:"0"|intcomma }}</h4>
-            {% for account in summary.liability.balances %}
-            <table class="table table-hover table-sm">
-                <tbody>
-                    <tr>
-                        <td class="col-8"><strong>{{ account.name }}</strong></td>
-                        <td class="col-4"><strong>${{ account.total|floatformat:"0"|intcomma }}</strong></td>
-                    </tr>
-                    {% for balance in account.balances %}
-                    <tr>
-                        <td class="col-8">{{ balance.account }}</td>
-                        <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% endfor %}
-        </div>
-
-        <div class="col-md-4">
-            <h4>Equity: ${{ summary.equity.total|floatformat:"0"|intcomma }}</h4>
-            {% for account in summary.equity.balances %}
-            <table class="table table-hover table-sm">
-                <tbody>
-                    <tr>
-                        <td class="col-8"><strong>{{ account.name }}</strong></td>
-                        <td class="col-4"><strong>${{ account.total|floatformat:"0"|intcomma }}</strong></td>
-                    </tr>
-                    {% for balance in account.balances %}
-                    <tr>
-                        <td class="col-8">{{ balance.account }}</td>
-                        <td class="col-4">${{ balance.amount|floatformat:"0"|intcomma }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% endfor %}
-        </div>
+    <div>
+        <h4>Equity: ${{ summary.equity.total|floatformat:"0"|intcomma }}</h4>
+        {% for account in summary.equity.balances %}
+        <table class="table mb-3">
+            <tbody>
+                <tr>
+                    <td class="td-strong">{{ account.name }}</td>
+                    <td class="right td-strong">${{ account.total|floatformat:"0"|intcomma }}</td>
+                </tr>
+                {% for balance in account.balances %}
+                <tr>
+                    <td class="td-name">{{ balance.account }}</td>
+                    <td class="right">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endfor %}
     </div>
 </div>
