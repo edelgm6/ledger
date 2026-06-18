@@ -1,54 +1,56 @@
-<nav class="navbar navbar-expand-lg navbar-light bg-light mb-3">
-    <div class="container">
-        <a class="navbar-brand" href="/">Ledger</a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
+<nav class="nav" x-data="{ menu: false, fin: false }">
+    <div class="nav-inner">
+        <a class="nav-brand" href="/">Ledger</a>
+
+        <button class="nav-toggle" type="button" @click="menu = !menu"
+                aria-label="Toggle navigation">
+            <i class="bi bi-list"></i>
         </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav" hx-boost="true" hx-target="#container" hx-select="#container" hx-swap="outerHTML show:window:top">
-                <li class="nav-item {% if request.resolver_match.url_name == 'journal-entries' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'journal-entries' %}">Entries</a>
-                </li>
-                <li class="nav-item {% if request.resolver_match.url_name == 'link-transactions' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'link-transactions' %}">Links</a>
-                </li>
-                <li class="nav-item {% if request.resolver_match.url_name == 'transactions' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'transactions' %}">Transactions</a>
-                </li>
-                <li class="nav-item {% if request.resolver_match.url_name == 'taxes' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'taxes' %}">Taxes</a>
-                </li>
-                <li class="nav-item {% if request.resolver_match.url_name == 'reconciliation' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'reconciliation' %}">Reconciliations</a>
-                </li>
-                <li class="nav-item {% if request.resolver_match.url_name == 'amortization' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'amortization' %}">Amortizations</a>
-                </li>
-                <li class="nav-item {% if request.resolver_match.url_name == 'tag-entities' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'tag-entities' %}">Balances</a>
-                </li>
-                <li class="nav-item {% if request.resolver_match.url_name == 'upload-transactions' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'upload-transactions' %}">Upload/Download</a>
-                </li>
-                <li class="nav-item {% if request.resolver_match.url_name == 'search' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'search' %}">Search</a>
-                </li>
-                <li class="nav-item {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
-                    <a class="nav-link" href="{% url 'settings' %}">Settings</a>
-                </li>
-                <!-- Dropdown Menu for Financial Statements -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" hx-boost="false">
-                        Financials
-                    </a>
-                    <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
-                        <!-- hx-include to maintain filters between statements -->
-                        <a class="dropdown-item" href="{% url 'statements' 'income' %}" hx-include="#statement-form">Income Statement</a>
-                        <a class="dropdown-item" href="{% url 'statements' 'balance' %}" hx-include="#statement-form">Balance Sheet</a>
-                        <a class="dropdown-item" href="{% url 'statements' 'cash' %}" hx-include="#statement-form">Cash Flow</a>
-                    </div>
-                </li>
-            </ul>
-        </div>
+
+        <ul class="nav-links" :class="{ open: menu }"
+            hx-boost="true" hx-target="#container" hx-select="#container" hx-swap="outerHTML show:window:top">
+            <li class="nav-item {% if request.resolver_match.url_name == 'journal-entries' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'journal-entries' %}">Entries</a>
+            </li>
+            <li class="nav-item {% if request.resolver_match.url_name == 'link-transactions' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'link-transactions' %}">Links</a>
+            </li>
+            <li class="nav-item {% if request.resolver_match.url_name == 'transactions' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'transactions' %}">Transactions</a>
+            </li>
+            <li class="nav-item {% if request.resolver_match.url_name == 'taxes' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'taxes' %}">Taxes</a>
+            </li>
+            <li class="nav-item {% if request.resolver_match.url_name == 'reconciliation' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'reconciliation' %}">Reconciliations</a>
+            </li>
+            <li class="nav-item {% if request.resolver_match.url_name == 'amortization' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'amortization' %}">Amortizations</a>
+            </li>
+            <li class="nav-item {% if request.resolver_match.url_name == 'tag-entities' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'tag-entities' %}">Balances</a>
+            </li>
+            <li class="nav-item {% if request.resolver_match.url_name == 'upload-transactions' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'upload-transactions' %}">Upload/Download</a>
+            </li>
+            <li class="nav-item {% if request.resolver_match.url_name == 'search' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'search' %}">Search</a>
+            </li>
+            <li class="nav-item {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'settings' %}">Settings</a>
+            </li>
+
+            <!-- Financials dropdown (Alpine-driven; hx-boost disabled on the toggle) -->
+            <li class="nav-item nav-dropdown" @click.outside="fin = false">
+                <a class="nav-link" href="#" role="button" hx-boost="false"
+                   @click.prevent="fin = !fin">Financials ▾</a>
+                <div class="nav-dropdown-menu" x-show="fin" x-cloak @click="fin = false">
+                    <!-- hx-include keeps the active statement filters between statements -->
+                    <a class="nav-dropdown-item" href="{% url 'statements' 'income' %}" hx-include="#statement-form">Income Statement</a>
+                    <a class="nav-dropdown-item" href="{% url 'statements' 'balance' %}" hx-include="#statement-form">Balance Sheet</a>
+                    <a class="nav-dropdown-item" href="{% url 'statements' 'cash' %}" hx-include="#statement-form">Cash Flow</a>
+                </div>
+            </li>
+        </ul>
     </div>
 </nav>

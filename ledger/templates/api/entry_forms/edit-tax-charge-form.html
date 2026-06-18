@@ -1,106 +1,85 @@
 {% load humanize %}
 <div id="form-container">
-    <div class="row">
-        <div class="col">
-            <form
-                class="form-sm"
-                method="post"
-                {% if tax_charge %}hx-post="{% url 'edit-tax-charge' pk=tax_charge.pk %}"{% else %}hx-post="{% url 'taxes' %}"{% endif %}
-                hx-target="#table-and-form"
-                hx-trigger="submit"
-                hx-include="#taxes-filter-form"
-            >
-                {% csrf_token %}
+    <form
+        method="post"
+        {% if tax_charge %}hx-post="{% url 'edit-tax-charge' pk=tax_charge.pk %}"{% else %}hx-post="{% url 'taxes' %}"{% endif %}
+        hx-target="#table-and-form"
+        hx-trigger="submit"
+        hx-include="#taxes-filter-form"
+    >
+        {% csrf_token %}
 
-                <div class="row">
-                    <!-- Account Field -->
-                    <div class="col-md-2">
-                        <div class="form-group">
-                            <select name="account" id="id_account" class="form-control">
-                                {% for option in form.account %}
-                                    {{ option }}
-                                {% endfor %}
-                            </select>
-                            {% if form.account.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.account.errors|striptags }}
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Date Field -->
-                    <div class="col-md-2">
-                        <div class="form-group">
-                            <select name="date" id="id_date_to" class="form-control">
-                                {% for option in form.date %}
-                                    {{ option }}
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Render the 'amount' field -->
-                    <div class="col-md-2">
-                        <div class="form-group">
-                            <input
-                                type="text"
-                                name="amount"
-                                id="id_amount"
-                                class="form-control"
-                                value="{% if form.amount.value %}{{ form.amount.value|intcomma }}{% else %}0.00{% endif %}"
-                            >
-                        </div>
-                    </div>
-
-                    <div class="col-md-2">
-                        <div class="form-group">
-                            <button type="submit" class="btn btn-primary form-control">Save</button>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <button
-                            id="clear-button"
-                            class="btn btn-secondary form-control"
-                            hx-get="{% url 'tax-charge-table' %}"
-                            hx-target="#table-and-form"
-                        >Clear</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-    <div class="row">
-        <div class="col-md-4">
-            <table class="table table-sm">
-                <tbody>
-                    <tr>
-                        <th scope="row">Taxable Income</th>
-                        <td>${{ taxable_income|floatformat:2|intcomma }}</td>
-                    </tr>
-                    {% for account in tax_accounts %}
-                    <tr>
-                        <th scope="row">{{ account.name }}</th>
-                        <td>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span>${{ account.recommended_tax|floatformat:2|intcomma }}</span>
-                                {% if account.recommended_tax is not None %}
-                                <button
-                                    type="button"
-                                    class="btn btn-outline-primary btn-sm py-0"
-                                    style="font-size: 0.75rem; line-height: 1.4;"
-                                    title="Apply this amount to the tax charge"
-                                    hx-post="{% url 'apply-tax-recommendation' account_pk=account.pk end_date=end_date|date:'Y-m-d' %}"
-                                    hx-target="#table-and-form"
-                                    hx-include="#taxes-filter-form"
-                                >Autofill</button>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
+        <div class="grid grid-auto grid-end mb-4">
+            <!-- Account Field -->
+            <div class="field">
+                <label class="label" for="id_account">Account</label>
+                <select name="account" id="id_account" class="select">
+                    {% for option in form.account %}
+                        {{ option }}
                     {% endfor %}
-                </tbody>
-            </table>
+                </select>
+                {% if form.account.errors %}
+                    <div class="field-error">{{ form.account.errors|striptags }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Date Field -->
+            <div class="field">
+                <label class="label" for="id_date_to">Date</label>
+                <select name="date" id="id_date_to" class="select">
+                    {% for option in form.date %}
+                        {{ option }}
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Amount Field -->
+            <div class="field">
+                <label class="label" for="id_amount">Amount</label>
+                <input type="text" name="amount" id="id_amount" class="input"
+                       value="{% if form.amount.value %}{{ form.amount.value|intcomma }}{% else %}0.00{% endif %}">
+            </div>
+
+            <div class="field">
+                <div class="actions">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button
+                        id="clear-button"
+                        class="btn btn-secondary"
+                        hx-get="{% url 'tax-charge-table' %}"
+                        hx-target="#table-and-form"
+                    >Clear</button>
+                </div>
+            </div>
         </div>
-    </div>
+    </form>
+
+    <table class="table" style="max-width: 480px;">
+        <tbody>
+            <tr>
+                <th scope="row">Taxable Income</th>
+                <td>${{ taxable_income|floatformat:2|intcomma }}</td>
+            </tr>
+            {% for account in tax_accounts %}
+            <tr>
+                <th scope="row">{{ account.name }}</th>
+                <td>
+                    <div class="flex-between gap-2">
+                        <span>${{ account.recommended_tax|floatformat:2|intcomma }}</span>
+                        {% if account.recommended_tax is not None %}
+                        <button
+                            type="button"
+                            class="btn btn-secondary btn-sm"
+                            title="Apply this amount to the tax charge"
+                            hx-post="{% url 'apply-tax-recommendation' account_pk=account.pk end_date=end_date|date:'Y-m-d' %}"
+                            hx-target="#table-and-form"
+                            hx-include="#taxes-filter-form"
+                        >Autofill</button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>

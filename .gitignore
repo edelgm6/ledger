@@ -170,3 +170,6 @@ cython_debug/
 #.idea/
 # Gmail OAuth refresh token (minted locally, never commit)
 .gmail_refresh_token
+
+# Collected static files (build artifact; STATIC_ROOT)
+staticfiles/

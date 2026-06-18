@@ -1,150 +1,4 @@
-<style>
-  /* ---- Settings page (design: "Ledger Settings (Interactive)", Direction A) ---- */
-  .set-page { max-width: 1160px; margin: 0 auto; padding: 30px 24px 60px;
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
-  .set-layout { display: flex; gap: 38px; }
-
-  .set-menu { width: 160px; flex: none; }
-  .set-menu-title { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
-                    color: #aeb4ba; margin-bottom: 13px; padding-left: 11px; }
-  .set-menu-list { display: flex; flex-direction: column; }
-  .set-menu-item { font-size: 14px; color: #6c757d; font-weight: 400; padding: 7px 0 7px 11px;
-                   border-left: 2px solid transparent; cursor: pointer; }
-  .set-menu-item.active { color: #007bff; font-weight: 600; border-left-color: #007bff; }
-
-  .set-main { flex: 1; min-width: 0; }
-
-  .set-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
-  .set-head-left { display: flex; align-items: baseline; gap: 9px; }
-  .set-h2 { margin: 0; font-size: 16px; font-weight: 600; color: #212529; }
-  .set-count { font-size: 12px; color: #9aa0a6; }
-  .set-head-right { display: flex; align-items: center; gap: 10px; }
-
-  .set-search { display: flex; align-items: center; gap: 7px; width: 230px; height: 30px;
-                border: 1px solid #ced4da; border-radius: 4px; padding: 0 9px; background: #fff; }
-  .set-search input { border: none; outline: none; font-size: 12px; color: #212529; background: transparent;
-                      width: 100%; font-family: inherit; }
-  .set-search input::placeholder { color: #aeb4ba; }
-
-  .set-btn { height: 30px; padding: 0 14px; border: none; border-radius: 4px; font-size: 12px;
-             font-weight: 500; cursor: pointer; font-family: inherit; }
-  .set-btn-primary { background: #007bff; color: #fff; }
-  .set-btn-danger { background: #dc3545; color: #fff; }
-  .set-btn-clear { background: #f1f3f5; color: #6c757d; border: 1px solid #e2e5e8; }
-
-  /* Fixed-height table area: the list scrolls internally so the edit form
-     below is always visible no matter how many accounts exist. */
-  .set-table-scroll { max-height: 340px; overflow-y: auto; }
-  .set-table { width: 100%; border-collapse: collapse; }
-  .set-table th { padding: 8px 12px; font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
-                  color: #9aa0a6; font-weight: 600; border-bottom: 1px solid #e2e5e8; text-align: left;
-                  position: sticky; top: 0; background: #fff; z-index: 1; }
-  .set-table th.center { text-align: center; }
-  .set-row { cursor: pointer; border-bottom: 1px solid #f0f2f4; }
-  .set-row:hover { background: #f7f9fb; }
-  .set-row.selected { background: #f2f8ff; box-shadow: inset 2px 0 0 #007bff; }
-  .set-td { padding: 8px 12px; font-size: 12px; white-space: nowrap; }
-  .set-td-name { color: #212529; font-weight: 500; }
-  .set-row.selected .set-td-name { font-weight: 600; }
-  .set-td-type { color: #343a40; }
-  .set-td-sub { color: #6c757d; }
-  .set-td-entity { color: #495057; }
-  .set-td-entity.empty { color: #b6bcc2; }
-  .set-td-closed { color: #6c757d; text-align: center; }
-  .set-empty { padding: 22px 12px; font-size: 12px; color: #9aa0a6; text-align: center; }
-
-  .set-form { margin-top: 22px; padding-top: 18px; border-top: 1px solid #e9ecef; }
-  .set-form-header { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
-                     color: #9aa0a6; margin-bottom: 15px; }
-  .set-grid-1 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 14px 18px; margin-bottom: 14px; }
-  .set-grid-2 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 18px; align-items: end; margin-bottom: 18px; }
-  .set-label { display: block; font-size: 11px; color: #6c757d; margin-bottom: 5px; }
-  .set-input, .set-select { height: 30px; border: 1px solid #ced4da; border-radius: 4px; padding: 0 9px;
-                            font-size: 12px; color: #212529; background: #fff; width: 100%;
-                            font-family: inherit; outline: none; }
-  .set-select { padding: 0 7px; cursor: pointer; }
-  .set-checks { display: flex; gap: 20px; padding-bottom: 7px; }
-  .set-check { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: #212529; cursor: pointer; }
-  .set-check input { width: 14px; height: 14px; accent-color: #007bff; cursor: pointer; margin: 0; }
-  .set-actions { display: flex; gap: 9px; }
-  .set-field-error { font-size: 11px; color: #dc3545; margin-top: 4px; }
-  .set-alert { font-size: 12px; border-radius: 4px; padding: 8px 11px; margin-bottom: 14px; }
-  .set-alert-success { background: #e9f7ef; color: #1e7e44; }
-  .set-alert-danger { background: #fdecee; color: #b02a37; }
-
-  /* Status badges for the Utility Bills monitor */
-  .set-badge { display: inline-block; font-size: 11px; font-weight: 600; line-height: 1;
-               padding: 4px 8px; border-radius: 10px; white-space: nowrap; }
-  .set-badge-matched { background: #e9f7ef; color: #1e7e44; }
-  .set-badge-parsed { background: #eaf2ff; color: #1c63d4; }
-  .set-badge-unresolved { background: #fff4e5; color: #b76e00; }
-  .set-badge-failed { background: #fdecee; color: #b02a37; }
-  .set-badge-pending { background: #f1f3f5; color: #6c757d; }
-
-  /* Per-request "busy" indicator, scoped to the row that fired the request.
-     htmx adds .htmx-request to the element named by hx-indicator (only the
-     clicked button's target), so a sibling indicator shows just for that row. */
-  .set-busy { display: none; font-size: 11.5px; color: #1c63d4; white-space: nowrap; }
-  .set-busy.htmx-request { display: inline; }
-  .set-btn[disabled] { opacity: .6; cursor: default; }
-  .set-btn-retry { height: 22px; padding: 0 8px; }
-  .set-label-optional { color: #aeb4ba; }
-
-  /* Status cell: badge + short error + retry stay on one line, vertically
-     centered, via an inline-flex row (no odd stacking). */
-  .set-status-line { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
-  /* Short error is the compact label; full text shows in a hover tooltip. */
-  .set-err { position: relative; }
-  .set-err-short { font-size: 11px; color: #b02a37; cursor: help; border-bottom: 1px dotted #e0a3a8; }
-  .set-err-tip { display: none; position: absolute; top: calc(100% + 5px); left: 0; z-index: 30;
-                 width: max-content; max-width: 320px; white-space: normal; font-size: 11px;
-                 line-height: 1.45; color: #fff; background: #212529; padding: 7px 9px;
-                 border-radius: 5px; box-shadow: 0 4px 14px rgba(0,0,0,.20); }
-  .set-err:hover .set-err-tip { display: block; }
-
-  .set-stub { border: 1px dashed #d8dce0; border-radius: 8px; padding: 46px 24px; text-align: center; background: #fafbfc; }
-  .set-stub-title { font-size: 13px; color: #868e96; font-weight: 500; }
-  .set-stub-sub { font-size: 12px; color: #aeb4ba; margin-top: 4px; }
-
-  /* Mobile stacked account list — hidden on desktop, shown in the media query
-     below in place of the table. Mirrors the design's narrow-screen list. */
-  .set-list { display: none; border-top: 1px solid #e2e5e8; }
-  .set-mrow { padding: 11px 12px; cursor: pointer; border-bottom: 1px solid #f0f2f4; }
-  .set-mrow.selected { background: #f2f8ff; box-shadow: inset 2px 0 0 #007bff; }
-  .set-mrow-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-  .set-mname { font-size: 13px; color: #212529; font-weight: 500;
-               min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .set-mrow.selected .set-mname { font-weight: 600; }
-  .set-mtype { font-size: 12px; color: #495057; white-space: nowrap; flex: none; }
-  .set-mmeta { font-size: 11.5px; color: #9aa0a6; margin-top: 3px; }
-
-  /* ---- Mobile reflow (design breakpoint: < 760px) ----
-     The custom (non-Bootstrap) content area reflows to a single column; the
-     side rail becomes a horizontal tab strip and the table becomes a stacked
-     list. The Bootstrap top nav handles its own responsiveness, untouched. */
-  @media (max-width: 760px) {
-    .set-page { padding: 18px 14px 48px; }
-    .set-layout { flex-direction: column; gap: 18px; }
-
-    .set-menu { width: auto; }
-    .set-menu-title { display: none; }
-    .set-menu-list { flex-direction: row; overflow-x: auto; gap: 2px; border-bottom: 1px solid #e9ecef; }
-    .set-menu-item { padding: 9px 13px; border-left: none; border-bottom: 2px solid transparent; white-space: nowrap; }
-    .set-menu-item.active { border-bottom-color: #007bff; }
-
-    .set-head { flex-direction: column; align-items: stretch; gap: 11px; }
-    .set-head-right { width: 100%; }
-    .set-search { flex: 1; min-width: 0; }
-
-    .set-table-scroll { display: none; }
-    .set-list { display: block; }
-
-    .set-grid-1, .set-grid-2 { grid-template-columns: 1fr; }
-  }
-</style>
-
-<div class="set-page"
-     x-data="{
+<div x-data="{
         section: 'Accounts',
         sections: ['Accounts', 'Bill Rules', 'Utility Bills', 'Loans', 'Entities', 'Paystubs', 'Auto Tags', 'CSV Profiles'],
         stubs: {
@@ -154,21 +8,21 @@
           'CSV Profiles': 'Column mappings for each bank\'s CSV export format.'
         }
      }">
-  <div class="set-layout">
+  <div class="split">
 
-    <!-- flat menu -->
-    <div class="set-menu">
-      <div class="set-menu-title">Settings</div>
-      <div class="set-menu-list">
+    <!-- section menu -->
+    <div class="split-side">
+      <div class="menu-title">Settings</div>
+      <div class="menu-list">
         <template x-for="s in sections" :key="s">
-          <span class="set-menu-item" :class="{ active: section === s }"
+          <span class="menu-item" :class="{ active: section === s }"
                 @click="section = s" x-text="s"></span>
         </template>
       </div>
     </div>
 
     <!-- main -->
-    <div class="set-main">
+    <div class="split-main">
       <!-- Accounts (functional) -->
       <div x-show="section === 'Accounts'">
         <div id="settings-content">{{ content }}</div>
@@ -178,7 +32,7 @@
       <div x-show="section === 'Bill Rules'">
         <div id="bill-rules-content"
              hx-get="{% url 'settings-bill-rules' %}" hx-trigger="load">
-          <div class="set-empty">Loading…</div>
+          <div class="table-empty">Loading…</div>
         </div>
       </div>
 
@@ -186,7 +40,7 @@
       <div x-show="section === 'Utility Bills'">
         <div id="bills-content"
              hx-get="{% url 'settings-bills' %}" hx-trigger="load">
-          <div class="set-empty">Loading…</div>
+          <div class="table-empty">Loading…</div>
         </div>
       </div>
 
@@ -194,17 +48,17 @@
       <div x-show="section === 'Loans'">
         <div id="loans-content"
              hx-get="{% url 'settings-loans' %}" hx-trigger="load">
-          <div class="set-empty">Loading…</div>
+          <div class="table-empty">Loading…</div>
         </div>
       </div>
 
       <!-- Stub sections -->
       <div x-show="stubs[section]" x-cloak>
-        <h2 class="set-h2" style="margin-bottom: 4px;" x-text="section"></h2>
-        <p style="margin: 0 0 26px; font-size: 12px; color: #9aa0a6;" x-text="stubs[section]"></p>
-        <div class="set-stub">
-          <div class="set-stub-title"><span x-text="section"></span> settings</div>
-          <div class="set-stub-sub">List + form for this section follows the same pattern as Accounts.</div>
+        <h2 class="card-title mb-2" x-text="section"></h2>
+        <p class="muted fs-body mb-4" x-text="stubs[section]"></p>
+        <div class="stub">
+          <div class="stub-title"><span x-text="section"></span> settings</div>
+          <div class="stub-sub">List + form for this section follows the same pattern as Accounts.</div>
         </div>
       </div>
     </div>

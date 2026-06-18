@@ -1,18 +1,15 @@
 {% load humanize %}
-<div class="row">
-    <div class="col">
-    <form
-        method="post"
-        class="form-sm"
-        hx-post="{% url 'reconciliation' %}"
-        hx-target="#table-and-form"
-        hx-trigger="submit"
-        hx-include="#reconciliation-filter-form"
-    >
-        {% csrf_token %}
-        <div class="row">
-        <div class="col-md-6">
-            <table class="table table-sm">
+<form
+    method="post"
+    hx-post="{% url 'reconciliation' %}"
+    hx-target="#table-and-form"
+    hx-trigger="submit"
+    hx-include="#reconciliation-filter-form"
+>
+    {% csrf_token %}
+    <div class="grid grid-2">
+        <div>
+            <table class="table">
                 <thead>
                     <tr>
                         <th>Account</th>
@@ -26,18 +23,12 @@
                     {% for reconciliation, form in left_reconciliations %}
                         {{ form.id }}
                         <tr class="{% if reconciliation.current_balance != form.amount.value %}highlight-yellow{% endif %}">
-                            <td>{{ reconciliation.account }}</td>
+                            <td class="td-name">{{ reconciliation.account }}</td>
                             <td>${{ reconciliation.current_balance|floatformat:2|intcomma }}</td>
                             <td>
-                                <div class="form-row">
-                                    <div class="col">
-                                        <div class="input-group input-group-sm">
-                                            <div class="input-group-prepend">
-                                                <span class="input-group-text">$</span>
-                                            </div>
-                                            <input type="text" name="{{ form.amount.html_name }}" id="{{ form.amount.id_for_label }}" value="{{ form.amount.value|default_if_none:''|intcomma }}" class="form-control">
-                                        </div>
-                                    </div>
+                                <div class="field-currency">
+                                    <span class="prefix">$</span>
+                                    <input type="text" name="{{ form.amount.html_name }}" id="{{ form.amount.id_for_label }}" value="{{ form.amount.value|default_if_none:''|intcomma }}" class="input">
                                 </div>
                             </td>
                             <td>
@@ -48,8 +39,8 @@
                 </tbody>
             </table>
         </div>
-        <div class="col-md-6">
-            <table class="table table-sm">
+        <div>
+            <table class="table">
                 <thead>
                     <tr>
                         <th>Account</th>
@@ -63,18 +54,12 @@
                     {% for reconciliation, form in right_reconciliations %}
                         {{ form.id }}
                         <tr class="{% if reconciliation.current_balance != form.amount.value %}highlight-yellow{% endif %}">
-                            <td>{{ reconciliation.account }}</td>
+                            <td class="td-name">{{ reconciliation.account }}</td>
                             <td>${{ reconciliation.current_balance|floatformat:2|intcomma }}</td>
                             <td>
-                                <div class="form-row">
-                                    <div class="col">
-                                        <div class="input-group input-group-sm">
-                                            <div class="input-group-prepend">
-                                                <span class="input-group-text">$</span>
-                                            </div>
-                                            <input type="text" name="{{ form.amount.html_name }}" id="{{ form.amount.id_for_label }}" value="{{ form.amount.value|default_if_none:''|intcomma }}" class="form-control">
-                                        </div>
-                                    </div>
+                                <div class="field-currency">
+                                    <span class="prefix">$</span>
+                                    <input type="text" name="{{ form.amount.html_name }}" id="{{ form.amount.id_for_label }}" value="{{ form.amount.value|default_if_none:''|intcomma }}" class="input">
                                 </div>
                             </td>
                             <td>
@@ -86,7 +71,5 @@
             </table>
         </div>
     </div>
-    <button class="btn btn-primary" type="submit" value="Submit">Update</button>
-    </form>
-    </div>
-</div>
+    <button class="btn btn-primary mt-3" type="submit" value="Submit">Update</button>
+</form>

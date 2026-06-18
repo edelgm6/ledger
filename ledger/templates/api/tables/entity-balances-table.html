@@ -1,13 +1,9 @@
 {% load humanize %}
-<div class="row">
-    <div class="col-md-12">
-        <h4>Balances</h4>
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-6">
-        <div id="entity-balances-table" class="table-responsive">
-            <table class="table table-hover table-sm">
+<h4 class="card-title mb-3">Balances</h4>
+<div class="grid grid-2">
+    <div>
+        <div id="entity-balances-table" class="table-scroll">
+            <table class="table">
                 <thead>
                     <tr>
                         <th>Entity Name</th>
@@ -19,15 +15,11 @@
                 <tbody>
                     {% for balance in entities_balances %}
                         <tr
-                            {% if balance.entity__name == preselected_entity.name %}
-                                class="clickable-row table-active"
-                            {% else %}
-                                class="clickable-row"
-                            {% endif %}
+                            class="clickable-row{% if balance.entity__name == preselected_entity.name %} table-active{% endif %}"
                             hx-get="{% url 'entity-history' balance.entity__id %}"
-                            hx-target="#history-table" 
+                            hx-target="#history-table"
                         >
-                            <td>{{ balance.entity__name }}</td>
+                            <td class="td-name">{{ balance.entity__name }}</td>
                             <td>${{ balance.total_debits|floatformat:2|intcomma }}</td>
                             <td>${{ balance.total_credits|floatformat:2|intcomma }}</td>
                             <td>${{ balance.balance|floatformat:2|intcomma }}</td>
@@ -37,7 +29,7 @@
             </table>
         </div>
     </div>
-    <div class="col-md-6">
+    <div>
         <div id="history-table">
             {{ entity_history_table }}
         </div>

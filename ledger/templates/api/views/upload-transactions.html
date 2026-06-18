@@ -1,42 +1,35 @@
 <h2>Upload Files</h2>
-<br><br>
-<div class="row">
-    <div id="csv-upload" class="col-md-4">
+
+<div class="grid grid-2">
+    <div id="csv-upload" class="form-narrow">
         {{ form }}
     </div>
-    <dviv id="textract" class="col-md-4">
-        <div class="row">
-            {{ textract_form }}
-        </div>
+    <div id="textract" class="form-narrow">
+        {{ textract_form }}
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-4">
-        <div x-data="{
-                expandedPaystubId: null,
-                togglePaystub(id, url) {
-                    if (this.expandedPaystubId === id) {
-                        this.expandedPaystubId = null;
-                        return;
-                    }
-                    this.expandedPaystubId = id;
-                    const target = document.getElementById(`paystub-detail-${id}`);
-                    if (!target.innerHTML.trim()) {
-                        htmx.ajax('GET', url, {target: target});
-                    }
+<div class="mt-4 form-narrow">
+    <div x-data="{
+            expandedPaystubId: null,
+            togglePaystub(id, url) {
+                if (this.expandedPaystubId === id) {
+                    this.expandedPaystubId = null;
+                    return;
                 }
-             }">
-            <div id="paystubs">
-                {{ paystubs_table }}
-            </div>
+                this.expandedPaystubId = id;
+                const target = document.getElementById(`paystub-detail-${id}`);
+                if (!target.innerHTML.trim()) {
+                    htmx.ajax('GET', url, {target: target});
+                }
+            }
+         }">
+        <div id="paystubs">
+            {{ paystubs_table }}
         </div>
     </div>
 </div>
 
-<br>
-<div class="row">
-    <div class="col">
-        <a href="{% url 'trend' %}" class="btn btn-primary">Download summary CSV</a>
-    </div>
+<div class="mt-4">
+    <a href="{% url 'trend' %}" class="btn btn-primary">Download summary CSV</a>
 </div>
