@@ -210,15 +210,49 @@ class PollResult:
     parsed: int = 0
     unresolved: int = 0
     failed: int = 0
+    retried: int = 0
+    recovered: int = 0
+
+
+def retry_failed_bills() -> tuple[int, int]:
+    """
+    Re-runs Gemini on every bill stuck in FAILED status, using each bill's stored
+    raw_text (no Gmail round-trip). Lets transient parse failures (timeouts, rate
+    limits) self-heal on the next poll even after the source email has aged out of
+    the Gmail search window.
+
+    Returns (retried, recovered): how many FAILED bills were re-attempted and how
+    many left FAILED status. Each bill is parsed independently so one bill's hard
+    failure can't strand the rest.
+    """
+    failed_bills = list(
+        UtilityBill.objects.filter(status=UtilityBill.Status.FAILED)
+    )
+    recovered = 0
+    for bill in failed_bills:
+        try:
+            updated = _parse_and_resolve_bill(bill)
+        except Exception:  # noqa: BLE001 - never let one bill abort the sweep
+            logger.exception("Failed to retry bill %s", bill.source_message_id)
+            continue
+        if updated.status != UtilityBill.Status.FAILED:
+            recovered += 1
+    return len(failed_bills), recovered
 
 
 def poll_bill_emails() -> PollResult:
     """
-    Searches Gmail for each configured (from_address, subject) pair and ingests
-    any new messages. Idempotent via source_message_id dedupe. Shared by the
-    scheduled management command and the Settings "Poll now" action.
+    Re-runs any stranded FAILED bills, then searches Gmail for each configured
+    (from_address, subject) pair and ingests new messages. Idempotent via
+    source_message_id dedupe. Shared by the scheduled management command and the
+    Settings "Poll now" action.
     """
     result = PollResult()
+
+    # Heal stranded Gemini failures first. Bills recovered here drop out of FAILED
+    # status, so the Gmail loop below won't re-attempt them (ingest_message skips
+    # non-FAILED existing records).
+    result.retried, result.recovered = retry_failed_bills()
 
     # Search each distinct (from_address, subject) once, even when several rules
     # share a vendor; account_number resolves the property afterward.

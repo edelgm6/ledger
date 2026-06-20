@@ -18,6 +18,7 @@ class Command(BaseCommand):
             self.style.SUCCESS(
                 f"fetched={result.fetched} new={result.new} "
                 f"parsed={result.parsed} unresolved={result.unresolved} "
-                f"failed={result.failed}"
+                f"failed={result.failed} retried={result.retried} "
+                f"recovered={result.recovered}"
             )
         )
