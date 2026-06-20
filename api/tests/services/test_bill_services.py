@@ -11,6 +11,7 @@ from api.services.bill_services import (
     poll_bill_emails,
     resolve_bill_account,
     retry_bill,
+    retry_failed_bills,
 )
 from api.tests.testing_factories import AccountFactory, TransactionFactory
 
@@ -315,6 +316,83 @@ class RetryBillTest(TestCase):
 
     def test_retry_missing_returns_none(self):
         self.assertIsNone(retry_bill(99999))
+
+
+class RetryFailedBillsTest(TestCase):
+    @staticmethod
+    def make_failed_bill(message_id="f1", **kwargs):
+        defaults = {
+            "source_message_id": message_id,
+            "status": UtilityBill.Status.FAILED,
+            "raw_text": "body",
+            "error_message": "boom",
+        }
+        defaults.update(kwargs)
+        return UtilityBill.objects.create(**defaults)
+
+    @patch("api.services.bill_services.parse_bill_with_gemini")
+    def test_recovers_failed_bill(self, mock_parse):
+        make_rule(account_number="123")
+        bill = self.make_failed_bill()
+        mock_parse.return_value = {
+            "account_number": "123",
+            "amount": Decimal("88.42"),
+        }
+
+        retried, recovered = retry_failed_bills()
+
+        self.assertEqual((retried, recovered), (1, 1))
+        bill.refresh_from_db()
+        self.assertEqual(bill.status, UtilityBill.Status.PARSED)
+        self.assertEqual(bill.error_message, "")
+
+    @patch("api.services.bill_services.parse_bill_with_gemini")
+    def test_bill_that_fails_again_stays_failed(self, mock_parse):
+        bill = self.make_failed_bill()
+        mock_parse.side_effect = ValueError("still broken")
+
+        retried, recovered = retry_failed_bills()
+
+        self.assertEqual((retried, recovered), (1, 0))
+        bill.refresh_from_db()
+        self.assertEqual(bill.status, UtilityBill.Status.FAILED)
+
+    @patch("api.services.bill_services.parse_bill_with_gemini")
+    def test_non_failed_bills_untouched(self, mock_parse):
+        parsed = self.make_failed_bill(
+            message_id="p1", status=UtilityBill.Status.PARSED
+        )
+
+        retried, recovered = retry_failed_bills()
+
+        self.assertEqual((retried, recovered), (0, 0))
+        mock_parse.assert_not_called()
+        parsed.refresh_from_db()
+        self.assertEqual(parsed.status, UtilityBill.Status.PARSED)
+
+    @patch("api.services.bill_services.parse_bill_with_gemini")
+    @patch("api.services.bill_services.search_messages")
+    @patch("api.services.bill_services.build_gmail_service")
+    def test_poll_recovers_stranded_bill_with_no_new_email(
+        self, mock_build, mock_search, mock_parse
+    ):
+        rule = make_rule(account_number="123")
+        bill = self.make_failed_bill(from_address=rule.from_address)
+        mock_build.return_value = object()
+        mock_search.return_value = []  # nothing new in the Gmail window
+        mock_parse.return_value = {
+            "account_number": "123",
+            "amount": Decimal("88.42"),
+        }
+
+        result = poll_bill_emails()
+
+        self.assertEqual(result.fetched, 0)
+        self.assertEqual(result.new, 0)
+        self.assertEqual(result.retried, 1)
+        self.assertEqual(result.recovered, 1)
+        bill.refresh_from_db()
+        self.assertEqual(bill.status, UtilityBill.Status.PARSED)
 
 
 class TriggerWiringTest(TestCase):
