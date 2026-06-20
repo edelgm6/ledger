@@ -159,7 +159,7 @@ class BillsView(LoginRequiredMixin, View):
             message = (
                 f"Poll complete — fetched {result.fetched}, new {result.new}, "
                 f"parsed {result.parsed}, unresolved {result.unresolved}, "
-                f"failed {result.failed}."
+                f"failed {result.failed}, recovered {result.recovered}."
             )
         elif action == "retry":
             bill_id = request.POST.get("bill_id")
