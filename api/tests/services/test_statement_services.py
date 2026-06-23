@@ -23,6 +23,7 @@ from api.services.statement_services import (
 from api.statement import Balance
 from api.tests.testing_factories import (
     AccountFactory,
+    EntityFactory,
     JournalEntryFactory,
     JournalEntryItemFactory,
 )
@@ -426,6 +427,52 @@ class GetStatementDetailItemsTest(TestCase):
         )
 
         self.assertEqual(result.journal_entry_items[0].amount_signed, Decimal("200"))
+
+    def test_display_label_uses_entity_when_present(self):
+        """display_label should be the item's entity name when set."""
+        account = AccountFactory()
+        entity = EntityFactory(name="Whole Foods")
+        entry = JournalEntryFactory(date=date(2024, 6, 15))
+
+        JournalEntryItemFactory(
+            journal_entry=entry,
+            account=account,
+            amount=Decimal("100"),
+            type=JournalEntryItem.JournalEntryType.DEBIT,
+            entity=entity,
+        )
+
+        result = get_statement_detail_items(
+            account_id=account.pk,
+            from_date="2024-01-01",
+            to_date="2024-12-31",
+        )
+
+        self.assertEqual(result.journal_entry_items[0].display_label, "Whole Foods")
+
+    def test_display_label_falls_back_to_transaction_description(self):
+        """display_label should fall back to the transaction description when no entity."""
+        account = AccountFactory()
+        entry = JournalEntryFactory(date=date(2024, 6, 15))
+
+        JournalEntryItemFactory(
+            journal_entry=entry,
+            account=account,
+            amount=Decimal("100"),
+            type=JournalEntryItem.JournalEntryType.DEBIT,
+            entity=None,
+        )
+
+        result = get_statement_detail_items(
+            account_id=account.pk,
+            from_date="2024-01-01",
+            to_date="2024-12-31",
+        )
+
+        self.assertEqual(
+            result.journal_entry_items[0].display_label,
+            entry.transaction.description,
+        )
 
 
 class CalculateCashFlowMetricsTest(TestCase):
