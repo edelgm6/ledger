@@ -1,6 +1,6 @@
 from django.test import TestCase
 from django.db import IntegrityError
-from api.tests.testing_factories import TransactionFactory, AccountFactory, ReconciliationFactory
+from api.tests.testing_factories import TransactionFactory, AccountFactory, ReconciliationFactory, EntityFactory
 from api.models import TaxCharge, Account, JournalEntry, JournalEntryItem
 from datetime import date
 from decimal import Decimal
@@ -96,6 +96,44 @@ class TaxChargeModelTests(TestCase):
         self.assertTrue(tax_charge.transaction)
         transaction.refresh_from_db()
         self.assertEqual(transaction.amount, Decimal('100.00'))
+
+    def test_tags_journal_entry_items_with_account_default_entity(self):
+        # Give each tax account a default entity
+        expense_entity = EntityFactory()
+        payable_entity = EntityFactory()
+        self.property_tax_account.entity = expense_entity
+        self.property_tax_account.save()
+        self.property_tax_payable_account.entity = payable_entity
+        self.property_tax_payable_account.save()
+
+        transaction = TransactionFactory(account=self.property_tax_account)
+        tax_charge = TaxCharge.objects.create(
+            account=self.property_tax_account,
+            transaction=transaction,
+            date=date.today(),
+            amount=Decimal('100.00')
+        )
+
+        debit = tax_charge.transaction.journal_entry.journal_entry_items.get(
+            type=JournalEntryItem.JournalEntryType.DEBIT
+        )
+        credit = tax_charge.transaction.journal_entry.journal_entry_items.get(
+            type=JournalEntryItem.JournalEntryType.CREDIT
+        )
+        self.assertEqual(debit.entity, expense_entity)
+        self.assertEqual(credit.entity, payable_entity)
+
+    def test_journal_entry_items_have_no_entity_when_account_has_no_default(self):
+        transaction = TransactionFactory(account=self.property_tax_account)
+        tax_charge = TaxCharge.objects.create(
+            account=self.property_tax_account,
+            transaction=transaction,
+            date=date.today(),
+            amount=Decimal('100.00')
+        )
+
+        for item in tax_charge.transaction.journal_entry.journal_entry_items.all():
+            self.assertIsNone(item.entity)
 
     def test_creates_tax_charge_side_effects_with_existing_reconciliation(self):
         transaction = TransactionFactory(amount=10, account=self.property_tax_account)

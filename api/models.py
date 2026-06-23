@@ -536,25 +536,27 @@ class TaxCharge(models.Model):
             )
         journal_entry.delete_journal_entry_items()
 
+        tax_payable_account = self.account.tax_payable_account
         JournalEntryItem.objects.create(
             journal_entry=journal_entry,
             type=JournalEntryItem.JournalEntryType.DEBIT,
             amount=self.transaction.amount,
             account=self.account,
+            entity=self.account.entity,
         )
         JournalEntryItem.objects.create(
             journal_entry=journal_entry,
             type=JournalEntryItem.JournalEntryType.CREDIT,
             amount=self.transaction.amount,
-            account=self.account.tax_payable_account,
+            account=tax_payable_account,
+            entity=tax_payable_account.entity,
         )
 
         # Update the Reconciliation per the new tax amount
-        liability_account = self.account.tax_payable_account
-        liability_balance = liability_account.get_balance(self.date)
+        liability_balance = tax_payable_account.get_balance(self.date)
         try:
             reconciliation = Reconciliation.objects.get(
-                date=self.date, account=self.account.tax_payable_account
+                date=self.date, account=tax_payable_account
             )
             reconciliation.amount = liability_balance
             reconciliation.save()
