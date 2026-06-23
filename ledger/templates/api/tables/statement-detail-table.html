@@ -12,7 +12,7 @@
             {% for entry in journal_entry_items %}
                 <tr>
                     <td>{{ entry.journal_entry.date }}</td>
-                    <td class="cell-clip">{{ entry.journal_entry.transaction.description }}</td>
+                    <td class="cell-clip">{{ entry.display_label }}</td>
                     <td class="right">${{ entry.amount_signed|floatformat:2|intcomma }}</td>
                 </tr>
             {% endfor %}

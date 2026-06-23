@@ -217,13 +217,21 @@ def get_statement_detail_items(
             journal_entry__date__lte=to_date,
             amount__gt=0,
         )
-        .select_related("journal_entry__transaction", "account")
+        .select_related("journal_entry__transaction", "account", "entity")
         .order_by("journal_entry__date")
     )
 
     # Apply signing logic
     for entry in journal_entry_items:
         entry.amount_signed = entry.amount
+
+        # Prefer the human-readable entity name; fall back to the raw
+        # transaction description when the item has no entity.
+        entry.display_label = (
+            entry.entity.name
+            if entry.entity
+            else entry.journal_entry.transaction.description
+        )
 
         # INCOME debits are negative (reduces income)
         if (
