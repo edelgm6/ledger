@@ -595,6 +595,12 @@ h4, h5 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--space-2); 
   .table-scroll.has-list { display: none; }
   .has-list + .list, .list.show-mobile { display: block; }
 
+  /* Statement detail pop-out: fit within the viewport on mobile */
+  #statement-detail-table .table { table-layout: fixed; width: 100%; }
+  #statement-detail-table .table td,
+  #statement-detail-table .table th { white-space: normal; word-break: break-word; }
+  #statement-detail-table .cell-clip { max-width: none; }
+
   /* Cards a touch tighter */
   .card { padding: var(--space-4); }
 }
