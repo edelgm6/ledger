@@ -350,12 +350,14 @@ def parse_bill_with_gemini(email_text: str) -> Dict[str, Any]:
 def build_recharacterize_system_prompt(
     account_names: List[str],
     entity_names: List[str],
-    protected_account_names: List[str],
+    swap_blocked_account_names: List[str],
 ) -> str:
     """Builds the system instruction for the recharacterization chat."""
     accounts_list = "\n".join(f"- {n}" for n in account_names) or "  (none)"
     entities_list = "\n".join(f"- {n}" for n in entity_names) or "  (none)"
-    protected_list = "\n".join(f"- {n}" for n in protected_account_names) or "  (none)"
+    swap_blocked_list = (
+        "\n".join(f"- {n}" for n in swap_blocked_account_names) or "  (none)"
+    )
 
     return f"""You are a careful bookkeeping assistant for a double-entry \
 personal accounting app. You help the user bulk-"recharacterize" past journal \
@@ -404,9 +406,11 @@ that would match everything.
 "action.to_account" (the account to change TO).
 - You may only set/clear an entity or swap an account. You can NEVER change \
 amounts or whether an item is a debit or a credit.
-- These accounts are system-managed and must NEVER appear in a filter or action; \
-if the user asks to touch them, refuse in "reply":
-{protected_list}
+- These accounts are system-managed: their items MAY be re-tagged with \
+"set_entity" or "clear_entity", but they must NEVER be the "filter.account" or \
+"action.to_account" of a "change_account" swap. If the user asks to swap one of \
+them, refuse the swap in "reply":
+{swap_blocked_list}
 - A year like "2025" means date_from 2025-01-01 and date_to 2025-12-31.
 - Across turns, keep prior operations in mind; when the user refines the request, \
 return the full updated operations list.
