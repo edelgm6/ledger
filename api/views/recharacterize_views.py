@@ -6,6 +6,8 @@ via recharacterize_helpers. The conversation and the latest proposed plan live
 in the session; apply always re-validates from the stored plan.
 """
 
+import csv
+
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
 from django.views import View
@@ -24,6 +26,14 @@ def _get_state(request) -> dict:
 def _save_state(request, messages, operations) -> None:
     request.session[SESSION_KEY] = {"messages": messages, "operations": operations}
     request.session.modified = True
+
+
+def _parse_op_index(request) -> int:
+    """Reads the ``op`` query param as an int, or -1 when absent/invalid."""
+    try:
+        return int(request.GET.get("op", ""))
+    except (TypeError, ValueError):
+        return -1
 
 
 def _render_unchanged(messages, operations) -> str:
@@ -133,6 +143,81 @@ class RecharacterizeApplyView(LoginRequiredMixin, View):
         _save_state(request, messages=messages, operations=[])
         html = recharacterize_helpers.render_main(messages, preview=None, flash=flash)
         return HttpResponse(html)
+
+
+class RecharacterizePageView(LoginRequiredMixin, View):
+    """Returns one paginated page of an operation's matched items.
+
+    Lets the user expand past the 25-row preview sample and page through the full
+    matched set inline (read-only; no mutation).
+    """
+
+    login_url = "/login/"
+
+    def get(self, request):
+        state = _get_state(request)
+        operations = state["operations"]
+
+        op_index = _parse_op_index(request)
+        try:
+            page_number = int(request.GET.get("page", "1"))
+        except (TypeError, ValueError):
+            page_number = 1
+
+        page = recharacterize_services.build_page(operations, op_index, page_number)
+        html = recharacterize_helpers.render_affected_page(page)
+        return HttpResponse(html)
+
+
+class RecharacterizeExportView(LoginRequiredMixin, View):
+    """Streams every matched item for one operation as a CSV download.
+
+    The preview table is capped at SAMPLE_LIMIT rows; this exposes the full
+    matched universe (with proposed before/after columns) for an operation.
+    """
+
+    login_url = "/login/"
+
+    def get(self, request):
+        state = _get_state(request)
+        operations = state["operations"]
+
+        op_index = _parse_op_index(request)
+        rows = recharacterize_services.build_export_rows(operations, op_index)
+
+        response = HttpResponse(
+            content_type="text/csv",
+            headers={
+                "Content-Disposition": 'attachment; filename="recharacterize.csv"'
+            },
+        )
+        writer = csv.writer(response)
+        writer.writerow(
+            [
+                "Date",
+                "Description",
+                "Type",
+                "Amount",
+                "Account Before",
+                "Account After",
+                "Entity Before",
+                "Entity After",
+            ]
+        )
+        for row in rows:
+            writer.writerow(
+                [
+                    row["date"],
+                    row["description"],
+                    row["type"],
+                    row["amount"],
+                    row["account_before"],
+                    row["account_after"],
+                    row["entity_before"],
+                    row["entity_after"],
+                ]
+            )
+        return response
 
 
 class RecharacterizeResetView(LoginRequiredMixin, View):

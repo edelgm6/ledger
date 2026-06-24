@@ -162,3 +162,107 @@ class RecharacterizeViewsTest(TestCase):
         resp = self.client.post(reverse("recharacterize-retry"))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "recharacterize-main")
+
+    @patch("api.services.recharacterize_services.gemini_services.call_gemini_conversation")
+    def test_view_only_message_shows_export_link_and_no_apply(self, mock_call):
+        mock_call.return_value = json.dumps(
+            {
+                "reply": "Here are your Verizon debits.",
+                "operations": [
+                    {
+                        "filter": {"account": "Ally Checking", "entry_type": "debit"},
+                        "action": {"type": "view"},
+                    }
+                ],
+            }
+        )
+        resp = self.client.post(
+            reverse("recharacterize-message"), {"message": "show me verizon debits"}
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Export all")
+        self.assertNotContains(resp, "Apply (")  # view-only: no Apply button
+
+    @patch("api.services.recharacterize_services.gemini_services.call_gemini_conversation")
+    def test_export_streams_csv_of_matched_items(self, mock_call):
+        mock_call.return_value = json.dumps(
+            {
+                "reply": "Here you go.",
+                "operations": [
+                    {
+                        "filter": {"account": "Ally Checking", "entry_type": "debit"},
+                        "action": {"type": "view"},
+                    }
+                ],
+            }
+        )
+        # Populate the session with a proposed plan.
+        self.client.post(
+            reverse("recharacterize-message"), {"message": "show me debits"}
+        )
+
+        resp = self.client.get(reverse("recharacterize-export"), {"op": "0"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Content-Type"], "text/csv")
+        self.assertIn("attachment", resp["Content-Disposition"])
+        body = resp.content.decode()
+        self.assertIn("Account Before", body)  # header row
+        self.assertIn("Ally Checking", body)  # the matched item
+
+    def test_export_with_no_session_returns_header_only_csv(self):
+        resp = self.client.get(reverse("recharacterize-export"), {"op": "0"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Content-Type"], "text/csv")
+        body = resp.content.decode().strip().splitlines()
+        self.assertEqual(len(body), 1)  # header only, no data rows
+
+    @patch("api.services.recharacterize_services.gemini_services.call_gemini_conversation")
+    def test_page_endpoint_returns_paginated_fragment(self, mock_call):
+        # 30 matching debits so the preview sample (25) has more to expand.
+        for i in range(30):
+            txn = TransactionFactory(
+                description=f"Verizon {i}",
+                date=datetime.date(2025, 4, 1),
+                is_closed=True,
+            )
+            je = JournalEntryFactory(transaction=txn, date=txn.date)
+            JournalEntryItemFactory(
+                journal_entry=je,
+                account=self.checking,
+                type=JournalEntryItem.JournalEntryType.DEBIT,
+                amount=Decimal("10.00"),
+            )
+        mock_call.return_value = json.dumps(
+            {
+                "reply": "Here are your debits.",
+                "operations": [
+                    {
+                        "filter": {"account": "Ally Checking", "entry_type": "debit"},
+                        "action": {"type": "view"},
+                    }
+                ],
+            }
+        )
+        resp = self.client.post(
+            reverse("recharacterize-message"), {"message": "show debits"}
+        )
+        # With >1 page the preview shows the pager inline (no "View all" gate).
+        self.assertContains(resp, "Page 1 of")
+        self.assertContains(resp, "Next")
+        self.assertContains(resp, reverse("recharacterize-page"))
+
+        # Page 1 fragment paginates with a Next control.
+        resp = self.client.get(
+            reverse("recharacterize-page"), {"op": "0", "page": "1"}
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "affected-region-0")
+        self.assertContains(resp, "Page 1 of")
+        self.assertContains(resp, "Next")
+
+    def test_page_endpoint_with_no_session_renders_empty(self):
+        resp = self.client.get(
+            reverse("recharacterize-page"), {"op": "0", "page": "1"}
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "No items to show")

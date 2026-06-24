@@ -26,13 +26,16 @@
         {% else %}
             <div class="mt-2">
                 <strong>{{ op.affected_count }}</strong>
-                item{{ op.affected_count|pluralize }} will change.
+                item{{ op.affected_count|pluralize }}
+                {% if op.mutates %}will change{% else %}match{% endif %}.
             </div>
-            {% if op.sample %}
-                {% include "api/tables/recharacterize-affected-table.html" with rows=op.sample %}
-                {% if op.has_more %}
-                <p class="muted">Showing the first {{ op.sample|length }}.</p>
-                {% endif %}
+            {% if op.page.rows %}
+                {% include "api/tables/recharacterize-affected-page.html" with page=op.page %}
+                <p class="mt-2">
+                    <a href="{% url 'recharacterize-export' %}?op={{ op.index }}">
+                        Export all {{ op.affected_count }} as CSV
+                    </a>
+                </p>
             {% endif %}
         {% endif %}
     </div>
@@ -49,8 +52,8 @@
             hx-post="{% url 'recharacterize-apply' %}"
             hx-target="#recharacterize-main"
             hx-swap="outerHTML"
-            hx-confirm="Apply this plan to {{ preview.total_affected }} journal entry item{{ preview.total_affected|pluralize }}?">
-        Apply ({{ preview.total_affected }})
+            hx-confirm="Apply this plan to {{ preview.total_changes }} journal entry item{{ preview.total_changes|pluralize }}?">
+        Apply ({{ preview.total_changes }})
     </button>
     {% endif %}
 {% else %}

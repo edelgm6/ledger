@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 from django.template.loader import render_to_string
 
-from api.services.recharacterize_services import PlanPreview
+from api.services.recharacterize_services import PageResult, PlanPreview
 from api.utils import friendly_error_message, short_error_label
 
 
@@ -38,6 +38,14 @@ def render_main(
     return render_to_string(
         "api/components/recharacterize-main.html",
         {"messages": messages, "preview": preview, "flash": flash, "error": error},
+    )
+
+
+def render_affected_page(page: Optional[PageResult]) -> str:
+    """Renders the swappable, paginated table region for one operation."""
+    return render_to_string(
+        "api/tables/recharacterize-affected-page.html",
+        {"page": page},
     )
 
 
