@@ -86,10 +86,16 @@
         // Live search + selection state shared by the Settings list fragments
         // (Accounts, Loans, Bill Rules). Rows carry data-search; the desktop
         // <tr data-search> set drives the visible count.
+        //
+        // Remembers each list's live query so it survives htmx innerHTML swaps
+        // (e.g. saving an account re-renders the fragment). Keyed by noun; lives
+        // for the page lifetime, so a full reload still starts clean.
+        const searchListQueries = {};
         Alpine.data('searchList', (total, noun, selectedId = null) => ({
-            q: '',
+            q: searchListQueries[noun] || '',
             selectedId: selectedId,
             total: total,
+            init() { this.$watch('q', v => { searchListQueries[noun] = v; }); },
             matches(el) { return !this.q.trim() || el.dataset.search.includes(this.q.toLowerCase()); },
             visible() {
                 if (!this.q.trim()) return this.total;
