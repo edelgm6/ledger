@@ -778,6 +778,56 @@ class JournalEntry(models.Model):
         journal_entry_items.delete()
 
 
+class JournalEntryItemQuerySet(models.QuerySet):
+    def filter_for_recharacterize(
+        self,
+        description=None,
+        date_from=None,
+        date_to=None,
+        account=None,
+        entity=None,
+        entity_is_empty=None,
+        entry_type=None,
+    ):
+        """Selects the universe of journal entry items to recharacterize.
+
+        Mirrors TransactionQuerySet.filter_for_table: each argument is optional
+        and only narrows the queryset when provided. ``description`` matches the
+        parent transaction's description; ``date_from``/``date_to`` bound the
+        journal entry date; ``account``/``entity`` match the item's own
+        account/entity; ``entity_is_empty`` matches items with no entity;
+        ``entry_type`` is "debit" or "credit".
+        """
+        queryset = self
+        if description:
+            queryset = queryset.filter(
+                journal_entry__transaction__description__icontains=description
+            )
+        if date_from:
+            queryset = queryset.filter(journal_entry__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(journal_entry__date__lte=date_to)
+        if account:
+            queryset = queryset.filter(account=account)
+        if entity:
+            queryset = queryset.filter(entity=entity)
+        if entity_is_empty:
+            queryset = queryset.filter(entity__isnull=True)
+        if entry_type:
+            queryset = queryset.filter(type=entry_type)
+        return queryset.select_related(
+            "account", "entity", "journal_entry__transaction"
+        ).order_by("journal_entry__date", "pk")
+
+
+class JournalEntryItemManager(models.Manager):
+    def get_queryset(self):
+        return JournalEntryItemQuerySet(self.model, using=self._db)
+
+    def filter_for_recharacterize(self, *args, **kwargs):
+        return self.get_queryset().filter_for_recharacterize(*args, **kwargs)
+
+
 class JournalEntryItem(models.Model):
     class JournalEntryType(models.TextChoices):
         DEBIT = "debit", _("Debit")
@@ -796,6 +846,8 @@ class JournalEntryItem(models.Model):
         blank=True,
         related_name="journal_entry_items",
     )
+
+    objects = JournalEntryItemManager()
 
     class Meta:
         indexes = [

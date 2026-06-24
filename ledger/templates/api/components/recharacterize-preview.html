@@ -1,0 +1,58 @@
+<h5 class="card-title">Preview</h5>
+
+{% if flash %}
+<div class="alert alert-success mt-2" role="alert">{{ flash }}</div>
+{% endif %}
+
+{% if preview and preview.operations %}
+    {% for op in preview.operations %}
+    <div class="card mt-2">
+        <div><strong>Operation {{ forloop.counter }}:</strong> {{ op.action_summary }}</div>
+
+        {% if op.criteria %}
+        <div class="criteria mt-2">
+            <div class="criteria-head muted">Matching items where:</div>
+            {% for c in op.criteria %}
+            <div class="criteria-row">
+                <span class="criteria-label">{{ c.label }}</span>
+                <span class="criteria-value">{{ c.value }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if op.blocked %}
+            <div class="alert alert-danger mt-2" role="alert">{{ op.error }}</div>
+        {% else %}
+            <div class="mt-2">
+                <strong>{{ op.affected_count }}</strong>
+                item{{ op.affected_count|pluralize }} will change.
+            </div>
+            {% if op.sample %}
+                {% include "api/tables/recharacterize-affected-table.html" with rows=op.sample %}
+                {% if op.has_more %}
+                <p class="muted">Showing the first {{ op.sample|length }}.</p>
+                {% endif %}
+            {% endif %}
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    {% if preview.has_blocks %}
+    <div class="alert alert-warning mt-2" role="alert">
+        Resolve the blocked operation{{ preview.operations|length|pluralize }} above before applying.
+    </div>
+    {% endif %}
+
+    {% if preview.can_apply %}
+    <button type="button" class="btn btn-danger mt-3"
+            hx-post="{% url 'recharacterize-apply' %}"
+            hx-target="#recharacterize-main"
+            hx-swap="outerHTML"
+            hx-confirm="Apply this plan to {{ preview.total_affected }} journal entry item{{ preview.total_affected|pluralize }}?">
+        Apply ({{ preview.total_affected }})
+    </button>
+    {% endif %}
+{% else %}
+    <p class="muted">No changes proposed yet.</p>
+{% endif %}

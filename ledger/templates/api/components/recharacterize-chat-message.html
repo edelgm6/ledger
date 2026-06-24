@@ -1,0 +1,4 @@
+<div class="chat-msg chat-msg-{{ role }}">
+    <span class="chat-role">{% if role == 'assistant' %}Agent{% else %}You{% endif %}</span>
+    <div class="chat-text">{{ text }}</div>
+</div>

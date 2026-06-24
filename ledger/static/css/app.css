@@ -555,6 +555,41 @@ h4, h5 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--space-2); 
 .mt-3 { margin-top: var(--space-3); } .mb-3 { margin-bottom: var(--space-3); }
 .mt-4 { margin-top: var(--space-4); } .mb-4 { margin-bottom: var(--space-4); }
 
+/* Recharacterize chat (agentic bulk-edit) */
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 420px;
+  overflow-y: auto;
+  padding: var(--space-2);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.chat-msg { max-width: 85%; padding: var(--space-2) var(--space-3); border-radius: var(--radius-lg); }
+.chat-msg-user { align-self: flex-end; background: var(--selected); }
+.chat-msg-assistant { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); }
+.chat-role { display: block; font-size: var(--fs-sm); color: var(--text-muted); margin-bottom: var(--space-1); }
+.chat-text { font-size: var(--fs-md); white-space: pre-wrap; }
+
+/* The two columns are adjacent .card siblings; cancel the stacked-card top
+   margin so the chat and preview panels align at the top. */
+#recharacterize-main > .card + .card { margin-top: 0; }
+
+/* Preview criteria breakdown */
+.criteria-head { font-size: var(--fs-sm); margin-bottom: var(--space-1); }
+.criteria-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--border-faint);
+  font-size: var(--fs-md);
+}
+.criteria-label { color: var(--text-4); }
+.criteria-value { color: var(--text-1); font-weight: 600; text-align: right; }
+
 /* 14. ---- Mobile reflow (breakpoint: 760px) ------------------------------
    Single-column everywhere; nav collapses to a toggle panel; multi-column
    grids stack; tables can switch to the stacked .list. */

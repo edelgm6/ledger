@@ -1,0 +1,40 @@
+<div id="recharacterize-main" class="grid grid-2">
+    <div class="card">
+        <div id="chat-log" class="chat-log">
+            {% for message in messages %}
+                {% include "api/components/recharacterize-chat-message.html" with role=message.role text=message.text %}
+            {% empty %}
+                <p class="muted">No messages yet. Describe the change you want to make.</p>
+            {% endfor %}
+        </div>
+
+        <form id="chat-form" class="mt-3"
+              hx-post="{% url 'recharacterize-message' %}"
+              hx-target="#recharacterize-main"
+              hx-swap="outerHTML">
+            {% csrf_token %}
+            <textarea name="message" class="textarea" rows="3"
+                      placeholder="Describe the change…" required></textarea>
+            <div class="grid grid-auto grid-end mt-2">
+                <button type="button" class="btn"
+                        hx-post="{% url 'recharacterize-reset' %}"
+                        hx-target="#recharacterize-main"
+                        hx-swap="outerHTML">Reset</button>
+                <button type="submit" class="btn btn-primary">Send</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        {% include "api/components/recharacterize-preview.html" %}
+    </div>
+</div>
+
+<script>
+    // Pin the conversation to the latest message on load and after every
+    // htmx swap of this region (htmx runs inline scripts in swapped content).
+    (function () {
+        var log = document.getElementById('chat-log');
+        if (log) { log.scrollTop = log.scrollHeight; }
+    })();
+</script>
