@@ -30,6 +30,7 @@ from api.views.recharacterize_views import (
     RecharacterizeApplyView,
     RecharacterizeMessageView,
     RecharacterizeResetView,
+    RecharacterizeRetryView,
     RecharacterizeView,
 )
 from api.views.search_views import SearchBulkUpdateView, SearchContentView, SearchView
@@ -179,6 +180,11 @@ urlpatterns = [
         "recharacterize/apply/",
         RecharacterizeApplyView.as_view(),
         name="recharacterize-apply",
+    ),
+    path(
+        "recharacterize/retry/",
+        RecharacterizeRetryView.as_view(),
+        name="recharacterize-retry",
     ),
     path(
         "recharacterize/reset/",
