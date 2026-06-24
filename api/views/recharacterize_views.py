@@ -26,6 +26,12 @@ def _save_state(request, messages, operations) -> None:
     request.session.modified = True
 
 
+def _render_unchanged(messages, operations) -> str:
+    """Re-renders the main region without running a turn (state untouched)."""
+    preview = recharacterize_services.preview_plan(operations)
+    return recharacterize_helpers.render_main(messages, preview)
+
+
 def _run_turn_and_render(request, messages, operations) -> str:
     """Runs one Gemini turn against ``messages`` and renders the main region.
 
@@ -72,9 +78,7 @@ class RecharacterizeMessageView(LoginRequiredMixin, View):
 
         user_text = (request.POST.get("message") or "").strip()
         if not user_text:
-            preview = recharacterize_services.preview_plan(state["operations"])
-            html = recharacterize_helpers.render_main(messages, preview)
-            return HttpResponse(html)
+            return HttpResponse(_render_unchanged(messages, state["operations"]))
 
         messages.append({"role": "user", "text": user_text})
         html = _run_turn_and_render(request, messages, state["operations"])
@@ -95,9 +99,7 @@ class RecharacterizeRetryView(LoginRequiredMixin, View):
 
         if not messages or messages[-1]["role"] != "user":
             # Nothing to retry (no unanswered user turn); just re-render.
-            preview = recharacterize_services.preview_plan(state["operations"])
-            html = recharacterize_helpers.render_main(messages, preview)
-            return HttpResponse(html)
+            return HttpResponse(_render_unchanged(messages, state["operations"]))
 
         html = _run_turn_and_render(request, messages, state["operations"])
         return HttpResponse(html)

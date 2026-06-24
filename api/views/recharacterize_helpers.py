@@ -45,10 +45,12 @@ def render_page(
     messages: List[Dict[str, str]],
     preview: Optional[PlanPreview] = None,
     flash: Optional[str] = None,
-    error: Optional[Dict[str, str]] = None,
 ) -> str:
-    """Renders the full-page content fragment (heading + main region)."""
+    """Renders the full-page content fragment (heading + main region).
+
+    A fresh page never carries an error, so render_main's ``error`` defaults.
+    """
     return render_to_string(
         "api/views/recharacterize.html",
-        {"main": render_main(messages, preview, flash, error)},
+        {"main": render_main(messages, preview, flash)},
     )
