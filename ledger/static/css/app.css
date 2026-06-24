@@ -572,6 +572,11 @@ h4, h5 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--space-2); 
 .chat-msg-assistant { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); }
 .chat-role { display: block; font-size: var(--fs-sm); color: var(--text-muted); margin-bottom: var(--space-1); }
 .chat-text { font-size: var(--fs-md); white-space: pre-wrap; }
+/* Pending "Agent is thinking…" bubble: styled like an assistant message but
+   kept off the .chat-msg-assistant class so it isn't mistaken for a real reply.
+   Hidden until htmx flags the in-flight request on its hx-indicator target. */
+.chat-thinking { display: none; align-self: flex-start; background: var(--surface); border: 1px solid var(--border); }
+.chat-thinking.htmx-request { display: block; }
 
 /* The two columns are adjacent .card siblings; cancel the stacked-card top
    margin so the chat and preview panels align at the top. */
