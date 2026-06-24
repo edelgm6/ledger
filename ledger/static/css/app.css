@@ -423,7 +423,7 @@ h4, h5 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--space-2); 
 .check { display: inline-flex; align-items: center; gap: 7px; font-size: var(--fs-body); color: var(--text-1); cursor: pointer; }
 .check input { width: 14px; height: 14px; accent-color: var(--color-primary); cursor: pointer; margin: 0; }
 
-.actions { display: flex; gap: 9px; flex-wrap: wrap; }
+.actions { display: flex; gap: 9px; flex-wrap: wrap; margin-top: var(--space-4); }
 .field-error { font-size: var(--fs-sm); color: var(--color-danger); margin-top: var(--space-1); }
 
 /* Currency / prefixed input (replaces Bootstrap input-group) */
