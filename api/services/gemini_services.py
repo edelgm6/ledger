@@ -387,7 +387,7 @@ entity (untagged), otherwise false or null>,
     "entry_type": "<'debit', 'credit', or null for either>"
   }},
   "action": {{
-    "type": "<'set_entity' | 'clear_entity' | 'change_account'>",
+    "type": "<'set_entity' | 'clear_entity' | 'change_account' | 'view'>",
     "entity": "<exact entity name (only for set_entity)>",
     "to_account": "<exact account name (only for change_account)>"
   }}
@@ -399,6 +399,10 @@ in a catalog, do not guess — ask them to clarify in "reply" and return an empt
 operations list.
 - A filter must have at least one non-null field. Never produce an operation \
 that would match everything.
+- When the user only wants to SEE or LIST items without changing anything \
+("show me", "list", "what are", "let me see"), use "view": emit an operation \
+with the appropriate filter and "action.type" of "view" (no "entity" or \
+"to_account"). A view operation still needs at least one filter field.
 - When the user targets items with no entity ("empty entity", "untagged", \
 "missing entity", "no entity"), set "entity_is_empty" to true (do NOT also set \
 "entity"). This counts as a valid filter on its own.

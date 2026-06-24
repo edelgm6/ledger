@@ -28,7 +28,9 @@ from api.views.journal_entry_views import (
 from api.views.reconciliation_views import ReconciliationTableView, ReconciliationView
 from api.views.recharacterize_views import (
     RecharacterizeApplyView,
+    RecharacterizeExportView,
     RecharacterizeMessageView,
+    RecharacterizePageView,
     RecharacterizeResetView,
     RecharacterizeRetryView,
     RecharacterizeView,
@@ -190,6 +192,16 @@ urlpatterns = [
         "recharacterize/reset/",
         RecharacterizeResetView.as_view(),
         name="recharacterize-reset",
+    ),
+    path(
+        "recharacterize/export/",
+        RecharacterizeExportView.as_view(),
+        name="recharacterize-export",
+    ),
+    path(
+        "recharacterize/page/",
+        RecharacterizePageView.as_view(),
+        name="recharacterize-page",
     ),
     # Tagging balances
     path(
