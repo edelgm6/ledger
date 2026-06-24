@@ -36,6 +36,9 @@
             <li class="nav-item {% if request.resolver_match.url_name == 'search' %}active{% endif %}">
                 <a class="nav-link" href="{% url 'search' %}">Search</a>
             </li>
+            <li class="nav-item {% if request.resolver_match.url_name == 'recharacterize' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'recharacterize' %}">Recharacterize</a>
+            </li>
             <li class="nav-item {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
                 <a class="nav-link" href="{% url 'settings' %}">Settings</a>
             </li>

@@ -26,6 +26,12 @@ from api.views.journal_entry_views import (
     TriggerAutoTagView,
 )
 from api.views.reconciliation_views import ReconciliationTableView, ReconciliationView
+from api.views.recharacterize_views import (
+    RecharacterizeApplyView,
+    RecharacterizeMessageView,
+    RecharacterizeResetView,
+    RecharacterizeView,
+)
 from api.views.search_views import SearchBulkUpdateView, SearchContentView, SearchView
 from api.views.bill_settings_views import (
     BillRuleFormView,
@@ -162,6 +168,23 @@ urlpatterns = [
     path("search/", SearchView.as_view(), name="search"),
     path("search/content/", SearchContentView.as_view(), name="search-content"),
     path("search/bulk-update/", SearchBulkUpdateView.as_view(), name="search-bulk-update"),
+    # Recharacterize (agentic bulk edit)
+    path("recharacterize/", RecharacterizeView.as_view(), name="recharacterize"),
+    path(
+        "recharacterize/message/",
+        RecharacterizeMessageView.as_view(),
+        name="recharacterize-message",
+    ),
+    path(
+        "recharacterize/apply/",
+        RecharacterizeApplyView.as_view(),
+        name="recharacterize-apply",
+    ),
+    path(
+        "recharacterize/reset/",
+        RecharacterizeResetView.as_view(),
+        name="recharacterize-reset",
+    ),
     # Tagging balances
     path(
         "tag/journal-entry-item/<int:journal_entry_item_id>/",

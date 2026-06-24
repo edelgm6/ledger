@@ -1,0 +1,36 @@
+<table class="table mt-2">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Type</th>
+            <th>Amount</th>
+            <th>Account</th>
+            <th>Entity</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in rows %}
+        <tr>
+            <td>{{ row.date }}</td>
+            <td class="cell-clip">{{ row.description }}</td>
+            <td>{{ row.type }}</td>
+            <td>{{ row.amount }}</td>
+            <td>
+                {% if row.account_before != row.account_after %}
+                    <s>{{ row.account_before }}</s> → {{ row.account_after }}
+                {% else %}
+                    {{ row.account_before }}
+                {% endif %}
+            </td>
+            <td>
+                {% if row.entity_before != row.entity_after %}
+                    <s>{{ row.entity_before }}</s> → {{ row.entity_after }}
+                {% else %}
+                    {{ row.entity_before }}
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
