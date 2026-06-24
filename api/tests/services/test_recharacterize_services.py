@@ -7,7 +7,10 @@ from django.test import TestCase
 
 from api.models import Account, JournalEntryItem
 from api.services.recharacterize_services import (
+    SAMPLE_LIMIT,
     apply_plan,
+    build_export_rows,
+    build_page,
     preview_plan,
     run_turn,
 )
@@ -379,6 +382,184 @@ class RecharacterizeServicesTest(TestCase):
         tagged.refresh_from_db()
         self.assertEqual(untagged.entity, self.ally_bank)
         self.assertEqual(tagged.entity, other_entity)  # already tagged, untouched
+
+    # --- view-only operations -----------------------------------------------
+
+    def test_view_op_previews_without_changes_and_hides_apply(self):
+        ops = [
+            {
+                "filter": self._verizon_2025_checking_debit_filter(),
+                "action": {"type": "view"},
+            }
+        ]
+        preview = preview_plan(ops)
+        self.assertFalse(preview.has_blocks)
+        self.assertFalse(preview.can_apply)  # nothing to apply for a view
+        self.assertEqual(preview.total_changes, 0)
+        self.assertEqual(preview.total_affected, 2)
+
+        op = preview.operations[0]
+        self.assertFalse(op.mutates)
+        self.assertEqual(op.affected_count, 2)
+        # Preview page rows show no before/after diff.
+        for row in op.page.rows:
+            self.assertEqual(row["account_before"], row["account_after"])
+            self.assertEqual(row["entity_before"], row["entity_after"])
+
+    def test_view_op_is_noop_on_apply(self):
+        ops = [
+            {
+                "filter": self._verizon_2025_checking_debit_filter(),
+                "action": {"type": "view"},
+            }
+        ]
+        result = apply_plan(ops)
+        self.assertTrue(result.success)
+        self.assertEqual(result.updated_count, 0)
+        self.d1.refresh_from_db()
+        self.assertIsNone(self.d1.entity)
+
+    def test_mixed_view_and_mutation_counts_only_changes(self):
+        ops = [
+            {
+                "filter": self._verizon_2025_checking_debit_filter(),
+                "action": {"type": "view"},
+            },
+            {
+                "filter": {"description_contains": "Verizon", "account": "Groceries"},
+                "action": {"type": "set_entity", "entity": "Ally Bank"},
+            },
+        ]
+        preview = preview_plan(ops)
+        self.assertTrue(preview.can_apply)
+        self.assertFalse(preview.operations[0].mutates)
+        self.assertTrue(preview.operations[1].mutates)
+        # Only the mutating op's 3 grocery debits count toward changes.
+        self.assertEqual(preview.total_changes, 3)
+
+        result = apply_plan(ops)
+        self.assertTrue(result.success)
+        self.assertEqual(result.updated_count, 3)
+
+    # --- CSV export ---------------------------------------------------------
+
+    def test_export_returns_all_rows_beyond_sample_limit(self):
+        export_acct = AccountFactory(
+            name="Export Test",
+            type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.OPERATING,
+            is_closed=False,
+        )
+        total = SAMPLE_LIMIT + 3
+        for i in range(total):
+            make_entry(
+                "Bulk export",
+                datetime.date(2025, 7, 1),
+                export_acct,
+                self.checking,
+            )
+        ops = [
+            {
+                "filter": {"account": "Export Test"},
+                "action": {"type": "view"},
+            }
+        ]
+        rows = build_export_rows(ops, 0)
+        self.assertEqual(len(rows), total)  # full universe, not just SAMPLE_LIMIT
+        first = rows[0]
+        self.assertIn("account_before", first)
+        self.assertIn("entity_after", first)
+
+    def test_export_reflects_proposed_changes(self):
+        ops = [
+            {
+                "filter": {"description_contains": "Verizon", "account": "Groceries"},
+                "action": {"type": "change_account", "to_account": "Dining"},
+            }
+        ]
+        rows = build_export_rows(ops, 0)
+        self.assertTrue(rows)
+        for row in rows:
+            self.assertEqual(row["account_before"], "Groceries")
+            self.assertEqual(row["account_after"], "Dining")
+
+    # --- inline pagination --------------------------------------------------
+
+    def _make_bulk_view_ops(self, total):
+        export_acct = AccountFactory(
+            name="Paged Test",
+            type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.OPERATING,
+            is_closed=False,
+        )
+        for _ in range(total):
+            make_entry(
+                "Bulk paged",
+                datetime.date(2025, 7, 1),
+                export_acct,
+                self.checking,
+            )
+        return [{"filter": {"account": "Paged Test"}, "action": {"type": "view"}}]
+
+    def test_build_page_first_page_and_metadata(self):
+        total = SAMPLE_LIMIT + 3
+        ops = self._make_bulk_view_ops(total)
+        page = build_page(ops, 0, 1)
+        self.assertEqual(len(page.rows), SAMPLE_LIMIT)
+        self.assertEqual(page.total, total)
+        self.assertEqual(page.num_pages, 2)
+        self.assertEqual(page.page, 1)
+        self.assertFalse(page.has_previous)
+        self.assertTrue(page.has_next)
+
+    def test_build_page_last_page_has_remainder(self):
+        total = SAMPLE_LIMIT + 3
+        ops = self._make_bulk_view_ops(total)
+        page = build_page(ops, 0, 2)
+        self.assertEqual(len(page.rows), 3)
+        self.assertTrue(page.has_previous)
+        self.assertFalse(page.has_next)
+
+    def test_build_page_clamps_out_of_range_page(self):
+        ops = self._make_bulk_view_ops(SAMPLE_LIMIT + 3)
+        page = build_page(ops, 0, 99)
+        self.assertIsNotNone(page)
+        self.assertEqual(page.page, page.num_pages)  # clamped to last page
+
+    def test_build_page_none_for_blocked_or_out_of_range_op(self):
+        blocked_ops = [
+            {
+                "filter": {"account": "Ally Checking"},
+                "action": {"type": "set_entity", "entity": "Nonexistent Bank"},
+            }
+        ]
+        self.assertIsNone(build_page(blocked_ops, 0, 1))
+        self.assertIsNone(build_page(blocked_ops, 5, 1))
+        self.assertIsNone(build_page([], 0, 1))
+
+    def test_build_page_reflects_proposed_changes(self):
+        ops = [
+            {
+                "filter": {"description_contains": "Verizon", "account": "Groceries"},
+                "action": {"type": "change_account", "to_account": "Dining"},
+            }
+        ]
+        page = build_page(ops, 0, 1)
+        self.assertTrue(page.rows)
+        for row in page.rows:
+            self.assertEqual(row["account_before"], "Groceries")
+            self.assertEqual(row["account_after"], "Dining")
+
+    def test_export_empty_for_blocked_or_out_of_range(self):
+        blocked_ops = [
+            {
+                "filter": {"account": "Ally Checking"},
+                "action": {"type": "set_entity", "entity": "Nonexistent Bank"},
+            }
+        ]
+        self.assertEqual(build_export_rows(blocked_ops, 0), [])
+        self.assertEqual(build_export_rows(blocked_ops, 5), [])
+        self.assertEqual(build_export_rows([], 0), [])
 
     # --- turn orchestration (model mocked) ----------------------------------
 

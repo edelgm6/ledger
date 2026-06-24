@@ -1,0 +1,26 @@
+<div class="affected-region" id="affected-region-{{ page.op_index }}">
+    {% if page and page.rows %}
+        {% include "api/tables/recharacterize-affected-table.html" with rows=page.rows %}
+        {% if page.num_pages > 1 %}
+        <div class="pager mt-2">
+            {% if page.has_previous %}
+            <button type="button" class="btn btn-secondary btn-sm"
+                    hx-get="{% url 'recharacterize-page' %}?op={{ page.op_index }}&page={{ page.page|add:'-1' }}"
+                    hx-target="#affected-region-{{ page.op_index }}"
+                    hx-swap="outerHTML">Prev</button>
+            {% endif %}
+            <span class="muted">
+                Page {{ page.page }} of {{ page.num_pages }} ({{ page.total }} item{{ page.total|pluralize }})
+            </span>
+            {% if page.has_next %}
+            <button type="button" class="btn btn-secondary btn-sm"
+                    hx-get="{% url 'recharacterize-page' %}?op={{ page.op_index }}&page={{ page.page|add:'1' }}"
+                    hx-target="#affected-region-{{ page.op_index }}"
+                    hx-swap="outerHTML">Next</button>
+            {% endif %}
+        </div>
+        {% endif %}
+    {% else %}
+        <p class="muted">No items to show.</p>
+    {% endif %}
+</div>

@@ -17,6 +17,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
+from django.core.paginator import Paginator
 from django.db import transaction as db_transaction
 from django.db.models import QuerySet
 
@@ -47,6 +48,11 @@ VALID_ENTRY_TYPES = {
 ACTION_SET_ENTITY = "set_entity"
 ACTION_CLEAR_ENTITY = "clear_entity"
 ACTION_CHANGE_ACCOUNT = "change_account"
+# A view operation only inspects the matched items; it never mutates the ledger,
+# so it carries no Apply button and is skipped by apply_plan.
+ACTION_VIEW = "view"
+
+MUTATING_ACTIONS = {ACTION_SET_ENTITY, ACTION_CLEAR_ENTITY, ACTION_CHANGE_ACCOUNT}
 
 SAMPLE_LIMIT = 25
 
@@ -59,6 +65,11 @@ def is_swap_blocked_account(account: Account) -> bool:
         account.special_type in SWAP_BLOCKED_SPECIAL_TYPES
         or account.sub_type in SWAP_BLOCKED_SUB_TYPES
     )
+
+
+def _is_mutation(action_kind: Optional[str]) -> bool:
+    """True when the action changes the ledger (vs. a view-only inspection)."""
+    return action_kind in MUTATING_ACTIONS
 
 
 def _resolve_named(model, name: Optional[str], label: str):
@@ -226,6 +237,10 @@ def _evaluate_operation(operation: Dict[str, Any]) -> EvaluatedOperation:
         )
     elif result.action_kind == ACTION_CLEAR_ENTITY:
         result.action_summary = "clear the entity"
+    elif result.action_kind == ACTION_VIEW:
+        # View-only: no entity/account to resolve and nothing to mutate. The
+        # filter guard above still requires at least one criterion.
+        result.action_summary = "view matching items (no changes)"
     elif result.action_kind == ACTION_CHANGE_ACCOUNT:
         if filter_account is None:
             result.errors.append(
@@ -293,62 +308,99 @@ def _evaluate_operation(operation: Dict[str, Any]) -> EvaluatedOperation:
 
 
 @dataclass
+class PageResult:
+    """One page of an operation's matched items, for inline paging.
+
+    The adjacent page numbers are derivable (page ± 1, gated by
+    ``has_previous``/``has_next``), so the template computes them rather than
+    mirroring them here.
+    """
+
+    op_index: int
+    rows: List[Dict[str, Any]]
+    page: int
+    num_pages: int
+    total: int
+    has_previous: bool
+    has_next: bool
+
+
+@dataclass
 class OperationPreview:
     index: int
     criteria: List[Dict[str, str]]
     action_summary: str
     affected_count: int
-    sample: List[Dict[str, Any]]
-    has_more: bool
+    page: Optional[PageResult]
     blocked: bool
     error: Optional[str]
+    mutates: bool = False
 
 
 @dataclass
 class PlanPreview:
     operations: List[OperationPreview]
     total_affected: int
+    total_changes: int
     has_blocks: bool
     can_apply: bool
 
 
-def _build_sample(evaluation: EvaluatedOperation) -> List[Dict[str, Any]]:
-    rows = []
-    for item in evaluation.queryset[:SAMPLE_LIMIT]:
-        transaction = getattr(item.journal_entry, "transaction", None)
-        description = (
-            transaction.description if transaction else item.journal_entry.description
-        )
-        entity_before = item.entity.name if item.entity else "—"
-        # Default to "no change", then let the action override its column, so an
-        # unrecognized action shows the item untouched rather than misprojecting.
-        entity_after = entity_before
-        account_after = item.account.name
-        if evaluation.action_kind == ACTION_SET_ENTITY:
-            entity_after = evaluation.target_entity.name
-        elif evaluation.action_kind == ACTION_CLEAR_ENTITY:
-            entity_after = "—"
-        elif evaluation.action_kind == ACTION_CHANGE_ACCOUNT:
-            account_after = evaluation.to_account.name
-        rows.append(
-            {
-                "date": item.journal_entry.date,
-                "description": description,
-                "type": item.type,
-                "amount": item.amount,
-                "account_before": item.account.name,
-                "account_after": account_after,
-                "entity_before": entity_before,
-                "entity_after": entity_after,
-            }
-        )
-    return rows
+def _project_row(item: JournalEntryItem, evaluation: EvaluatedOperation) -> Dict[str, Any]:
+    """Projects one matched item to its before/after row for preview and export."""
+    transaction = getattr(item.journal_entry, "transaction", None)
+    description = (
+        transaction.description if transaction else item.journal_entry.description
+    )
+    entity_before = item.entity.name if item.entity else "—"
+    # Default to "no change", then let the action override its column, so a
+    # view (or unrecognized action) shows the item untouched rather than
+    # misprojecting.
+    entity_after = entity_before
+    account_after = item.account.name
+    if evaluation.action_kind == ACTION_SET_ENTITY:
+        entity_after = evaluation.target_entity.name
+    elif evaluation.action_kind == ACTION_CLEAR_ENTITY:
+        entity_after = "—"
+    elif evaluation.action_kind == ACTION_CHANGE_ACCOUNT:
+        account_after = evaluation.to_account.name
+    return {
+        "date": item.journal_entry.date,
+        "description": description,
+        "type": item.type,
+        "amount": item.amount,
+        "account_before": item.account.name,
+        "account_after": account_after,
+        "entity_before": entity_before,
+        "entity_after": entity_after,
+    }
+
+
+def _page_result(
+    evaluation: EvaluatedOperation,
+    op_index: int,
+    page_number: int,
+    page_size: int = SAMPLE_LIMIT,
+) -> PageResult:
+    """Paginates an evaluated (non-blocked) operation's matched items."""
+    paginator = Paginator(evaluation.queryset, page_size)
+    page_obj = paginator.get_page(page_number)  # clamps invalid page numbers
+    return PageResult(
+        op_index=op_index,
+        rows=[_project_row(item, evaluation) for item in page_obj.object_list],
+        page=page_obj.number,
+        num_pages=paginator.num_pages,
+        total=paginator.count,
+        has_previous=page_obj.has_previous(),
+        has_next=page_obj.has_next(),
+    )
 
 
 def preview_plan(operations: List[Dict[str, Any]]) -> PlanPreview:
     """Validates every operation and computes its exact effect for review."""
     op_previews: List[OperationPreview] = []
     total_affected = 0
+    total_changes = 0
     has_blocks = False
 
     for index, operation in enumerate(operations):
@@ -361,36 +413,83 @@ def preview_plan(operations: List[Dict[str, Any]]) -> PlanPreview:
                     criteria=evaluation.criteria,
                     action_summary=evaluation.action_summary,
                     affected_count=0,
-                    sample=[],
-                    has_more=False,
+                    page=None,
                     blocked=True,
                     error=" ".join(evaluation.errors),
+                    mutates=False,
                 )
             )
             continue
 
-        affected_count = evaluation.queryset.count()
+        page = _page_result(evaluation, index, 1)
+        affected_count = page.total
         total_affected += affected_count
+        mutates = _is_mutation(evaluation.action_kind)
+        if mutates:
+            total_changes += affected_count
         op_previews.append(
             OperationPreview(
                 index=index,
                 criteria=evaluation.criteria,
                 action_summary=evaluation.action_summary,
                 affected_count=affected_count,
-                sample=_build_sample(evaluation),
-                has_more=affected_count > SAMPLE_LIMIT,
+                page=page,
                 blocked=False,
                 error=None,
+                mutates=mutates,
             )
         )
 
-    can_apply = bool(operations) and not has_blocks and total_affected > 0
+    # Apply is offered only when something will actually change, so a pure
+    # view-only plan never shows an Apply button.
+    can_apply = bool(operations) and not has_blocks and total_changes > 0
     return PlanPreview(
         operations=op_previews,
         total_affected=total_affected,
+        total_changes=total_changes,
         has_blocks=has_blocks,
         can_apply=can_apply,
     )
+
+
+def _evaluate_at(
+    operations: List[Dict[str, Any]], op_index: int
+) -> Optional[EvaluatedOperation]:
+    """Re-evaluates the operation at ``op_index`` from its dict (never trusts a
+    stale preview). Returns None for an out-of-range index or a blocked op."""
+    if op_index < 0 or op_index >= len(operations):
+        return None
+    evaluation = _evaluate_operation(operations[op_index])
+    return None if evaluation.blocked else evaluation
+
+
+def build_export_rows(
+    operations: List[Dict[str, Any]], op_index: int
+) -> List[Dict[str, Any]]:
+    """Projects every matched item for one operation (no SAMPLE_LIMIT slice), so
+    the export reflects the live ledger. Returns ``[]`` for an out-of-range index
+    or a blocked operation."""
+    evaluation = _evaluate_at(operations, op_index)
+    if evaluation is None:
+        return []
+    return [_project_row(item, evaluation) for item in evaluation.queryset]
+
+
+def build_page(
+    operations: List[Dict[str, Any]],
+    op_index: int,
+    page_number: int,
+    page_size: int = SAMPLE_LIMIT,
+) -> Optional[PageResult]:
+    """Projects one page of an operation's matched items for inline paging.
+
+    Out-of-range page numbers are clamped; a blocked or out-of-range operation
+    yields None.
+    """
+    evaluation = _evaluate_at(operations, op_index)
+    if evaluation is None:
+        return None
+    return _page_result(evaluation, op_index, page_number, page_size)
 
 
 # --- Apply ------------------------------------------------------------------
@@ -435,6 +534,9 @@ def apply_plan(operations: List[Dict[str, Any]]) -> ApplyResult:
             updated_count += evaluation.queryset.update(
                 account=evaluation.to_account
             )
+        elif evaluation.action_kind == ACTION_VIEW:
+            # View is read-only; a mixed plan may include one, so skip it here.
+            pass
 
     return ApplyResult(success=True, updated_count=updated_count)
 
