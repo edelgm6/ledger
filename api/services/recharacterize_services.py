@@ -74,24 +74,34 @@ def is_protected_account(account: Account) -> bool:
     )
 
 
+def _resolve_named(model, name: Optional[str], label: str):
+    """Resolves a catalog name to a row, tolerating the whitespace/case drift the
+    LLM introduces even when told to copy names verbatim.
+
+    Tries an exact match first, then falls back to a stripped, case-insensitive
+    match so " Federal Taxes Payable" or "federal taxes payable" still resolve.
+    The fallback only resolves when it is unambiguous (exactly one match).
+    """
+    stripped = (name or "").strip()
+    if not stripped:
+        return None, None
+    row = model.objects.filter(name=name).first()
+    if row is not None:
+        return row, None
+    candidates = list(model.objects.filter(name__iexact=stripped)[:2])
+    if len(candidates) == 1:
+        return candidates[0], None
+    return None, f"{label} '{name}' was not found."
+
+
 def resolve_account(name: Optional[str]) -> Tuple[Optional[Account], Optional[str]]:
     """Resolves an account name to an Account, or returns a blocking error."""
-    if not name:
-        return None, None
-    account = Account.objects.filter(name=name).first()
-    if account is None:
-        return None, f"Account '{name}' was not found."
-    return account, None
+    return _resolve_named(Account, name, "Account")
 
 
 def resolve_entity(name: Optional[str]) -> Tuple[Optional[Entity], Optional[str]]:
     """Resolves an entity name to an Entity, or returns a blocking error."""
-    if not name:
-        return None, None
-    entity = Entity.objects.filter(name=name).first()
-    if entity is None:
-        return None, f"Entity '{name}' was not found."
-    return entity, None
+    return _resolve_named(Entity, name, "Entity")
 
 
 def _parse_date(value: Any) -> Tuple[Optional[datetime.date], Optional[str]]:

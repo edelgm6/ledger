@@ -268,6 +268,26 @@ class RecharacterizeServicesTest(TestCase):
         self.assertTrue(preview_plan(ops).has_blocks)
         self.assertFalse(apply_plan(ops).success)
 
+    def test_account_name_with_whitespace_resolves(self):
+        # The LLM is told to copy names verbatim but sometimes adds stray
+        # whitespace; a leading/trailing space must still resolve.
+        ops = [
+            {
+                "filter": {"account": "  Groceries  "},
+                "action": {"type": "set_entity", "entity": "Ally Bank"},
+            }
+        ]
+        self.assertFalse(preview_plan(ops).has_blocks)
+
+    def test_account_name_case_insensitive_resolves(self):
+        ops = [
+            {
+                "filter": {"account": "groceries"},
+                "action": {"type": "set_entity", "entity": "ally bank"},
+            }
+        ]
+        self.assertFalse(preview_plan(ops).has_blocks)
+
     def test_empty_filter_blocked(self):
         ops = [
             {"filter": {}, "action": {"type": "set_entity", "entity": "Ally Bank"}}
