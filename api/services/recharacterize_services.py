@@ -447,6 +447,9 @@ class TurnResult:
     reply: str
     operations: List[Dict[str, Any]]
     error: Optional[str] = None
+    # True when the Gemini call/parse raised — distinguishes a transient service
+    # failure (retry) from a model reply the user should act on or rephrase.
+    failed: bool = False
 
 
 def _build_catalogs() -> Tuple[List[str], List[str], List[str]]:
@@ -479,13 +482,12 @@ def run_turn(messages: List[Dict[str, str]]) -> TurnResult:
         data = gemini_services._loads_gemini_json(raw)
     except Exception as exc:  # noqa: BLE001 - degrade gracefully for the UI
         logger.exception("Recharacterize turn failed")
+        # No reply text: the UI renders a typed error banner + Retry from `error`.
         return TurnResult(
-            reply=(
-                "Sorry — I couldn't process that. Please try rephrasing your "
-                "request."
-            ),
+            reply="",
             operations=[],
             error=str(exc),
+            failed=True,
         )
 
     reply = data.get("reply") or ""

@@ -74,17 +74,54 @@ def is_last_day_of_month(date):
     return date == last_day_of_month
 
 
+def _classify_error(error_message: str) -> str:
+    """Classifies a Gemini/processing error string into a stable kind.
+
+    Single source of truth for the 503/429/generic split so the compact label
+    and the friendly message can't drift apart. Returns "overload",
+    "rate_limit", "empty" (no error text), or "generic".
+    """
+    msg = error_message or ""
+    if "503" in msg or "UNAVAILABLE" in msg:
+        return "overload"
+    if "429" in msg or "RESOURCE_EXHAUSTED" in msg:
+        return "rate_limit"
+    if not msg:
+        return "empty"
+    return "generic"
+
+
 def short_error_label(error_message: str) -> str:
     """Compact, human-friendly label for a stored Gemini/processing error.
 
     Shared by the document (S3File) and utility-bill (UtilityBill) failure
     surfaces so the two stay in sync.
     """
-    msg = error_message or ""
-    if "503" in msg or "UNAVAILABLE" in msg:
-        return "server busy (503)"
-    if "429" in msg or "RESOURCE_EXHAUSTED" in msg:
-        return "rate limited (429)"
-    if not msg:
-        return ""
-    return "processing error"
+    return {
+        "overload": "server busy (503)",
+        "rate_limit": "rate limited (429)",
+        "empty": "",
+        "generic": "processing error",
+    }[_classify_error(error_message)]
+
+
+def friendly_error_message(error_message: str) -> str:
+    """A full-sentence, recovery-oriented message for a Gemini/processing error.
+
+    Companion to ``short_error_label`` (which gives the compact badge). Used where
+    a synchronous flow shows the failure inline and offers a retry, so the copy
+    steers the user toward retrying for transient errors rather than rephrasing.
+    """
+    generic = (
+        "Something went wrong reaching the AI service. You can retry, or rephrase "
+        "your request."
+    )
+    return {
+        "overload": (
+            "The AI service is temporarily overloaded. Your message wasn't lost — "
+            "wait a moment and retry."
+        ),
+        "rate_limit": "The AI service is rate limited right now. Wait a moment and retry.",
+        "empty": generic,
+        "generic": generic,
+    }[_classify_error(error_message)]
