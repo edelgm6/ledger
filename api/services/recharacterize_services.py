@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 from django.db import transaction as db_transaction
-from django.db.models import Q, QuerySet
+from django.db.models import QuerySet
 
 from api.models import Account, Entity, JournalEntryItem
 from api.services import gemini_services
@@ -26,14 +26,16 @@ from api.services import gemini_services
 logger = logging.getLogger(__name__)
 
 
-# Retained-earnings and unrealized-gains accounts are derived by statement and
-# reconciliation logic (see api/statement.py cash-flow logic and
-# Reconciliation.plug_investment_change), so their entries must never be
-# hand-edited, nor be the source/target of an account swap.
-PROTECTED_SPECIAL_TYPES = [
+# Starting-equity, retained-earnings, and unrealized-gains accounts are derived
+# by statement and reconciliation logic (see api/statement.py cash-flow logic
+# and Reconciliation.plug_investment_change), so their balances must never be
+# moved by an account swap. Their items may still be re-tagged with an entity —
+# entity tagging never touches a balance — so this set blocks account swaps only.
+SWAP_BLOCKED_SPECIAL_TYPES = [
     Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES,
+    Account.SpecialType.STARTING_EQUITY,
 ]
-PROTECTED_SUB_TYPES = [
+SWAP_BLOCKED_SUB_TYPES = [
     Account.SubType.RETAINED_EARNINGS,
     Account.SubType.UNREALIZED_INVESTMENT_GAINS,
 ]
@@ -52,25 +54,10 @@ SAMPLE_LIMIT = 25
 # --- Account / entity helpers ----------------------------------------------
 
 
-def _protected_accounts_queryset() -> QuerySet:
-    return Account.objects.filter(
-        Q(special_type__in=PROTECTED_SPECIAL_TYPES)
-        | Q(sub_type__in=PROTECTED_SUB_TYPES)
-    )
-
-
-def _protected_account_ids() -> frozenset:
-    """The ids of every system-managed account, materialized once so callers can
-    exclude them with a literal ``IN (...)`` instead of a correlated subquery."""
-    return frozenset(
-        _protected_accounts_queryset().values_list("id", flat=True)
-    )
-
-
-def is_protected_account(account: Account) -> bool:
+def is_swap_blocked_account(account: Account) -> bool:
     return (
-        account.special_type in PROTECTED_SPECIAL_TYPES
-        or account.sub_type in PROTECTED_SUB_TYPES
+        account.special_type in SWAP_BLOCKED_SPECIAL_TYPES
+        or account.sub_type in SWAP_BLOCKED_SUB_TYPES
     )
 
 
@@ -164,17 +151,12 @@ def _filter_criteria(
     return rows
 
 
-def _evaluate_operation(
-    operation: Dict[str, Any], protected_ids: Optional[frozenset] = None
-) -> EvaluatedOperation:
+def _evaluate_operation(operation: Dict[str, Any]) -> EvaluatedOperation:
     """Resolves names, enforces guardrails, and builds the matched queryset.
 
     Returns an EvaluatedOperation whose ``errors`` list is non-empty when the
-    operation is blocked. Used identically by preview and apply. ``protected_ids``
-    is the system-managed account id set; computed on demand when omitted.
+    operation is blocked. Used identically by preview and apply.
     """
-    if protected_ids is None:
-        protected_ids = _protected_account_ids()
     result = EvaluatedOperation()
     filter_data = operation.get("filter") or {}
     action_data = operation.get("action") or {}
@@ -265,15 +247,15 @@ def _evaluate_operation(
         if filter_account and to_account:
             if filter_account == to_account:
                 result.errors.append("The FROM and TO accounts are the same.")
-            if is_protected_account(filter_account):
+            if is_swap_blocked_account(filter_account):
                 result.errors.append(
                     f"\"{filter_account.name}\" is a system-managed account and "
-                    "cannot be changed."
+                    "cannot be the source of an account swap."
                 )
-            if is_protected_account(to_account):
+            if is_swap_blocked_account(to_account):
                 result.errors.append(
                     f"\"{to_account.name}\" is a system-managed account and cannot "
-                    "be a destination."
+                    "be the destination of an account swap."
                 )
             if (
                 filter_account.type != to_account.type
@@ -302,13 +284,6 @@ def _evaluate_operation(
         entity_is_empty=entity_is_empty,
         entry_type=entry_type,
     )
-
-    # System-managed items are never recharacterized; silently drop them from
-    # entity actions so the rest of the sweep proceeds without the user having
-    # to filter them out. (Account swaps target an explicit, already-vetted
-    # account, so there is nothing to exclude there.)
-    if result.action_kind in (ACTION_SET_ENTITY, ACTION_CLEAR_ENTITY):
-        queryset = queryset.exclude(account_id__in=protected_ids)
 
     result.queryset = queryset
     return result
@@ -375,10 +350,9 @@ def preview_plan(operations: List[Dict[str, Any]]) -> PlanPreview:
     op_previews: List[OperationPreview] = []
     total_affected = 0
     has_blocks = False
-    protected_ids = _protected_account_ids()
 
     for index, operation in enumerate(operations):
-        evaluation = _evaluate_operation(operation, protected_ids)
+        evaluation = _evaluate_operation(operation)
         if evaluation.blocked:
             has_blocks = True
             op_previews.append(
@@ -439,10 +413,9 @@ def apply_plan(operations: List[Dict[str, Any]]) -> ApplyResult:
     if not operations:
         return ApplyResult(success=False, error="There is nothing to apply.")
 
-    protected_ids = _protected_account_ids()
     evaluations = []
     for operation in operations:
-        evaluation = _evaluate_operation(operation, protected_ids)
+        evaluation = _evaluate_operation(operation)
         if evaluation.blocked:
             return ApplyResult(
                 success=False,
@@ -477,12 +450,14 @@ class TurnResult:
 
 
 def _build_catalogs() -> Tuple[List[str], List[str], List[str]]:
-    protected_ids = _protected_account_ids()
+    # Every account is available for entity tagging, so all names go in the
+    # usable catalog. The swap-blocked subset is flagged separately so the LLM
+    # knows those names may never be the source/target of an account swap.
     accounts = list(Account.objects.all().order_by("name"))
-    account_names = [a.name for a in accounts if a.id not in protected_ids]
-    protected_names = [a.name for a in accounts if a.id in protected_ids]
+    account_names = [a.name for a in accounts]
+    swap_blocked_names = [a.name for a in accounts if is_swap_blocked_account(a)]
     entity_names = list(Entity.objects.order_by("name").values_list("name", flat=True))
-    return account_names, entity_names, protected_names
+    return account_names, entity_names, swap_blocked_names
 
 
 def run_turn(messages: List[Dict[str, str]]) -> TurnResult:
@@ -492,11 +467,11 @@ def run_turn(messages: List[Dict[str, str]]) -> TurnResult:
     Returns the assistant's reply plus the structured operations it proposed.
     Never raises — model/parse failures degrade to a friendly reply.
     """
-    account_names, entity_names, protected_names = _build_catalogs()
+    account_names, entity_names, swap_blocked_names = _build_catalogs()
     system_prompt = gemini_services.build_recharacterize_system_prompt(
         account_names=account_names,
         entity_names=entity_names,
-        protected_account_names=protected_names,
+        swap_blocked_account_names=swap_blocked_names,
     )
 
     try:
