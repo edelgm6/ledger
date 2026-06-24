@@ -8,6 +8,16 @@
             {% endfor %}
         </div>
 
+        {% if error %}
+        <div class="alert alert-danger mt-3" role="alert">
+            <div title="{{ error.detail }}">❌ {{ error.label }} — {{ error.message }}</div>
+            <button type="button" class="btn btn-secondary btn-sm mt-2"
+                    hx-post="{% url 'recharacterize-retry' %}"
+                    hx-target="#recharacterize-main"
+                    hx-swap="outerHTML">↻ Retry</button>
+        </div>
+        {% endif %}
+
         <form id="chat-form" class="mt-3"
               hx-post="{% url 'recharacterize-message' %}"
               hx-target="#recharacterize-main"

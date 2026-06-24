@@ -90,3 +90,75 @@ class RecharacterizeViewsTest(TestCase):
         resp = self.client.post(reverse("recharacterize-reset"))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "No messages yet")
+
+    @patch("api.services.recharacterize_services.gemini_services.call_gemini_conversation")
+    def test_failed_turn_shows_error_banner_and_retry(self, mock_call):
+        mock_call.side_effect = RuntimeError("429 RESOURCE_EXHAUSTED")
+        resp = self.client.post(
+            reverse("recharacterize-message"), {"message": "tag ally checking"}
+        )
+        self.assertEqual(resp.status_code, 200)
+        # Typed banner + Retry affordance, and no canned assistant reply bubble.
+        self.assertContains(resp, "rate limited (429)")
+        self.assertContains(resp, "Retry")
+        self.assertContains(resp, reverse("recharacterize-retry"))
+        self.assertNotContains(resp, "chat-msg-assistant")
+        # The user message is kept so Retry can re-send it.
+        self.assertContains(resp, "tag ally checking")
+
+    @patch("api.services.recharacterize_services.gemini_services.call_gemini_conversation")
+    def test_failed_turn_preserves_prior_plan(self, mock_call):
+        # First turn succeeds and proposes a plan.
+        mock_call.return_value = json.dumps(
+            {
+                "reply": "Plan ready.",
+                "operations": [
+                    {
+                        "filter": {"account": "Ally Checking", "entry_type": "debit"},
+                        "action": {"type": "set_entity", "entity": "Ally Bank"},
+                    }
+                ],
+            }
+        )
+        self.client.post(reverse("recharacterize-message"), {"message": "tag it"})
+        # Second turn fails — the previously proposed plan must survive.
+        mock_call.side_effect = RuntimeError("503 UNAVAILABLE")
+        resp = self.client.post(
+            reverse("recharacterize-message"), {"message": "actually..."}
+        )
+        self.assertContains(resp, "server busy (503)")
+        self.assertContains(resp, "set entity")  # prior preview still shown
+        self.assertEqual(
+            len(self.client.session["recharacterize"]["operations"]), 1
+        )
+
+    @patch("api.services.recharacterize_services.gemini_services.call_gemini_conversation")
+    def test_retry_after_failure_succeeds(self, mock_call):
+        # A failed turn leaves the user message as the trailing entry.
+        mock_call.side_effect = RuntimeError("503 UNAVAILABLE")
+        self.client.post(
+            reverse("recharacterize-message"), {"message": "tag ally checking debits"}
+        )
+        # Retry: the service now responds successfully.
+        mock_call.side_effect = None
+        mock_call.return_value = json.dumps(
+            {
+                "reply": "I'll set entity Ally Bank.",
+                "operations": [
+                    {
+                        "filter": {"account": "Ally Checking", "entry_type": "debit"},
+                        "action": {"type": "set_entity", "entity": "Ally Bank"},
+                    }
+                ],
+            }
+        )
+        resp = self.client.post(reverse("recharacterize-retry"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "I&#x27;ll set entity Ally Bank.")
+        self.assertContains(resp, "Apply")
+        self.assertNotContains(resp, "server busy (503)")
+
+    def test_retry_with_no_pending_message_just_renders(self):
+        resp = self.client.post(reverse("recharacterize-retry"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "recharacterize-main")

@@ -88,3 +88,24 @@ def short_error_label(error_message: str) -> str:
     if not msg:
         return ""
     return "processing error"
+
+
+def friendly_error_message(error_message: str) -> str:
+    """A full-sentence, recovery-oriented message for a Gemini/processing error.
+
+    Companion to ``short_error_label`` (which gives the compact badge). Used where
+    a synchronous flow shows the failure inline and offers a retry, so the copy
+    steers the user toward retrying for transient errors rather than rephrasing.
+    """
+    msg = error_message or ""
+    if "503" in msg or "UNAVAILABLE" in msg:
+        return (
+            "The AI service is temporarily overloaded. Your message wasn't lost — "
+            "wait a moment and retry."
+        )
+    if "429" in msg or "RESOURCE_EXHAUSTED" in msg:
+        return "The AI service is rate limited right now. Wait a moment and retry."
+    return (
+        "Something went wrong reaching the AI service. You can retry, or rephrase "
+        "your request."
+    )

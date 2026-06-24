@@ -399,13 +399,16 @@ class RecharacterizeServicesTest(TestCase):
         self.assertEqual(turn.reply, "Sure, here's the plan.")
         self.assertEqual(len(turn.operations), 1)
         self.assertIsNone(turn.error)
+        self.assertFalse(turn.failed)
 
     @patch("api.services.recharacterize_services.gemini_services.call_gemini_conversation")
     def test_run_turn_degrades_on_model_error(self, mock_call):
-        mock_call.side_effect = RuntimeError("boom")
+        mock_call.side_effect = RuntimeError("503 UNAVAILABLE")
         turn = run_turn([{"role": "user", "text": "hi"}])
         self.assertEqual(turn.operations, [])
-        self.assertIsNotNone(turn.error)
+        self.assertEqual(turn.reply, "")
+        self.assertTrue(turn.failed)
+        self.assertIn("503", turn.error)
 
     def test_apply_is_atomic_one_bad_op_aborts_all(self):
         ops = [
