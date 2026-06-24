@@ -75,6 +75,12 @@ class RecharacterizeServicesTest(TestCase):
             sub_type=Account.SubType.INTEREST,
             is_closed=False,
         )
+        self.starting_equity = AccountFactory(
+            name="Starting Equity",
+            type=Account.Type.EQUITY,
+            special_type=Account.SpecialType.STARTING_EQUITY,
+            is_closed=False,
+        )
         self.ally_bank = EntityFactory(name="Ally Bank")
 
         # Two 2025 "Verizon" entries with a debit on Ally Checking.
@@ -221,15 +227,15 @@ class RecharacterizeServicesTest(TestCase):
         self.assertFalse(apply_plan(ops).success)
         _ = unrealized
 
-    def test_set_entity_excludes_protected_items(self):
+    def test_set_entity_includes_swap_blocked_items(self):
         retained = AccountFactory(
             name="Retained Earnings",
             type=Account.Type.EQUITY,
             sub_type=Account.SubType.RETAINED_EARNINGS,
             is_closed=False,
         )
-        # A protected item and a normal item, both untagged, both in 2025.
-        prot_debit, _ = make_entry(
+        # A swap-blocked item and a normal item, both untagged, both in 2025.
+        blocked_debit, _ = make_entry(
             "Year close", datetime.date(2025, 1, 1), retained, self.checking
         )
         normal_debit, _ = make_entry(
@@ -245,16 +251,60 @@ class RecharacterizeServicesTest(TestCase):
                 "action": {"type": "set_entity", "entity": "Ally Bank"},
             }
         ]
-        # No block — the protected item is silently excluded, not a blocker.
+        # Entity tagging is allowed on every account, including swap-blocked ones.
         preview = preview_plan(ops)
         self.assertFalse(preview.has_blocks)
         result = apply_plan(ops)
         self.assertTrue(result.success)
 
-        prot_debit.refresh_from_db()
+        blocked_debit.refresh_from_db()
         normal_debit.refresh_from_db()
-        self.assertIsNone(prot_debit.entity)  # protected, excluded
+        self.assertEqual(blocked_debit.entity, self.ally_bank)  # now included
         self.assertEqual(normal_debit.entity, self.ally_bank)
+
+    def test_starting_equity_swap_blocked(self):
+        other_equity = AccountFactory(
+            name="Other Equity",
+            type=Account.Type.EQUITY,
+            is_closed=False,
+        )
+        # Blocked as the swap source.
+        from_ops = [
+            {
+                "filter": {"account": "Starting Equity"},
+                "action": {"type": "change_account", "to_account": "Other Equity"},
+            }
+        ]
+        self.assertTrue(preview_plan(from_ops).has_blocks)
+        self.assertFalse(apply_plan(from_ops).success)
+        # Blocked as the swap destination.
+        to_ops = [
+            {
+                "filter": {"account": "Other Equity"},
+                "action": {"type": "change_account", "to_account": "Starting Equity"},
+            }
+        ]
+        self.assertTrue(preview_plan(to_ops).has_blocks)
+        self.assertFalse(apply_plan(to_ops).success)
+        _ = other_equity
+
+    def test_set_entity_on_starting_equity_allowed(self):
+        debit, _ = make_entry(
+            "Opening balance",
+            datetime.date(2025, 1, 1),
+            self.starting_equity,
+            self.checking,
+        )
+        ops = [
+            {
+                "filter": {"account": "Starting Equity"},
+                "action": {"type": "set_entity", "entity": "Ally Bank"},
+            }
+        ]
+        self.assertFalse(preview_plan(ops).has_blocks)
+        self.assertTrue(apply_plan(ops).success)
+        debit.refresh_from_db()
+        self.assertEqual(debit.entity, self.ally_bank)
 
     # --- resolution / safety ------------------------------------------------
 
