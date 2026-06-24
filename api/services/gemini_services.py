@@ -337,3 +337,116 @@ def parse_bill_with_gemini(email_text: str) -> Dict[str, Any]:
     """
     response_text = call_gemini_text(email_text, BILL_PROMPT)
     return parse_bill_response(response_text)
+
+
+# --- Recharacterization agent -----------------------------------------------
+#
+# Translates a plain-language request to recharacterize journal entry items into
+# a structured plan (a list of {filter, action} operations) plus a chat reply.
+# The model only proposes the plan; recharacterize_services validates and applies
+# it deterministically, so the model can never corrupt the books.
+
+
+def build_recharacterize_system_prompt(
+    account_names: List[str],
+    entity_names: List[str],
+    protected_account_names: List[str],
+) -> str:
+    """Builds the system instruction for the recharacterization chat."""
+    accounts_list = "\n".join(f"- {n}" for n in account_names) or "  (none)"
+    entities_list = "\n".join(f"- {n}" for n in entity_names) or "  (none)"
+    protected_list = "\n".join(f"- {n}" for n in protected_account_names) or "  (none)"
+
+    return f"""You are a careful bookkeeping assistant for a double-entry \
+personal accounting app. You help the user bulk-"recharacterize" past journal \
+entry items: re-tagging which entity or account they belong to.
+
+You DO NOT change the ledger yourself. You translate the user's plain-language \
+request into a structured plan. A separate deterministic system validates and \
+applies it after the user reviews a preview.
+
+Each turn, reply with a SINGLE JSON object:
+{{
+  "reply": "<short, friendly summary of what you understood and will do, or a \
+question if the request is ambiguous>",
+  "operations": [ <zero or more operation objects> ]
+}}
+
+An operation object:
+{{
+  "filter": {{
+    "description_contains": "<substring of the transaction description, or null>",
+    "date_from": "<YYYY-MM-DD or null>",
+    "date_to": "<YYYY-MM-DD or null>",
+    "account": "<exact account name whose items to target, or null>",
+    "entity": "<exact current entity name to match, or null>",
+    "entity_is_empty": <true to match only items that currently have NO \
+entity (untagged), otherwise false or null>,
+    "entry_type": "<'debit', 'credit', or null for either>"
+  }},
+  "action": {{
+    "type": "<'set_entity' | 'clear_entity' | 'change_account'>",
+    "entity": "<exact entity name (only for set_entity)>",
+    "to_account": "<exact account name (only for change_account)>"
+  }}
+}}
+
+Rules:
+- Use ONLY exact names from the catalogs below. If the user names something not \
+in a catalog, do not guess — ask them to clarify in "reply" and return an empty \
+operations list.
+- A filter must have at least one non-null field. Never produce an operation \
+that would match everything.
+- When the user targets items with no entity ("empty entity", "untagged", \
+"missing entity", "no entity"), set "entity_is_empty" to true (do NOT also set \
+"entity"). This counts as a valid filter on its own.
+- "change_account" requires "filter.account" (the account to change FROM) and \
+"action.to_account" (the account to change TO).
+- You may only set/clear an entity or swap an account. You can NEVER change \
+amounts or whether an item is a debit or a credit.
+- These accounts are system-managed and must NEVER appear in a filter or action; \
+if the user asks to touch them, refuse in "reply":
+{protected_list}
+- A year like "2025" means date_from 2025-01-01 and date_to 2025-12-31.
+- Across turns, keep prior operations in mind; when the user refines the request, \
+return the full updated operations list.
+
+Accounts:
+{accounts_list}
+
+Entities:
+{entities_list}
+"""
+
+
+def call_gemini_conversation(system_prompt: str, messages: List[Dict[str, str]]) -> str:
+    """Sends a multi-turn conversation to Gemini and returns the raw text.
+
+    ``messages`` is a list of ``{"role": "user"|"assistant", "text": ...}`` dicts
+    in chronological order. The response is forced to JSON via response_mime_type.
+    """
+    from google import genai
+
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
+
+    contents = []
+    for message in messages:
+        role = "model" if message["role"] == "assistant" else "user"
+        contents.append(
+            genai.types.Content(
+                role=role,
+                parts=[genai.types.Part.from_text(text=message["text"])],
+            )
+        )
+
+    response = client.models.generate_content(
+        model=settings.GEMINI_MODEL,
+        contents=contents,
+        config=genai.types.GenerateContentConfig(
+            temperature=0,
+            system_instruction=system_prompt,
+            response_mime_type="application/json",
+        ),
+    )
+
+    return response.text
