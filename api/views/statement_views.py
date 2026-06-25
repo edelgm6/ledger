@@ -40,6 +40,29 @@ class StatementDetailView(LoginRequiredMixin, View):
         return HttpResponse(html)
 
 
+class StatementEntityDetailView(LoginRequiredMixin, View):
+    """View for entity drill-down in the entity-grouped income statement."""
+
+    login_url = "/login/"
+    redirect_field_name = "next"
+
+    def get(self, request, *args, **kwargs):
+        entity_id = request.GET.get("entity_id") or None
+        account_type = request.GET.get("account_type")
+        from_date = request.GET.get("from_date")
+        to_date = request.GET.get("to_date")
+
+        detail_data = statement_services.get_statement_detail_items_by_entity(
+            entity_id=entity_id,
+            account_type=account_type,
+            from_date=from_date,
+            to_date=to_date,
+        )
+
+        html = statement_helpers.render_statement_detail_table(detail_data)
+        return HttpResponse(html)
+
+
 class StatementView(LoginRequiredMixin, View):
     """Main view for financial statements."""
 
@@ -55,9 +78,16 @@ class StatementView(LoginRequiredMixin, View):
         else:
             from_date, to_date = self._get_default_dates()
 
+        group_by = request.GET.get("group_by", "account")
+
         # 2. Route to statement type handler
         if statement_type == "income":
-            statement_html = self._render_income_statement(from_date, to_date)
+            if group_by == "entity":
+                statement_html = self._render_income_statement_by_entity(
+                    from_date, to_date
+                )
+            else:
+                statement_html = self._render_income_statement(from_date, to_date)
             title = "Income Statement"
         elif statement_type == "balance":
             statement_html = self._render_balance_sheet(to_date)
@@ -71,6 +101,7 @@ class StatementView(LoginRequiredMixin, View):
             statement_type=statement_type,
             from_date=from_date,
             to_date=to_date,
+            group_by=group_by,
         )
 
         # 4. Return combined response
@@ -96,6 +127,19 @@ class StatementView(LoginRequiredMixin, View):
         summary = statement_services.build_statement_summary(income_statement)
 
         return statement_helpers.render_income_statement(
+            summary=summary,
+            tax_rate=income_statement.get_tax_rate(),
+            savings_rate=income_statement.get_savings_rate(),
+            from_date=from_date,
+            to_date=to_date,
+        )
+
+    def _render_income_statement_by_entity(self, from_date, to_date):
+        """Render income statement grouped by entity using services and helpers."""
+        income_statement = IncomeStatement(end_date=to_date, start_date=from_date)
+        summary = statement_services.build_entity_income_summary(income_statement)
+
+        return statement_helpers.render_income_statement_by_entity(
             summary=summary,
             tax_rate=income_statement.get_tax_rate(),
             savings_rate=income_statement.get_savings_rate(),

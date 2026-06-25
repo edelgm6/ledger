@@ -1,0 +1,49 @@
+{% load humanize %}
+
+{% include "api/content/income-kpi-row.html" %}
+
+<div class="grid grid-main-side">
+    <div>
+        <h4>Net Income: ${{ summary.net_income|floatformat:"0"|intcomma }}</h4>
+
+        <div class="grid grid-2">
+            <div>
+                <h4>Income: ${{ summary.income_total|floatformat:"0"|intcomma }}</h4>
+                <table class="table">
+                    <tbody>
+                        {% for balance in summary.income_balances %}
+                        <tr
+                            class="clickable-row"
+                            hx-get="{% url 'statement-entity-detail' %}?entity_id={{ balance.entity_id|default_if_none:'' }}&account_type=income&from_date={{ from_date|date:"Y-m-d" }}&to_date={{ to_date|date:"Y-m-d" }}"
+                            hx-target="#detail"
+                        >
+                            <td class="td-name">{{ balance.name }}</td>
+                            <td class="right">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div>
+                <h4>Expenses: ${{ summary.expense_total|floatformat:"0"|intcomma }}</h4>
+                <table class="table">
+                    <tbody>
+                        {% for balance in summary.expense_balances %}
+                        <tr
+                            class="clickable-row"
+                            hx-get="{% url 'statement-entity-detail' %}?entity_id={{ balance.entity_id|default_if_none:'' }}&account_type=expense&from_date={{ from_date|date:"Y-m-d" }}&to_date={{ to_date|date:"Y-m-d" }}"
+                            hx-target="#detail"
+                        >
+                            <td class="td-name">{{ balance.name }}</td>
+                            <td class="right">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="detail"></div>
+</div>

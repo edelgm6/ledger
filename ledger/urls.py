@@ -47,7 +47,11 @@ from api.views.loan_views import (
     LoanSettingsView,
 )
 from api.views.settings_views import AccountFormView, SettingsView
-from api.views.statement_views import StatementDetailView, StatementView
+from api.views.statement_views import (
+    StatementDetailView,
+    StatementEntityDetailView,
+    StatementView,
+)
 from api.views.tax_views import (
     ApplyTaxRecommendationView,
     TaxChargeFormView,
@@ -76,6 +80,11 @@ urlpatterns = [
     # Statements
     path(
         "statements/<str:statement_type>/", StatementView.as_view(), name="statements"
+    ),
+    path(
+        "statements/detail/entity/",
+        StatementEntityDetailView.as_view(),
+        name="statement-entity-detail",
     ),
     path(
         "statements/detail/<int:account_id>",

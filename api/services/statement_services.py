@@ -14,7 +14,13 @@ from typing import Any, Dict, List, Optional
 from django.db.models import Case, DecimalField, F, Sum, When
 
 from api.models import Account, JournalEntry, JournalEntryItem
-from api.statement import Balance, BalanceSheet, CashFlowStatement, IncomeStatement
+from api.statement import (
+    Balance,
+    BalanceSheet,
+    CashFlowStatement,
+    EntityBalance,
+    IncomeStatement,
+)
 
 
 @dataclass
@@ -40,6 +46,17 @@ class StatementSummary:
     """Hierarchical summary organized by account type/sub_type."""
 
     account_types: Dict[str, AccountTypeSummary]
+
+
+@dataclass
+class EntityIncomeSummary:
+    """Income statement summary organized by entity instead of by account."""
+
+    income_total: Decimal
+    income_balances: List[EntityBalance]
+    expense_total: Decimal
+    expense_balances: List[EntityBalance]
+    net_income: Decimal
 
 
 @dataclass
@@ -149,6 +166,55 @@ def build_statement_summary(statement: Any) -> StatementSummary:
     return StatementSummary(account_types=account_types)
 
 
+def _sort_entity_balances(balances: List[EntityBalance]) -> List[EntityBalance]:
+    """Sort entity balances by name, keeping the Unassigned bucket last."""
+    return sorted(
+        balances,
+        key=lambda balance: (balance.entity_id is None, balance.name.lower()),
+    )
+
+
+def build_entity_income_summary(
+    income_statement: IncomeStatement,
+) -> EntityIncomeSummary:
+    """
+    Build an income statement summary grouped by entity.
+
+    Splits the statement's entity-level balances into income and expense
+    sections (each sorted by name, Unassigned last) and totals them. Net
+    income is income_total - expense_total, which reconciles to the
+    by-account income statement's net income.
+
+    Args:
+        income_statement: IncomeStatement for the period
+
+    Returns:
+        EntityIncomeSummary with per-entity income/expense balances and totals
+    """
+    income_balances: List[EntityBalance] = []
+    expense_balances: List[EntityBalance] = []
+    for balance in income_statement.get_entity_balances():
+        if balance.account_type == Account.Type.INCOME:
+            income_balances.append(balance)
+        else:
+            expense_balances.append(balance)
+
+    income_total = sum(
+        (balance.amount for balance in income_balances), Decimal("0")
+    )
+    expense_total = sum(
+        (balance.amount for balance in expense_balances), Decimal("0")
+    )
+
+    return EntityIncomeSummary(
+        income_total=income_total,
+        income_balances=_sort_entity_balances(income_balances),
+        expense_total=expense_total,
+        expense_balances=_sort_entity_balances(expense_balances),
+        net_income=income_total - expense_total,
+    )
+
+
 def find_unbalanced_journal_entries() -> UnbalancedEntriesResult:
     """
     Find journal entries where total debits don't equal total credits.
@@ -223,7 +289,7 @@ def get_statement_detail_items(
 
     # Apply signing logic
     for entry in journal_entry_items:
-        entry.amount_signed = entry.amount
+        entry.amount_signed = entry.get_signed_amount()
 
         # Prefer the human-readable entity name; fall back to the raw
         # transaction description when the item has no entity.
@@ -232,20 +298,6 @@ def get_statement_detail_items(
             if entry.entity
             else entry.journal_entry.transaction.description
         )
-
-        # INCOME debits are negative (reduces income)
-        if (
-            entry.account.type == Account.Type.INCOME
-            and entry.type == JournalEntryItem.JournalEntryType.DEBIT
-        ):
-            entry.amount_signed *= -1
-
-        # EXPENSE credits are negative (reduces expense)
-        if (
-            entry.account.type == Account.Type.EXPENSE
-            and entry.type == JournalEntryItem.JournalEntryType.CREDIT
-        ):
-            entry.amount_signed *= -1
 
     # Get the account
     account = None
@@ -256,6 +308,56 @@ def get_statement_detail_items(
         journal_entry_items=journal_entry_items,
         account=account,
     )
+
+
+def get_statement_detail_items_by_entity(
+    entity_id: Optional[int],
+    account_type: str,
+    from_date: str,
+    to_date: str,
+) -> StatementDetailData:
+    """
+    Get journal entry items for an entity within a statement section.
+
+    Parallels get_statement_detail_items but pivots on entity + account type
+    (income or expense). entity_id of None selects the Unassigned bucket
+    (items with no entity). Applies the same income-debit / expense-credit
+    sign rules, and labels each row with its account name (the entity is
+    fixed in this view).
+
+    Args:
+        entity_id: The entity ID, or None for the Unassigned bucket
+        account_type: "income" or "expense"
+        from_date: Start date (string, YYYY-MM-DD)
+        to_date: End date (string, YYYY-MM-DD)
+
+    Returns:
+        StatementDetailData with signed journal entry items
+    """
+    queryset = JournalEntryItem.objects.filter(
+        account__type=account_type,
+        journal_entry__date__gte=from_date,
+        journal_entry__date__lte=to_date,
+        amount__gt=0,
+    )
+    if entity_id is None:
+        queryset = queryset.filter(entity__isnull=True)
+    else:
+        queryset = queryset.filter(entity__pk=entity_id)
+
+    journal_entry_items = list(
+        queryset.select_related(
+            "journal_entry__transaction", "account", "entity"
+        ).order_by("journal_entry__date")
+    )
+
+    for entry in journal_entry_items:
+        entry.amount_signed = entry.get_signed_amount()
+
+        # The entity is fixed for this view, so surface the account instead.
+        entry.display_label = entry.account.name
+
+    return StatementDetailData(journal_entry_items=journal_entry_items)
 
 
 def calculate_cash_flow_metrics(from_date: date, to_date: date) -> CashFlowMetrics:
