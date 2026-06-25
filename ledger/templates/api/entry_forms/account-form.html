@@ -51,7 +51,7 @@
         <label class="label">Sub-type</label>
         <select class="select" name="sub_type" x-model="subtype">
           <template x-for="opt in subtypeOptions()" :key="opt.value">
-            <option :value="opt.value" x-text="opt.label"></option>
+            <option :value="opt.value" x-text="opt.label" :selected="opt.value === subtype"></option>
           </template>
         </select>
         {% for e in form.sub_type.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
