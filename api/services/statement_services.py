@@ -9,7 +9,7 @@ go through services with atomic transactions.
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
 from django.db.models import Case, DecimalField, F, Sum, When
 
@@ -49,13 +49,27 @@ class StatementSummary:
 
 
 @dataclass
+class EntitySubTypeSummary:
+    """A statement section (sub_type) broken out by entity."""
+
+    name: str
+    total: Decimal
+    balances: List[EntityBalance]
+
+
+@dataclass
 class EntityIncomeSummary:
-    """Income statement summary organized by entity instead of by account."""
+    """Income statement summary organized by entity instead of by account.
+
+    Income and expense are each split into their sub_type sections (Salary,
+    Operating, Tax, …), and within a section entities are sorted by amount
+    descending so the largest sources/uses surface first.
+    """
 
     income_total: Decimal
-    income_balances: List[EntityBalance]
+    income_sub_types: List[EntitySubTypeSummary]
     expense_total: Decimal
-    expense_balances: List[EntityBalance]
+    expense_sub_types: List[EntitySubTypeSummary]
     net_income: Decimal
 
 
@@ -112,6 +126,27 @@ def filter_closed_accounts(balances: List[Balance]) -> List[Balance]:
     return result
 
 
+def _iter_sub_type_sections(
+    balances: List[Any],
+    account_type: str,
+    sub_type_key: Callable[[Any], str],
+) -> Iterator[Tuple[Any, List[Any]]]:
+    """Yield ``(sub_type, members)`` for each sub_type of ``account_type``.
+
+    Buckets ``balances`` once by sub_type, then walks
+    ``Account.SUBTYPE_TO_TYPE_MAP`` so sections come out in canonical order
+    (sub_types with no members yield an empty list). ``sub_type_key`` extracts
+    a balance's sub_type value, which differs between the by-account
+    (``balance.account.sub_type``) and by-entity (``balance.sub_type``) paths.
+    """
+    buckets: Dict[str, List[Any]] = {}
+    for balance in balances:
+        buckets.setdefault(sub_type_key(balance), []).append(balance)
+
+    for sub_type in Account.SUBTYPE_TO_TYPE_MAP[account_type]:
+        yield sub_type, buckets.get(sub_type.value, [])
+
+
 def build_statement_summary(statement: Any) -> StatementSummary:
     """
     Build a hierarchical summary from a statement's balances.
@@ -131,15 +166,9 @@ def build_statement_summary(statement: Any) -> StatementSummary:
         type_total = Decimal("0")
         sub_type_summaries: List[SubTypeSummary] = []
 
-        for sub_type in Account.SUBTYPE_TO_TYPE_MAP[account_type]:
-            # Filter balances for this sub_type
-            balances = [
-                balance
-                for balance in statement.balances
-                if balance.account.sub_type == sub_type
-            ]
-
-            # Calculate sub_type total
+        for sub_type, balances in _iter_sub_type_sections(
+            statement.balances, account_type, lambda b: b.account.sub_type
+        ):
             sub_type_total = sum(
                 (balance.amount for balance in balances), Decimal("0")
             )
@@ -166,12 +195,30 @@ def build_statement_summary(statement: Any) -> StatementSummary:
     return StatementSummary(account_types=account_types)
 
 
-def _sort_entity_balances(balances: List[EntityBalance]) -> List[EntityBalance]:
-    """Sort entity balances by name, keeping the Unassigned bucket last."""
-    return sorted(
-        balances,
-        key=lambda balance: (balance.entity_id is None, balance.name.lower()),
-    )
+def _build_entity_sub_type_summaries(
+    balances: List[EntityBalance],
+    account_type: str,
+) -> List[EntitySubTypeSummary]:
+    """Group entity balances into the sections of one account type.
+
+    Walks the type's sub_types in their canonical order, skipping sections with
+    no activity. Within each section entities are sorted by amount descending
+    so the biggest sources/uses appear first.
+    """
+    summaries: List[EntitySubTypeSummary] = []
+    for sub_type, members in _iter_sub_type_sections(
+        balances, account_type, lambda b: b.sub_type
+    ):
+        if not members:
+            continue
+        sorted_members = sorted(members, key=lambda b: b.amount, reverse=True)
+        total = sum((balance.amount for balance in sorted_members), Decimal("0"))
+        summaries.append(
+            EntitySubTypeSummary(
+                name=sub_type.label, total=total, balances=sorted_members
+            )
+        )
+    return summaries
 
 
 def build_entity_income_summary(
@@ -181,36 +228,37 @@ def build_entity_income_summary(
     Build an income statement summary grouped by entity.
 
     Splits the statement's entity-level balances into income and expense
-    sections (each sorted by name, Unassigned last) and totals them. Net
-    income is income_total - expense_total, which reconciles to the
-    by-account income statement's net income.
+    sections (Salary, Operating, Tax, …), breaking each section out by entity
+    sorted by amount descending. Net income is income_total - expense_total,
+    which reconciles to the by-account income statement's net income.
 
     Args:
         income_statement: IncomeStatement for the period
 
     Returns:
-        EntityIncomeSummary with per-entity income/expense balances and totals
+        EntityIncomeSummary with per-entity, per-section income/expense totals
     """
-    income_balances: List[EntityBalance] = []
-    expense_balances: List[EntityBalance] = []
-    for balance in income_statement.get_entity_balances():
-        if balance.account_type == Account.Type.INCOME:
-            income_balances.append(balance)
-        else:
-            expense_balances.append(balance)
+    balances = income_statement.get_entity_balances()
+
+    income_sub_types = _build_entity_sub_type_summaries(
+        balances, Account.Type.INCOME
+    )
+    expense_sub_types = _build_entity_sub_type_summaries(
+        balances, Account.Type.EXPENSE
+    )
 
     income_total = sum(
-        (balance.amount for balance in income_balances), Decimal("0")
+        (section.total for section in income_sub_types), Decimal("0")
     )
     expense_total = sum(
-        (balance.amount for balance in expense_balances), Decimal("0")
+        (section.total for section in expense_sub_types), Decimal("0")
     )
 
     return EntityIncomeSummary(
         income_total=income_total,
-        income_balances=_sort_entity_balances(income_balances),
+        income_sub_types=income_sub_types,
         expense_total=expense_total,
-        expense_balances=_sort_entity_balances(expense_balances),
+        expense_sub_types=expense_sub_types,
         net_income=income_total - expense_total,
     )
 
@@ -255,6 +303,29 @@ def find_unbalanced_journal_entries() -> UnbalancedEntriesResult:
     )
 
 
+def _build_detail_items(
+    queryset: Any,
+    label_fn: Callable[[JournalEntryItem], str],
+) -> List[JournalEntryItem]:
+    """Materialize statement detail items with signed amounts and labels.
+
+    Applies the shared select_related/ordering, then sets ``amount_signed``
+    (via the account's debit/credit convention) and ``display_label`` (from
+    ``label_fn``) on each item.
+    """
+    journal_entry_items = list(
+        queryset.select_related(
+            "journal_entry__transaction", "account", "entity"
+        ).order_by("journal_entry__date")
+    )
+
+    for entry in journal_entry_items:
+        entry.amount_signed = entry.get_signed_amount()
+        entry.display_label = label_fn(entry)
+
+    return journal_entry_items
+
+
 def get_statement_detail_items(
     account_id: int,
     from_date: str,
@@ -276,33 +347,23 @@ def get_statement_detail_items(
     Returns:
         StatementDetailData with signed journal entry items
     """
-    journal_entry_items = list(
+    journal_entry_items = _build_detail_items(
         JournalEntryItem.objects.filter(
             account__pk=account_id,
             journal_entry__date__gte=from_date,
             journal_entry__date__lte=to_date,
             amount__gt=0,
-        )
-        .select_related("journal_entry__transaction", "account", "entity")
-        .order_by("journal_entry__date")
-    )
-
-    # Apply signing logic
-    for entry in journal_entry_items:
-        entry.amount_signed = entry.get_signed_amount()
-
+        ),
         # Prefer the human-readable entity name; fall back to the raw
         # transaction description when the item has no entity.
-        entry.display_label = (
+        label_fn=lambda entry: (
             entry.entity.name
             if entry.entity
             else entry.journal_entry.transaction.description
-        )
+        ),
+    )
 
-    # Get the account
-    account = None
-    if journal_entry_items:
-        account = journal_entry_items[0].account
+    account = journal_entry_items[0].account if journal_entry_items else None
 
     return StatementDetailData(
         journal_entry_items=journal_entry_items,
@@ -312,22 +373,22 @@ def get_statement_detail_items(
 
 def get_statement_detail_items_by_entity(
     entity_id: Optional[int],
-    account_type: str,
+    sub_type: str,
     from_date: str,
     to_date: str,
 ) -> StatementDetailData:
     """
     Get journal entry items for an entity within a statement section.
 
-    Parallels get_statement_detail_items but pivots on entity + account type
-    (income or expense). entity_id of None selects the Unassigned bucket
-    (items with no entity). Applies the same income-debit / expense-credit
-    sign rules, and labels each row with its account name (the entity is
-    fixed in this view).
+    Parallels get_statement_detail_items but pivots on entity + account
+    sub_type (Salary, Operating, Tax, …). entity_id of None selects the
+    Unassigned bucket (items with no entity). Applies the same income-debit /
+    expense-credit sign rules, and labels each row with its account name (the
+    entity is fixed in this view).
 
     Args:
         entity_id: The entity ID, or None for the Unassigned bucket
-        account_type: "income" or "expense"
+        sub_type: The account sub_type identifying the section
         from_date: Start date (string, YYYY-MM-DD)
         to_date: End date (string, YYYY-MM-DD)
 
@@ -335,7 +396,7 @@ def get_statement_detail_items_by_entity(
         StatementDetailData with signed journal entry items
     """
     queryset = JournalEntryItem.objects.filter(
-        account__type=account_type,
+        account__sub_type=sub_type,
         journal_entry__date__gte=from_date,
         journal_entry__date__lte=to_date,
         amount__gt=0,
@@ -345,17 +406,11 @@ def get_statement_detail_items_by_entity(
     else:
         queryset = queryset.filter(entity__pk=entity_id)
 
-    journal_entry_items = list(
-        queryset.select_related(
-            "journal_entry__transaction", "account", "entity"
-        ).order_by("journal_entry__date")
-    )
-
-    for entry in journal_entry_items:
-        entry.amount_signed = entry.get_signed_amount()
-
+    journal_entry_items = _build_detail_items(
+        queryset,
         # The entity is fixed for this view, so surface the account instead.
-        entry.display_label = entry.account.name
+        label_fn=lambda entry: entry.account.name,
+    )
 
     return StatementDetailData(journal_entry_items=journal_entry_items)
 

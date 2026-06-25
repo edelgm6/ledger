@@ -543,9 +543,13 @@ class BuildEntityIncomeSummaryTest(TestCase):
         return statement, build_entity_income_summary(statement)
 
     def test_groups_income_and_expense_by_entity(self):
-        """Income/expense activity should be totaled per entity."""
-        income_account = AccountFactory(type=Account.Type.INCOME)
-        expense_account = AccountFactory(type=Account.Type.EXPENSE)
+        """Income/expense activity should be totaled per entity within sections."""
+        income_account = AccountFactory(
+            type=Account.Type.INCOME, sub_type=Account.SubType.SALARY
+        )
+        expense_account = AccountFactory(
+            type=Account.Type.EXPENSE, sub_type=Account.SubType.OPERATING
+        )
         entity_a = EntityFactory(name="Acme")
         entity_b = EntityFactory(name="Beta")
 
@@ -571,37 +575,75 @@ class BuildEntityIncomeSummaryTest(TestCase):
         self.assertEqual(summary.expense_total, Decimal("1000"))
         self.assertEqual(summary.net_income, Decimal("7000"))
 
-        income_by_name = {b.name: b.amount for b in summary.income_balances}
+        salary = summary.income_sub_types[0]
+        self.assertEqual(salary.name, Account.SubType.SALARY.label)
+        self.assertEqual(salary.total, Decimal("8000"))
+        income_by_name = {b.name: b.amount for b in salary.balances}
         self.assertEqual(income_by_name, {"Acme": Decimal("5000"), "Beta": Decimal("3000")})
-        expense_by_name = {b.name: b.amount for b in summary.expense_balances}
+
+        operating = summary.expense_sub_types[0]
+        self.assertEqual(operating.name, Account.SubType.OPERATING.label)
+        expense_by_name = {b.name: b.amount for b in operating.balances}
         self.assertEqual(expense_by_name, {"Acme": Decimal("1000")})
 
-    def test_buckets_items_without_entity_as_unassigned_last(self):
-        """Items with no entity bucket into 'Unassigned', sorted last."""
-        income_account = AccountFactory(type=Account.Type.INCOME)
+    def test_sections_split_by_sub_type_in_canonical_order(self):
+        """Each sub_type becomes its own section, ordered per the type map."""
+        salary_account = AccountFactory(
+            type=Account.Type.INCOME, sub_type=Account.SubType.SALARY
+        )
+        dividends_account = AccountFactory(
+            type=Account.Type.INCOME, sub_type=Account.SubType.DIVIDENDS_AND_INTEREST
+        )
         entity_a = EntityFactory(name="Acme")
 
         self._make_item(
-            income_account, None, Decimal("400"),
+            dividends_account, entity_a, Decimal("200"),
             JournalEntryItem.JournalEntryType.CREDIT,
         )
         self._make_item(
-            income_account, entity_a, Decimal("600"),
+            salary_account, entity_a, Decimal("900"),
             JournalEntryItem.JournalEntryType.CREDIT,
         )
 
         _, summary = self._summary()
 
-        names = [b.name for b in summary.income_balances]
-        self.assertEqual(names, ["Acme", "Unassigned"])
-        unassigned = summary.income_balances[-1]
-        self.assertIsNone(unassigned.entity_id)
-        self.assertEqual(unassigned.amount, Decimal("400"))
+        section_names = [s.name for s in summary.income_sub_types]
+        self.assertEqual(
+            section_names,
+            [Account.SubType.SALARY.label, Account.SubType.DIVIDENDS_AND_INTEREST.label],
+        )
+
+    def test_sorts_entities_within_section_by_amount_descending(self):
+        """Entities (including Unassigned) sort by amount descending."""
+        income_account = AccountFactory(
+            type=Account.Type.INCOME, sub_type=Account.SubType.SALARY
+        )
+        entity_a = EntityFactory(name="Acme")
+
+        self._make_item(
+            income_account, entity_a, Decimal("400"),
+            JournalEntryItem.JournalEntryType.CREDIT,
+        )
+        self._make_item(
+            income_account, None, Decimal("600"),
+            JournalEntryItem.JournalEntryType.CREDIT,
+        )
+
+        _, summary = self._summary()
+
+        balances = summary.income_sub_types[0].balances
+        self.assertEqual([b.name for b in balances], ["Unassigned", "Acme"])
+        self.assertEqual([b.amount for b in balances], [Decimal("600"), Decimal("400")])
+        self.assertIsNone(balances[0].entity_id)
 
     def test_net_income_reconciles_to_account_view(self):
         """Entity net income should match the by-account income statement."""
-        income_account = AccountFactory(type=Account.Type.INCOME)
-        expense_account = AccountFactory(type=Account.Type.EXPENSE)
+        income_account = AccountFactory(
+            type=Account.Type.INCOME, sub_type=Account.SubType.SALARY
+        )
+        expense_account = AccountFactory(
+            type=Account.Type.EXPENSE, sub_type=Account.SubType.OPERATING
+        )
         entity_a = EntityFactory(name="Acme")
 
         self._make_item(
@@ -621,33 +663,37 @@ class BuildEntityIncomeSummaryTest(TestCase):
 class GetStatementDetailItemsByEntityTest(TestCase):
     """Tests for get_statement_detail_items_by_entity()."""
 
-    def test_filters_by_entity_and_account_type(self):
-        """Should return only items for the entity within the account type."""
-        income_account = AccountFactory(type=Account.Type.INCOME)
-        expense_account = AccountFactory(type=Account.Type.EXPENSE)
+    def test_filters_by_entity_and_sub_type(self):
+        """Should return only items for the entity within the section."""
+        salary_account = AccountFactory(
+            type=Account.Type.INCOME, sub_type=Account.SubType.SALARY
+        )
+        dividends_account = AccountFactory(
+            type=Account.Type.INCOME, sub_type=Account.SubType.DIVIDENDS_AND_INTEREST
+        )
         entity_a = EntityFactory(name="Acme")
         entity_b = EntityFactory(name="Beta")
         entry = JournalEntryFactory(date=date(2024, 6, 15))
 
-        # Match: entity A on income
+        # Match: entity A in the salary section
         JournalEntryItemFactory(
-            journal_entry=entry, account=income_account, entity=entity_a,
+            journal_entry=entry, account=salary_account, entity=entity_a,
             amount=Decimal("5000"), type=JournalEntryItem.JournalEntryType.CREDIT,
         )
         # Wrong entity
         JournalEntryItemFactory(
-            journal_entry=entry, account=income_account, entity=entity_b,
+            journal_entry=entry, account=salary_account, entity=entity_b,
             amount=Decimal("3000"), type=JournalEntryItem.JournalEntryType.CREDIT,
         )
-        # Wrong account type
+        # Wrong sub_type
         JournalEntryItemFactory(
-            journal_entry=entry, account=expense_account, entity=entity_a,
-            amount=Decimal("100"), type=JournalEntryItem.JournalEntryType.DEBIT,
+            journal_entry=entry, account=dividends_account, entity=entity_a,
+            amount=Decimal("100"), type=JournalEntryItem.JournalEntryType.CREDIT,
         )
 
         result = get_statement_detail_items_by_entity(
             entity_id=entity_a.pk,
-            account_type="income",
+            sub_type=Account.SubType.SALARY,
             from_date="2024-01-01",
             to_date="2024-12-31",
         )
@@ -656,11 +702,13 @@ class GetStatementDetailItemsByEntityTest(TestCase):
         item = result.journal_entry_items[0]
         self.assertEqual(item.entity.pk, entity_a.pk)
         self.assertEqual(item.amount_signed, Decimal("5000"))
-        self.assertEqual(item.display_label, income_account.name)
+        self.assertEqual(item.display_label, salary_account.name)
 
     def test_signs_income_debits_negative(self):
         """INCOME debits should reduce income (negative signed amount)."""
-        income_account = AccountFactory(type=Account.Type.INCOME)
+        income_account = AccountFactory(
+            type=Account.Type.INCOME, sub_type=Account.SubType.SALARY
+        )
         entity_a = EntityFactory(name="Acme")
         entry = JournalEntryFactory(date=date(2024, 6, 15))
         JournalEntryItemFactory(
@@ -670,7 +718,7 @@ class GetStatementDetailItemsByEntityTest(TestCase):
 
         result = get_statement_detail_items_by_entity(
             entity_id=entity_a.pk,
-            account_type="income",
+            sub_type=Account.SubType.SALARY,
             from_date="2024-01-01",
             to_date="2024-12-31",
         )
@@ -679,7 +727,9 @@ class GetStatementDetailItemsByEntityTest(TestCase):
 
     def test_unassigned_bucket_selects_null_entity(self):
         """entity_id of None should return items with no entity."""
-        income_account = AccountFactory(type=Account.Type.INCOME)
+        income_account = AccountFactory(
+            type=Account.Type.INCOME, sub_type=Account.SubType.SALARY
+        )
         entity_a = EntityFactory(name="Acme")
         entry = JournalEntryFactory(date=date(2024, 6, 15))
         JournalEntryItemFactory(
@@ -693,7 +743,7 @@ class GetStatementDetailItemsByEntityTest(TestCase):
 
         result = get_statement_detail_items_by_entity(
             entity_id=None,
-            account_type="income",
+            sub_type=Account.SubType.SALARY,
             from_date="2024-01-01",
             to_date="2024-12-31",
         )
@@ -703,7 +753,9 @@ class GetStatementDetailItemsByEntityTest(TestCase):
 
     def test_filters_by_date_range(self):
         """Should exclude items outside the date range."""
-        income_account = AccountFactory(type=Account.Type.INCOME)
+        income_account = AccountFactory(
+            type=Account.Type.INCOME, sub_type=Account.SubType.SALARY
+        )
         entity_a = EntityFactory(name="Acme")
 
         in_range = JournalEntryFactory(date=date(2024, 6, 15))
@@ -719,7 +771,7 @@ class GetStatementDetailItemsByEntityTest(TestCase):
 
         result = get_statement_detail_items_by_entity(
             entity_id=entity_a.pk,
-            account_type="income",
+            sub_type=Account.SubType.SALARY,
             from_date="2024-01-01",
             to_date="2024-12-31",
         )
