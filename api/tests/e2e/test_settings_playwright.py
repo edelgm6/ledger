@@ -81,6 +81,9 @@ class SettingsSmokeTest(LiveServerTestCase):
         selected_name = self.page.inner_text("tr.row.selected .td-name")
         self.assertEqual(selected_name, "Federal Taxes")
 
+        # Sub-type preselects the saved value, not the first option for the type
+        self.assertEqual(self.page.input_value("select[name='sub_type']"), "tax")
+
         # Type -> Sub-type dependency: switch Type to Income, sub-type options change
         self.page.select_option("select[name='type']", "income")
         self.page.wait_for_timeout(100)
