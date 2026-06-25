@@ -469,27 +469,6 @@ class BaseFilterForm(forms.Form):
     )
 
 
-class SearchFilterForm(BaseFilterForm):
-    description = forms.CharField(required=False)
-
-
-class BulkAccountChangeForm(forms.Form):
-    from_account = forms.ModelChoiceField(
-        queryset=Account.objects.all(), required=True
-    )
-    to_account = forms.ModelChoiceField(
-        queryset=Account.objects.all(), required=True
-    )
-
-    def clean(self):
-        cleaned_data = super().clean()
-        from_account = cleaned_data.get("from_account")
-        to_account = cleaned_data.get("to_account")
-        if from_account and to_account and from_account == to_account:
-            raise forms.ValidationError("FROM and TO accounts must be different.")
-        return cleaned_data
-
-
 class TransactionFilterForm(BaseFilterForm):
     is_closed = forms.ChoiceField(required=False, choices=IS_CLOSED_CHOICES)
     LINKED_TRANSACTION_CHOICES = (

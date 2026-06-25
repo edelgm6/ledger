@@ -35,7 +35,6 @@ from api.views.recharacterize_views import (
     RecharacterizeRetryView,
     RecharacterizeView,
 )
-from api.views.search_views import SearchBulkUpdateView, SearchContentView, SearchView
 from api.views.bill_settings_views import (
     BillRuleFormView,
     BillRulesView,
@@ -176,10 +175,6 @@ urlpatterns = [
         AmortizeFormView.as_view(),
         name="amortize-form",
     ),
-    # Search & Bulk Update
-    path("search/", SearchView.as_view(), name="search"),
-    path("search/content/", SearchContentView.as_view(), name="search-content"),
-    path("search/bulk-update/", SearchBulkUpdateView.as_view(), name="search-bulk-update"),
     # Recharacterize (agentic bulk edit)
     path("recharacterize/", RecharacterizeView.as_view(), name="recharacterize"),
     path(
