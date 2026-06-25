@@ -862,6 +862,19 @@ class JournalEntryItem(models.Model):
         self.entity = None
         self.save()
 
+    def get_signed_amount(self):
+        """This item's signed contribution to its account's balance.
+
+        Positive when the item increases the account's natural balance,
+        negative when it decreases it — the same debit/credit convention used
+        for aggregate balances in Account.get_balance_from_debit_and_credit.
+        """
+        debit = self.amount if self.type == self.JournalEntryType.DEBIT else 0
+        credit = self.amount if self.type == self.JournalEntryType.CREDIT else 0
+        return Account.get_balance_from_debit_and_credit(
+            self.account.type, debits=debit, credits=credit
+        )
+
 
 class AutoTag(models.Model):
     search_string = models.CharField(max_length=20)

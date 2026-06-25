@@ -17,6 +17,7 @@ from api.forms import FromToDateForm
 from api.models import JournalEntry
 from api.services.statement_services import (
     CashFlowMetrics,
+    EntityIncomeSummary,
     StatementDetailData,
     StatementSummary,
 )
@@ -41,6 +42,7 @@ def render_statement_filter_form(
     statement_type: str,
     from_date: Optional[date],
     to_date: date,
+    group_by: str = "account",
 ) -> str:
     """
     Render the date filter form for statements.
@@ -49,6 +51,8 @@ def render_statement_filter_form(
         statement_type: Type of statement ("income", "balance", "cash")
         from_date: Start date (None for balance sheet)
         to_date: End date
+        group_by: Income statement grouping ("account" or "entity"); the
+            toggle and Filter button preserve this across submissions
 
     Returns:
         HTML string for the filter form
@@ -62,6 +66,7 @@ def render_statement_filter_form(
         "filter_form": FromToDateForm(initial=initial_data),
         "get_url": reverse("statements", args=(statement_type,)),
         "statement_type": statement_type,
+        "group_by": group_by,
     }
 
     return render_to_string("api/filter_forms/from-to-date-form.html", context)
@@ -99,6 +104,37 @@ def render_income_statement(
     }
 
     return render_to_string("api/content/income-content.html", context)
+
+
+def render_income_statement_by_entity(
+    summary: EntityIncomeSummary,
+    tax_rate: Optional[float],
+    savings_rate: Optional[float],
+    from_date: date,
+    to_date: date,
+) -> str:
+    """
+    Render the income statement grouped by entity.
+
+    Args:
+        summary: EntityIncomeSummary with per-entity income/expense balances
+        tax_rate: Effective tax rate (or None)
+        savings_rate: Savings rate (or None)
+        from_date: Start date
+        to_date: End date
+
+    Returns:
+        HTML string for the entity-grouped income statement
+    """
+    context = {
+        "summary": summary,
+        "tax_rate": tax_rate if tax_rate is not None else 0,
+        "savings_rate": savings_rate if savings_rate is not None else 0,
+        "from_date": from_date,
+        "to_date": to_date,
+    }
+
+    return render_to_string("api/content/income-by-entity-content.html", context)
 
 
 def render_balance_sheet(

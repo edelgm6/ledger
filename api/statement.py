@@ -60,6 +60,31 @@ class Balance:
         self.type = type
 
 
+EntityBalance = namedtuple(
+    "EntityBalance", ["entity_id", "name", "amount", "account_type"]
+)
+
+
+def _debit_credit_total_annotations():
+    """Aggregation kwargs summing a queryset's amounts into debit/credit totals."""
+    return {
+        "debit_total": Sum(
+            Case(
+                When(type="debit", then="amount"),
+                output_field=DecimalField(),
+                default=Value(0),
+            )
+        ),
+        "credit_total": Sum(
+            Case(
+                When(type="credit", then="amount"),
+                output_field=DecimalField(),
+                default=Value(0),
+            )
+        ),
+    }
+
+
 class Metric:
     def __init__(self, name, value, metric_type="total"):
         self.name = name
@@ -106,20 +131,7 @@ class Statement:
 
         aggregates = list(
             aggregates.values("account__name").annotate(
-                debit_total=Sum(
-                    Case(
-                        When(type="debit", then="amount"),
-                        output_field=DecimalField(),
-                        default=Value(0),
-                    )
-                ),
-                credit_total=Sum(
-                    Case(
-                        When(type="credit", then="amount"),
-                        output_field=DecimalField(),
-                        default=Value(0),
-                    )
-                ),
+                **_debit_credit_total_annotations()
             )
         )
 
@@ -461,6 +473,45 @@ class IncomeStatement(Statement):
             )
         )
         self.summaries = self.get_summaries()
+
+    def get_entity_balances(self):
+        """Aggregate income/expense activity by entity instead of by account.
+
+        Mirrors the DB-aggregation style of ``Statement.get_balances`` but
+        groups on the journal entry item's ``entity`` (and account type so the
+        correct debit/credit signing is applied). Items with no entity are
+        bucketed under "Unassigned". Returns a flat list of ``EntityBalance``
+        records carrying the account type, so callers can split income from
+        expense and have the per-section totals reconcile to the by-account
+        Income/Expense totals.
+        """
+        ACCOUNT_TYPES = ["income", "expense"]
+        aggregates = JournalEntryItem.objects.filter(
+            account__type__in=ACCOUNT_TYPES,
+            journal_entry__date__gte=self.start_date,
+            journal_entry__date__lte=self.end_date,
+        ).values("entity", "entity__name", "account__type").annotate(
+            **_debit_credit_total_annotations()
+        )
+
+        entity_balances = []
+        for aggregate in aggregates:
+            account_type = aggregate["account__type"]
+            amount = Account.get_balance_from_debit_and_credit(
+                account_type,
+                debits=aggregate["debit_total"],
+                credits=aggregate["credit_total"],
+            )
+            entity_balances.append(
+                EntityBalance(
+                    entity_id=aggregate["entity"],
+                    name=aggregate["entity__name"] or "Unassigned",
+                    amount=amount,
+                    account_type=account_type,
+                )
+            )
+
+        return entity_balances
 
     def get_net_income(self):
         net_income = 0
