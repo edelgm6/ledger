@@ -3,6 +3,8 @@
     method="get"
     hx-get="{{ get_url }}"
     hx-target="#container"
+    hx-select="#container"
+    hx-swap="outerHTML show:window:top"
     hx-trigger="submit"
 >
     <div class="filter-bar">
@@ -24,7 +26,14 @@
         </div>
 
         <div class="fw-auto">
-            <button type="submit" class="btn btn-primary">Filter</button>
+            <button type="submit" class="btn btn-primary" name="group_by" value="{{ group_by }}">Filter</button>
         </div>
+
+        {% if statement_type == 'income' %}
+        <div class="fw-auto">
+            <button type="submit" name="group_by" value="account" class="btn {% if group_by == 'entity' %}btn-secondary{% else %}btn-primary{% endif %}">By Account</button>
+            <button type="submit" name="group_by" value="entity" class="btn {% if group_by == 'entity' %}btn-primary{% else %}btn-secondary{% endif %}">By Entity</button>
+        </div>
+        {% endif %}
     </div>
 </form>

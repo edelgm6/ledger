@@ -11,16 +11,19 @@ from django.test import TestCase
 from api.models import Account, JournalEntryItem
 from api.services.statement_services import (
     CashFlowMetrics,
+    EntityIncomeSummary,
     StatementDetailData,
     StatementSummary,
     UnbalancedEntriesResult,
+    build_entity_income_summary,
     build_statement_summary,
     calculate_cash_flow_metrics,
     filter_closed_accounts,
     find_unbalanced_journal_entries,
     get_statement_detail_items,
+    get_statement_detail_items_by_entity,
 )
-from api.statement import Balance
+from api.statement import Balance, IncomeStatement
 from api.tests.testing_factories import (
     AccountFactory,
     EntityFactory,
@@ -520,3 +523,206 @@ class CalculateCashFlowMetricsTest(TestCase):
 
         # Just verify we get a valid result
         self.assertIsInstance(result, CashFlowMetrics)
+
+
+class BuildEntityIncomeSummaryTest(TestCase):
+    """Tests for build_entity_income_summary()."""
+
+    def _make_item(self, account, entity, amount, entry_type):
+        entry = JournalEntryFactory(date=date(2024, 6, 15))
+        JournalEntryItemFactory(
+            journal_entry=entry,
+            account=account,
+            entity=entity,
+            amount=amount,
+            type=entry_type,
+        )
+
+    def _summary(self):
+        statement = IncomeStatement(end_date="2024-12-31", start_date="2024-01-01")
+        return statement, build_entity_income_summary(statement)
+
+    def test_groups_income_and_expense_by_entity(self):
+        """Income/expense activity should be totaled per entity."""
+        income_account = AccountFactory(type=Account.Type.INCOME)
+        expense_account = AccountFactory(type=Account.Type.EXPENSE)
+        entity_a = EntityFactory(name="Acme")
+        entity_b = EntityFactory(name="Beta")
+
+        # Income (credits increase income)
+        self._make_item(
+            income_account, entity_a, Decimal("5000"),
+            JournalEntryItem.JournalEntryType.CREDIT,
+        )
+        self._make_item(
+            income_account, entity_b, Decimal("3000"),
+            JournalEntryItem.JournalEntryType.CREDIT,
+        )
+        # Expense (debits increase expense)
+        self._make_item(
+            expense_account, entity_a, Decimal("1000"),
+            JournalEntryItem.JournalEntryType.DEBIT,
+        )
+
+        _, summary = self._summary()
+
+        self.assertIsInstance(summary, EntityIncomeSummary)
+        self.assertEqual(summary.income_total, Decimal("8000"))
+        self.assertEqual(summary.expense_total, Decimal("1000"))
+        self.assertEqual(summary.net_income, Decimal("7000"))
+
+        income_by_name = {b.name: b.amount for b in summary.income_balances}
+        self.assertEqual(income_by_name, {"Acme": Decimal("5000"), "Beta": Decimal("3000")})
+        expense_by_name = {b.name: b.amount for b in summary.expense_balances}
+        self.assertEqual(expense_by_name, {"Acme": Decimal("1000")})
+
+    def test_buckets_items_without_entity_as_unassigned_last(self):
+        """Items with no entity bucket into 'Unassigned', sorted last."""
+        income_account = AccountFactory(type=Account.Type.INCOME)
+        entity_a = EntityFactory(name="Acme")
+
+        self._make_item(
+            income_account, None, Decimal("400"),
+            JournalEntryItem.JournalEntryType.CREDIT,
+        )
+        self._make_item(
+            income_account, entity_a, Decimal("600"),
+            JournalEntryItem.JournalEntryType.CREDIT,
+        )
+
+        _, summary = self._summary()
+
+        names = [b.name for b in summary.income_balances]
+        self.assertEqual(names, ["Acme", "Unassigned"])
+        unassigned = summary.income_balances[-1]
+        self.assertIsNone(unassigned.entity_id)
+        self.assertEqual(unassigned.amount, Decimal("400"))
+
+    def test_net_income_reconciles_to_account_view(self):
+        """Entity net income should match the by-account income statement."""
+        income_account = AccountFactory(type=Account.Type.INCOME)
+        expense_account = AccountFactory(type=Account.Type.EXPENSE)
+        entity_a = EntityFactory(name="Acme")
+
+        self._make_item(
+            income_account, entity_a, Decimal("5000"),
+            JournalEntryItem.JournalEntryType.CREDIT,
+        )
+        self._make_item(
+            expense_account, None, Decimal("1200"),
+            JournalEntryItem.JournalEntryType.DEBIT,
+        )
+
+        statement, summary = self._summary()
+
+        self.assertEqual(summary.net_income, statement.net_income)
+
+
+class GetStatementDetailItemsByEntityTest(TestCase):
+    """Tests for get_statement_detail_items_by_entity()."""
+
+    def test_filters_by_entity_and_account_type(self):
+        """Should return only items for the entity within the account type."""
+        income_account = AccountFactory(type=Account.Type.INCOME)
+        expense_account = AccountFactory(type=Account.Type.EXPENSE)
+        entity_a = EntityFactory(name="Acme")
+        entity_b = EntityFactory(name="Beta")
+        entry = JournalEntryFactory(date=date(2024, 6, 15))
+
+        # Match: entity A on income
+        JournalEntryItemFactory(
+            journal_entry=entry, account=income_account, entity=entity_a,
+            amount=Decimal("5000"), type=JournalEntryItem.JournalEntryType.CREDIT,
+        )
+        # Wrong entity
+        JournalEntryItemFactory(
+            journal_entry=entry, account=income_account, entity=entity_b,
+            amount=Decimal("3000"), type=JournalEntryItem.JournalEntryType.CREDIT,
+        )
+        # Wrong account type
+        JournalEntryItemFactory(
+            journal_entry=entry, account=expense_account, entity=entity_a,
+            amount=Decimal("100"), type=JournalEntryItem.JournalEntryType.DEBIT,
+        )
+
+        result = get_statement_detail_items_by_entity(
+            entity_id=entity_a.pk,
+            account_type="income",
+            from_date="2024-01-01",
+            to_date="2024-12-31",
+        )
+
+        self.assertEqual(len(result.journal_entry_items), 1)
+        item = result.journal_entry_items[0]
+        self.assertEqual(item.entity.pk, entity_a.pk)
+        self.assertEqual(item.amount_signed, Decimal("5000"))
+        self.assertEqual(item.display_label, income_account.name)
+
+    def test_signs_income_debits_negative(self):
+        """INCOME debits should reduce income (negative signed amount)."""
+        income_account = AccountFactory(type=Account.Type.INCOME)
+        entity_a = EntityFactory(name="Acme")
+        entry = JournalEntryFactory(date=date(2024, 6, 15))
+        JournalEntryItemFactory(
+            journal_entry=entry, account=income_account, entity=entity_a,
+            amount=Decimal("200"), type=JournalEntryItem.JournalEntryType.DEBIT,
+        )
+
+        result = get_statement_detail_items_by_entity(
+            entity_id=entity_a.pk,
+            account_type="income",
+            from_date="2024-01-01",
+            to_date="2024-12-31",
+        )
+
+        self.assertEqual(result.journal_entry_items[0].amount_signed, Decimal("-200"))
+
+    def test_unassigned_bucket_selects_null_entity(self):
+        """entity_id of None should return items with no entity."""
+        income_account = AccountFactory(type=Account.Type.INCOME)
+        entity_a = EntityFactory(name="Acme")
+        entry = JournalEntryFactory(date=date(2024, 6, 15))
+        JournalEntryItemFactory(
+            journal_entry=entry, account=income_account, entity=None,
+            amount=Decimal("400"), type=JournalEntryItem.JournalEntryType.CREDIT,
+        )
+        JournalEntryItemFactory(
+            journal_entry=entry, account=income_account, entity=entity_a,
+            amount=Decimal("600"), type=JournalEntryItem.JournalEntryType.CREDIT,
+        )
+
+        result = get_statement_detail_items_by_entity(
+            entity_id=None,
+            account_type="income",
+            from_date="2024-01-01",
+            to_date="2024-12-31",
+        )
+
+        self.assertEqual(len(result.journal_entry_items), 1)
+        self.assertEqual(result.journal_entry_items[0].amount_signed, Decimal("400"))
+
+    def test_filters_by_date_range(self):
+        """Should exclude items outside the date range."""
+        income_account = AccountFactory(type=Account.Type.INCOME)
+        entity_a = EntityFactory(name="Acme")
+
+        in_range = JournalEntryFactory(date=date(2024, 6, 15))
+        JournalEntryItemFactory(
+            journal_entry=in_range, account=income_account, entity=entity_a,
+            amount=Decimal("5000"), type=JournalEntryItem.JournalEntryType.CREDIT,
+        )
+        out_of_range = JournalEntryFactory(date=date(2023, 6, 15))
+        JournalEntryItemFactory(
+            journal_entry=out_of_range, account=income_account, entity=entity_a,
+            amount=Decimal("9999"), type=JournalEntryItem.JournalEntryType.CREDIT,
+        )
+
+        result = get_statement_detail_items_by_entity(
+            entity_id=entity_a.pk,
+            account_type="income",
+            from_date="2024-01-01",
+            to_date="2024-12-31",
+        )
+
+        self.assertEqual(len(result.journal_entry_items), 1)
+        self.assertEqual(result.journal_entry_items[0].amount, Decimal("5000"))
