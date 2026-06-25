@@ -1,0 +1,21 @@
+{% load humanize %}
+{% for section in sections %}
+<table class="table mb-3">
+    <tbody>
+        <tr>
+            <td class="td-strong">{{ section.name }}</td>
+            <td class="right td-strong">${{ section.total|floatformat:"0"|intcomma }}</td>
+        </tr>
+        {% for balance in section.balances %}
+        <tr
+            class="clickable-row"
+            hx-get="{% url 'statement-entity-detail' %}?entity_id={{ balance.entity_id|default_if_none:'' }}&sub_type={{ balance.sub_type }}&from_date={{ from_date|date:"Y-m-d" }}&to_date={{ to_date|date:"Y-m-d" }}"
+            hx-target="#detail"
+        >
+            <td class="td-name">{{ balance.name }}</td>
+            <td class="right">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endfor %}

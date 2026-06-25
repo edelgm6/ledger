@@ -48,13 +48,13 @@ class StatementEntityDetailView(LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
         entity_id = request.GET.get("entity_id") or None
-        account_type = request.GET.get("account_type")
+        sub_type = request.GET.get("sub_type")
         from_date = request.GET.get("from_date")
         to_date = request.GET.get("to_date")
 
         detail_data = statement_services.get_statement_detail_items_by_entity(
             entity_id=entity_id,
-            account_type=account_type,
+            sub_type=sub_type,
             from_date=from_date,
             to_date=to_date,
         )
