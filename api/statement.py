@@ -61,7 +61,7 @@ class Balance:
 
 
 EntityBalance = namedtuple(
-    "EntityBalance", ["entity_id", "name", "amount", "account_type"]
+    "EntityBalance", ["entity_id", "name", "amount", "sub_type"]
 )
 
 
@@ -478,19 +478,21 @@ class IncomeStatement(Statement):
         """Aggregate income/expense activity by entity instead of by account.
 
         Mirrors the DB-aggregation style of ``Statement.get_balances`` but
-        groups on the journal entry item's ``entity`` (and account type so the
-        correct debit/credit signing is applied). Items with no entity are
-        bucketed under "Unassigned". Returns a flat list of ``EntityBalance``
-        records carrying the account type, so callers can split income from
-        expense and have the per-section totals reconcile to the by-account
-        Income/Expense totals.
+        groups on the journal entry item's ``entity`` and account sub_type so
+        callers can break each section (Salary, Operating, Tax, …) out by
+        entity with the correct debit/credit signing applied. Items with no
+        entity are bucketed under "Unassigned". Returns a flat list of
+        ``EntityBalance`` records carrying the sub_type, so the per-section
+        totals reconcile to the by-account Income/Expense totals.
         """
         ACCOUNT_TYPES = ["income", "expense"]
         aggregates = JournalEntryItem.objects.filter(
             account__type__in=ACCOUNT_TYPES,
             journal_entry__date__gte=self.start_date,
             journal_entry__date__lte=self.end_date,
-        ).values("entity", "entity__name", "account__type").annotate(
+        ).values(
+            "entity", "entity__name", "account__type", "account__sub_type"
+        ).annotate(
             **_debit_credit_total_annotations()
         )
 
@@ -507,7 +509,7 @@ class IncomeStatement(Statement):
                     entity_id=aggregate["entity"],
                     name=aggregate["entity__name"] or "Unassigned",
                     amount=amount,
-                    account_type=account_type,
+                    sub_type=aggregate["account__sub_type"],
                 )
             )
 
