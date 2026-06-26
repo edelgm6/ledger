@@ -331,6 +331,7 @@ h4, h5 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--space-2); 
 .table-scroll { max-height: 340px; overflow: auto; }
 .table-scroll-sm { max-height: 200px; }
 .table-scroll-lg { max-height: 480px; }
+.table-x-scroll { overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; }
 .table th {
   padding: var(--space-2) var(--space-3);
