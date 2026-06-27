@@ -6,15 +6,24 @@ and tagging/untagging operations.
 """
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from django.db import transaction as db_transaction
-from django.db.models import Case, DecimalField, F, Max, Sum, Value, When
+from django.db.models import Case, Count, DecimalField, F, Max, Q, Sum, Value, When
 from django.db.models.functions import Abs
 
 from api.models import Account, Entity, JournalEntryItem
+from api.services import crud
+
+
+@dataclass
+class EntityResult:
+    """Result of an entity create/update/delete operation."""
+    success: bool
+    entity: Optional[Entity] = None
+    error: Optional[str] = None
 
 
 @dataclass
@@ -327,3 +336,69 @@ def tag_journal_entry_item(journal_entry_item_id: int, entity_id: int) -> None:
     entity = Entity.objects.get(pk=entity_id)
     journal_entry_item.entity = entity
     journal_entry_item.save()
+
+
+# --- Entity CRUD for the Settings page (mirrors account_services) -------------
+
+
+TAG_USAGE_WINDOW_DAYS = 90
+
+
+def get_entities() -> List[Entity]:
+    """Returns all entities (open first, then alphabetical) annotated with:
+
+    - ``account_count``: number of accounts that default to the entity.
+    - ``recent_tag_count``: number of journal entry items tagged with the entity
+      whose journal entry dates fall within the last ``TAG_USAGE_WINDOW_DAYS``
+      days (a rolling usage metric).
+
+    ``distinct=True`` on both counts keeps them correct despite the cross-join
+    between the two related sets.
+    """
+    cutoff = date.today() - timedelta(days=TAG_USAGE_WINDOW_DAYS)
+    return list(
+        Entity.objects.annotate(
+            account_count=Count("accounts", distinct=True),
+            recent_tag_count=Count(
+                "journal_entry_items",
+                filter=Q(journal_entry_items__journal_entry__date__gte=cutoff),
+                distinct=True,
+            ),
+        ).order_by("is_closed", "name")
+    )
+
+
+ENTITY_FIELDS = ("name", "is_closed")
+
+
+def save_entity(
+    cleaned_data: Dict[str, Any], instance: Optional[Entity] = None
+) -> EntityResult:
+    """Creates or updates an entity from validated form data.
+
+    The caller (view) validates the form and passes ``form.cleaned_data``;
+    ``instance`` is the entity being edited (None to create). Returns an
+    EntityResult; on any DB error the transaction rolls back.
+    """
+    entity, error = crud.save_model(Entity, ENTITY_FIELDS, cleaned_data, instance)
+    return EntityResult(success=error is None, entity=entity, error=error)
+
+
+def delete_entity(entity_id: int) -> EntityResult:
+    """Deletes an entity, gracefully blocking when it is still referenced.
+
+    Entities are PROTECT-referenced by amortizations, loans, bill rules, paystub
+    values, etc. Rather than 500ing on a ProtectedError, we return a friendly
+    message so the UI can display it inline.
+    """
+    entity, error = crud.delete_model(
+        Entity,
+        entity_id,
+        not_found="Entity not found.",
+        protected=lambda e: (
+            f"Can't delete '{e.name}' — it's still used by other "
+            "records (accounts, amortizations, loans, paystub values, etc.). "
+            "Close it instead to archive it."
+        ),
+    )
+    return EntityResult(success=error is None, entity=entity, error=error)
