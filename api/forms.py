@@ -655,6 +655,18 @@ class AccountForm(forms.ModelForm):
         return cleaned_data
 
 
+class EntityForm(forms.ModelForm):
+    """User-facing form for creating/editing entities via the Settings page.
+
+    The model's ``unique=True`` on ``name`` gives duplicate-name validation for
+    free (surfaced on the ``name`` field during ``is_valid()``).
+    """
+
+    class Meta:
+        model = Entity
+        fields = ["name", "is_closed"]
+
+
 class UtilityBillRuleForm(forms.ModelForm):
     """User-facing form for creating/editing utility-bill rules via Settings.
 

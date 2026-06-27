@@ -2,7 +2,6 @@
         section: 'Accounts',
         sections: ['Accounts', 'Bill Rules', 'Utility Bills', 'Loans', 'Entities', 'Paystubs', 'Auto Tags', 'CSV Profiles'],
         stubs: {
-          'Entities': 'Counterparties money moves to and from — banks, employers, landlords.',
           'Paystubs': 'Saved paystub templates parsed via AWS Textract.',
           'Auto Tags': 'Rules that auto-categorize incoming transactions.',
           'CSV Profiles': 'Column mappings for each bank\'s CSV export format.'
@@ -40,6 +39,14 @@
       <div x-show="section === 'Utility Bills'">
         <div id="bills-content"
              hx-get="{% url 'settings-bills' %}" hx-trigger="load">
+          <div class="table-empty">Loading…</div>
+        </div>
+      </div>
+
+      <!-- Entities (functional, lazy-loaded) -->
+      <div x-show="section === 'Entities'">
+        <div id="entities-content"
+             hx-get="{% url 'settings-entities' %}" hx-trigger="load">
           <div class="table-empty">Loading…</div>
         </div>
       </div>

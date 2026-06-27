@@ -1,0 +1,79 @@
+<div x-data="searchList({{ total }}, 'entities', {{ selected_id|default:'null' }})">
+
+  <div class="card-head">
+    <div class="card-head-left">
+      <h2 class="card-title">Entities</h2>
+      <span class="card-count" x-text="countLabel()"></span>
+    </div>
+    <div class="card-head-right">
+      {% include "api/components/search-box.html" with placeholder="Search entities" %}
+      <button class="btn btn-primary"
+              @click="selectedId = null"
+              hx-get="{% url 'settings-entity-new-form' %}"
+              hx-target="#entity-form-div">New Entity</button>
+    </div>
+  </div>
+
+  <div class="table-scroll has-list">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th class="center th-sort" @click="sortBy('accounts')">
+          Accounts<span class="sort-caret" x-text="sortCaret('accounts')"></span>
+        </th>
+        <th class="center th-sort" @click="sortBy('t90')">
+          Tags (90d)<span class="sort-caret" x-text="sortCaret('t90')"></span>
+        </th>
+        <th class="center">Closed</th>
+      </tr>
+    </thead>
+    <tbody data-sortable>
+      {% for entity in entities %}
+      <tr class="row"
+          data-search="{{ entity.name|lower }}"
+          data-sort-accounts="{{ entity.account_count }}"
+          data-sort-t90="{{ entity.recent_tag_count }}"
+          :class="{ selected: selectedId === {{ entity.id }} }"
+          x-show="matches($el)"
+          @click="selectedId = {{ entity.id }}"
+          hx-get="{% url 'settings-entity-form' entity.id %}"
+          hx-target="#entity-form-div">
+        <td class="td-name">{{ entity.name }}</td>
+        <td class="td-muted center">{{ entity.account_count }}</td>
+        <td class="td-muted center">{{ entity.recent_tag_count }}</td>
+        <td class="td-muted center">{% if entity.is_closed %}Yes{% else %}No{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <div class="list" data-sortable>
+    {% for entity in entities %}
+    <div class="lrow"
+         data-search="{{ entity.name|lower }}"
+         data-sort-accounts="{{ entity.account_count }}"
+         data-sort-t90="{{ entity.recent_tag_count }}"
+         :class="{ selected: selectedId === {{ entity.id }} }"
+         x-show="matches($el)"
+         @click="selectedId = {{ entity.id }}"
+         hx-get="{% url 'settings-entity-form' entity.id %}"
+         hx-target="#entity-form-div">
+      <div class="lrow-top">
+        <span class="lname">{{ entity.name }}</span>
+        <span class="lmeta-right">{{ entity.account_count }} account{{ entity.account_count|pluralize }}</span>
+      </div>
+      <div class="lmeta">{{ entity.recent_tag_count }} tag{{ entity.recent_tag_count|pluralize }} · 90d · {% if entity.is_closed %}Closed{% else %}Open{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="table-empty" x-show="visible() === 0" x-cloak>
+    No entities match "<span x-text="q"></span>".
+  </div>
+
+  <div id="entity-form-div">
+    {{ entity_form }}
+  </div>
+</div>

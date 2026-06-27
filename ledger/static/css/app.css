@@ -342,6 +342,9 @@ h4, h5 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--space-2); 
 }
 .table th.center, .table td.center { text-align: center; }
 .table th.right,  .table td.right  { text-align: right; }
+.table th.th-sort { cursor: pointer; user-select: none; }
+.table th.th-sort:hover { color: var(--text-2); }
+.sort-caret { font-size: .8em; }
 .table td {
   padding: var(--space-2) var(--space-3);
   font-size: var(--fs-body);
