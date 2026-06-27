@@ -8,6 +8,7 @@ from api.views.amortization_views import (
     AmortizationView,
     AmortizeFormView,
 )
+from api.views.entity_settings_views import EntityFormView, EntitySettingsView
 from api.views.entity_views import (
     EntityGroupedBalancesView,
     EntityHistoryTable,
@@ -252,6 +253,27 @@ urlpatterns = [
         name="settings-bill-rule-form",
     ),
     path("settings/bills/", BillsView.as_view(), name="settings-bills"),
+    # Settings — entities (config CRUD)
+    path(
+        "settings/entities/",
+        EntitySettingsView.as_view(),
+        name="settings-entities",
+    ),
+    path(
+        "settings/entities/new/form/",
+        EntityFormView.as_view(),
+        name="settings-entity-new-form",
+    ),
+    path(
+        "settings/entities/<int:entity_id>/",
+        EntitySettingsView.as_view(),
+        name="settings-entity",
+    ),
+    path(
+        "settings/entities/<int:entity_id>/form/",
+        EntityFormView.as_view(),
+        name="settings-entity-form",
+    ),
     # Settings — loans (amortization-schedule config CRUD + schedule view)
     path(
         "settings/loans/",
