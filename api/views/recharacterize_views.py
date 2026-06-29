@@ -116,7 +116,12 @@ class RecharacterizeRetryView(LoginRequiredMixin, View):
 
 
 class RecharacterizeApplyView(LoginRequiredMixin, View):
-    """Re-validates and applies the plan stored in the session."""
+    """Re-validates and applies a single operation from the stored plan.
+
+    Operations are applied one at a time: the ``op`` index selects which one.
+    On success that operation is dropped from the plan and the remaining ops are
+    re-previewed against the now-updated ledger.
+    """
 
     login_url = "/login/"
 
@@ -125,7 +130,8 @@ class RecharacterizeApplyView(LoginRequiredMixin, View):
         messages = state["messages"]
         operations = state["operations"]
 
-        result = recharacterize_services.apply_plan(operations)
+        op_index = _parse_op_index(request)
+        result = recharacterize_services.apply_operation(operations, op_index)
 
         if not result.success:
             # Surface the apply error as an assistant message so it's visible.
@@ -135,13 +141,23 @@ class RecharacterizeApplyView(LoginRequiredMixin, View):
             html = recharacterize_helpers.render_main(messages, preview)
             return HttpResponse(html)
 
-        flash = (
-            f"Applied. Updated {result.updated_count} journal entry "
-            f"item{'' if result.updated_count == 1 else 's'}."
+        # Drop the applied operation; the rest stay so they can be applied next.
+        remaining = operations[:op_index] + operations[op_index + 1 :]
+        # The confirmation lives in the chat log (consistent with every other
+        # turn); the remaining-ops preview re-renders below it.
+        messages.append(
+            {
+                "role": "assistant",
+                "text": (
+                    f"Applied: {result.action_summary}. Updated "
+                    f"{result.updated_count} journal entry "
+                    f"item{'' if result.updated_count == 1 else 's'}."
+                ),
+            }
         )
-        messages.append({"role": "assistant", "text": flash})
-        _save_state(request, messages=messages, operations=[])
-        html = recharacterize_helpers.render_main(messages, preview=None, flash=flash)
+        _save_state(request, messages=messages, operations=remaining)
+        preview = recharacterize_services.preview_plan(remaining) if remaining else None
+        html = recharacterize_helpers.render_main(messages, preview)
         return HttpResponse(html)
 
 
