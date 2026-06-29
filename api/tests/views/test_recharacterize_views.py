@@ -73,18 +73,52 @@ class RecharacterizeViewsTest(TestCase):
         )
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "set entity")
-        self.assertContains(resp, "Apply")
+        self.assertContains(resp, "Apply (1)")  # per-operation Apply button
         # Criteria are laid out so the user can eyeball the parsed filter.
         self.assertContains(resp, "Matching items where:")
         self.assertContains(resp, "Ally Checking")
         self.assertContains(resp, "debits only")
 
-        # Apply -> the item now carries the entity.
-        resp = self.client.post(reverse("recharacterize-apply"))
+        # Apply operation 0 -> the item now carries the entity.
+        resp = self.client.post(reverse("recharacterize-apply") + "?op=0")
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Updated 1 journal entry item")
         self.debit.refresh_from_db()
         self.assertEqual(self.debit.entity, self.ally_bank)
+        # The applied operation is removed from the plan; the rest remain.
+        self.assertEqual(self.client.session["recharacterize"]["operations"], [])
+
+    @patch("api.services.recharacterize_services.gemini_services.call_gemini_conversation")
+    def test_apply_one_operation_leaves_the_rest(self, mock_call):
+        other_entity = EntityFactory(name="Other Bank")
+        mock_call.return_value = json.dumps(
+            {
+                "reply": "Two operations.",
+                "operations": [
+                    {
+                        "filter": {"account": "Ally Checking", "entry_type": "debit"},
+                        "action": {"type": "set_entity", "entity": "Ally Bank"},
+                    },
+                    {
+                        "filter": {"account": "Ally Checking", "entry_type": "debit"},
+                        "action": {"type": "set_entity", "entity": "Other Bank"},
+                    },
+                ],
+            }
+        )
+        self.client.post(
+            reverse("recharacterize-message"), {"message": "two ops"}
+        )
+
+        # Apply only operation 0; operation 1 must survive for a later apply.
+        resp = self.client.post(reverse("recharacterize-apply") + "?op=0")
+        self.assertEqual(resp.status_code, 200)
+        self.debit.refresh_from_db()
+        self.assertEqual(self.debit.entity, self.ally_bank)
+        remaining = self.client.session["recharacterize"]["operations"]
+        self.assertEqual(len(remaining), 1)
+        self.assertEqual(remaining[0]["action"]["entity"], "Other Bank")
+        _ = other_entity
 
     def test_reset_clears_session(self):
         resp = self.client.post(reverse("recharacterize-reset"))

@@ -8,7 +8,7 @@ from django.test import TestCase
 from api.models import Account, JournalEntryItem
 from api.services.recharacterize_services import (
     SAMPLE_LIMIT,
-    apply_plan,
+    apply_operation,
     build_export_rows,
     build_page,
     preview_plan,
@@ -117,10 +117,10 @@ class RecharacterizeServicesTest(TestCase):
             }
         ]
         preview = preview_plan(ops)
-        self.assertTrue(preview.can_apply)
-        self.assertEqual(preview.total_affected, 2)
+        self.assertTrue(preview.operations[0].mutates)
+        self.assertEqual(preview.operations[0].affected_count, 2)
 
-        result = apply_plan(ops)
+        result = apply_operation(ops, 0)
         self.assertTrue(result.success)
         self.assertEqual(result.updated_count, 2)
 
@@ -140,7 +140,7 @@ class RecharacterizeServicesTest(TestCase):
                 "action": {"type": "clear_entity"},
             }
         ]
-        result = apply_plan(ops)
+        result = apply_operation(ops, 0)
         self.assertTrue(result.success)
         self.assertEqual(result.updated_count, 1)
         self.d1.refresh_from_db()
@@ -156,7 +156,7 @@ class RecharacterizeServicesTest(TestCase):
                 "action": {"type": "set_entity", "entity": "Ally Bank"},
             }
         ]
-        self.assertTrue(apply_plan(ops).success)
+        self.assertTrue(apply_operation(ops, 0).success)
         after = self.groceries.get_balance(end, start)
         self.assertEqual(before, after)
 
@@ -170,8 +170,8 @@ class RecharacterizeServicesTest(TestCase):
             }
         ]
         preview = preview_plan(ops)
-        self.assertTrue(preview.can_apply)
-        result = apply_plan(ops)
+        self.assertTrue(preview.operations[0].mutates)
+        result = apply_operation(ops, 0)
         self.assertTrue(result.success)
         self.assertEqual(result.updated_count, 3)  # all 3 Verizon grocery debits
         self.assertFalse(
@@ -186,9 +186,9 @@ class RecharacterizeServicesTest(TestCase):
             }
         ]
         preview = preview_plan(ops)
-        self.assertTrue(preview.has_blocks)
-        self.assertFalse(preview.can_apply)
-        self.assertFalse(apply_plan(ops).success)
+        self.assertTrue(preview.operations[0].blocked)
+        self.assertTrue(preview.operations[0].blocked)
+        self.assertFalse(apply_operation(ops, 0).success)
 
     def test_account_swap_different_subtype_blocked(self):
         ops = [
@@ -198,8 +198,8 @@ class RecharacterizeServicesTest(TestCase):
             }
         ]
         preview = preview_plan(ops)
-        self.assertTrue(preview.has_blocks)
-        self.assertFalse(apply_plan(ops).success)
+        self.assertTrue(preview.operations[0].blocked)
+        self.assertFalse(apply_operation(ops, 0).success)
 
     def test_change_account_requires_source(self):
         ops = [
@@ -208,7 +208,7 @@ class RecharacterizeServicesTest(TestCase):
                 "action": {"type": "change_account", "to_account": "Dining"},
             }
         ]
-        self.assertTrue(preview_plan(ops).has_blocks)
+        self.assertTrue(preview_plan(ops).operations[0].blocked)
 
     # --- protected accounts -------------------------------------------------
 
@@ -226,8 +226,8 @@ class RecharacterizeServicesTest(TestCase):
                 "action": {"type": "change_account", "to_account": "Groceries"},
             }
         ]
-        self.assertTrue(preview_plan(ops).has_blocks)
-        self.assertFalse(apply_plan(ops).success)
+        self.assertTrue(preview_plan(ops).operations[0].blocked)
+        self.assertFalse(apply_operation(ops, 0).success)
         _ = unrealized
 
     def test_set_entity_includes_swap_blocked_items(self):
@@ -256,8 +256,8 @@ class RecharacterizeServicesTest(TestCase):
         ]
         # Entity tagging is allowed on every account, including swap-blocked ones.
         preview = preview_plan(ops)
-        self.assertFalse(preview.has_blocks)
-        result = apply_plan(ops)
+        self.assertFalse(preview.operations[0].blocked)
+        result = apply_operation(ops, 0)
         self.assertTrue(result.success)
 
         blocked_debit.refresh_from_db()
@@ -278,8 +278,8 @@ class RecharacterizeServicesTest(TestCase):
                 "action": {"type": "change_account", "to_account": "Other Equity"},
             }
         ]
-        self.assertTrue(preview_plan(from_ops).has_blocks)
-        self.assertFalse(apply_plan(from_ops).success)
+        self.assertTrue(preview_plan(from_ops).operations[0].blocked)
+        self.assertFalse(apply_operation(from_ops, 0).success)
         # Blocked as the swap destination.
         to_ops = [
             {
@@ -287,8 +287,8 @@ class RecharacterizeServicesTest(TestCase):
                 "action": {"type": "change_account", "to_account": "Starting Equity"},
             }
         ]
-        self.assertTrue(preview_plan(to_ops).has_blocks)
-        self.assertFalse(apply_plan(to_ops).success)
+        self.assertTrue(preview_plan(to_ops).operations[0].blocked)
+        self.assertFalse(apply_operation(to_ops, 0).success)
         _ = other_equity
 
     def test_set_entity_on_starting_equity_allowed(self):
@@ -304,8 +304,8 @@ class RecharacterizeServicesTest(TestCase):
                 "action": {"type": "set_entity", "entity": "Ally Bank"},
             }
         ]
-        self.assertFalse(preview_plan(ops).has_blocks)
-        self.assertTrue(apply_plan(ops).success)
+        self.assertFalse(preview_plan(ops).operations[0].blocked)
+        self.assertTrue(apply_operation(ops, 0).success)
         debit.refresh_from_db()
         self.assertEqual(debit.entity, self.ally_bank)
 
@@ -318,8 +318,8 @@ class RecharacterizeServicesTest(TestCase):
                 "action": {"type": "set_entity", "entity": "Nonexistent Bank"},
             }
         ]
-        self.assertTrue(preview_plan(ops).has_blocks)
-        self.assertFalse(apply_plan(ops).success)
+        self.assertTrue(preview_plan(ops).operations[0].blocked)
+        self.assertFalse(apply_operation(ops, 0).success)
 
     def test_account_name_with_whitespace_resolves(self):
         # The LLM is told to copy names verbatim but sometimes adds stray
@@ -330,7 +330,7 @@ class RecharacterizeServicesTest(TestCase):
                 "action": {"type": "set_entity", "entity": "Ally Bank"},
             }
         ]
-        self.assertFalse(preview_plan(ops).has_blocks)
+        self.assertFalse(preview_plan(ops).operations[0].blocked)
 
     def test_account_name_case_insensitive_resolves(self):
         ops = [
@@ -339,13 +339,13 @@ class RecharacterizeServicesTest(TestCase):
                 "action": {"type": "set_entity", "entity": "ally bank"},
             }
         ]
-        self.assertFalse(preview_plan(ops).has_blocks)
+        self.assertFalse(preview_plan(ops).operations[0].blocked)
 
     def test_empty_filter_blocked(self):
         ops = [
             {"filter": {}, "action": {"type": "set_entity", "entity": "Ally Bank"}}
         ]
-        self.assertTrue(preview_plan(ops).has_blocks)
+        self.assertTrue(preview_plan(ops).operations[0].blocked)
 
     def test_entity_is_empty_filter_targets_untagged_items(self):
         misc = AccountFactory(
@@ -372,10 +372,10 @@ class RecharacterizeServicesTest(TestCase):
             }
         ]
         preview = preview_plan(ops)
-        self.assertFalse(preview.has_blocks)  # "no entity" is a valid criterion
-        self.assertTrue(preview.can_apply)
+        self.assertFalse(preview.operations[0].blocked)  # "no entity" is a valid criterion
+        self.assertTrue(preview.operations[0].mutates)
 
-        result = apply_plan(ops)
+        result = apply_operation(ops, 0)
         self.assertTrue(result.success)
         self.assertEqual(result.updated_count, 1)  # only the untagged Misc debit
         untagged.refresh_from_db()
@@ -393,12 +393,10 @@ class RecharacterizeServicesTest(TestCase):
             }
         ]
         preview = preview_plan(ops)
-        self.assertFalse(preview.has_blocks)
-        self.assertFalse(preview.can_apply)  # nothing to apply for a view
-        self.assertEqual(preview.total_changes, 0)
-        self.assertEqual(preview.total_affected, 2)
-
         op = preview.operations[0]
+        self.assertFalse(op.blocked)
+        # A view-only op never carries an Apply button: it matches items but
+        # mutates nothing.
         self.assertFalse(op.mutates)
         self.assertEqual(op.affected_count, 2)
         # Preview page rows show no before/after diff.
@@ -406,15 +404,15 @@ class RecharacterizeServicesTest(TestCase):
             self.assertEqual(row["account_before"], row["account_after"])
             self.assertEqual(row["entity_before"], row["entity_after"])
 
-    def test_view_op_is_noop_on_apply(self):
+    def test_view_op_cannot_be_applied(self):
         ops = [
             {
                 "filter": self._verizon_2025_checking_debit_filter(),
                 "action": {"type": "view"},
             }
         ]
-        result = apply_plan(ops)
-        self.assertTrue(result.success)
+        result = apply_operation(ops, 0)
+        self.assertFalse(result.success)  # a view-only op has nothing to commit
         self.assertEqual(result.updated_count, 0)
         self.d1.refresh_from_db()
         self.assertIsNone(self.d1.entity)
@@ -431,13 +429,15 @@ class RecharacterizeServicesTest(TestCase):
             },
         ]
         preview = preview_plan(ops)
-        self.assertTrue(preview.can_apply)
         self.assertFalse(preview.operations[0].mutates)
         self.assertTrue(preview.operations[1].mutates)
-        # Only the mutating op's 3 grocery debits count toward changes.
-        self.assertEqual(preview.total_changes, 3)
+        # Only the mutating op's 3 grocery debits will change.
+        self.assertEqual(preview.operations[1].affected_count, 3)
 
-        result = apply_plan(ops)
+        # The view op (index 0) has nothing to commit; the mutating op (index 1)
+        # applies on its own.
+        self.assertFalse(apply_operation(ops, 0).success)
+        result = apply_operation(ops, 1)
         self.assertTrue(result.success)
         self.assertEqual(result.updated_count, 3)
 
@@ -591,7 +591,7 @@ class RecharacterizeServicesTest(TestCase):
         self.assertTrue(turn.failed)
         self.assertIn("503", turn.error)
 
-    def test_apply_is_atomic_one_bad_op_aborts_all(self):
+    def test_apply_one_at_a_time_good_op_commits_blocked_sibling_does_not(self):
         ops = [
             {
                 "filter": self._verizon_2025_checking_debit_filter(),
@@ -602,10 +602,25 @@ class RecharacterizeServicesTest(TestCase):
                 "action": {"type": "set_entity", "entity": "Nonexistent Bank"},
             },
         ]
-        result = apply_plan(ops)
-        self.assertFalse(result.success)
-        # First op's items must remain unchanged (no partial write).
+        # The good op (index 0) applies on its own.
+        result = apply_operation(ops, 0)
+        self.assertTrue(result.success)
         self.d1.refresh_from_db()
         self.d2.refresh_from_db()
-        self.assertIsNone(self.d1.entity)
-        self.assertIsNone(self.d2.entity)
+        self.assertEqual(self.d1.entity, self.ally_bank)
+        self.assertEqual(self.d2.entity, self.ally_bank)
+
+        # The blocked sibling (index 1) fails and writes nothing.
+        blocked = apply_operation(ops, 1)
+        self.assertFalse(blocked.success)
+        self.assertIn("blocked", blocked.error.lower())
+
+    def test_apply_out_of_range_index_is_noop(self):
+        ops = [
+            {
+                "filter": self._verizon_2025_checking_debit_filter(),
+                "action": {"type": "set_entity", "entity": "Ally Bank"},
+            }
+        ]
+        self.assertFalse(apply_operation(ops, 5).success)
+        self.assertFalse(apply_operation(ops, -1).success)
