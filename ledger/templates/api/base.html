@@ -84,29 +84,70 @@
         }));
 
         // Live search + selection state shared by the Settings list fragments
-        // (Accounts, Loans, Bill Rules). Rows carry data-search; the desktop
-        // <tr data-search> set drives the visible count.
+        // (Accounts, Loans, Bill Rules, Entities). Rows carry data-search; the
+        // desktop <tr data-search> set drives the visible count.
         //
-        // Remembers each list's live query so it survives htmx innerHTML swaps
-        // (e.g. saving an account re-renders the fragment). Keyed by noun; lives
-        // for the page lifetime, so a full reload still starts clean.
-        const searchListQueries = {};
-        Alpine.data('searchList', (total, noun, selectedId = null) => ({
-            q: searchListQueries[noun] || '',
-            selectedId: selectedId,
-            total: total,
-            init() { this.$watch('q', v => { searchListQueries[noun] = v; }); },
-            matches(el) { return !this.q.trim() || el.dataset.search.includes(this.q.toLowerCase()); },
-            visible() {
-                if (!this.q.trim()) return this.total;
-                const needle = this.q.toLowerCase();
-                return Array.from(this.$root.querySelectorAll('tr[data-search]'))
-                    .filter(tr => tr.dataset.search.includes(needle)).length;
-            },
-            countLabel() {
-                return this.q.trim() ? (this.visible() + ' of ' + this.total) : (this.total + ' ' + noun);
-            },
-        }));
+        // Remembers each list's live query and active column sort so they survive
+        // htmx innerHTML swaps (e.g. saving an entity re-renders the fragment).
+        // Keyed by noun; lives for the page lifetime, so a full reload starts clean.
+        const searchListState = {};
+        Alpine.data('searchList', (total, noun, selectedId = null) => {
+            const saved = searchListState[noun] || (searchListState[noun] = {});
+            return {
+                q: saved.q || '',
+                selectedId: selectedId,
+                total: total,
+                sortKey: saved.sortKey || null,
+                sortDir: saved.sortDir || 'desc',
+                init() {
+                    // Persist query + sort to the page-lifetime store so they
+                    // survive htmx swaps; reactive props drive the live UI.
+                    this.$watch('q', v => { saved.q = v; });
+                    this.$watch('sortKey', v => { saved.sortKey = v; });
+                    this.$watch('sortDir', v => { saved.sortDir = v; });
+                    // An htmx swap re-renders the fragment in the server's default
+                    // order, so reorder the fresh rows to match the saved sort.
+                    this.applySort();
+                },
+                matches(el) { return !this.q.trim() || el.dataset.search.includes(this.q.toLowerCase()); },
+                visible() {
+                    if (!this.q.trim()) return this.total;
+                    const needle = this.q.toLowerCase();
+                    return Array.from(this.$root.querySelectorAll('tr[data-search]'))
+                        .filter(tr => tr.dataset.search.includes(needle)).length;
+                },
+                countLabel() {
+                    return this.q.trim() ? (this.visible() + ' of ' + this.total) : (this.total + ' ' + noun);
+                },
+                // Optional numeric column sorting, opt-in via clickable headers
+                // that call sortBy(key). Rows carry data-sort-<key>; containers to
+                // reorder (desktop tbody + mobile list) carry data-sortable. The
+                // active key/dir persist per noun so they survive htmx swaps.
+                sortBy(key) {
+                    if (this.sortKey === key) {
+                        this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.sortKey = key;
+                        this.sortDir = 'desc';
+                    }
+                    this.applySort();
+                },
+                applySort() {
+                    if (!this.sortKey) return;
+                    const attr = 'sort' + this.sortKey.charAt(0).toUpperCase() + this.sortKey.slice(1);
+                    const factor = this.sortDir === 'asc' ? 1 : -1;
+                    this.$root.querySelectorAll('[data-sortable]').forEach(container => {
+                        Array.from(container.children)
+                            .sort((a, b) => factor * ((parseFloat(a.dataset[attr]) || 0) - (parseFloat(b.dataset[attr]) || 0)))
+                            .forEach(row => container.appendChild(row));
+                    });
+                },
+                sortCaret(key) {
+                    if (this.sortKey !== key) return '';
+                    return this.sortDir === 'asc' ? ' ▲' : ' ▼';
+                },
+            };
+        });
     });
     </script>
 

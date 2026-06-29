@@ -1,0 +1,51 @@
+<div class="form">
+
+  <div class="form-header">
+    {% if entity %}Edit · {{ entity.name }}{% else %}New entity{% endif %}
+  </div>
+
+  {% if change == "create" %}
+    <div class="alert alert-success">Entity created.</div>
+  {% elif change == "update" %}
+    <div class="alert alert-success">Entity updated.</div>
+  {% elif change == "delete" %}
+    <div class="alert alert-success">Entity deleted.</div>
+  {% endif %}
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <form method="post"
+        {% if entity %}hx-post="{% url 'settings-entity' entity.id %}"{% else %}hx-post="{% url 'settings-entities' %}"{% endif %}
+        hx-target="#entities-content"
+        hx-swap="innerHTML">
+    {% csrf_token %}
+
+    <div class="grid grid-wide-first grid-end">
+      <div>
+        <label class="label">Name</label>
+        <input class="input" name="name" value="{{ values.name }}" placeholder="Entity name" />
+        {% for e in form.name.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="checks">
+        <label class="check">
+          <input type="checkbox" name="is_closed" {% if values.is_closed %}checked{% endif %} />Closed
+        </label>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="submit" name="action" value="save" class="btn btn-primary">{% if entity %}Save{% else %}Create{% endif %}</button>
+      {% if entity %}
+      <button type="submit" name="action" value="delete" class="btn btn-danger">Delete</button>
+      {% endif %}
+      <button type="button" class="btn btn-ghost"
+              @click="selectedId = null"
+              hx-get="{% url 'settings-entity-new-form' %}"
+              hx-target="#entity-form-div">Clear</button>
+    </div>
+  </form>
+</div>
