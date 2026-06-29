@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.test import TestCase
 from django.db.utils import IntegrityError
 from api.models import Reconciliation, Account, JournalEntryItem
-from api.tests.testing_factories import AccountFactory, TransactionFactory, JournalEntryFactory, JournalEntryItemFactory
+from api.tests.testing_factories import AccountFactory, EntityFactory, TransactionFactory, JournalEntryFactory, JournalEntryItemFactory
 
 class ReconciliationTests(TestCase):
 
@@ -90,3 +90,38 @@ class ReconciliationTests(TestCase):
         self.assertEqual(reconciliation.transaction.amount, Decimal('-50.00'))
         self.assertEqual(cash_account.get_balance(today), 50)
         self.assertEqual(unrealized_account.get_balance(today,start_date=today), Decimal('-50.00'))
+
+    def _plug_items_for_account_entity(self, entity):
+        today = datetime.date.today()
+        AccountFactory(
+            type=Account.Type.INCOME,
+            special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES
+        )
+        investment_account = AccountFactory(
+            name='vanguard',
+            type=Account.Type.ASSET,
+            entity=entity
+        )
+        reconciliation = Reconciliation.objects.create(
+            account=investment_account,
+            date=today,
+            amount=Decimal('200.00')
+        )
+        reconciliation.plug_investment_change()
+
+        return JournalEntryItem.objects.filter(
+            journal_entry=reconciliation.transaction.journal_entry
+        )
+
+    def test_plug_tags_account_default_entity(self):
+        entity = EntityFactory()
+        items = self._plug_items_for_account_entity(entity)
+        self.assertEqual(items.count(), 2)
+        for item in items:
+            self.assertEqual(item.entity, entity)
+
+    def test_plug_without_default_entity_leaves_entity_null(self):
+        items = self._plug_items_for_account_entity(None)
+        self.assertEqual(items.count(), 2)
+        for item in items:
+            self.assertIsNone(item.entity)
