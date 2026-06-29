@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 
 from django.template.loader import render_to_string
 
+from api.models import RecharacterizeChange
 from api.services.recharacterize_services import PageResult, PlanPreview
 from api.utils import friendly_error_message, short_error_label
 
@@ -33,11 +34,18 @@ def render_main(
     preview: Optional[PlanPreview] = None,
     flash: Optional[str] = None,
     error: Optional[Dict[str, str]] = None,
+    history: Optional[List[RecharacterizeChange]] = None,
 ) -> str:
-    """Renders the swappable #recharacterize-main region (chat + preview)."""
+    """Renders the swappable #recharacterize-main region (chat + preview + history)."""
     return render_to_string(
         "api/components/recharacterize-main.html",
-        {"messages": messages, "preview": preview, "flash": flash, "error": error},
+        {
+            "messages": messages,
+            "preview": preview,
+            "flash": flash,
+            "error": error,
+            "history": history or [],
+        },
     )
 
 
@@ -53,6 +61,7 @@ def render_page(
     messages: List[Dict[str, str]],
     preview: Optional[PlanPreview] = None,
     flash: Optional[str] = None,
+    history: Optional[List[RecharacterizeChange]] = None,
 ) -> str:
     """Renders the full-page content fragment (heading + main region).
 
@@ -60,5 +69,5 @@ def render_page(
     """
     return render_to_string(
         "api/views/recharacterize.html",
-        {"main": render_main(messages, preview, flash)},
+        {"main": render_main(messages, preview, flash, history=history)},
     )

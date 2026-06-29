@@ -1,5 +1,6 @@
-<div id="recharacterize-main" class="grid grid-2"
+<div id="recharacterize-main"
      hx-on::before-request="var l=document.getElementById('chat-log'); if(l){l.scrollTop=l.scrollHeight;}">
+<div class="grid grid-2">
     <div class="card">
         <div id="chat-log" class="chat-log">
             {% for message in messages %}
@@ -47,6 +48,9 @@
     <div class="card">
         {% include "api/components/recharacterize-preview.html" %}
     </div>
+</div>
+
+{% include "api/components/recharacterize-history.html" %}
 </div>
 
 <script>

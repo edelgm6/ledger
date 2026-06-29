@@ -34,6 +34,7 @@ from api.views.recharacterize_views import (
     RecharacterizePageView,
     RecharacterizeResetView,
     RecharacterizeRetryView,
+    RecharacterizeRevertView,
     RecharacterizeView,
 )
 from api.views.bill_settings_views import (
@@ -187,6 +188,11 @@ urlpatterns = [
         "recharacterize/apply/",
         RecharacterizeApplyView.as_view(),
         name="recharacterize-apply",
+    ),
+    path(
+        "recharacterize/revert/",
+        RecharacterizeRevertView.as_view(),
+        name="recharacterize-revert",
     ),
     path(
         "recharacterize/retry/",

@@ -1478,3 +1478,79 @@ class LoanPayment(models.Model):
 
     def __str__(self):
         return f"{self.loan.name} #{self.sequence} {self.date} ${self.payment_amount}"
+
+
+class RecharacterizeChange(models.Model):
+    """A single applied recharacterize operation, recorded so it can be reverted.
+
+    One row per Apply. Together with its RecharacterizeChangeItem rows (the
+    per-item before-state) it captures everything needed to undo the bulk
+    ``.update()`` the apply ran. Bounded over time by a recent-N retention cap
+    (see recharacterize_services.RECHARACTERIZE_HISTORY_LIMIT).
+    """
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    action_kind = models.CharField(max_length=20)
+    action_summary = models.CharField(max_length=255)
+    criteria_summary = models.TextField(blank=True)
+    updated_count = models.PositiveIntegerField(default=0)
+    # The value the action set, kept so revert can tell items this change still
+    # owns from items a later operation changed again (a conflict it must skip).
+    new_account = models.ForeignKey(
+        "Account",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    new_entity = models.ForeignKey(
+        "Entity",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    is_reverted = models.BooleanField(default=False)
+    reverted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.created_at:%Y-%m-%d %H:%M} {self.action_summary} ({self.updated_count})"
+
+
+class RecharacterizeChangeItem(models.Model):
+    """The before-state of one JournalEntryItem touched by a RecharacterizeChange.
+
+    Stores both prior values even though one action mutates one field; revert
+    restores only the field matching the change's ``action_kind``. The snapshot
+    FKs are SET_NULL so history never blocks deleting an account/entity, and the
+    item FK is SET_NULL so the row survives (and revert can report it) if the
+    item is later deleted.
+    """
+
+    change = models.ForeignKey(
+        "RecharacterizeChange", related_name="items", on_delete=models.CASCADE
+    )
+    journal_entry_item = models.ForeignKey(
+        "JournalEntryItem",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    prior_account = models.ForeignKey(
+        "Account",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    prior_entity = models.ForeignKey(
+        "Entity",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
