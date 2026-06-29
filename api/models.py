@@ -336,6 +336,7 @@ class Reconciliation(models.Model):
             type=gain_loss_entry_type,
             amount=abs(delta),
             account=GAIN_LOSS_ACCOUNT,
+            entity=self.account.entity,
         )
 
         JournalEntryItem.objects.create(
@@ -343,6 +344,7 @@ class Reconciliation(models.Model):
             type=account_entry_type,
             amount=abs(delta),
             account=self.account,
+            entity=self.account.entity,
         )
 
         transaction.close()
