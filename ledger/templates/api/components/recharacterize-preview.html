@@ -38,13 +38,25 @@
                 </p>
             {% endif %}
             {% if op.mutates and op.affected_count > 0 %}
-            <button type="button" class="btn btn-danger mt-2"
-                    hx-post="{% url 'recharacterize-apply' %}?op={{ op.index }}"
-                    hx-target="#recharacterize-main"
-                    hx-swap="outerHTML"
-                    hx-confirm="Apply this operation to {{ op.affected_count }} journal entry item{{ op.affected_count|pluralize }}?">
-                Apply ({{ op.affected_count }})
-            </button>
+            <div class="mt-2" x-data="{ confirming: false }">
+                <button type="button" class="btn btn-danger"
+                        x-show="!confirming"
+                        @click="confirming = true">
+                    Apply ({{ op.affected_count }})
+                </button>
+                <span class="inline-confirm" x-show="confirming" x-cloak>
+                    <button type="button" class="btn btn-danger"
+                            hx-post="{% url 'recharacterize-apply' %}?op={{ op.index }}"
+                            hx-target="#recharacterize-main"
+                            hx-swap="outerHTML">
+                        Confirm
+                    </button>
+                    <button type="button" class="btn btn-secondary"
+                            @click="confirming = false">
+                        Cancel
+                    </button>
+                </span>
+            </div>
             {% endif %}
         {% endif %}
     </div>

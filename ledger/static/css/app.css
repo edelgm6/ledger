@@ -298,6 +298,9 @@ h4, h5 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--space-2); 
 .btn-sm  { height: 22px; padding: 0 8px; font-size: var(--fs-sm); }
 .btn:disabled, .btn[disabled] { opacity: .6; cursor: default; }
 
+/* Inline confirm: Apply button swaps in place for Confirm/Cancel */
+.inline-confirm { display: inline-flex; align-items: center; gap: var(--space-2); }
+
 /* Segmented radio control (replaces Bootstrap btn-group-toggle; no JS needed) */
 .segmented { display: inline-flex; border: 1px solid var(--input-border); border-radius: var(--radius); overflow: hidden; }
 .segmented label {
