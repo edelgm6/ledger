@@ -49,7 +49,7 @@ ACTION_SET_ENTITY = "set_entity"
 ACTION_CLEAR_ENTITY = "clear_entity"
 ACTION_CHANGE_ACCOUNT = "change_account"
 # A view operation only inspects the matched items; it never mutates the ledger,
-# so it carries no Apply button and is skipped by apply_plan.
+# so it carries no Apply button and cannot be applied.
 ACTION_VIEW = "view"
 
 MUTATING_ACTIONS = {ACTION_SET_ENTITY, ACTION_CLEAR_ENTITY, ACTION_CHANGE_ACCOUNT}
@@ -339,11 +339,9 @@ class OperationPreview:
 
 @dataclass
 class PlanPreview:
+    # Each operation carries its own blocked/mutates/affected_count state and its
+    # own Apply button, so the plan holds no aggregate gate or totals.
     operations: List[OperationPreview]
-    total_affected: int
-    total_changes: int
-    has_blocks: bool
-    can_apply: bool
 
 
 def _project_row(item: JournalEntryItem, evaluation: EvaluatedOperation) -> Dict[str, Any]:
@@ -399,14 +397,10 @@ def _page_result(
 def preview_plan(operations: List[Dict[str, Any]]) -> PlanPreview:
     """Validates every operation and computes its exact effect for review."""
     op_previews: List[OperationPreview] = []
-    total_affected = 0
-    total_changes = 0
-    has_blocks = False
 
     for index, operation in enumerate(operations):
         evaluation = _evaluate_operation(operation)
         if evaluation.blocked:
-            has_blocks = True
             op_previews.append(
                 OperationPreview(
                     index=index,
@@ -422,34 +416,23 @@ def preview_plan(operations: List[Dict[str, Any]]) -> PlanPreview:
             continue
 
         page = _page_result(evaluation, index, 1)
-        affected_count = page.total
-        total_affected += affected_count
-        mutates = _is_mutation(evaluation.action_kind)
-        if mutates:
-            total_changes += affected_count
         op_previews.append(
             OperationPreview(
                 index=index,
                 criteria=evaluation.criteria,
                 action_summary=evaluation.action_summary,
-                affected_count=affected_count,
+                affected_count=page.total,
                 page=page,
                 blocked=False,
                 error=None,
-                mutates=mutates,
+                mutates=_is_mutation(evaluation.action_kind),
             )
         )
 
-    # Apply is offered only when something will actually change, so a pure
-    # view-only plan never shows an Apply button.
-    can_apply = bool(operations) and not has_blocks and total_changes > 0
-    return PlanPreview(
-        operations=op_previews,
-        total_affected=total_affected,
-        total_changes=total_changes,
-        has_blocks=has_blocks,
-        can_apply=can_apply,
-    )
+    # Each mutating operation carries its own Apply button (see the preview
+    # template), so there is no plan-wide apply gate; a blocked or view-only op
+    # simply shows no button without affecting its siblings.
+    return PlanPreview(operations=op_previews)
 
 
 def _evaluate_at(
@@ -499,46 +482,49 @@ def build_page(
 class ApplyResult:
     success: bool
     updated_count: int = 0
+    action_summary: str = ""
     error: Optional[str] = None
 
 
 @db_transaction.atomic
-def apply_plan(operations: List[Dict[str, Any]]) -> ApplyResult:
-    """Re-validates and applies every operation atomically.
+def apply_operation(operations: List[Dict[str, Any]], op_index: int) -> ApplyResult:
+    """Re-validates and applies a single operation, leaving the rest untouched.
 
-    Re-evaluates from the operation dicts (never trusts a stale preview). If any
-    operation is blocked, the whole plan aborts with no writes.
+    Re-evaluates from the operation dict (never trusts a stale preview) so the
+    write reflects the live ledger. Operations are applied one at a time, so a
+    blocked sibling never prevents committing this one; the user resolves and
+    applies each independently.
     """
-    if not operations:
+    if op_index < 0 or op_index >= len(operations):
         return ApplyResult(success=False, error="There is nothing to apply.")
 
-    evaluations = []
-    for operation in operations:
-        evaluation = _evaluate_operation(operation)
-        if evaluation.blocked:
-            return ApplyResult(
-                success=False,
-                error="Plan blocked: " + " ".join(evaluation.errors),
-            )
-        evaluations.append(evaluation)
+    evaluation = _evaluate_operation(operations[op_index])
+    if evaluation.blocked:
+        return ApplyResult(
+            success=False,
+            error="Operation blocked: " + " ".join(evaluation.errors),
+        )
 
-    updated_count = 0
-    for evaluation in evaluations:
-        if evaluation.action_kind == ACTION_SET_ENTITY:
-            updated_count += evaluation.queryset.update(
-                entity=evaluation.target_entity
-            )
-        elif evaluation.action_kind == ACTION_CLEAR_ENTITY:
-            updated_count += evaluation.queryset.update(entity=None)
-        elif evaluation.action_kind == ACTION_CHANGE_ACCOUNT:
-            updated_count += evaluation.queryset.update(
-                account=evaluation.to_account
-            )
-        elif evaluation.action_kind == ACTION_VIEW:
-            # View is read-only; a mixed plan may include one, so skip it here.
-            pass
+    if not _is_mutation(evaluation.action_kind):
+        # A view-only operation has nothing to commit.
+        return ApplyResult(
+            success=False, error="This operation does not change anything."
+        )
 
-    return ApplyResult(success=True, updated_count=updated_count)
+    if evaluation.action_kind == ACTION_SET_ENTITY:
+        updated_count = evaluation.queryset.update(entity=evaluation.target_entity)
+    elif evaluation.action_kind == ACTION_CLEAR_ENTITY:
+        updated_count = evaluation.queryset.update(entity=None)
+    elif evaluation.action_kind == ACTION_CHANGE_ACCOUNT:
+        updated_count = evaluation.queryset.update(account=evaluation.to_account)
+    else:  # pragma: no cover - mutation guard above keeps this unreachable
+        return ApplyResult(success=False, error="This operation cannot be applied.")
+
+    return ApplyResult(
+        success=True,
+        updated_count=updated_count,
+        action_summary=evaluation.action_summary,
+    )
 
 
 # --- Chat turn orchestration ------------------------------------------------
