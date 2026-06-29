@@ -1,14 +1,17 @@
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.test import TestCase
 
 from api.models import Account, Entity, JournalEntryItem
 from api.services.entity_services import (
+    TAG_USAGE_WINDOW_DAYS,
     EntityBalance,
     EntityHistoryData,
     EntityHistoryItem,
     GroupedEntityBalances,
     UntaggedItemsData,
+    get_entities,
     get_entities_balances,
     get_entity_history,
     get_grouped_entities_balances,
@@ -22,6 +25,50 @@ from api.tests.testing_factories import (
     JournalEntryFactory,
     JournalEntryItemFactory,
 )
+
+
+class GetEntitiesTest(TestCase):
+    """Tests for get_entities() — the Settings list query with annotations."""
+
+    def test_orders_open_first_then_by_name(self):
+        EntityFactory(name="Bravo", is_closed=False)
+        EntityFactory(name="Alpha", is_closed=True)
+        EntityFactory(name="Charlie", is_closed=False)
+
+        names = [e.name for e in get_entities()]
+        self.assertEqual(names, ["Bravo", "Charlie", "Alpha"])
+
+    def test_account_count_annotation(self):
+        entity = EntityFactory()
+        AccountFactory(entity=entity)
+        AccountFactory(entity=entity)
+        EntityFactory()  # unrelated entity with no accounts
+
+        by_id = {e.id: e for e in get_entities()}
+        self.assertEqual(by_id[entity.id].account_count, 2)
+
+    def test_recent_tag_count_counts_only_last_90_days(self):
+        entity = EntityFactory()
+        recent = JournalEntryFactory(date=date.today() - timedelta(days=10))
+        on_edge = JournalEntryFactory(
+            date=date.today() - timedelta(days=TAG_USAGE_WINDOW_DAYS)
+        )
+        stale = JournalEntryFactory(
+            date=date.today() - timedelta(days=TAG_USAGE_WINDOW_DAYS + 1)
+        )
+        JournalEntryItemFactory(journal_entry=recent, entity=entity)
+        JournalEntryItemFactory(journal_entry=on_edge, entity=entity)
+        JournalEntryItemFactory(journal_entry=stale, entity=entity)
+        # An item tagged to a different entity must not be counted.
+        JournalEntryItemFactory(journal_entry=recent, entity=EntityFactory())
+
+        by_id = {e.id: e for e in get_entities()}
+        self.assertEqual(by_id[entity.id].recent_tag_count, 2)
+
+    def test_recent_tag_count_zero_when_untagged(self):
+        entity = EntityFactory()
+        by_id = {e.id: e for e in get_entities()}
+        self.assertEqual(by_id[entity.id].recent_tag_count, 0)
 
 
 class GetEntitiesBalancesTest(TestCase):
