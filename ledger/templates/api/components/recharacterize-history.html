@@ -1,0 +1,50 @@
+<div class="card mt-3">
+    <h5 class="card-title">Recent changes</h5>
+    <p class="muted">Applied operations you can revert. Older changes age out automatically.</p>
+
+    {% if history %}
+        {% for change in history %}
+        <div class="card mt-2">
+            <div class="flex flex-between gap-3">
+                <div>
+                    <div><strong>{{ change.action_summary }}</strong></div>
+                    {% if change.criteria_summary %}
+                    <div class="muted mt-2">{{ change.criteria_summary }}</div>
+                    {% endif %}
+                    <div class="muted mt-2">
+                        {{ change.updated_count }} item{{ change.updated_count|pluralize }}
+                        · {{ change.created_at|date:"M j, Y g:i A" }}
+                    </div>
+                </div>
+                <div>
+                    {% if change.is_reverted %}
+                    <span class="muted">Reverted {{ change.reverted_at|date:"M j, Y g:i A" }}</span>
+                    {% else %}
+                    <span x-data="{ confirming: false }">
+                        <button type="button" class="btn btn-danger"
+                                x-show="!confirming"
+                                @click="confirming = true">
+                            Revert
+                        </button>
+                        <span class="inline-confirm" x-show="confirming" x-cloak>
+                            <button type="button" class="btn btn-danger"
+                                    hx-post="{% url 'recharacterize-revert' %}?change={{ change.id }}"
+                                    hx-target="#recharacterize-main"
+                                    hx-swap="outerHTML">
+                                Confirm
+                            </button>
+                            <button type="button" class="btn btn-secondary"
+                                    @click="confirming = false">
+                                Cancel
+                            </button>
+                        </span>
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p class="muted">No changes applied yet.</p>
+    {% endif %}
+</div>

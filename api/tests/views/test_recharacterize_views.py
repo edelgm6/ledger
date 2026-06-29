@@ -300,3 +300,49 @@ class RecharacterizeViewsTest(TestCase):
         )
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "No items to show")
+
+    def test_history_panel_lists_applied_change_with_revert(self):
+        from api.services.recharacterize_services import apply_operation
+
+        ops = [
+            {
+                "filter": {"account": "Ally Checking", "entry_type": "debit"},
+                "action": {"type": "set_entity", "entity": "Ally Bank"},
+            }
+        ]
+        self.assertTrue(apply_operation(ops, 0).success)
+
+        resp = self.client.get(reverse("recharacterize"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Recent changes")
+        self.assertContains(resp, "Revert")
+
+    def test_revert_endpoint_restores_and_marks_reverted(self):
+        from api.models import RecharacterizeChange
+        from api.services.recharacterize_services import apply_operation
+
+        ops = [
+            {
+                "filter": {"account": "Ally Checking", "entry_type": "debit"},
+                "action": {"type": "set_entity", "entity": "Ally Bank"},
+            }
+        ]
+        result = apply_operation(ops, 0)
+        self.debit.refresh_from_db()
+        self.assertEqual(self.debit.entity, self.ally_bank)
+
+        resp = self.client.post(
+            reverse("recharacterize-revert") + f"?change={result.change_id}"
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Reverted:")
+
+        self.debit.refresh_from_db()
+        self.assertIsNone(self.debit.entity)
+        change = RecharacterizeChange.objects.get(id=result.change_id)
+        self.assertTrue(change.is_reverted)
+
+    def test_revert_invalid_change_reports_error(self):
+        resp = self.client.post(reverse("recharacterize-revert") + "?change=999999")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "no longer exists")

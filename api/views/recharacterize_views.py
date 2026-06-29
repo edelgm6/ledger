@@ -28,18 +28,33 @@ def _save_state(request, messages, operations) -> None:
     request.session.modified = True
 
 
-def _parse_op_index(request) -> int:
-    """Reads the ``op`` query param as an int, or -1 when absent/invalid."""
+def _parse_int_param(request, key: str, default: int = -1) -> int:
+    """Reads a query param as an int, or ``default`` when absent/invalid."""
     try:
-        return int(request.GET.get("op", ""))
+        return int(request.GET.get(key, ""))
     except (TypeError, ValueError):
-        return -1
+        return default
+
+
+def _render_main(messages, preview=None, *, flash=None, error=None) -> str:
+    """Renders the main region, always with the current history panel attached.
+
+    Every render of #recharacterize-main must reflect the live history, so this
+    is the single seam that fetches it — call sites never thread it themselves.
+    """
+    return recharacterize_helpers.render_main(
+        messages,
+        preview,
+        flash=flash,
+        error=error,
+        history=recharacterize_services.list_recent_changes(),
+    )
 
 
 def _render_unchanged(messages, operations) -> str:
     """Re-renders the main region without running a turn (state untouched)."""
     preview = recharacterize_services.preview_plan(operations)
-    return recharacterize_helpers.render_main(messages, preview)
+    return _render_main(messages, preview)
 
 
 def _run_turn_and_render(request, messages, operations) -> str:
@@ -58,12 +73,12 @@ def _run_turn_and_render(request, messages, operations) -> str:
         _save_state(request, messages=messages, operations=operations)
         preview = recharacterize_services.preview_plan(operations)
         error = recharacterize_helpers.build_turn_error(turn.error)
-        return recharacterize_helpers.render_main(messages, preview, error=error)
+        return _render_main(messages, preview, error=error)
 
     messages.append({"role": "assistant", "text": turn.reply})
     preview = recharacterize_services.preview_plan(turn.operations)
     _save_state(request, messages=messages, operations=turn.operations)
-    return recharacterize_helpers.render_main(messages, preview)
+    return _render_main(messages, preview)
 
 
 class RecharacterizeView(LoginRequiredMixin, View):
@@ -73,7 +88,11 @@ class RecharacterizeView(LoginRequiredMixin, View):
 
     def get(self, request):
         _save_state(request, messages=[], operations=[])
-        html = recharacterize_helpers.render_page(messages=[], preview=None)
+        html = recharacterize_helpers.render_page(
+            messages=[],
+            preview=None,
+            history=recharacterize_services.list_recent_changes(),
+        )
         return render_full_page(request, html)
 
 
@@ -130,7 +149,7 @@ class RecharacterizeApplyView(LoginRequiredMixin, View):
         messages = state["messages"]
         operations = state["operations"]
 
-        op_index = _parse_op_index(request)
+        op_index = _parse_int_param(request, "op")
         result = recharacterize_services.apply_operation(operations, op_index)
 
         if not result.success:
@@ -138,8 +157,7 @@ class RecharacterizeApplyView(LoginRequiredMixin, View):
             messages.append({"role": "assistant", "text": result.error})
             _save_state(request, messages=messages, operations=operations)
             preview = recharacterize_services.preview_plan(operations)
-            html = recharacterize_helpers.render_main(messages, preview)
-            return HttpResponse(html)
+            return HttpResponse(_render_main(messages, preview))
 
         # Drop the applied operation; the rest stay so they can be applied next.
         remaining = operations[:op_index] + operations[op_index + 1 :]
@@ -157,8 +175,46 @@ class RecharacterizeApplyView(LoginRequiredMixin, View):
         )
         _save_state(request, messages=messages, operations=remaining)
         preview = recharacterize_services.preview_plan(remaining) if remaining else None
-        html = recharacterize_helpers.render_main(messages, preview)
-        return HttpResponse(html)
+        return HttpResponse(_render_main(messages, preview))
+
+
+class RecharacterizeRevertView(LoginRequiredMixin, View):
+    """Reverts a previously applied operation from the persisted history.
+
+    Restores the items the change still owns to their prior values, records the
+    outcome in the chat log, and re-renders the main region (history panel
+    included) so the change now shows as reverted.
+    """
+
+    login_url = "/login/"
+
+    def post(self, request):
+        state = _get_state(request)
+        messages = state["messages"]
+        operations = state["operations"]
+
+        change_id = _parse_int_param(request, "change")
+        result = recharacterize_services.revert_change(change_id)
+
+        if not result.success:
+            messages.append({"role": "assistant", "text": result.error})
+        else:
+            note = (
+                f"Reverted: {result.action_summary}. "
+                f"Restored {result.reverted_count} journal entry "
+                f"item{'' if result.reverted_count == 1 else 's'}."
+            )
+            if result.conflict_count:
+                note += f" {result.conflict_count} skipped (changed since)."
+            if result.missing_count:
+                note += f" {result.missing_count} no longer exist."
+            messages.append({"role": "assistant", "text": note})
+
+        _save_state(request, messages=messages, operations=operations)
+        preview = (
+            recharacterize_services.preview_plan(operations) if operations else None
+        )
+        return HttpResponse(_render_main(messages, preview))
 
 
 class RecharacterizePageView(LoginRequiredMixin, View):
@@ -174,11 +230,8 @@ class RecharacterizePageView(LoginRequiredMixin, View):
         state = _get_state(request)
         operations = state["operations"]
 
-        op_index = _parse_op_index(request)
-        try:
-            page_number = int(request.GET.get("page", "1"))
-        except (TypeError, ValueError):
-            page_number = 1
+        op_index = _parse_int_param(request, "op")
+        page_number = _parse_int_param(request, "page", default=1)
 
         page = recharacterize_services.build_page(operations, op_index, page_number)
         html = recharacterize_helpers.render_affected_page(page)
@@ -198,7 +251,7 @@ class RecharacterizeExportView(LoginRequiredMixin, View):
         state = _get_state(request)
         operations = state["operations"]
 
-        op_index = _parse_op_index(request)
+        op_index = _parse_int_param(request, "op")
         rows = recharacterize_services.build_export_rows(operations, op_index)
 
         response = HttpResponse(
@@ -243,5 +296,4 @@ class RecharacterizeResetView(LoginRequiredMixin, View):
 
     def post(self, request):
         _save_state(request, messages=[], operations=[])
-        html = recharacterize_helpers.render_main(messages=[], preview=None)
-        return HttpResponse(html)
+        return HttpResponse(_render_main(messages=[], preview=None))

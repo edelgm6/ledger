@@ -5,13 +5,21 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from api.models import Account, JournalEntryItem
+from api.models import (
+    Account,
+    JournalEntryItem,
+    RecharacterizeChange,
+    RecharacterizeChangeItem,
+)
+from api.services import recharacterize_services
 from api.services.recharacterize_services import (
     SAMPLE_LIMIT,
     apply_operation,
     build_export_rows,
     build_page,
+    list_recent_changes,
     preview_plan,
+    revert_change,
     run_turn,
 )
 from api.tests.testing_factories import (
@@ -624,3 +632,191 @@ class RecharacterizeServicesTest(TestCase):
         ]
         self.assertFalse(apply_operation(ops, 5).success)
         self.assertFalse(apply_operation(ops, -1).success)
+
+
+class RecharacterizeRevertTest(TestCase):
+    """Capture-on-apply, revert, conflict/missing handling, and retention."""
+
+    def setUp(self):
+        self.checking = AccountFactory(
+            name="Ally Checking",
+            type=Account.Type.ASSET,
+            sub_type=Account.SubType.CASH,
+            is_closed=False,
+        )
+        self.groceries = AccountFactory(
+            name="Groceries",
+            type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.OPERATING,
+            is_closed=False,
+        )
+        self.dining = AccountFactory(
+            name="Dining",
+            type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.OPERATING,
+            is_closed=False,
+        )
+        self.ally_bank = EntityFactory(name="Ally Bank")
+        self.chase = EntityFactory(name="Chase")
+
+        # Two grocery debits, one already tagged to a different entity so we can
+        # confirm revert restores each item's own prior value (not a constant).
+        self.d1, _ = make_entry(
+            "Verizon Wireless", datetime.date(2025, 3, 1), self.groceries, self.checking
+        )
+        self.d2, _ = make_entry(
+            "Verizon Fios",
+            datetime.date(2025, 6, 1),
+            self.groceries,
+            self.checking,
+            debit_entity=self.chase,
+        )
+
+    def _set_entity_op(self):
+        return [
+            {
+                "filter": {"description_contains": "Verizon", "account": "Groceries"},
+                "action": {"type": "set_entity", "entity": "Ally Bank"},
+            }
+        ]
+
+    def _swap_op(self):
+        return [
+            {
+                "filter": {"description_contains": "Verizon", "account": "Groceries"},
+                "action": {"type": "change_account", "to_account": "Dining"},
+            }
+        ]
+
+    # --- capture ------------------------------------------------------------
+
+    def test_apply_records_change_with_per_item_prior_values(self):
+        result = apply_operation(self._set_entity_op(), 0)
+        self.assertTrue(result.success)
+        self.assertIsNotNone(result.change_id)
+
+        change = RecharacterizeChange.objects.get(id=result.change_id)
+        self.assertEqual(change.action_kind, "set_entity")
+        self.assertEqual(change.updated_count, 2)
+        self.assertEqual(change.new_entity, self.ally_bank)
+        self.assertFalse(change.is_reverted)
+
+        items = {ci.journal_entry_item_id: ci for ci in change.items.all()}
+        self.assertEqual(len(items), 2)
+        # d1 had no entity; d2 was tagged Chase — each prior value is captured.
+        self.assertIsNone(items[self.d1.id].prior_entity_id)
+        self.assertEqual(items[self.d2.id].prior_entity_id, self.chase.id)
+
+    # --- revert -------------------------------------------------------------
+
+    def test_revert_restores_entities_to_prior_values(self):
+        result = apply_operation(self._set_entity_op(), 0)
+        self.d1.refresh_from_db()
+        self.d2.refresh_from_db()
+        self.assertEqual(self.d1.entity, self.ally_bank)
+        self.assertEqual(self.d2.entity, self.ally_bank)
+
+        revert = revert_change(result.change_id)
+        self.assertTrue(revert.success)
+        self.assertEqual(revert.reverted_count, 2)
+        self.assertEqual(revert.conflict_count, 0)
+
+        self.d1.refresh_from_db()
+        self.d2.refresh_from_db()
+        self.assertIsNone(self.d1.entity)  # restored to no-entity
+        self.assertEqual(self.d2.entity, self.chase)  # restored to Chase
+
+        change = RecharacterizeChange.objects.get(id=result.change_id)
+        self.assertTrue(change.is_reverted)
+        self.assertIsNotNone(change.reverted_at)
+
+    def test_revert_account_swap_restores_account(self):
+        result = apply_operation(self._swap_op(), 0)
+        self.d1.refresh_from_db()
+        self.assertEqual(self.d1.account, self.dining)
+
+        revert = revert_change(result.change_id)
+        self.assertTrue(revert.success)
+        self.assertEqual(revert.reverted_count, 2)
+        self.d1.refresh_from_db()
+        self.assertEqual(self.d1.account, self.groceries)
+
+    def test_revert_skips_items_changed_since(self):
+        first = apply_operation(self._set_entity_op(), 0)
+        # A later op re-tags d1/d2 to Chase, so the first change no longer owns them.
+        second_op = [
+            {
+                "filter": {"description_contains": "Verizon", "account": "Groceries"},
+                "action": {"type": "set_entity", "entity": "Chase"},
+            }
+        ]
+        self.assertTrue(apply_operation(second_op, 0).success)
+
+        revert = revert_change(first.change_id)
+        self.assertTrue(revert.success)
+        self.assertEqual(revert.reverted_count, 0)
+        self.assertEqual(revert.conflict_count, 2)
+
+        # The later change's values survive — nothing was clobbered.
+        self.d1.refresh_from_db()
+        self.d2.refresh_from_db()
+        self.assertEqual(self.d1.entity, self.chase)
+        self.assertEqual(self.d2.entity, self.chase)
+
+    def test_revert_counts_deleted_items_as_missing(self):
+        result = apply_operation(self._set_entity_op(), 0)
+        # Delete one affected item's journal entry; SET_NULL keeps the snapshot row.
+        self.d1.journal_entry.delete()
+
+        revert = revert_change(result.change_id)
+        self.assertTrue(revert.success)
+        self.assertEqual(revert.missing_count, 1)
+        self.assertEqual(revert.reverted_count, 1)
+        self.d2.refresh_from_db()
+        self.assertEqual(self.d2.entity, self.chase)
+
+    def test_revert_already_reverted_errors(self):
+        result = apply_operation(self._set_entity_op(), 0)
+        self.assertTrue(revert_change(result.change_id).success)
+        second = revert_change(result.change_id)
+        self.assertFalse(second.success)
+        self.assertIn("already", second.error.lower())
+
+    def test_revert_missing_change_errors(self):
+        self.assertFalse(revert_change(999999).success)
+
+    # --- retention ----------------------------------------------------------
+
+    def test_history_capped_to_recent_n(self):
+        with patch.object(
+            recharacterize_services, "RECHARACTERIZE_HISTORY_LIMIT", 3
+        ):
+            change_ids = []
+            for _ in range(5):
+                result = apply_operation(self._set_entity_op(), 0)
+                self.assertTrue(result.success)
+                change_ids.append(result.change_id)
+
+            # Only the most recent 3 survive; their item rows too.
+            self.assertEqual(RecharacterizeChange.objects.count(), 3)
+            survivors = set(
+                RecharacterizeChange.objects.values_list("id", flat=True)
+            )
+            self.assertEqual(survivors, set(change_ids[-3:]))
+            # The oldest two were pruned and can no longer be reverted.
+            self.assertFalse(revert_change(change_ids[0]).success)
+            # Pruned changes' item snapshots are gone (cascade).
+            self.assertFalse(
+                RecharacterizeChangeItem.objects.filter(
+                    change_id=change_ids[0]
+                ).exists()
+            )
+
+    def test_list_recent_changes_orders_newest_first(self):
+        first = apply_operation(self._set_entity_op(), 0)
+        revert_change(first.change_id)  # so list includes a reverted row
+        second = apply_operation(self._swap_op(), 0)
+
+        recent = list_recent_changes()
+        self.assertEqual(recent[0].id, second.change_id)
+        self.assertEqual(recent[1].id, first.change_id)
