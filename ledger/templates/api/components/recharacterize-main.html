@@ -1,5 +1,4 @@
-<div id="recharacterize-main"
-     hx-on::before-request="var l=document.getElementById('chat-log'); if(l){l.scrollTop=l.scrollHeight;}">
+<div id="recharacterize-main">
 <div x-data="{ mode: '{{ active_tab }}' }">
 
 {% comment %}
@@ -77,12 +76,3 @@ whole session (chat + plan), so it lives here — global to both tabs.
 
 {% include "api/components/recharacterize-history.html" %}
 </div>
-
-<script>
-    // Pin the conversation to the latest message on load and after every
-    // htmx swap of this region (htmx runs inline scripts in swapped content).
-    (function () {
-        var log = document.getElementById('chat-log');
-        if (log) { log.scrollTop = log.scrollHeight; }
-    })();
-</script>

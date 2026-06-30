@@ -355,7 +355,7 @@ class RecharacterizeViewsTest(TestCase):
 
     # --- manual builder (no LLM) -------------------------------------------
 
-    def test_manual_appends_op_and_opens_manual_tab(self):
+    def test_manual_adds_op_and_opens_manual_tab(self):
         # No Gemini mock: the manual path must not touch the model at all. The
         # account multi-select submits account PKs (typeahead-multiselect).
         resp = self.client.post(
@@ -376,6 +376,32 @@ class RecharacterizeViewsTest(TestCase):
         self.assertEqual(len(ops), 1)
         self.assertEqual(ops[0]["filter"]["account"], ["Ally Checking"])
         self.assertEqual(ops[0]["action"], {"type": "set_entity", "entity": "Ally Bank"})
+
+    def test_new_ops_stack_on_top_newest_first(self):
+        # Add op A (groceries), then op B (checking): B is newest and must sort to
+        # the top of the plan (index 0) so it's the first one previewed.
+        self.client.post(
+            reverse("recharacterize-manual"),
+            {"action_type": "clear_entity", "account": self.groceries.id},
+        )
+        self.client.post(
+            reverse("recharacterize-manual"),
+            {"action_type": "clear_entity", "account": self.checking.id},
+        )
+        ops = self.client.session["recharacterize"]["operations"]
+        self.assertEqual(len(ops), 2)
+        self.assertEqual(ops[0]["filter"]["account"], ["Ally Checking"])  # newest
+        self.assertEqual(ops[1]["filter"]["account"], ["Groceries"])  # oldest
+        # Editing op 0 overwrites in place — it does not jump position.
+        resp = self.client.post(
+            reverse("recharacterize-manual"),
+            {"op": "0", "action_type": "clear_entity", "entry_type": "debit"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        ops = self.client.session["recharacterize"]["operations"]
+        self.assertEqual(len(ops), 2)
+        self.assertEqual(ops[0]["filter"], {"entry_type": "debit"})
+        self.assertEqual(ops[1]["filter"]["account"], ["Groceries"])
 
     def test_manual_then_apply_updates_items_and_records_history(self):
         from api.models import RecharacterizeChange

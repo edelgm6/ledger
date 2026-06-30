@@ -218,9 +218,9 @@ class RecharacterizeManualView(LoginRequiredMixin, View):
         operation = recharacterize_services.build_manual_operation(form.cleaned_data)
         operations = list(operations)
         if edit_index is not None:
-            operations[edit_index] = operation  # overwrite just this op
+            operations[edit_index] = operation  # overwrite: keep its position
         else:
-            operations.append(operation)
+            operations.insert(0, operation)  # new op stacks on top (newest first)
         _save_state(request, messages=messages, operations=operations)
         preview = recharacterize_services.preview_plan(operations)
         # Saving exits edit mode back to the empty builder; appending stays there.
