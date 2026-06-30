@@ -964,3 +964,106 @@ class BuildManualOperationTest(TestCase):
         self.assertIn("Ally Checking", catalogs.accounts)
         self.assertIn("Ally Bank", catalogs.entities)
         self.assertIn("Starting Equity", catalogs.swap_blocked)
+
+
+class OperationToFormInitialTest(TestCase):
+    def setUp(self):
+        self.checking = AccountFactory(name="Ally Checking", is_closed=False)
+        self.dining = AccountFactory(name="Dining", is_closed=False)
+        self.ally_bank = EntityFactory(name="Ally Bank")
+
+    def test_round_trips_build_manual_operation_with_string_pks(self):
+        op = recharacterize_services.build_manual_operation(
+            {
+                "description_contains": "Verizon",
+                "date_from": datetime.date(2025, 1, 1),
+                "account": [self.checking, self.dining],
+                "entry_type": "debit",
+                "action_type": "set_entity",
+                "target_entity": "Ally Bank",
+            }
+        )
+        initial = recharacterize_services.operation_to_form_initial(op)
+        self.assertEqual(initial["description_contains"], "Verizon")
+        self.assertEqual(initial["date_from"], "2025-01-01")
+        self.assertEqual(initial["entry_type"], "debit")
+        self.assertEqual(initial["action_type"], "set_entity")
+        self.assertEqual(initial["target_entity"], "Ally Bank")
+        # account becomes a list of string PKs so the multi-select renders selected.
+        self.assertEqual(
+            initial["account"], [str(self.checking.pk), str(self.dining.pk)]
+        )
+
+    def test_change_account_carries_to_account(self):
+        op = recharacterize_services.build_manual_operation(
+            {
+                "account": [self.checking],
+                "action_type": "change_account",
+                "to_account": "Dining",
+            }
+        )
+        initial = recharacterize_services.operation_to_form_initial(op)
+        self.assertEqual(initial["action_type"], "change_account")
+        self.assertEqual(initial["to_account"], "Dining")
+
+    def test_unresolved_account_names_are_dropped(self):
+        initial = recharacterize_services.operation_to_form_initial(
+            {"filter": {"account": ["Nonexistent"]}, "action": {"type": "view"}}
+        )
+        self.assertEqual(initial["account"], [])
+
+    def test_defaults_for_empty_operation(self):
+        initial = recharacterize_services.operation_to_form_initial({})
+        self.assertEqual(initial["account"], [])
+        self.assertEqual(initial["entity"], [])
+        self.assertEqual(initial["action_type"], "view")
+        self.assertFalse(initial["entity_is_empty"])
+
+
+class ReviseOperationTest(TestCase):
+    def setUp(self):
+        self.checking = AccountFactory(name="Ally Checking", is_closed=False)
+
+    @patch(
+        "api.services.recharacterize_services.gemini_services.call_gemini_conversation"
+    )
+    def test_returns_first_revised_operation(self, mock_call):
+        revised = {
+            "filter": {"description_contains": "Verizon", "entry_type": "debit"},
+            "action": {"type": "view"},
+        }
+        mock_call.return_value = json.dumps({"reply": "Done.", "operations": [revised]})
+        result = recharacterize_services.revise_operation(
+            {"filter": {"description_contains": "Verizon"}, "action": {"type": "view"}},
+            "only debits",
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(result.operation, revised)
+        self.assertFalse(result.failed)
+
+    @patch(
+        "api.services.recharacterize_services.gemini_services.call_gemini_conversation"
+    )
+    def test_no_operation_surfaces_model_reply(self, mock_call):
+        mock_call.return_value = json.dumps(
+            {"reply": "Which account did you mean?", "operations": []}
+        )
+        result = recharacterize_services.revise_operation(
+            {"filter": {"description_contains": "x"}, "action": {"type": "view"}},
+            "change the account",
+        )
+        self.assertFalse(result.success)
+        self.assertFalse(result.failed)
+        self.assertEqual(result.message, "Which account did you mean?")
+
+    @patch(
+        "api.services.recharacterize_services.gemini_services.call_gemini_conversation"
+    )
+    def test_degrades_on_model_error(self, mock_call):
+        mock_call.side_effect = RuntimeError("503 UNAVAILABLE")
+        result = recharacterize_services.revise_operation(
+            {"filter": {"description_contains": "x"}, "action": {"type": "view"}},
+            "only debits",
+        )
+        self.assertFalse(result.success)
+        self.assertTrue(result.failed)

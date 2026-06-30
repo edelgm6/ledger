@@ -780,9 +780,21 @@ class RecharacterizeOperationForm(forms.Form):
         ("change_account", "Change account"),
     ]
 
-    description_contains = forms.CharField(required=False)
-    date_from = forms.DateField(required=False)
-    date_to = forms.DateField(required=False)
+    # Widget attrs live on the fields (not hand-written in the template) so the
+    # builder renders each field with ``{{ manual_form.<field> }}`` and prefill
+    # from ``initial`` (when editing an op) "just works" with no template logic.
+    description_contains = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class": "input", "placeholder": "e.g. coffee"}),
+    )
+    date_from = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"class": "input", "type": "date"}),
+    )
+    date_to = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"class": "input", "type": "date"}),
+    )
     # account/entity are multi-select filters (match any of the chosen) rendered
     # with the shared typeahead-multiselect component. ``initial=list`` keeps an
     # unbound field's value an empty list so that component renders cleanly.
@@ -793,7 +805,11 @@ class RecharacterizeOperationForm(forms.Form):
         queryset=Entity.objects.all().order_by("name"), required=False, initial=list
     )
     entity_is_empty = forms.BooleanField(required=False)
-    entry_type = forms.ChoiceField(required=False, choices=ENTRY_TYPE_CHOICES)
+    entry_type = forms.ChoiceField(
+        required=False,
+        choices=ENTRY_TYPE_CHOICES,
+        widget=forms.Select(attrs={"class": "select"}),
+    )
 
     action_type = forms.ChoiceField(choices=ACTION_CHOICES)
     target_entity = forms.ChoiceField(

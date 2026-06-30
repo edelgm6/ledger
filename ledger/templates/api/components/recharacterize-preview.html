@@ -7,7 +7,13 @@
 {% if preview and preview.operations %}
     {% for op in preview.operations %}
     <div class="card mt-2">
-        <div><strong>Operation {{ forloop.counter }}:</strong> {{ op.action_summary }}</div>
+        <div class="flex flex-between">
+            <div><strong>Operation {{ forloop.counter }}:</strong> {{ op.action_summary }}</div>
+            <button type="button" class="btn btn-secondary btn-sm"
+                    hx-get="{% url 'recharacterize-edit' %}?op={{ op.index }}"
+                    hx-target="#recharacterize-main"
+                    hx-swap="outerHTML">Edit</button>
+        </div>
 
         {% if op.criteria %}
         <div class="criteria mt-2">

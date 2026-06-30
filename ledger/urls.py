@@ -29,6 +29,8 @@ from api.views.journal_entry_views import (
 from api.views.reconciliation_views import ReconciliationTableView, ReconciliationView
 from api.views.recharacterize_views import (
     RecharacterizeApplyView,
+    RecharacterizeEditAgentView,
+    RecharacterizeEditView,
     RecharacterizeExportView,
     RecharacterizeManualView,
     RecharacterizeMessageView,
@@ -189,6 +191,16 @@ urlpatterns = [
         "recharacterize/manual/",
         RecharacterizeManualView.as_view(),
         name="recharacterize-manual",
+    ),
+    path(
+        "recharacterize/edit/",
+        RecharacterizeEditView.as_view(),
+        name="recharacterize-edit",
+    ),
+    path(
+        "recharacterize/edit-agent/",
+        RecharacterizeEditAgentView.as_view(),
+        name="recharacterize-edit-agent",
     ),
     path(
         "recharacterize/apply/",

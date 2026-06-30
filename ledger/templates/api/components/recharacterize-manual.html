@@ -1,8 +1,41 @@
+{% if edit_index is not None %}
+<div class="flex flex-between">
+    <h5 class="card-title">Editing operation {{ edit_index|add:1 }}</h5>
+    <button type="button" class="btn btn-ghost btn-sm"
+            hx-get="{% url 'recharacterize-edit' %}"
+            hx-target="#recharacterize-main"
+            hx-swap="outerHTML">Cancel</button>
+</div>
+<p class="muted">
+    Change this operation by hand, or ask the agent to revise it below. Either way,
+    your changes overwrite just this operation.
+</p>
+
+<form class="mt-3"
+      hx-post="{% url 'recharacterize-edit-agent' %}?op={{ edit_index }}"
+      hx-target="#recharacterize-main"
+      hx-swap="outerHTML"
+      hx-disabled-elt="find button[type=submit]">
+    {% csrf_token %}
+    <label class="label">Revise with the agent</label>
+    <textarea name="instruction" class="textarea" rows="2"
+              placeholder="e.g. only debits, and after Jan 1"></textarea>
+    {% if edit_agent_error %}
+    <div class="alert alert-danger mt-2" role="alert">{{ edit_agent_error }}</div>
+    {% endif %}
+    <div class="grid grid-auto grid-end mt-2">
+        <button type="submit" class="btn btn-secondary">Revise with agent</button>
+    </div>
+</form>
+
+<div class="criteria-head muted mt-3">Or edit the fields directly:</div>
+{% else %}
 <h5 class="card-title">Build manually</h5>
 <p class="muted">
     Construct an operation by hand — no agent involved. It’s added to the plan and
     previewed on the right, exactly like an agent-proposed one.
 </p>
+{% endif %}
 
 {% if manual_form.errors %}
 <div class="alert alert-danger mt-2" role="alert">
@@ -17,8 +50,9 @@
       hx-target="#recharacterize-main"
       hx-swap="outerHTML"
       hx-disabled-elt="find button[type=submit]"
-      x-data="{ action: 'view' }">
+      x-data="{ action: '{{ manual_form.action_type.value|default:'view' }}' }">
     {% csrf_token %}
+    {% if edit_index is not None %}<input type="hidden" name="op" value="{{ edit_index }}" />{% endif %}
 
     <div>
         <label class="label">Action</label>
@@ -34,7 +68,7 @@
 
     <div class="mt-2">
         <label class="label">Description contains</label>
-        <input type="text" name="description_contains" class="input" placeholder="e.g. coffee" />
+        {{ manual_form.description_contains }}
     </div>
 
     <div class="mt-2">
@@ -50,28 +84,24 @@
 
     <div class="checks mt-2">
         <label class="check">
-            <input type="checkbox" name="entity_is_empty" value="on" />Only items with no entity
+            {{ manual_form.entity_is_empty }}Only items with no entity
         </label>
     </div>
 
     <div class="grid grid-2 mt-2">
         <div>
             <label class="label">Date from</label>
-            <input type="date" name="date_from" class="input" />
+            {{ manual_form.date_from }}
         </div>
         <div>
             <label class="label">Date to</label>
-            <input type="date" name="date_to" class="input" />
+            {{ manual_form.date_to }}
         </div>
     </div>
 
     <div class="mt-2">
         <label class="label">Entry type</label>
-        <select name="entry_type" class="select">
-            <option value="">Any</option>
-            <option value="debit">Debit</option>
-            <option value="credit">Credit</option>
-        </select>
+        {{ manual_form.entry_type }}
     </div>
 
     <div class="mt-3" x-show="action === 'set_entity'" x-cloak>
@@ -85,6 +115,8 @@
     </div>
 
     <div class="grid grid-auto grid-end mt-3">
-        <button type="submit" class="btn btn-primary">Add operation</button>
+        <button type="submit" class="btn btn-primary">
+            {% if edit_index is not None %}Save changes{% else %}Add operation{% endif %}
+        </button>
     </div>
 </form>

@@ -423,3 +423,109 @@ class RecharacterizeViewsTest(TestCase):
         self.assertEqual(
             len(self.client.session["recharacterize"]["operations"]), 1
         )
+
+    # --- editing one operation in place ------------------------------------
+
+    def _seed_op(self):
+        """Adds one manual set-entity op to the session and returns the response."""
+        return self.client.post(
+            reverse("recharacterize-manual"),
+            {
+                "action_type": "set_entity",
+                "description_contains": "Verizon",
+                "account": self.checking.id,
+                "entry_type": "debit",
+                "target_entity": "Ally Bank",
+            },
+        )
+
+    def test_edit_prefills_the_manual_tab(self):
+        self._seed_op()
+        resp = self.client.get(reverse("recharacterize-edit") + "?op=0")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Editing operation 1")
+        self.assertContains(resp, "mode: 'manual'")
+        # The filter is prefilled from the stored op.
+        self.assertContains(resp, 'value="Verizon"')
+        self.assertContains(resp, "Save changes")
+        # A hidden op index makes the next save overwrite rather than append.
+        self.assertContains(resp, 'name="op"')
+        # The account multi-select and the target entity render as selected (the
+        # string-PK initial is what makes the typeahead mark its option selected).
+        self.assertContains(
+            resp, f'<option value="{self.checking.id}" selected>Ally Checking</option>'
+        )
+        self.assertContains(resp, '<option value="Ally Bank" selected>')
+
+    def test_edit_save_overwrites_not_appends(self):
+        self._seed_op()
+        resp = self.client.post(
+            reverse("recharacterize-manual"),
+            {
+                "op": "0",
+                "action_type": "clear_entity",
+                "account": self.checking.id,
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        ops = self.client.session["recharacterize"]["operations"]
+        # Still one op, but its action was overwritten.
+        self.assertEqual(len(ops), 1)
+        self.assertEqual(ops[0]["action"], {"type": "clear_entity"})
+
+    def test_cancel_returns_manual_tab_without_edit_header(self):
+        self._seed_op()
+        resp = self.client.get(reverse("recharacterize-edit"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "mode: 'manual'")
+        self.assertNotContains(resp, "Editing operation")
+        # The plan is untouched by entering/leaving edit mode.
+        self.assertEqual(
+            len(self.client.session["recharacterize"]["operations"]), 1
+        )
+
+    @patch(
+        "api.services.recharacterize_services.gemini_services.call_gemini_conversation"
+    )
+    def test_edit_agent_overwrites_targeted_op(self, mock_call):
+        self._seed_op()
+        mock_call.return_value = json.dumps(
+            {
+                "reply": "Narrowed to debits only.",
+                "operations": [
+                    {
+                        "filter": {"account": "Ally Checking", "entry_type": "credit"},
+                        "action": {"type": "clear_entity"},
+                    }
+                ],
+            }
+        )
+        resp = self.client.post(
+            reverse("recharacterize-edit-agent") + "?op=0",
+            {"instruction": "clear it and only credits"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        ops = self.client.session["recharacterize"]["operations"]
+        self.assertEqual(len(ops), 1)
+        self.assertEqual(ops[0]["action"], {"type": "clear_entity"})
+        self.assertEqual(ops[0]["filter"]["entry_type"], "credit")
+        # Stays in edit mode for further tweaks.
+        self.assertContains(resp, "Editing operation 1")
+
+    @patch(
+        "api.services.recharacterize_services.gemini_services.call_gemini_conversation"
+    )
+    def test_edit_agent_failure_keeps_op_and_shows_error(self, mock_call):
+        self._seed_op()
+        mock_call.side_effect = RuntimeError("503 UNAVAILABLE")
+        before = self.client.session["recharacterize"]["operations"][0]
+        resp = self.client.post(
+            reverse("recharacterize-edit-agent") + "?op=0",
+            {"instruction": "only credits"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "be reached")
+        # The targeted op is left intact on a transient failure.
+        self.assertEqual(
+            self.client.session["recharacterize"]["operations"][0], before
+        )

@@ -37,12 +37,16 @@ def render_main(
     history: Optional[List[RecharacterizeChange]] = None,
     active_tab: str = "agent",
     manual_form=None,
+    edit_index: Optional[int] = None,
+    edit_agent_error: Optional[str] = None,
 ) -> str:
     """Renders the swappable #recharacterize-main region (chat + preview + history).
 
     ``active_tab`` decides which tab (agent vs. manual) is open after an htmx
     swap; ``manual_form`` is the builder form (it supplies the account/entity and
     action-target select options and carries field errors back on invalid submit).
+    ``edit_index`` (when set) puts the manual builder in edit mode, overwriting that
+    operation rather than appending.
     """
     return render_to_string(
         "api/components/recharacterize-main.html",
@@ -54,6 +58,8 @@ def render_main(
             "history": history or [],
             "active_tab": active_tab,
             "manual_form": manual_form,
+            "edit_index": edit_index,
+            "edit_agent_error": edit_agent_error,
         },
     )
 
