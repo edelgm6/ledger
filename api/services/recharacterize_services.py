@@ -115,6 +115,32 @@ def resolve_entity(name: Optional[str]) -> Tuple[Optional[Entity], Optional[str]
     return _resolve_named(Entity, name, "Entity")
 
 
+def _as_name_list(value: Any) -> List[str]:
+    """Normalizes a filter's account/entity value to a list of names.
+
+    The LLM emits a single name string; the manual form emits a list. Both flow
+    through the same evaluation, so a string becomes a one-element list and a
+    falsy value becomes an empty list.
+    """
+    if not value:
+        return []
+    if isinstance(value, str):
+        return [value]
+    return [str(v) for v in value]
+
+
+def _resolve_named_list(model, value: Any, label: str) -> Tuple[List, List[str]]:
+    """Resolves every name in a possibly-multi filter value, collecting errors."""
+    rows, errors = [], []
+    for name in _as_name_list(value):
+        row, err = _resolve_named(model, name, label)
+        if err:
+            errors.append(err)
+        elif row is not None:
+            rows.append(row)
+    return rows, errors
+
+
 def _parse_date(value: Any) -> Tuple[Optional[datetime.date], Optional[str]]:
     if not value:
         return None, None
@@ -151,8 +177,8 @@ def _filter_criteria(
     description: Optional[str],
     date_from: Optional[datetime.date],
     date_to: Optional[datetime.date],
-    account: Optional[Account],
-    entity: Optional[Entity],
+    accounts: List[Account],
+    entities: List[Entity],
     entity_is_empty: bool,
     entry_type: Optional[str],
 ) -> List[Dict[str, str]]:
@@ -164,10 +190,12 @@ def _filter_criteria(
         rows.append({"label": "Date from", "value": str(date_from)})
     if date_to:
         rows.append({"label": "Date to", "value": str(date_to)})
-    if account:
-        rows.append({"label": "Account", "value": account.name})
-    if entity:
-        rows.append({"label": "Current entity", "value": entity.name})
+    if accounts:
+        label = "Account" if len(accounts) == 1 else "Account in"
+        rows.append({"label": label, "value": ", ".join(a.name for a in accounts)})
+    if entities:
+        label = "Current entity" if len(entities) == 1 else "Current entity in"
+        rows.append({"label": label, "value": ", ".join(e.name for e in entities)})
     if entity_is_empty:
         rows.append({"label": "Current entity", "value": "— none —"})
     if entry_type:
@@ -185,14 +213,17 @@ def _evaluate_operation(operation: Dict[str, Any]) -> EvaluatedOperation:
     filter_data = operation.get("filter") or {}
     action_data = operation.get("action") or {}
 
-    # Resolve filter fields.
+    # Resolve filter fields. account/entity may be a single name (LLM) or a list
+    # of names (manual builder); both normalize to a list here.
     description = filter_data.get("description_contains") or None
-    filter_account, err = resolve_account(filter_data.get("account"))
-    if err:
-        result.errors.append(err)
-    filter_entity, err = resolve_entity(filter_data.get("entity"))
-    if err:
-        result.errors.append(err)
+    filter_accounts, errs = _resolve_named_list(
+        Account, filter_data.get("account"), "Account"
+    )
+    result.errors.extend(errs)
+    filter_entities, errs = _resolve_named_list(
+        Entity, filter_data.get("entity"), "Entity"
+    )
+    result.errors.extend(errs)
     date_from, err = _parse_date(filter_data.get("date_from"))
     if err:
         result.errors.append(err)
@@ -212,8 +243,8 @@ def _evaluate_operation(operation: Dict[str, Any]) -> EvaluatedOperation:
         description,
         date_from,
         date_to,
-        filter_account,
-        filter_entity,
+        filter_accounts,
+        filter_entities,
         entity_is_empty,
         entry_type,
     )
@@ -224,8 +255,8 @@ def _evaluate_operation(operation: Dict[str, Any]) -> EvaluatedOperation:
             description,
             date_from,
             date_to,
-            filter_account,
-            filter_entity,
+            filter_accounts,
+            filter_entities,
             entity_is_empty,
             entry_type,
         ]
@@ -255,9 +286,17 @@ def _evaluate_operation(operation: Dict[str, Any]) -> EvaluatedOperation:
         # filter guard above still requires at least one criterion.
         result.action_summary = "view matching items (no changes)"
     elif result.action_kind == ACTION_CHANGE_ACCOUNT:
-        if filter_account is None:
+        # A swap maps one source account to one destination (their type/sub-type
+        # must match), so the filter must pin down exactly one source account.
+        filter_account = filter_accounts[0] if len(filter_accounts) == 1 else None
+        if not filter_accounts:
             result.errors.append(
                 "Changing an account requires a source account in the filter."
+            )
+        elif filter_account is None:  # more than one source matched the filter
+            result.errors.append(
+                "Changing an account requires exactly one source account in the "
+                "filter, not several."
             )
         result.from_account = filter_account
         to_account, err = resolve_account(action_data.get("to_account"))
@@ -307,8 +346,8 @@ def _evaluate_operation(operation: Dict[str, Any]) -> EvaluatedOperation:
         description=description,
         date_from=date_from,
         date_to=date_to,
-        account=filter_account,
-        entity=filter_entity,
+        accounts=filter_accounts,
+        entities=filter_entities,
         entity_is_empty=entity_is_empty,
         entry_type=entry_type,
     )
@@ -699,6 +738,73 @@ def _build_catalogs() -> Tuple[List[str], List[str], List[str]]:
     swap_blocked_names = [a.name for a in accounts if is_swap_blocked_account(a)]
     entity_names = list(Entity.objects.order_by("name").values_list("name", flat=True))
     return account_names, entity_names, swap_blocked_names
+
+
+# --- Manual operation builder ----------------------------------------------
+#
+# The manual builder lets a user construct the exact same {filter, action}
+# operation the LLM emits, by hand, with no model involved. The dict it produces
+# flows through preview_plan / apply_operation / revert_change unchanged, so all
+# guardrails apply identically whether an op came from the agent or the form.
+
+
+@dataclass
+class FormCatalogs:
+    """Name lists for populating the manual builder's <select> inputs."""
+
+    accounts: List[str]
+    entities: List[str]
+    swap_blocked: List[str]
+
+
+def manual_form_catalogs() -> FormCatalogs:
+    """Account/entity names for the manual builder, reusing the LLM catalogs."""
+    account_names, entity_names, swap_blocked_names = _build_catalogs()
+    return FormCatalogs(
+        accounts=account_names,
+        entities=entity_names,
+        swap_blocked=swap_blocked_names,
+    )
+
+
+def build_manual_operation(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Builds a ``{filter, action}`` operation dict from cleaned form data.
+
+    Mirrors the shape the LLM emits so the manual path reuses preview/apply
+    unchanged. Empty fields are dropped so the no-filter guard and action_summary
+    logic behave identically to an agent-proposed operation, and dates are stored
+    as ISO strings to keep the session plan JSON-serializable. All semantic
+    validation (swap-blocked accounts, type match, empty filter) is deferred to
+    _evaluate_operation, which surfaces a blocked op in the preview.
+    """
+    filter_data: Dict[str, Any] = {}
+    if data.get("description_contains"):
+        filter_data["description_contains"] = data["description_contains"]
+    if data.get("date_from"):
+        filter_data["date_from"] = data["date_from"].isoformat()
+    if data.get("date_to"):
+        filter_data["date_to"] = data["date_to"].isoformat()
+    # account/entity arrive as Account/Entity objects (multi-select); store the
+    # names so the plan stays JSON-serializable and matches the LLM's by-name shape.
+    accounts = list(data.get("account") or [])
+    if accounts:
+        filter_data["account"] = [a.name for a in accounts]
+    entities = list(data.get("entity") or [])
+    if entities:
+        filter_data["entity"] = [e.name for e in entities]
+    if data.get("entity_is_empty"):
+        filter_data["entity_is_empty"] = True
+    if data.get("entry_type"):
+        filter_data["entry_type"] = data["entry_type"]
+
+    action_kind = data.get("action_type")
+    action_data: Dict[str, Any] = {"type": action_kind}
+    if action_kind == ACTION_SET_ENTITY:
+        action_data["entity"] = data.get("target_entity") or ""
+    elif action_kind == ACTION_CHANGE_ACCOUNT:
+        action_data["to_account"] = data.get("to_account") or ""
+
+    return {"filter": filter_data, "action": action_data}
 
 
 def run_turn(messages: List[Dict[str, str]]) -> TurnResult:

@@ -1,0 +1,90 @@
+<h5 class="card-title">Build manually</h5>
+<p class="muted">
+    Construct an operation by hand — no agent involved. It’s added to the plan and
+    previewed on the right, exactly like an agent-proposed one.
+</p>
+
+{% if manual_form.errors %}
+<div class="alert alert-danger mt-2" role="alert">
+    {% for field, errors in manual_form.errors.items %}
+        {% for error in errors %}<div>{{ field }}: {{ error }}</div>{% endfor %}
+    {% endfor %}
+</div>
+{% endif %}
+
+<form class="form mt-3"
+      hx-post="{% url 'recharacterize-manual' %}"
+      hx-target="#recharacterize-main"
+      hx-swap="outerHTML"
+      hx-disabled-elt="find button[type=submit]"
+      x-data="{ action: 'view' }">
+    {% csrf_token %}
+
+    <div>
+        <label class="label">Action</label>
+        <select name="action_type" class="select" x-model="action">
+            <option value="view">View matching items (no change)</option>
+            <option value="set_entity">Set entity</option>
+            <option value="clear_entity">Clear entity</option>
+            <option value="change_account">Change account</option>
+        </select>
+    </div>
+
+    <div class="criteria-head muted mt-3">Filter — match items where:</div>
+
+    <div class="mt-2">
+        <label class="label">Description contains</label>
+        <input type="text" name="description_contains" class="input" placeholder="e.g. coffee" />
+    </div>
+
+    <div class="mt-2">
+        <span x-show="action === 'change_account'" x-cloak class="muted">
+            For “change account”, pick exactly one source account below.
+        </span>
+        {% include "api/components/typeahead-multiselect.html" with field=manual_form.account label="Account" all_label="All accounts" %}
+    </div>
+
+    <div class="mt-2">
+        {% include "api/components/typeahead-multiselect.html" with field=manual_form.entity label="Entity" all_label="All entities" %}
+    </div>
+
+    <div class="checks mt-2">
+        <label class="check">
+            <input type="checkbox" name="entity_is_empty" value="on" />Only items with no entity
+        </label>
+    </div>
+
+    <div class="grid grid-2 mt-2">
+        <div>
+            <label class="label">Date from</label>
+            <input type="date" name="date_from" class="input" />
+        </div>
+        <div>
+            <label class="label">Date to</label>
+            <input type="date" name="date_to" class="input" />
+        </div>
+    </div>
+
+    <div class="mt-2">
+        <label class="label">Entry type</label>
+        <select name="entry_type" class="select">
+            <option value="">Any</option>
+            <option value="debit">Debit</option>
+            <option value="credit">Credit</option>
+        </select>
+    </div>
+
+    <div class="mt-3" x-show="action === 'set_entity'" x-cloak>
+        <label class="label">Set entity to</label>
+        {{ manual_form.target_entity }}
+    </div>
+
+    <div class="mt-3" x-show="action === 'change_account'" x-cloak>
+        <label class="label">Change account to</label>
+        {{ manual_form.to_account }}
+    </div>
+
+    <div class="grid grid-auto grid-end mt-3">
+        <button type="submit" class="btn btn-primary">Add operation</button>
+    </div>
+</form>

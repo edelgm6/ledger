@@ -1,53 +1,78 @@
 <div id="recharacterize-main"
      hx-on::before-request="var l=document.getElementById('chat-log'); if(l){l.scrollTop=l.scrollHeight;}">
-<div class="grid grid-2">
+<div x-data="{ mode: '{{ active_tab }}' }">
+
+{% comment %}
+Tabs + Reset form a toolbar spanning both columns, so the left pane (chat or
+filter) and the right Preview pane start at the same line. Reset clears the
+whole session (chat + plan), so it lives here — global to both tabs.
+{% endcomment %}
+<div class="flex flex-between">
+    <div class="flex gap-2">
+        <button type="button" class="btn"
+                :class="mode === 'agent' ? 'btn-primary' : 'btn-secondary'"
+                @click="mode = 'agent'">Ask agent</button>
+        <button type="button" class="btn"
+                :class="mode === 'manual' ? 'btn-primary' : 'btn-secondary'"
+                @click="mode = 'manual'">Build manually</button>
+    </div>
+    <button type="button" class="btn btn-ghost"
+            hx-post="{% url 'recharacterize-reset' %}"
+            hx-target="#recharacterize-main"
+            hx-swap="outerHTML">Reset</button>
+</div>
+
+<div class="grid grid-2 mt-3">
     <div class="card">
-        <div id="chat-log" class="chat-log">
-            {% for message in messages %}
-                {% include "api/components/recharacterize-chat-message.html" with role=message.role text=message.text %}
-            {% empty %}
-                <p class="muted">No messages yet. Describe the change you want to make.</p>
-            {% endfor %}
-            <div id="chat-thinking" class="chat-msg chat-thinking">
-                <span class="chat-role">Agent</span>
-                <div class="chat-text">⚙️ Thinking…</div>
+        <div x-show="mode === 'agent'">
+            <div id="chat-log" class="chat-log">
+                {% for message in messages %}
+                    {% include "api/components/recharacterize-chat-message.html" with role=message.role text=message.text %}
+                {% empty %}
+                    <p class="muted">No messages yet. Describe the change you want to make.</p>
+                {% endfor %}
+                <div id="chat-thinking" class="chat-msg chat-thinking">
+                    <span class="chat-role">Agent</span>
+                    <div class="chat-text">⚙️ Thinking…</div>
+                </div>
             </div>
-        </div>
 
-        {% if error %}
-        <div class="alert alert-danger mt-3" role="alert">
-            <div title="{{ error.detail }}">❌ {{ error.label }} — {{ error.message }}</div>
-            <button type="button" class="btn btn-secondary btn-sm mt-2"
-                    hx-post="{% url 'recharacterize-retry' %}"
-                    hx-target="#recharacterize-main"
-                    hx-swap="outerHTML"
-                    hx-indicator="#chat-thinking"
-                    hx-disabled-elt="this">↻ Retry</button>
-        </div>
-        {% endif %}
-
-        <form id="chat-form" class="mt-3"
-              hx-post="{% url 'recharacterize-message' %}"
-              hx-target="#recharacterize-main"
-              hx-swap="outerHTML"
-              hx-indicator="#chat-thinking"
-              hx-disabled-elt="find button[type=submit]">
-            {% csrf_token %}
-            <textarea name="message" class="textarea" rows="3"
-                      placeholder="Describe the change…" required></textarea>
-            <div class="grid grid-auto grid-end mt-2">
-                <button type="button" class="btn"
-                        hx-post="{% url 'recharacterize-reset' %}"
+            {% if error %}
+            <div class="alert alert-danger mt-3" role="alert">
+                <div title="{{ error.detail }}">❌ {{ error.label }} — {{ error.message }}</div>
+                <button type="button" class="btn btn-secondary btn-sm mt-2"
+                        hx-post="{% url 'recharacterize-retry' %}"
                         hx-target="#recharacterize-main"
-                        hx-swap="outerHTML">Reset</button>
-                <button type="submit" class="btn btn-primary">Send</button>
+                        hx-swap="outerHTML"
+                        hx-indicator="#chat-thinking"
+                        hx-disabled-elt="this">↻ Retry</button>
             </div>
-        </form>
+            {% endif %}
+
+            <form id="chat-form" class="mt-3"
+                  hx-post="{% url 'recharacterize-message' %}"
+                  hx-target="#recharacterize-main"
+                  hx-swap="outerHTML"
+                  hx-indicator="#chat-thinking"
+                  hx-disabled-elt="find button[type=submit]">
+                {% csrf_token %}
+                <textarea name="message" class="textarea" rows="3"
+                          placeholder="Describe the change…" required></textarea>
+                <div class="grid grid-auto grid-end mt-2">
+                    <button type="submit" class="btn btn-primary">Send</button>
+                </div>
+            </form>
+        </div>
+
+        <div x-show="mode === 'manual'" x-cloak>
+            {% include "api/components/recharacterize-manual.html" %}
+        </div>
     </div>
 
     <div class="card">
         {% include "api/components/recharacterize-preview.html" %}
     </div>
+</div>
 </div>
 
 {% include "api/components/recharacterize-history.html" %}

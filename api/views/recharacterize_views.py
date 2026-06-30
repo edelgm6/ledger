@@ -12,6 +12,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
 from django.views import View
 
+from api.forms import RecharacterizeOperationForm
 from api.services import recharacterize_services
 from api.views import recharacterize_helpers
 from api.views.page_utils import render_full_page
@@ -36,18 +37,28 @@ def _parse_int_param(request, key: str, default: int = -1) -> int:
         return default
 
 
-def _render_main(messages, preview=None, *, flash=None, error=None) -> str:
+def _render_main(
+    messages, preview=None, *, flash=None, error=None, active_tab="agent", manual_form=None
+) -> str:
     """Renders the main region, always with the current history panel attached.
 
     Every render of #recharacterize-main must reflect the live history, so this
     is the single seam that fetches it — call sites never thread it themselves.
+    ``active_tab`` keeps the agent or manual tab open across htmx swaps. The
+    manual builder needs a form for its select options; a fresh one is built when
+    none was threaded in (the invalid-submit path passes a bound form for errors).
     """
+    form = manual_form or RecharacterizeOperationForm(
+        catalogs=recharacterize_services.manual_form_catalogs()
+    )
     return recharacterize_helpers.render_main(
         messages,
         preview,
         flash=flash,
         error=error,
         history=recharacterize_services.list_recent_changes(),
+        active_tab=active_tab,
+        manual_form=form,
     )
 
 
@@ -89,9 +100,7 @@ class RecharacterizeView(LoginRequiredMixin, View):
     def get(self, request):
         _save_state(request, messages=[], operations=[])
         html = recharacterize_helpers.render_page(
-            messages=[],
-            preview=None,
-            history=recharacterize_services.list_recent_changes(),
+            _render_main(messages=[], preview=None)
         )
         return render_full_page(request, html)
 
@@ -132,6 +141,42 @@ class RecharacterizeRetryView(LoginRequiredMixin, View):
 
         html = _run_turn_and_render(request, messages, state["operations"])
         return HttpResponse(html)
+
+
+class RecharacterizeManualView(LoginRequiredMixin, View):
+    """Appends a manually built operation to the plan — no LLM involved.
+
+    Builds a ``{filter, action}`` operation from the manual form and appends it to
+    the session plan, then previews it alongside any existing operations. Semantic
+    guardrails are enforced by preview_plan, so a swap-blocked / empty-filter /
+    type-mismatch op renders as a blocked operation rather than erroring here.
+    """
+
+    login_url = "/login/"
+
+    def post(self, request):
+        state = _get_state(request)
+        messages = state["messages"]
+        operations = state["operations"]
+
+        form = RecharacterizeOperationForm(request.POST)
+        if not form.is_valid():
+            # Re-render with field errors, keeping the user on the Manual tab.
+            preview = (
+                recharacterize_services.preview_plan(operations)
+                if operations
+                else None
+            )
+            html = _render_main(
+                messages, preview, active_tab="manual", manual_form=form
+            )
+            return HttpResponse(html)
+
+        operation = recharacterize_services.build_manual_operation(form.cleaned_data)
+        operations = operations + [operation]
+        _save_state(request, messages=messages, operations=operations)
+        preview = recharacterize_services.preview_plan(operations)
+        return HttpResponse(_render_main(messages, preview, active_tab="manual"))
 
 
 class RecharacterizeApplyView(LoginRequiredMixin, View):

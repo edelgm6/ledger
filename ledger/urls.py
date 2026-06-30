@@ -30,6 +30,7 @@ from api.views.reconciliation_views import ReconciliationTableView, Reconciliati
 from api.views.recharacterize_views import (
     RecharacterizeApplyView,
     RecharacterizeExportView,
+    RecharacterizeManualView,
     RecharacterizeMessageView,
     RecharacterizePageView,
     RecharacterizeResetView,
@@ -183,6 +184,11 @@ urlpatterns = [
         "recharacterize/message/",
         RecharacterizeMessageView.as_view(),
         name="recharacterize-message",
+    ),
+    path(
+        "recharacterize/manual/",
+        RecharacterizeManualView.as_view(),
+        name="recharacterize-manual",
     ),
     path(
         "recharacterize/apply/",

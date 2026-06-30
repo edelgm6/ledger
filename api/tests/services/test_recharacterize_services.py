@@ -820,3 +820,147 @@ class RecharacterizeRevertTest(TestCase):
         recent = list_recent_changes()
         self.assertEqual(recent[0].id, second.change_id)
         self.assertEqual(recent[1].id, first.change_id)
+
+
+class BuildManualOperationTest(TestCase):
+    def setUp(self):
+        self.checking = AccountFactory(
+            name="Ally Checking",
+            type=Account.Type.ASSET,
+            sub_type=Account.SubType.CASH,
+            is_closed=False,
+        )
+        self.groceries = AccountFactory(
+            name="Groceries",
+            type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.OPERATING,
+            is_closed=False,
+        )
+        self.dining = AccountFactory(
+            name="Dining",
+            type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.OPERATING,
+            is_closed=False,
+        )
+        self.starting_equity = AccountFactory(
+            name="Starting Equity",
+            type=Account.Type.EQUITY,
+            special_type=Account.SpecialType.STARTING_EQUITY,
+            is_closed=False,
+        )
+        self.ally_bank = EntityFactory(name="Ally Bank")
+        self.d1, _ = make_entry(
+            "Verizon", datetime.date(2025, 3, 1), self.checking, self.groceries
+        )
+
+    def test_drops_empty_fields_and_serializes_dates(self):
+        # account/entity arrive as model objects (multi-select); names are stored.
+        op = recharacterize_services.build_manual_operation(
+            {
+                "description_contains": "Verizon",
+                "date_from": datetime.date(2025, 1, 1),
+                "date_to": None,
+                "account": [self.checking],
+                "entity": [],
+                "entity_is_empty": False,
+                "entry_type": "debit",
+                "action_type": "set_entity",
+                "target_entity": "Ally Bank",
+            }
+        )
+        self.assertEqual(
+            op["filter"],
+            {
+                "description_contains": "Verizon",
+                "date_from": "2025-01-01",
+                "account": ["Ally Checking"],
+                "entry_type": "debit",
+            },
+        )
+        self.assertEqual(op["action"], {"type": "set_entity", "entity": "Ally Bank"})
+
+    def test_multiple_accounts_are_stored_as_a_name_list(self):
+        op = recharacterize_services.build_manual_operation(
+            {"account": [self.groceries, self.dining], "action_type": "clear_entity"}
+        )
+        self.assertEqual(op["filter"]["account"], ["Groceries", "Dining"])
+
+    def test_change_account_carries_to_account(self):
+        op = recharacterize_services.build_manual_operation(
+            {
+                "account": [self.groceries],
+                "action_type": "change_account",
+                "to_account": "Dining",
+            }
+        )
+        self.assertEqual(op["action"], {"type": "change_account", "to_account": "Dining"})
+
+    def test_clear_entity_has_no_extra_action_fields(self):
+        op = recharacterize_services.build_manual_operation(
+            {"account": [self.checking], "action_type": "clear_entity"}
+        )
+        self.assertEqual(op["action"], {"type": "clear_entity"})
+
+    def test_round_trips_to_a_valid_preview(self):
+        op = recharacterize_services.build_manual_operation(
+            {
+                "description_contains": "Verizon",
+                "account": [self.checking],
+                "entry_type": "debit",
+                "action_type": "set_entity",
+                "target_entity": "Ally Bank",
+            }
+        )
+        preview = preview_plan([op])
+        self.assertFalse(preview.operations[0].blocked)
+        self.assertTrue(preview.operations[0].mutates)
+        self.assertEqual(preview.operations[0].affected_count, 1)
+
+    def test_multi_account_filter_matches_any(self):
+        # Items on either account are matched (account__in semantics): the setUp
+        # Verizon credit on Groceries plus this Lunch debit on Dining = 2.
+        make_entry("Lunch", datetime.date(2025, 4, 1), self.dining, self.checking)
+        op = recharacterize_services.build_manual_operation(
+            {"account": [self.groceries, self.dining], "action_type": "view"}
+        )
+        preview = preview_plan([op])
+        self.assertFalse(preview.operations[0].blocked)
+        self.assertEqual(preview.operations[0].affected_count, 2)
+
+    def test_empty_filter_round_trips_to_a_blocked_preview(self):
+        # No criteria → _evaluate_operation blocks it, surfaced in the preview.
+        op = recharacterize_services.build_manual_operation(
+            {"action_type": "clear_entity"}
+        )
+        preview = preview_plan([op])
+        self.assertTrue(preview.operations[0].blocked)
+        self.assertIn("no criteria", preview.operations[0].error)
+
+    def test_change_account_with_multiple_sources_is_blocked(self):
+        op = recharacterize_services.build_manual_operation(
+            {
+                "account": [self.groceries, self.dining],
+                "action_type": "change_account",
+                "to_account": "Dining",
+            }
+        )
+        preview = preview_plan([op])
+        self.assertTrue(preview.operations[0].blocked)
+        self.assertIn("exactly one source account", preview.operations[0].error)
+
+    def test_swap_blocked_account_round_trips_to_a_blocked_preview(self):
+        op = recharacterize_services.build_manual_operation(
+            {
+                "account": [self.starting_equity],
+                "action_type": "change_account",
+                "to_account": "Groceries",
+            }
+        )
+        preview = preview_plan([op])
+        self.assertTrue(preview.operations[0].blocked)
+
+    def test_manual_form_catalogs_lists_names(self):
+        catalogs = recharacterize_services.manual_form_catalogs()
+        self.assertIn("Ally Checking", catalogs.accounts)
+        self.assertIn("Ally Bank", catalogs.entities)
+        self.assertIn("Starting Equity", catalogs.swap_blocked)

@@ -52,6 +52,12 @@ class RecharacterizeViewsTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Recharacterize")
         self.assertContains(resp, "recharacterize-main")
+        # The manual builder renders with the shared typeahead-multiselect bound
+        # to the account field (its <select multiple> lists the accounts).
+        self.assertContains(resp, "Build manually")
+        self.assertContains(resp, 'name="account"')
+        self.assertContains(resp, "ta-trigger")
+        self.assertContains(resp, "Ally Checking")
 
     @patch("api.services.recharacterize_services.gemini_services.call_gemini_conversation")
     def test_message_then_apply_flow(self, mock_call):
@@ -346,3 +352,74 @@ class RecharacterizeViewsTest(TestCase):
         resp = self.client.post(reverse("recharacterize-revert") + "?change=999999")
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "no longer exists")
+
+    # --- manual builder (no LLM) -------------------------------------------
+
+    def test_manual_appends_op_and_opens_manual_tab(self):
+        # No Gemini mock: the manual path must not touch the model at all. The
+        # account multi-select submits account PKs (typeahead-multiselect).
+        resp = self.client.post(
+            reverse("recharacterize-manual"),
+            {
+                "action_type": "set_entity",
+                "account": self.checking.id,
+                "entry_type": "debit",
+                "target_entity": "Ally Bank",
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "set entity")
+        self.assertContains(resp, "Apply (1)")
+        # The swap keeps the user on the Manual tab.
+        self.assertContains(resp, "mode: 'manual'")
+        ops = self.client.session["recharacterize"]["operations"]
+        self.assertEqual(len(ops), 1)
+        self.assertEqual(ops[0]["filter"]["account"], ["Ally Checking"])
+        self.assertEqual(ops[0]["action"], {"type": "set_entity", "entity": "Ally Bank"})
+
+    def test_manual_then_apply_updates_items_and_records_history(self):
+        from api.models import RecharacterizeChange
+
+        self.client.post(
+            reverse("recharacterize-manual"),
+            {
+                "action_type": "set_entity",
+                "account": self.checking.id,
+                "entry_type": "debit",
+                "target_entity": "Ally Bank",
+            },
+        )
+        resp = self.client.post(reverse("recharacterize-apply") + "?op=0")
+        self.assertEqual(resp.status_code, 200)
+        self.debit.refresh_from_db()
+        self.assertEqual(self.debit.entity, self.ally_bank)
+        # A manually applied op is revertible, same as an agent-applied one.
+        self.assertTrue(RecharacterizeChange.objects.exists())
+
+    def test_manual_invalid_date_shows_error_and_adds_no_op(self):
+        resp = self.client.post(
+            reverse("recharacterize-manual"),
+            {
+                "action_type": "clear_entity",
+                "account": self.checking.id,
+                "date_from": "not-a-date",
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "date_from")
+        self.assertContains(resp, "mode: 'manual'")
+        # The invalid submit never writes the plan, so no op is added.
+        state = self.client.session.get("recharacterize", {"operations": []})
+        self.assertEqual(state["operations"], [])
+
+    def test_manual_empty_filter_shows_blocked_op_in_preview(self):
+        # A no-criteria op is valid form input but blocked by the guardrails,
+        # surfaced inline exactly like a bad agent op — not a hard error.
+        resp = self.client.post(
+            reverse("recharacterize-manual"), {"action_type": "clear_entity"}
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "no criteria")
+        self.assertEqual(
+            len(self.client.session["recharacterize"]["operations"]), 1
+        )

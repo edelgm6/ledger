@@ -256,6 +256,9 @@ h4, h5 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--space-2); 
   padding: var(--space-5);
 }
 .card + .card { margin-top: var(--space-4); }
+/* The stacking margin above is for vertically flowed cards; inside a grid the
+   gap handles spacing, so side-by-side cards must not be pushed out of line. */
+.grid > .card + .card { margin-top: 0; }
 
 .card-head {
   display: flex;
