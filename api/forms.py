@@ -819,14 +819,12 @@ class RecharacterizeOperationForm(forms.Form):
         required=False, choices=[], widget=forms.Select(attrs={"class": "select"})
     )
 
-    def __init__(self, *args, **kwargs):
-        catalogs = kwargs.pop("catalogs", None)
+    def __init__(self, *args, catalogs, **kwargs):
+        # ``catalogs`` is a required keyword-only arg (a FormCatalogs) so the
+        # dependency runs strictly one way: View -> Service and View -> Form. The
+        # view builds the catalogs and passes them in; the form never reaches back
+        # into the service layer.
         super().__init__(*args, **kwargs)
-        if catalogs is None:
-            # Lazy import avoids a load-time cycle through the services package.
-            from api.services import recharacterize_services
-
-            catalogs = recharacterize_services.manual_form_catalogs()
         # The action targets are single-valued (you set one entity / swap to one
         # account). A blank option lets the _evaluate_operation guard message fire
         # instead of a generic "invalid choice" — the preview explains what's missing.

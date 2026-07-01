@@ -11,22 +11,7 @@
     your changes overwrite just this operation.
 </p>
 
-<form class="mt-3"
-      hx-post="{% url 'recharacterize-edit-agent' %}?op={{ edit_index }}"
-      hx-target="#recharacterize-main"
-      hx-swap="outerHTML"
-      hx-disabled-elt="find button[type=submit]">
-    {% csrf_token %}
-    <label class="label">Revise with the agent</label>
-    <textarea name="instruction" class="textarea" rows="2"
-              placeholder="e.g. only debits, and after Jan 1"></textarea>
-    {% if edit_agent_error %}
-    <div class="alert alert-danger mt-2" role="alert">{{ edit_agent_error }}</div>
-    {% endif %}
-    <div class="grid grid-auto grid-end mt-2">
-        <button type="submit" class="btn btn-secondary">Revise with agent</button>
-    </div>
-</form>
+{% include "api/components/_revise-with-agent.html" %}
 
 <div class="criteria-head muted mt-3">Or edit the fields directly:</div>
 {% else %}
@@ -38,11 +23,7 @@
 {% endif %}
 
 {% if manual_form.errors %}
-<div class="alert alert-danger mt-2" role="alert">
-    {% for field, errors in manual_form.errors.items %}
-        {% for error in errors %}<div>{{ field }}: {{ error }}</div>{% endfor %}
-    {% endfor %}
-</div>
+{% include "api/components/_alert.html" with extra_class="mt-2" errors=manual_form.errors %}
 {% endif %}
 
 <form class="form mt-3"

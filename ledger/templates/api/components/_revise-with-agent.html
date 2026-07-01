@@ -1,0 +1,22 @@
+{% comment %}
+"Revise with the agent" form — shown only in edit mode by recharacterize-manual.html.
+Sends a plain-language instruction that scope-edits just the operation at
+``edit_index`` (the main chat log is untouched).
+Params: edit_index, edit_agent_error.
+{% endcomment %}
+<form class="mt-3"
+      hx-post="{% url 'recharacterize-edit-agent' %}?op={{ edit_index }}"
+      hx-target="#recharacterize-main"
+      hx-swap="outerHTML"
+      hx-disabled-elt="find button[type=submit]">
+    {% csrf_token %}
+    <label class="label">Revise with the agent</label>
+    <textarea name="instruction" class="textarea" rows="2"
+              placeholder="e.g. only debits, and after Jan 1"></textarea>
+    {% if edit_agent_error %}
+    {% include "api/components/_alert.html" with extra_class="mt-2" message=edit_agent_error %}
+    {% endif %}
+    <div class="grid grid-auto grid-end mt-2">
+        <button type="submit" class="btn btn-secondary">Revise with agent</button>
+    </div>
+</form>

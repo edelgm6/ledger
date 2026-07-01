@@ -789,7 +789,7 @@ class RecharacterizeRevertTest(TestCase):
 
     def test_history_capped_to_recent_n(self):
         with patch.object(
-            recharacterize_services, "RECHARACTERIZE_HISTORY_LIMIT", 3
+            recharacterize_services.apply, "RECHARACTERIZE_HISTORY_LIMIT", 3
         ):
             change_ids = []
             for _ in range(5):
@@ -1067,3 +1067,34 @@ class ReviseOperationTest(TestCase):
         )
         self.assertFalse(result.success)
         self.assertTrue(result.failed)
+
+
+class ManualFormCatalogsTest(TestCase):
+    """The view builds the catalogs and passes them into the form, so the form
+    never reaches back into the service. ``catalogs`` is therefore required."""
+
+    def _catalogs(self):
+        return recharacterize_services.FormCatalogs(
+            accounts=["Groceries", "Dining"],
+            entities=["Ally Bank"],
+            swap_blocked=[],
+        )
+
+    def test_passed_catalogs_populate_choices(self):
+        from api.forms import RecharacterizeOperationForm
+
+        form = RecharacterizeOperationForm(catalogs=self._catalogs())
+        self.assertIn(
+            ("Ally Bank", "Ally Bank"), form.fields["target_entity"].choices
+        )
+        self.assertIn(
+            ("Groceries", "Groceries"), form.fields["to_account"].choices
+        )
+
+    def test_catalogs_is_required(self):
+        from api.forms import RecharacterizeOperationForm
+
+        # The form has no path back to the service; omitting catalogs is an error,
+        # not a silent DB round-trip.
+        with self.assertRaises(TypeError):
+            RecharacterizeOperationForm()

@@ -82,7 +82,7 @@ Params:
             data-placeholder="{{ label }}"
             data-all-label="{{ all_label|default:'All' }}"
             multiple
-            style="display: none;">
+            class="hidden">
         {% if field.field.queryset %}
             {% for option in field.field.queryset %}
                 <option value="{{ option.pk }}" {% if option.pk|stringformat:"s" in field.value %}selected{% endif %}>{{ option }}</option>

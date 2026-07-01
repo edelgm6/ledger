@@ -135,7 +135,7 @@ def call_gemini_text(text: str, prompt: str) -> str:
     return response.text
 
 
-def _loads_gemini_json(response_text: str) -> Dict[str, Any]:
+def loads_gemini_json(response_text: str) -> Dict[str, Any]:
     """Parses a Gemini JSON response, stripping a leading/trailing markdown
     code fence (```json ... ```) if present."""
     text = response_text.strip()
@@ -159,7 +159,7 @@ def parse_gemini_response(
         - "End Period": str
         - Account objects as keys mapping to {"value": Decimal, "entry_type": str, "entity": Entity}
     """
-    parsed = _loads_gemini_json(response_text)
+    parsed = loads_gemini_json(response_text)
     pages = parsed.get("pages", [])
 
     # Build lookup from account name -> DocSearch for mapping back
@@ -310,7 +310,7 @@ def parse_bill_response(response_text: str) -> Dict[str, Any]:
     Parses Gemini's JSON response for a utility-bill email into a flat dict of
     normalized UtilityBill fields.
     """
-    page = _loads_gemini_json(response_text)
+    page = loads_gemini_json(response_text)
     # The prompt asks for a bare object; tolerate a stray {"pages": [...]} wrapper.
     if isinstance(page.get("pages"), list):
         page = page["pages"][0] if page["pages"] else {}

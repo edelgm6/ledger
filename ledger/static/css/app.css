@@ -560,6 +560,7 @@ h4, h5 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--space-2); 
 .sticky-pane { position: sticky; top: 1rem; }
 .cell-clip { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+.hidden { display: none; }
 .mt-0 { margin-top: 0; }   .mb-0 { margin-bottom: 0; }
 .mt-2 { margin-top: var(--space-2); } .mb-2 { margin-bottom: var(--space-2); }
 .mt-3 { margin-top: var(--space-3); } .mb-3 { margin-bottom: var(--space-3); }
@@ -587,10 +588,6 @@ h4, h5 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--space-2); 
    Hidden until htmx flags the in-flight request on its hx-indicator target. */
 .chat-thinking { display: none; align-self: flex-start; background: var(--surface); border: 1px solid var(--border); }
 .chat-thinking.htmx-request { display: block; }
-
-/* The two columns are adjacent .card siblings; cancel the stacked-card top
-   margin so the chat and preview panels align at the top. */
-#recharacterize-main > .card + .card { margin-top: 0; }
 
 /* Preview criteria breakdown */
 .criteria-head { font-size: var(--fs-sm); margin-bottom: var(--space-1); }
