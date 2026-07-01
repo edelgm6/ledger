@@ -7,12 +7,13 @@ They contain no database writes and no business logic. Mirrors
 bill_settings_helpers.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from django.template.loader import render_to_string
 
 from api.forms import EntityForm
 from api.models import Entity
+from api.views.form_helpers import resolve_form_values
 
 
 def render_entities_content(
@@ -30,28 +31,6 @@ def render_entities_content(
             "entity_form": entity_form_html,
         },
     )
-
-
-def _entity_form_values(
-    entity: Optional[Entity], form: Optional[EntityForm]
-) -> Dict[str, Any]:
-    """Resolves the field values to display: submitted data on a bound (invalid)
-    form, else the entity being edited, else blank-create defaults."""
-    if form is not None and form.is_bound:
-        data = form.data
-        return {
-            "name": data.get("name", ""),
-            "is_closed": "is_closed" in data,
-        }
-    if entity is not None:
-        return {
-            "name": entity.name,
-            "is_closed": entity.is_closed,
-        }
-    return {
-        "name": "",
-        "is_closed": False,
-    }
 
 
 def render_entity_form(
@@ -73,6 +52,8 @@ def render_entity_form(
         "change": change,
         "error": error,
         "form": form,
-        "values": _entity_form_values(entity, form),
+        "values": resolve_form_values(
+            entity, form, text=("name",), booleans=("is_closed",)
+        ),
     }
     return render_to_string("api/entry_forms/entity-form.html", context)

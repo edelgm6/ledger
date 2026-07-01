@@ -1,0 +1,69 @@
+<div x-data="searchList({{ total }}, 'prefills', {{ selected_id|default:'null' }})">
+
+  <div class="card-head">
+    <div class="card-head-left">
+      <h2 class="card-title">Prefills</h2>
+      <span class="card-count" x-text="countLabel()"></span>
+    </div>
+    <div class="card-head-right">
+      {% include "api/components/search-box.html" with placeholder="Search prefills" %}
+      <button class="btn btn-primary"
+              @click="selectedId = null"
+              hx-get="{% url 'settings-prefill-new-form' %}"
+              hx-target="#prefill-form-div">New Prefill</button>
+    </div>
+  </div>
+
+  <div class="table-scroll has-list">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th class="center">Doc Searches</th>
+        <th class="center">Closed</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for prefill in prefills %}
+      <tr class="row"
+          data-search="{{ prefill.name|lower }}"
+          :class="{ selected: selectedId === {{ prefill.id }} }"
+          x-show="matches($el)"
+          @click="selectedId = {{ prefill.id }}"
+          hx-get="{% url 'settings-prefill-form' prefill.id %}"
+          hx-target="#prefill-form-div">
+        <td class="td-name">{{ prefill.name }}</td>
+        <td class="td-muted center">{{ prefill.docsearch_count }}</td>
+        <td class="td-muted center">{% if prefill.is_closed %}Yes{% else %}No{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <div class="list">
+    {% for prefill in prefills %}
+    <div class="lrow"
+         data-search="{{ prefill.name|lower }}"
+         :class="{ selected: selectedId === {{ prefill.id }} }"
+         x-show="matches($el)"
+         @click="selectedId = {{ prefill.id }}"
+         hx-get="{% url 'settings-prefill-form' prefill.id %}"
+         hx-target="#prefill-form-div">
+      <div class="lrow-top">
+        <span class="lname">{{ prefill.name }}</span>
+        <span class="lmeta-right">{{ prefill.docsearch_count }} doc search{{ prefill.docsearch_count|pluralize:"es" }}</span>
+      </div>
+      <div class="lmeta">{% if prefill.is_closed %}Closed{% else %}Open{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="table-empty" x-show="visible() === 0" x-cloak>
+    No prefills match "<span x-text="q"></span>".
+  </div>
+
+  <div id="prefill-form-div">
+    {{ prefill_form }}
+  </div>
+</div>

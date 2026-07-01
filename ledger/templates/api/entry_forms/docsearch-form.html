@@ -1,0 +1,106 @@
+<div class="form">
+
+  <div class="form-header">
+    {% if doc_search %}Edit doc search{% else %}New doc search{% endif %}
+  </div>
+
+  {% if change == "create" %}
+    <div class="alert alert-success">Doc search created.</div>
+  {% elif change == "update" %}
+    <div class="alert alert-success">Doc search updated.</div>
+  {% elif change == "delete" %}
+    <div class="alert alert-success">Doc search deleted.</div>
+  {% endif %}
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <form method="post"
+        {% if doc_search %}hx-post="{% url 'settings-docsearch' prefill.id doc_search.id %}"{% else %}hx-post="{% url 'settings-prefill-docsearches' prefill.id %}"{% endif %}
+        hx-target="#prefill-docsearches"
+        hx-swap="innerHTML">
+    {% csrf_token %}
+
+    <p class="muted fs-body">Locate a value by <strong>keyword</strong>, or by <strong>table</strong> row/column. Then map it to an account + type, or to a metadata selection.</p>
+
+    <div class="grid grid-4">
+      <div>
+        <label class="label">Keyword</label>
+        <input class="input" name="keyword" value="{{ values.keyword }}" placeholder="e.g. Gross Pay" />
+        {% for e in form.keyword.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="label">Table name</label>
+        <input class="input" name="table_name" value="{{ values.table_name }}" placeholder="Table title" />
+        {% for e in form.table_name.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="label">Row</label>
+        <input class="input" name="row" value="{{ values.row }}" placeholder="Row label" />
+        {% for e in form.row.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="label">Column</label>
+        <input class="input" name="column" value="{{ values.column }}" placeholder="Column label" />
+        {% for e in form.column.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+    </div>
+
+    <div class="grid grid-4 grid-end">
+      <div>
+        <label class="label">Account</label>
+        <select class="select" name="account">
+          <option value="" {% if not values.account %}selected{% endif %}>Select…</option>
+          {% for account in accounts %}
+          <option value="{{ account.id }}" {% if values.account == account.id|stringformat:'s' %}selected{% endif %}>{{ account.name }}</option>
+          {% endfor %}
+        </select>
+        {% for e in form.account.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="label">Type</label>
+        <select class="select" name="journal_entry_item_type">
+          <option value="" {% if not values.journal_entry_item_type %}selected{% endif %}>Select…</option>
+          {% for value, label in type_choices %}
+          <option value="{{ value }}" {% if values.journal_entry_item_type == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        {% for e in form.journal_entry_item_type.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="label">Selection</label>
+        <select class="select" name="selection">
+          <option value="" {% if not values.selection %}selected{% endif %}>Select…</option>
+          {% for value, label in selection_choices %}
+          <option value="{{ value }}" {% if values.selection == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        {% for e in form.selection.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="label">Entity</label>
+        <select class="select" name="entity">
+          <option value="" {% if not values.entity %}selected{% endif %}>Select…</option>
+          {% for entity in entities %}
+          <option value="{{ entity.id }}" {% if values.entity == entity.id|stringformat:'s' %}selected{% endif %}>{{ entity.name }}</option>
+          {% endfor %}
+        </select>
+        {% for e in form.entity.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="submit" name="action" value="save" class="btn btn-primary">{% if doc_search %}Save{% else %}Create{% endif %}</button>
+      {% if doc_search %}
+      <button type="submit" name="action" value="delete" class="btn btn-danger">Delete</button>
+      {% endif %}
+      <button type="button" class="btn btn-ghost"
+              @click="selectedId = null"
+              hx-get="{% url 'settings-docsearch-new-form' prefill.id %}"
+              hx-target="#docsearch-form-div">Clear</button>
+    </div>
+  </form>
+</div>

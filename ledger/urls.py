@@ -50,6 +50,12 @@ from api.views.loan_views import (
     LoanScheduleView,
     LoanSettingsView,
 )
+from api.views.prefill_settings_views import (
+    DocSearchFormView,
+    DocSearchView,
+    PrefillFormView,
+    PrefillSettingsView,
+)
 from api.views.settings_views import AccountFormView, SettingsView
 from api.views.statement_views import (
     StatementDetailView,
@@ -328,6 +334,47 @@ urlpatterns = [
         "settings/loans/schedule-row/<int:row_id>/",
         LoanScheduleView.as_view(),
         name="settings-loan-schedule-row",
+    ),
+    # Settings — prefills (config CRUD) and their doc searches
+    path(
+        "settings/prefills/",
+        PrefillSettingsView.as_view(),
+        name="settings-prefills",
+    ),
+    path(
+        "settings/prefills/new/form/",
+        PrefillFormView.as_view(),
+        name="settings-prefill-new-form",
+    ),
+    path(
+        "settings/prefills/<int:prefill_id>/",
+        PrefillSettingsView.as_view(),
+        name="settings-prefill",
+    ),
+    path(
+        "settings/prefills/<int:prefill_id>/form/",
+        PrefillFormView.as_view(),
+        name="settings-prefill-form",
+    ),
+    path(
+        "settings/prefills/<int:prefill_id>/docsearches/",
+        DocSearchView.as_view(),
+        name="settings-prefill-docsearches",
+    ),
+    path(
+        "settings/prefills/<int:prefill_id>/docsearches/new/form/",
+        DocSearchFormView.as_view(),
+        name="settings-docsearch-new-form",
+    ),
+    path(
+        "settings/prefills/<int:prefill_id>/docsearches/<int:docsearch_id>/",
+        DocSearchView.as_view(),
+        name="settings-docsearch",
+    ),
+    path(
+        "settings/prefills/<int:prefill_id>/docsearches/<int:docsearch_id>/form/",
+        DocSearchFormView.as_view(),
+        name="settings-docsearch-form",
     ),
     path("tag/", TagEntitiesView.as_view(), name="tag-entities"),
     path("tag/balances/", EntityGroupedBalancesView.as_view(), name="entity-balances"),
