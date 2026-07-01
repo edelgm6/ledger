@@ -1,0 +1,26 @@
+{% comment %}
+Shared alert box for the recharacterize UI — one shell for every notice so the
+markup and classes stay consistent. Two content modes:
+
+  • a single message (optionally with a label prefix and a hover tooltip), or
+  • a Django form error dict rendered as "field: error" lines.
+
+Params:
+  level       — bootstrap level: "danger" (default) / "success"
+  extra_class — extra css classes on the box (e.g. spacing: "mt-2", "mt-3")
+  icon        — optional bootstrap-icons name without the "bi bi-" prefix
+  label       — optional short prefix shown before the message ("label — message")
+  message     — single message string
+  detail      — optional tooltip text shown on hover of the message
+  errors      — optional form error dict ({field: [messages]}) rendered as lines
+{% endcomment %}
+<div class="alert alert-{{ level|default:'danger' }} {{ extra_class }}" role="alert">
+    {% if message %}
+    <div{% if detail %} title="{{ detail }}"{% endif %}>{% if icon %}<i class="bi bi-{{ icon }}"></i> {% endif %}{% if label %}{{ label }} — {% endif %}{{ message }}</div>
+    {% endif %}
+    {% if errors %}
+        {% for field, field_errors in errors.items %}
+            {% for error in field_errors %}<div>{{ field }}: {{ error }}</div>{% endfor %}
+        {% endfor %}
+    {% endif %}
+</div>

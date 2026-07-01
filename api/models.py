@@ -786,8 +786,8 @@ class JournalEntryItemQuerySet(models.QuerySet):
         description=None,
         date_from=None,
         date_to=None,
-        account=None,
-        entity=None,
+        accounts=None,
+        entities=None,
         entity_is_empty=None,
         entry_type=None,
     ):
@@ -796,9 +796,9 @@ class JournalEntryItemQuerySet(models.QuerySet):
         Mirrors TransactionQuerySet.filter_for_table: each argument is optional
         and only narrows the queryset when provided. ``description`` matches the
         parent transaction's description; ``date_from``/``date_to`` bound the
-        journal entry date; ``account``/``entity`` match the item's own
-        account/entity; ``entity_is_empty`` matches items with no entity;
-        ``entry_type`` is "debit" or "credit".
+        journal entry date; ``accounts``/``entities`` (lists) match the item's own
+        account/entity (any of them); ``entity_is_empty`` matches items with no
+        entity; ``entry_type`` is "debit" or "credit".
         """
         queryset = self
         if description:
@@ -809,10 +809,10 @@ class JournalEntryItemQuerySet(models.QuerySet):
             queryset = queryset.filter(journal_entry__date__gte=date_from)
         if date_to:
             queryset = queryset.filter(journal_entry__date__lte=date_to)
-        if account:
-            queryset = queryset.filter(account=account)
-        if entity:
-            queryset = queryset.filter(entity=entity)
+        if accounts:
+            queryset = queryset.filter(account__in=accounts)
+        if entities:
+            queryset = queryset.filter(entity__in=entities)
         if entity_is_empty:
             queryset = queryset.filter(entity__isnull=True)
         if entry_type:

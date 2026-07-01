@@ -12,6 +12,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
 from django.views import View
 
+from api.forms import RecharacterizeOperationForm
 from api.services import recharacterize_services
 from api.views import recharacterize_helpers
 from api.views.page_utils import render_full_page
@@ -29,25 +30,54 @@ def _save_state(request, messages, operations) -> None:
 
 
 def _parse_int_param(request, key: str, default: int = -1) -> int:
-    """Reads a query param as an int, or ``default`` when absent/invalid."""
+    """Reads a scalar int query param (``page``, ``change``), or ``default`` when
+    absent/invalid. Operation indices go through ``_valid_op_index`` instead, which
+    bounds-checks against the current plan."""
     try:
         return int(request.GET.get(key, ""))
     except (TypeError, ValueError):
         return default
 
 
-def _render_main(messages, preview=None, *, flash=None, error=None) -> str:
+def _render_main(
+    messages,
+    preview=None,
+    *,
+    flash=None,
+    error=None,
+    active_tab="agent",
+    manual_form=None,
+    catalogs=None,
+    edit_index=None,
+    edit_agent_error=None,
+) -> str:
     """Renders the main region, always with the current history panel attached.
 
     Every render of #recharacterize-main must reflect the live history, so this
     is the single seam that fetches it — call sites never thread it themselves.
+    ``active_tab`` keeps the agent or manual tab open across htmx swaps. The
+    manual builder needs a form for its select options; a fresh one is built when
+    none was threaded in (the invalid-submit and edit paths pass a bound/prefilled
+    form). ``edit_index`` puts the manual builder in edit mode for that operation.
+
+    The manual builder is always in the swapped DOM (a hidden tab), so its form —
+    and the account/entity catalogs it needs — is built on every render. A view
+    that already built the catalogs (to validate a submit or prefill an edit)
+    threads them in via ``catalogs`` so the request queries them only once.
     """
+    if manual_form is None:
+        catalogs = catalogs or recharacterize_services.manual_form_catalogs()
+        manual_form = RecharacterizeOperationForm(catalogs=catalogs)
     return recharacterize_helpers.render_main(
         messages,
         preview,
         flash=flash,
         error=error,
         history=recharacterize_services.list_recent_changes(),
+        active_tab=active_tab,
+        manual_form=manual_form,
+        edit_index=edit_index,
+        edit_agent_error=edit_agent_error,
     )
 
 
@@ -89,9 +119,7 @@ class RecharacterizeView(LoginRequiredMixin, View):
     def get(self, request):
         _save_state(request, messages=[], operations=[])
         html = recharacterize_helpers.render_page(
-            messages=[],
-            preview=None,
-            history=recharacterize_services.list_recent_changes(),
+            _render_main(messages=[], preview=None)
         )
         return render_full_page(request, html)
 
@@ -134,6 +162,170 @@ class RecharacterizeRetryView(LoginRequiredMixin, View):
         return HttpResponse(html)
 
 
+def _valid_op_index(operations, raw):
+    """Parses a POST/GET ``op`` value to a valid index, or None when absent/invalid.
+
+    ``None`` is the same "no edit" contract the template and ``_render_main`` key
+    off, so callers thread the result straight through without translating.
+    """
+    try:
+        index = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return index if 0 <= index < len(operations) else None
+
+
+def _prefilled_form(operations, edit_index, catalogs):
+    """A manual form prefilled from the operation at ``edit_index`` (None if absent)."""
+    if edit_index is None:
+        return None
+    return RecharacterizeOperationForm(
+        initial=recharacterize_services.operation_to_form_initial(
+            operations[edit_index]
+        ),
+        catalogs=catalogs,
+    )
+
+
+class RecharacterizeManualView(LoginRequiredMixin, View):
+    """Adds or overwrites a manually built operation — no LLM involved.
+
+    Builds a ``{filter, action}`` operation from the manual form. With a valid
+    ``op`` index in the POST it overwrites that operation (edit mode); otherwise it
+    appends. Then previews the plan. Semantic guardrails are enforced by
+    preview_plan, so a swap-blocked / empty-filter / type-mismatch op renders as a
+    blocked operation rather than erroring here.
+    """
+
+    login_url = "/login/"
+
+    def post(self, request):
+        state = _get_state(request)
+        messages = state["messages"]
+        operations = state["operations"]
+
+        # Build the catalogs once and reuse them for both validating the bound form
+        # and (on success) rendering the fresh builder, so the request queries the
+        # account/entity lists a single time.
+        catalogs = recharacterize_services.manual_form_catalogs()
+        edit_index = _valid_op_index(operations, request.POST.get("op"))
+        form = RecharacterizeOperationForm(request.POST, catalogs=catalogs)
+        if not form.is_valid():
+            # Re-render with field errors, keeping the user on the Manual tab (and
+            # in edit mode when they were editing an existing operation).
+            preview = (
+                recharacterize_services.preview_plan(operations)
+                if operations
+                else None
+            )
+            html = _render_main(
+                messages,
+                preview,
+                active_tab="manual",
+                manual_form=form,
+                edit_index=edit_index,
+            )
+            return HttpResponse(html)
+
+        operation = recharacterize_services.build_manual_operation(form.cleaned_data)
+        operations = list(operations)
+        if edit_index is not None:
+            operations[edit_index] = operation  # overwrite: keep its position
+        else:
+            operations.insert(0, operation)  # new op stacks on top (newest first)
+        _save_state(request, messages=messages, operations=operations)
+        preview = recharacterize_services.preview_plan(operations)
+        # Saving exits edit mode back to the empty builder; appending stays there.
+        return HttpResponse(
+            _render_main(messages, preview, active_tab="manual", catalogs=catalogs)
+        )
+
+
+class RecharacterizeEditView(LoginRequiredMixin, View):
+    """Opens the manual builder prefilled to edit one operation (or cancels).
+
+    With a valid ``op`` index, prefills the builder from that operation and renders
+    the Manual tab in edit mode. Without one (Cancel), renders a fresh builder. The
+    session plan is never mutated here, so the preview is preserved either way.
+    """
+
+    login_url = "/login/"
+
+    def get(self, request):
+        state = _get_state(request)
+        messages = state["messages"]
+        operations = state["operations"]
+
+        preview = (
+            recharacterize_services.preview_plan(operations) if operations else None
+        )
+        # A valid ``op`` enters edit mode; its absence (Cancel) falls through to a
+        # fresh builder. Either way the plan is untouched.
+        catalogs = recharacterize_services.manual_form_catalogs()
+        edit_index = _valid_op_index(operations, request.GET.get("op"))
+        html = _render_main(
+            messages,
+            preview,
+            active_tab="manual",
+            manual_form=_prefilled_form(operations, edit_index, catalogs),
+            catalogs=catalogs,
+            edit_index=edit_index,
+        )
+        return HttpResponse(html)
+
+
+class RecharacterizeEditAgentView(LoginRequiredMixin, View):
+    """Scoped one-shot LLM edit of a single operation.
+
+    Sends the targeted operation plus a plain-language instruction to Gemini and
+    overwrites that one operation with the revised result. The main chat log is
+    untouched. On a transient failure or a non-answer, stays in edit mode and
+    surfaces the issue.
+    """
+
+    login_url = "/login/"
+
+    def post(self, request):
+        state = _get_state(request)
+        messages = state["messages"]
+        operations = state["operations"]
+
+        edit_index = _valid_op_index(operations, request.GET.get("op"))
+        instruction = (request.POST.get("instruction") or "").strip()
+        edit_agent_error = None
+
+        if edit_index is not None and instruction:
+            result = recharacterize_services.revise_operation(
+                operations[edit_index], instruction
+            )
+            if result.success:
+                # Overwrite just this op; stay in edit mode re-prefilled from the
+                # revised op so the user can keep tweaking it.
+                operations = list(operations)
+                operations[edit_index] = result.operation
+                _save_state(request, messages=messages, operations=operations)
+            elif result.failed:
+                edit_agent_error = "The agent couldn't be reached. Please try again."
+            else:
+                edit_agent_error = result.message
+
+        preview = (
+            recharacterize_services.preview_plan(operations) if operations else None
+        )
+        catalogs = recharacterize_services.manual_form_catalogs()
+        return HttpResponse(
+            _render_main(
+                messages,
+                preview,
+                active_tab="manual",
+                edit_index=edit_index,
+                manual_form=_prefilled_form(operations, edit_index, catalogs),
+                catalogs=catalogs,
+                edit_agent_error=edit_agent_error,
+            )
+        )
+
+
 class RecharacterizeApplyView(LoginRequiredMixin, View):
     """Re-validates and applies a single operation from the stored plan.
 
@@ -149,7 +341,10 @@ class RecharacterizeApplyView(LoginRequiredMixin, View):
         messages = state["messages"]
         operations = state["operations"]
 
-        op_index = _parse_int_param(request, "op")
+        op_index = _valid_op_index(operations, request.GET.get("op"))
+        if op_index is None:
+            return HttpResponse(_render_unchanged(messages, operations))
+
         result = recharacterize_services.apply_operation(operations, op_index)
 
         if not result.success:
@@ -230,7 +425,7 @@ class RecharacterizePageView(LoginRequiredMixin, View):
         state = _get_state(request)
         operations = state["operations"]
 
-        op_index = _parse_int_param(request, "op")
+        op_index = _valid_op_index(operations, request.GET.get("op"))
         page_number = _parse_int_param(request, "page", default=1)
 
         page = recharacterize_services.build_page(operations, op_index, page_number)
@@ -251,7 +446,7 @@ class RecharacterizeExportView(LoginRequiredMixin, View):
         state = _get_state(request)
         operations = state["operations"]
 
-        op_index = _parse_int_param(request, "op")
+        op_index = _valid_op_index(operations, request.GET.get("op"))
         rows = recharacterize_services.build_export_rows(operations, op_index)
 
         response = HttpResponse(

@@ -52,6 +52,12 @@ class RecharacterizeViewsTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Recharacterize")
         self.assertContains(resp, "recharacterize-main")
+        # The manual builder renders with the shared typeahead-multiselect bound
+        # to the account field (its <select multiple> lists the accounts).
+        self.assertContains(resp, "Build manually")
+        self.assertContains(resp, 'name="account"')
+        self.assertContains(resp, "ta-trigger")
+        self.assertContains(resp, "Ally Checking")
 
     @patch("api.services.recharacterize_services.gemini_services.call_gemini_conversation")
     def test_message_then_apply_flow(self, mock_call):
@@ -346,3 +352,206 @@ class RecharacterizeViewsTest(TestCase):
         resp = self.client.post(reverse("recharacterize-revert") + "?change=999999")
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "no longer exists")
+
+    # --- manual builder (no LLM) -------------------------------------------
+
+    def test_manual_adds_op_and_opens_manual_tab(self):
+        # No Gemini mock: the manual path must not touch the model at all. The
+        # account multi-select submits account PKs (typeahead-multiselect).
+        resp = self.client.post(
+            reverse("recharacterize-manual"),
+            {
+                "action_type": "set_entity",
+                "account": self.checking.id,
+                "entry_type": "debit",
+                "target_entity": "Ally Bank",
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "set entity")
+        self.assertContains(resp, "Apply (1)")
+        # The swap keeps the user on the Manual tab.
+        self.assertContains(resp, "mode: 'manual'")
+        ops = self.client.session["recharacterize"]["operations"]
+        self.assertEqual(len(ops), 1)
+        self.assertEqual(ops[0]["filter"]["account"], ["Ally Checking"])
+        self.assertEqual(ops[0]["action"], {"type": "set_entity", "entity": "Ally Bank"})
+
+    def test_new_ops_stack_on_top_newest_first(self):
+        # Add op A (groceries), then op B (checking): B is newest and must sort to
+        # the top of the plan (index 0) so it's the first one previewed.
+        self.client.post(
+            reverse("recharacterize-manual"),
+            {"action_type": "clear_entity", "account": self.groceries.id},
+        )
+        self.client.post(
+            reverse("recharacterize-manual"),
+            {"action_type": "clear_entity", "account": self.checking.id},
+        )
+        ops = self.client.session["recharacterize"]["operations"]
+        self.assertEqual(len(ops), 2)
+        self.assertEqual(ops[0]["filter"]["account"], ["Ally Checking"])  # newest
+        self.assertEqual(ops[1]["filter"]["account"], ["Groceries"])  # oldest
+        # Editing op 0 overwrites in place — it does not jump position.
+        resp = self.client.post(
+            reverse("recharacterize-manual"),
+            {"op": "0", "action_type": "clear_entity", "entry_type": "debit"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        ops = self.client.session["recharacterize"]["operations"]
+        self.assertEqual(len(ops), 2)
+        self.assertEqual(ops[0]["filter"], {"entry_type": "debit"})
+        self.assertEqual(ops[1]["filter"]["account"], ["Groceries"])
+
+    def test_manual_then_apply_updates_items_and_records_history(self):
+        from api.models import RecharacterizeChange
+
+        self.client.post(
+            reverse("recharacterize-manual"),
+            {
+                "action_type": "set_entity",
+                "account": self.checking.id,
+                "entry_type": "debit",
+                "target_entity": "Ally Bank",
+            },
+        )
+        resp = self.client.post(reverse("recharacterize-apply") + "?op=0")
+        self.assertEqual(resp.status_code, 200)
+        self.debit.refresh_from_db()
+        self.assertEqual(self.debit.entity, self.ally_bank)
+        # A manually applied op is revertible, same as an agent-applied one.
+        self.assertTrue(RecharacterizeChange.objects.exists())
+
+    def test_manual_invalid_date_shows_error_and_adds_no_op(self):
+        resp = self.client.post(
+            reverse("recharacterize-manual"),
+            {
+                "action_type": "clear_entity",
+                "account": self.checking.id,
+                "date_from": "not-a-date",
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "date_from")
+        self.assertContains(resp, "mode: 'manual'")
+        # The invalid submit never writes the plan, so no op is added.
+        state = self.client.session.get("recharacterize", {"operations": []})
+        self.assertEqual(state["operations"], [])
+
+    def test_manual_empty_filter_shows_blocked_op_in_preview(self):
+        # A no-criteria op is valid form input but blocked by the guardrails,
+        # surfaced inline exactly like a bad agent op — not a hard error.
+        resp = self.client.post(
+            reverse("recharacterize-manual"), {"action_type": "clear_entity"}
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "no criteria")
+        self.assertEqual(
+            len(self.client.session["recharacterize"]["operations"]), 1
+        )
+
+    # --- editing one operation in place ------------------------------------
+
+    def _seed_op(self):
+        """Adds one manual set-entity op to the session and returns the response."""
+        return self.client.post(
+            reverse("recharacterize-manual"),
+            {
+                "action_type": "set_entity",
+                "description_contains": "Verizon",
+                "account": self.checking.id,
+                "entry_type": "debit",
+                "target_entity": "Ally Bank",
+            },
+        )
+
+    def test_edit_prefills_the_manual_tab(self):
+        self._seed_op()
+        resp = self.client.get(reverse("recharacterize-edit") + "?op=0")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Editing operation 1")
+        self.assertContains(resp, "mode: 'manual'")
+        # The filter is prefilled from the stored op.
+        self.assertContains(resp, 'value="Verizon"')
+        self.assertContains(resp, "Save changes")
+        # A hidden op index makes the next save overwrite rather than append.
+        self.assertContains(resp, 'name="op"')
+        # The account multi-select and the target entity render as selected (the
+        # string-PK initial is what makes the typeahead mark its option selected).
+        self.assertContains(
+            resp, f'<option value="{self.checking.id}" selected>Ally Checking</option>'
+        )
+        self.assertContains(resp, '<option value="Ally Bank" selected>')
+
+    def test_edit_save_overwrites_not_appends(self):
+        self._seed_op()
+        resp = self.client.post(
+            reverse("recharacterize-manual"),
+            {
+                "op": "0",
+                "action_type": "clear_entity",
+                "account": self.checking.id,
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        ops = self.client.session["recharacterize"]["operations"]
+        # Still one op, but its action was overwritten.
+        self.assertEqual(len(ops), 1)
+        self.assertEqual(ops[0]["action"], {"type": "clear_entity"})
+
+    def test_cancel_returns_manual_tab_without_edit_header(self):
+        self._seed_op()
+        resp = self.client.get(reverse("recharacterize-edit"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "mode: 'manual'")
+        self.assertNotContains(resp, "Editing operation")
+        # The plan is untouched by entering/leaving edit mode.
+        self.assertEqual(
+            len(self.client.session["recharacterize"]["operations"]), 1
+        )
+
+    @patch(
+        "api.services.recharacterize_services.gemini_services.call_gemini_conversation"
+    )
+    def test_edit_agent_overwrites_targeted_op(self, mock_call):
+        self._seed_op()
+        mock_call.return_value = json.dumps(
+            {
+                "reply": "Narrowed to debits only.",
+                "operations": [
+                    {
+                        "filter": {"account": "Ally Checking", "entry_type": "credit"},
+                        "action": {"type": "clear_entity"},
+                    }
+                ],
+            }
+        )
+        resp = self.client.post(
+            reverse("recharacterize-edit-agent") + "?op=0",
+            {"instruction": "clear it and only credits"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        ops = self.client.session["recharacterize"]["operations"]
+        self.assertEqual(len(ops), 1)
+        self.assertEqual(ops[0]["action"], {"type": "clear_entity"})
+        self.assertEqual(ops[0]["filter"]["entry_type"], "credit")
+        # Stays in edit mode for further tweaks.
+        self.assertContains(resp, "Editing operation 1")
+
+    @patch(
+        "api.services.recharacterize_services.gemini_services.call_gemini_conversation"
+    )
+    def test_edit_agent_failure_keeps_op_and_shows_error(self, mock_call):
+        self._seed_op()
+        mock_call.side_effect = RuntimeError("503 UNAVAILABLE")
+        before = self.client.session["recharacterize"]["operations"][0]
+        resp = self.client.post(
+            reverse("recharacterize-edit-agent") + "?op=0",
+            {"instruction": "only credits"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "be reached")
+        # The targeted op is left intact on a transient failure.
+        self.assertEqual(
+            self.client.session["recharacterize"]["operations"][0], before
+        )
