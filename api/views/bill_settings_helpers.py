@@ -6,13 +6,14 @@ These pure functions take data and return HTML strings via render_to_string.
 They contain no database writes and no business logic. Mirrors settings_helpers.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from django.db.models import QuerySet
 from django.template.loader import render_to_string
 
 from api.forms import UtilityBillRuleForm
 from api.models import Transaction, UtilityBill, UtilityBillRule
+from api.views.form_helpers import resolve_form_values
 
 
 def render_bill_rules_content(
@@ -30,50 +31,6 @@ def render_bill_rules_content(
             "rule_form": rule_form_html,
         },
     )
-
-
-def _rule_form_values(
-    rule: Optional[UtilityBillRule], form: Optional[UtilityBillRuleForm]
-) -> Dict[str, Any]:
-    """Resolves the field values to display: submitted data on a bound (invalid)
-    form, else the rule being edited, else blank-create defaults."""
-    if form is not None and form.is_bound:
-        data = form.data
-        return {
-            "from_address": data.get("from_address", ""),
-            "subject": data.get("subject", ""),
-            "account_number": data.get("account_number", ""),
-            "address_hint": data.get("address_hint", ""),
-            "transaction_description_match": data.get(
-                "transaction_description_match", ""
-            ),
-            "account": data.get("account", ""),
-            "entity": data.get("entity", ""),
-            "transaction_type": data.get(
-                "transaction_type", Transaction.TransactionType.PURCHASE
-            ),
-        }
-    if rule is not None:
-        return {
-            "from_address": rule.from_address,
-            "subject": rule.subject,
-            "account_number": rule.account_number,
-            "address_hint": rule.address_hint,
-            "transaction_description_match": rule.transaction_description_match,
-            "account": str(rule.account_id or ""),
-            "entity": str(rule.entity_id or ""),
-            "transaction_type": rule.transaction_type,
-        }
-    return {
-        "from_address": "",
-        "subject": "",
-        "account_number": "",
-        "address_hint": "",
-        "transaction_description_match": "",
-        "account": "",
-        "entity": "",
-        "transaction_type": Transaction.TransactionType.PURCHASE,
-    }
 
 
 def render_bill_rule_form(
@@ -99,7 +56,22 @@ def render_bill_rule_form(
         "change": change,
         "error": error,
         "form": form,
-        "values": _rule_form_values(rule, form),
+        "values": resolve_form_values(
+            rule,
+            form,
+            text=(
+                "from_address",
+                "subject",
+                "account_number",
+                "address_hint",
+                "transaction_description_match",
+                "transaction_type",
+            ),
+            fks=("account", "entity"),
+            defaults={
+                "transaction_type": Transaction.TransactionType.PURCHASE
+            },
+        ),
         "accounts": accounts,
         "entities": entities,
         "type_choices": Transaction.TransactionType.choices,

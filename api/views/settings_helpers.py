@@ -5,13 +5,14 @@ These pure functions take data and return HTML strings via render_to_string.
 They contain no database writes and no business logic.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from django.db.models import QuerySet
 from django.template.loader import render_to_string
 
 from api.forms import AccountForm
 from api.models import Account
+from api.views.form_helpers import resolve_form_values
 
 
 def build_subtype_map() -> Dict[str, List[Dict[str, str]]]:
@@ -46,43 +47,6 @@ def render_settings_content(
     )
 
 
-def _form_values(
-    account: Optional[Account], form: Optional[AccountForm]
-) -> Dict[str, Any]:
-    """Resolves the current field values to display: submitted data on a bound
-    (invalid) form, else the account being edited, else blank-create defaults."""
-    if form is not None and form.is_bound:
-        data = form.data
-        return {
-            "name": data.get("name", ""),
-            "type": data.get("type", "asset"),
-            "sub_type": data.get("sub_type", ""),
-            "entity": data.get("entity", ""),
-            "csv_profile": data.get("csv_profile", ""),
-            "is_closed": "is_closed" in data,
-            "is_depreciation": "is_depreciation" in data,
-        }
-    if account is not None:
-        return {
-            "name": account.name,
-            "type": account.type,
-            "sub_type": account.sub_type,
-            "entity": str(account.entity_id or ""),
-            "csv_profile": str(account.csv_profile_id or ""),
-            "is_closed": account.is_closed,
-            "is_depreciation": account.is_depreciation,
-        }
-    return {
-        "name": "",
-        "type": Account.Type.ASSET,
-        "sub_type": "",
-        "entity": "",
-        "csv_profile": "",
-        "is_closed": False,
-        "is_depreciation": False,
-    }
-
-
 def render_account_form(
     entities: QuerySet,
     csv_profiles: QuerySet,
@@ -106,7 +70,14 @@ def render_account_form(
         "change": change,
         "error": error,
         "form": form,
-        "values": _form_values(account, form),
+        "values": resolve_form_values(
+            account,
+            form,
+            text=("name", "type", "sub_type"),
+            fks=("entity", "csv_profile"),
+            booleans=("is_closed", "is_depreciation"),
+            defaults={"type": Account.Type.ASSET},
+        ),
         "type_choices": Account.Type.choices,
         "subtype_map": build_subtype_map(),
         "entities": entities,
