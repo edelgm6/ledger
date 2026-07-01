@@ -760,3 +760,77 @@ class LoanForm(forms.ModelForm):
         if term_months < 1:
             raise ValidationError("Term must be at least 1 month.")
         return term_months
+
+
+class RecharacterizeOperationForm(forms.Form):
+    """Field-level cleaning for a manually built recharacterize operation.
+
+    Choices are constrained to real account/entity names; semantic guardrails
+    (swap-blocked accounts, type match, empty filter) are intentionally left to
+    recharacterize_services._evaluate_operation, which surfaces them as a blocked
+    operation in the preview — identical to an agent-proposed op. The form only
+    normalizes types (dates) and constrains choices.
+    """
+
+    ENTRY_TYPE_CHOICES = [("", "Any"), ("debit", "Debit"), ("credit", "Credit")]
+    ACTION_CHOICES = [
+        ("view", "View matching items (no change)"),
+        ("set_entity", "Set entity"),
+        ("clear_entity", "Clear entity"),
+        ("change_account", "Change account"),
+    ]
+
+    # Widget attrs live on the fields (not hand-written in the template) so the
+    # builder renders each field with ``{{ manual_form.<field> }}`` and prefill
+    # from ``initial`` (when editing an op) "just works" with no template logic.
+    description_contains = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class": "input", "placeholder": "e.g. coffee"}),
+    )
+    date_from = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"class": "input", "type": "date"}),
+    )
+    date_to = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"class": "input", "type": "date"}),
+    )
+    # account/entity are multi-select filters (match any of the chosen) rendered
+    # with the shared typeahead-multiselect component. ``initial=list`` keeps an
+    # unbound field's value an empty list so that component renders cleanly.
+    account = forms.ModelMultipleChoiceField(
+        queryset=Account.objects.all().order_by("name"), required=False, initial=list
+    )
+    entity = forms.ModelMultipleChoiceField(
+        queryset=Entity.objects.all().order_by("name"), required=False, initial=list
+    )
+    entity_is_empty = forms.BooleanField(required=False)
+    entry_type = forms.ChoiceField(
+        required=False,
+        choices=ENTRY_TYPE_CHOICES,
+        widget=forms.Select(attrs={"class": "select"}),
+    )
+
+    action_type = forms.ChoiceField(choices=ACTION_CHOICES)
+    target_entity = forms.ChoiceField(
+        required=False, choices=[], widget=forms.Select(attrs={"class": "select"})
+    )
+    to_account = forms.ChoiceField(
+        required=False, choices=[], widget=forms.Select(attrs={"class": "select"})
+    )
+
+    def __init__(self, *args, catalogs, **kwargs):
+        # ``catalogs`` is a required keyword-only arg (a FormCatalogs) so the
+        # dependency runs strictly one way: View -> Service and View -> Form. The
+        # view builds the catalogs and passes them in; the form never reaches back
+        # into the service layer.
+        super().__init__(*args, **kwargs)
+        # The action targets are single-valued (you set one entity / swap to one
+        # account). A blank option lets the _evaluate_operation guard message fire
+        # instead of a generic "invalid choice" — the preview explains what's missing.
+        self.fields["target_entity"].choices = [("", "—")] + [
+            (n, n) for n in catalogs.entities
+        ]
+        self.fields["to_account"].choices = [("", "—")] + [
+            (n, n) for n in catalogs.accounts
+        ]

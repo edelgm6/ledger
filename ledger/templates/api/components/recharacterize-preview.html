@@ -1,13 +1,19 @@
 <h5 class="card-title">Preview</h5>
 
 {% if flash %}
-<div class="alert alert-success mt-2" role="alert">{{ flash }}</div>
+{% include "api/components/_alert.html" with level="success" extra_class="mt-2" message=flash %}
 {% endif %}
 
 {% if preview and preview.operations %}
     {% for op in preview.operations %}
     <div class="card mt-2">
-        <div><strong>Operation {{ forloop.counter }}:</strong> {{ op.action_summary }}</div>
+        <div class="flex flex-between">
+            <div><strong>Operation {{ forloop.counter }}:</strong> {{ op.action_summary }}</div>
+            <button type="button" class="btn btn-secondary btn-sm"
+                    hx-get="{% url 'recharacterize-edit' %}?op={{ op.index }}"
+                    hx-target="#recharacterize-main"
+                    hx-swap="outerHTML">Edit</button>
+        </div>
 
         {% if op.criteria %}
         <div class="criteria mt-2">
@@ -22,7 +28,7 @@
         {% endif %}
 
         {% if op.blocked %}
-            <div class="alert alert-danger mt-2" role="alert">{{ op.error }}</div>
+            {% include "api/components/_alert.html" with extra_class="mt-2" message=op.error %}
         {% else %}
             <div class="mt-2">
                 <strong>{{ op.affected_count }}</strong>
@@ -38,24 +44,9 @@
                 </p>
             {% endif %}
             {% if op.mutates and op.affected_count > 0 %}
-            <div class="mt-2" x-data="{ confirming: false }">
-                <button type="button" class="btn btn-danger"
-                        x-show="!confirming"
-                        @click="confirming = true">
-                    Apply ({{ op.affected_count }})
-                </button>
-                <span class="inline-confirm" x-show="confirming" x-cloak>
-                    <button type="button" class="btn btn-danger"
-                            hx-post="{% url 'recharacterize-apply' %}?op={{ op.index }}"
-                            hx-target="#recharacterize-main"
-                            hx-swap="outerHTML">
-                        Confirm
-                    </button>
-                    <button type="button" class="btn btn-secondary"
-                            @click="confirming = false">
-                        Cancel
-                    </button>
-                </span>
+            {% url 'recharacterize-apply' as apply_url %}
+            <div class="mt-2">
+                {% include "api/components/_inline-confirm-button.html" with trigger_label="Apply" trigger_count=op.affected_count confirm_url=apply_url confirm_param="op" confirm_value=op.index %}
             </div>
             {% endif %}
         {% endif %}

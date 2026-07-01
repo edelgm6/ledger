@@ -789,7 +789,7 @@ class RecharacterizeRevertTest(TestCase):
 
     def test_history_capped_to_recent_n(self):
         with patch.object(
-            recharacterize_services, "RECHARACTERIZE_HISTORY_LIMIT", 3
+            recharacterize_services.apply, "RECHARACTERIZE_HISTORY_LIMIT", 3
         ):
             change_ids = []
             for _ in range(5):
@@ -820,3 +820,281 @@ class RecharacterizeRevertTest(TestCase):
         recent = list_recent_changes()
         self.assertEqual(recent[0].id, second.change_id)
         self.assertEqual(recent[1].id, first.change_id)
+
+
+class BuildManualOperationTest(TestCase):
+    def setUp(self):
+        self.checking = AccountFactory(
+            name="Ally Checking",
+            type=Account.Type.ASSET,
+            sub_type=Account.SubType.CASH,
+            is_closed=False,
+        )
+        self.groceries = AccountFactory(
+            name="Groceries",
+            type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.OPERATING,
+            is_closed=False,
+        )
+        self.dining = AccountFactory(
+            name="Dining",
+            type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.OPERATING,
+            is_closed=False,
+        )
+        self.starting_equity = AccountFactory(
+            name="Starting Equity",
+            type=Account.Type.EQUITY,
+            special_type=Account.SpecialType.STARTING_EQUITY,
+            is_closed=False,
+        )
+        self.ally_bank = EntityFactory(name="Ally Bank")
+        self.d1, _ = make_entry(
+            "Verizon", datetime.date(2025, 3, 1), self.checking, self.groceries
+        )
+
+    def test_drops_empty_fields_and_serializes_dates(self):
+        # account/entity arrive as model objects (multi-select); names are stored.
+        op = recharacterize_services.build_manual_operation(
+            {
+                "description_contains": "Verizon",
+                "date_from": datetime.date(2025, 1, 1),
+                "date_to": None,
+                "account": [self.checking],
+                "entity": [],
+                "entity_is_empty": False,
+                "entry_type": "debit",
+                "action_type": "set_entity",
+                "target_entity": "Ally Bank",
+            }
+        )
+        self.assertEqual(
+            op["filter"],
+            {
+                "description_contains": "Verizon",
+                "date_from": "2025-01-01",
+                "account": ["Ally Checking"],
+                "entry_type": "debit",
+            },
+        )
+        self.assertEqual(op["action"], {"type": "set_entity", "entity": "Ally Bank"})
+
+    def test_multiple_accounts_are_stored_as_a_name_list(self):
+        op = recharacterize_services.build_manual_operation(
+            {"account": [self.groceries, self.dining], "action_type": "clear_entity"}
+        )
+        self.assertEqual(op["filter"]["account"], ["Groceries", "Dining"])
+
+    def test_change_account_carries_to_account(self):
+        op = recharacterize_services.build_manual_operation(
+            {
+                "account": [self.groceries],
+                "action_type": "change_account",
+                "to_account": "Dining",
+            }
+        )
+        self.assertEqual(op["action"], {"type": "change_account", "to_account": "Dining"})
+
+    def test_clear_entity_has_no_extra_action_fields(self):
+        op = recharacterize_services.build_manual_operation(
+            {"account": [self.checking], "action_type": "clear_entity"}
+        )
+        self.assertEqual(op["action"], {"type": "clear_entity"})
+
+    def test_round_trips_to_a_valid_preview(self):
+        op = recharacterize_services.build_manual_operation(
+            {
+                "description_contains": "Verizon",
+                "account": [self.checking],
+                "entry_type": "debit",
+                "action_type": "set_entity",
+                "target_entity": "Ally Bank",
+            }
+        )
+        preview = preview_plan([op])
+        self.assertFalse(preview.operations[0].blocked)
+        self.assertTrue(preview.operations[0].mutates)
+        self.assertEqual(preview.operations[0].affected_count, 1)
+
+    def test_multi_account_filter_matches_any(self):
+        # Items on either account are matched (account__in semantics): the setUp
+        # Verizon credit on Groceries plus this Lunch debit on Dining = 2.
+        make_entry("Lunch", datetime.date(2025, 4, 1), self.dining, self.checking)
+        op = recharacterize_services.build_manual_operation(
+            {"account": [self.groceries, self.dining], "action_type": "view"}
+        )
+        preview = preview_plan([op])
+        self.assertFalse(preview.operations[0].blocked)
+        self.assertEqual(preview.operations[0].affected_count, 2)
+
+    def test_empty_filter_round_trips_to_a_blocked_preview(self):
+        # No criteria → _evaluate_operation blocks it, surfaced in the preview.
+        op = recharacterize_services.build_manual_operation(
+            {"action_type": "clear_entity"}
+        )
+        preview = preview_plan([op])
+        self.assertTrue(preview.operations[0].blocked)
+        self.assertIn("no criteria", preview.operations[0].error)
+
+    def test_change_account_with_multiple_sources_is_blocked(self):
+        op = recharacterize_services.build_manual_operation(
+            {
+                "account": [self.groceries, self.dining],
+                "action_type": "change_account",
+                "to_account": "Dining",
+            }
+        )
+        preview = preview_plan([op])
+        self.assertTrue(preview.operations[0].blocked)
+        self.assertIn("exactly one source account", preview.operations[0].error)
+
+    def test_swap_blocked_account_round_trips_to_a_blocked_preview(self):
+        op = recharacterize_services.build_manual_operation(
+            {
+                "account": [self.starting_equity],
+                "action_type": "change_account",
+                "to_account": "Groceries",
+            }
+        )
+        preview = preview_plan([op])
+        self.assertTrue(preview.operations[0].blocked)
+
+    def test_manual_form_catalogs_lists_names(self):
+        catalogs = recharacterize_services.manual_form_catalogs()
+        self.assertIn("Ally Checking", catalogs.accounts)
+        self.assertIn("Ally Bank", catalogs.entities)
+        self.assertIn("Starting Equity", catalogs.swap_blocked)
+
+
+class OperationToFormInitialTest(TestCase):
+    def setUp(self):
+        self.checking = AccountFactory(name="Ally Checking", is_closed=False)
+        self.dining = AccountFactory(name="Dining", is_closed=False)
+        self.ally_bank = EntityFactory(name="Ally Bank")
+
+    def test_round_trips_build_manual_operation_with_string_pks(self):
+        op = recharacterize_services.build_manual_operation(
+            {
+                "description_contains": "Verizon",
+                "date_from": datetime.date(2025, 1, 1),
+                "account": [self.checking, self.dining],
+                "entry_type": "debit",
+                "action_type": "set_entity",
+                "target_entity": "Ally Bank",
+            }
+        )
+        initial = recharacterize_services.operation_to_form_initial(op)
+        self.assertEqual(initial["description_contains"], "Verizon")
+        self.assertEqual(initial["date_from"], "2025-01-01")
+        self.assertEqual(initial["entry_type"], "debit")
+        self.assertEqual(initial["action_type"], "set_entity")
+        self.assertEqual(initial["target_entity"], "Ally Bank")
+        # account becomes a list of string PKs so the multi-select renders selected.
+        self.assertEqual(
+            initial["account"], [str(self.checking.pk), str(self.dining.pk)]
+        )
+
+    def test_change_account_carries_to_account(self):
+        op = recharacterize_services.build_manual_operation(
+            {
+                "account": [self.checking],
+                "action_type": "change_account",
+                "to_account": "Dining",
+            }
+        )
+        initial = recharacterize_services.operation_to_form_initial(op)
+        self.assertEqual(initial["action_type"], "change_account")
+        self.assertEqual(initial["to_account"], "Dining")
+
+    def test_unresolved_account_names_are_dropped(self):
+        initial = recharacterize_services.operation_to_form_initial(
+            {"filter": {"account": ["Nonexistent"]}, "action": {"type": "view"}}
+        )
+        self.assertEqual(initial["account"], [])
+
+    def test_defaults_for_empty_operation(self):
+        initial = recharacterize_services.operation_to_form_initial({})
+        self.assertEqual(initial["account"], [])
+        self.assertEqual(initial["entity"], [])
+        self.assertEqual(initial["action_type"], "view")
+        self.assertFalse(initial["entity_is_empty"])
+
+
+class ReviseOperationTest(TestCase):
+    def setUp(self):
+        self.checking = AccountFactory(name="Ally Checking", is_closed=False)
+
+    @patch(
+        "api.services.recharacterize_services.gemini_services.call_gemini_conversation"
+    )
+    def test_returns_first_revised_operation(self, mock_call):
+        revised = {
+            "filter": {"description_contains": "Verizon", "entry_type": "debit"},
+            "action": {"type": "view"},
+        }
+        mock_call.return_value = json.dumps({"reply": "Done.", "operations": [revised]})
+        result = recharacterize_services.revise_operation(
+            {"filter": {"description_contains": "Verizon"}, "action": {"type": "view"}},
+            "only debits",
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(result.operation, revised)
+        self.assertFalse(result.failed)
+
+    @patch(
+        "api.services.recharacterize_services.gemini_services.call_gemini_conversation"
+    )
+    def test_no_operation_surfaces_model_reply(self, mock_call):
+        mock_call.return_value = json.dumps(
+            {"reply": "Which account did you mean?", "operations": []}
+        )
+        result = recharacterize_services.revise_operation(
+            {"filter": {"description_contains": "x"}, "action": {"type": "view"}},
+            "change the account",
+        )
+        self.assertFalse(result.success)
+        self.assertFalse(result.failed)
+        self.assertEqual(result.message, "Which account did you mean?")
+
+    @patch(
+        "api.services.recharacterize_services.gemini_services.call_gemini_conversation"
+    )
+    def test_degrades_on_model_error(self, mock_call):
+        mock_call.side_effect = RuntimeError("503 UNAVAILABLE")
+        result = recharacterize_services.revise_operation(
+            {"filter": {"description_contains": "x"}, "action": {"type": "view"}},
+            "only debits",
+        )
+        self.assertFalse(result.success)
+        self.assertTrue(result.failed)
+
+
+class ManualFormCatalogsTest(TestCase):
+    """The view builds the catalogs and passes them into the form, so the form
+    never reaches back into the service. ``catalogs`` is therefore required."""
+
+    def _catalogs(self):
+        return recharacterize_services.FormCatalogs(
+            accounts=["Groceries", "Dining"],
+            entities=["Ally Bank"],
+            swap_blocked=[],
+        )
+
+    def test_passed_catalogs_populate_choices(self):
+        from api.forms import RecharacterizeOperationForm
+
+        form = RecharacterizeOperationForm(catalogs=self._catalogs())
+        self.assertIn(
+            ("Ally Bank", "Ally Bank"), form.fields["target_entity"].choices
+        )
+        self.assertIn(
+            ("Groceries", "Groceries"), form.fields["to_account"].choices
+        )
+
+    def test_catalogs_is_required(self):
+        from api.forms import RecharacterizeOperationForm
+
+        # The form has no path back to the service; omitting catalogs is an error,
+        # not a silent DB round-trip.
+        with self.assertRaises(TypeError):
+            RecharacterizeOperationForm()

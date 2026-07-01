@@ -1,0 +1,31 @@
+{% comment %}
+Inline "click to confirm" danger button. First click reveals Confirm/Cancel in
+place; Confirm fires the htmx POST that swaps #recharacterize-main. Shared by the
+Apply button (preview) and the Revert button (history).
+
+Params:
+  trigger_label  — first-click button text (e.g. "Apply", "Revert")
+  trigger_count  — optional; when truthy, shown as " (N)" after the label
+  confirm_url    — base URL for the POST (from {% url ... as %})
+  confirm_param  — query-string key (e.g. "op", "change")
+  confirm_value  — query-string value (e.g. op.index, change.id)
+{% endcomment %}
+<span x-data="{ confirming: false }">
+    <button type="button" class="btn btn-danger"
+            x-show="!confirming"
+            @click="confirming = true">
+        {{ trigger_label }}{% if trigger_count %} ({{ trigger_count }}){% endif %}
+    </button>
+    <span class="inline-confirm" x-show="confirming" x-cloak>
+        <button type="button" class="btn btn-danger"
+                hx-post="{{ confirm_url }}?{{ confirm_param }}={{ confirm_value }}"
+                hx-target="#recharacterize-main"
+                hx-swap="outerHTML">
+            Confirm
+        </button>
+        <button type="button" class="btn btn-secondary"
+                @click="confirming = false">
+            Cancel
+        </button>
+    </span>
+</span>
