@@ -7,13 +7,14 @@ They contain no database writes and no business logic. Mirrors
 bill_settings_helpers.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from django.db.models import QuerySet
 from django.template.loader import render_to_string
 
 from api.forms import LoanForm
 from api.models import Loan, LoanPayment
+from api.views.form_helpers import resolve_form_values
 
 
 def render_loans_content(
@@ -31,58 +32,6 @@ def render_loans_content(
             "loan_form": loan_form_html,
         },
     )
-
-
-def _loan_form_values(
-    loan: Optional[Loan], form: Optional[LoanForm]
-) -> Dict[str, Any]:
-    """Resolves the field values to display: submitted data on a bound (invalid)
-    form, else the loan being edited, else blank-create defaults."""
-    if form is not None and form.is_bound:
-        data = form.data
-        return {
-            "name": data.get("name", ""),
-            "original_amount": data.get("original_amount", ""),
-            "annual_interest_rate": data.get("annual_interest_rate", ""),
-            "term_months": data.get("term_months", ""),
-            "start_date": data.get("start_date", ""),
-            "payment_amount": data.get("payment_amount", ""),
-            "principal_account": data.get("principal_account", ""),
-            "interest_account": data.get("interest_account", ""),
-            "payment_account": data.get("payment_account", ""),
-            "description_match": data.get("description_match", ""),
-            "date_window_days": data.get("date_window_days", "7"),
-            "entity": data.get("entity", ""),
-        }
-    if loan is not None:
-        return {
-            "name": loan.name,
-            "original_amount": loan.original_amount,
-            "annual_interest_rate": loan.annual_interest_rate,
-            "term_months": loan.term_months,
-            "start_date": loan.start_date.isoformat() if loan.start_date else "",
-            "payment_amount": loan.payment_amount if loan.payment_amount else "",
-            "principal_account": str(loan.principal_account_id or ""),
-            "interest_account": str(loan.interest_account_id or ""),
-            "payment_account": str(loan.payment_account_id or ""),
-            "description_match": loan.description_match,
-            "date_window_days": loan.date_window_days,
-            "entity": str(loan.entity_id or ""),
-        }
-    return {
-        "name": "",
-        "original_amount": "",
-        "annual_interest_rate": "",
-        "term_months": "",
-        "start_date": "",
-        "payment_amount": "",
-        "principal_account": "",
-        "interest_account": "",
-        "payment_account": "",
-        "description_match": "",
-        "date_window_days": "7",
-        "entity": "",
-    }
 
 
 def render_loan_form(
@@ -112,7 +61,27 @@ def render_loan_form(
         "change": change,
         "error": error,
         "form": form,
-        "values": _loan_form_values(loan, form),
+        "values": resolve_form_values(
+            loan,
+            form,
+            text=(
+                "name",
+                "original_amount",
+                "annual_interest_rate",
+                "term_months",
+                "payment_amount",
+                "description_match",
+                "date_window_days",
+            ),
+            dates=("start_date",),
+            fks=(
+                "principal_account",
+                "interest_account",
+                "payment_account",
+                "entity",
+            ),
+            defaults={"date_window_days": "7"},
+        ),
         "liability_accounts": liability_accounts,
         "expense_accounts": expense_accounts,
         "payment_accounts": payment_accounts,

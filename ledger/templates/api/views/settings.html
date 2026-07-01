@@ -1,6 +1,6 @@
 <div x-data="{
         section: 'Accounts',
-        sections: ['Accounts', 'Bill Rules', 'Utility Bills', 'Loans', 'Entities', 'Paystubs', 'Auto Tags', 'CSV Profiles'],
+        sections: ['Accounts', 'Bill Rules', 'Utility Bills', 'Loans', 'Entities', 'Prefills', 'Paystubs', 'Auto Tags', 'CSV Profiles'],
         stubs: {
           'Paystubs': 'Saved paystub templates parsed via AWS Textract.',
           'Auto Tags': 'Rules that auto-categorize incoming transactions.',
@@ -55,6 +55,14 @@
       <div x-show="section === 'Loans'">
         <div id="loans-content"
              hx-get="{% url 'settings-loans' %}" hx-trigger="load">
+          <div class="table-empty">Loading…</div>
+        </div>
+      </div>
+
+      <!-- Prefills (functional, lazy-loaded) -->
+      <div x-show="section === 'Prefills'">
+        <div id="prefills-content"
+             hx-get="{% url 'settings-prefills' %}" hx-trigger="load">
           <div class="table-empty">Loading…</div>
         </div>
       </div>

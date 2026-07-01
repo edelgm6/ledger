@@ -1,0 +1,59 @@
+<div class="form">
+
+  <div class="form-header">
+    {% if prefill %}Edit · {{ prefill.name }}{% else %}New prefill{% endif %}
+  </div>
+
+  {% if change == "create" %}
+    <div class="alert alert-success">Prefill created.</div>
+  {% elif change == "update" %}
+    <div class="alert alert-success">Prefill updated.</div>
+  {% elif change == "delete" %}
+    <div class="alert alert-success">Prefill deleted.</div>
+  {% endif %}
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <form method="post"
+        {% if prefill %}hx-post="{% url 'settings-prefill' prefill.id %}"{% else %}hx-post="{% url 'settings-prefills' %}"{% endif %}
+        hx-target="#prefills-content"
+        hx-swap="innerHTML">
+    {% csrf_token %}
+
+    <div class="grid grid-wide-first grid-end">
+      <div>
+        <label class="label">Name</label>
+        <input class="input" name="name" value="{{ values.name }}" placeholder="Prefill name" />
+        {% for e in form.name.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="checks">
+        <label class="check">
+          <input type="checkbox" name="is_closed" {% if values.is_closed %}checked{% endif %} />Closed
+        </label>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="submit" name="action" value="save" class="btn btn-primary">{% if prefill %}Save{% else %}Create{% endif %}</button>
+      {% if prefill %}
+      <button type="submit" name="action" value="delete" class="btn btn-danger">Delete</button>
+      {% endif %}
+      <button type="button" class="btn btn-ghost"
+              @click="selectedId = null"
+              hx-get="{% url 'settings-prefill-new-form' %}"
+              hx-target="#prefill-form-div">Clear</button>
+    </div>
+  </form>
+
+  {% if prefill %}
+  <div id="prefill-docsearches"
+       hx-get="{% url 'settings-prefill-docsearches' prefill.id %}"
+       hx-trigger="load">
+    <div class="table-empty">Loading doc searches…</div>
+  </div>
+  {% endif %}
+</div>

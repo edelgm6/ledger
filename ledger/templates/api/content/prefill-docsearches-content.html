@@ -1,0 +1,73 @@
+<div x-data="searchList({{ total }}, 'doc searches', {{ selected_id|default:'null' }})">
+
+  <div class="card-head">
+    <div class="card-head-left">
+      <h2 class="card-title">Doc Searches</h2>
+      <span class="card-count" x-text="countLabel()"></span>
+    </div>
+    <div class="card-head-right">
+      {% include "api/components/search-box.html" with placeholder="Search doc searches" %}
+      <button class="btn btn-primary"
+              @click="selectedId = null"
+              hx-get="{% url 'settings-docsearch-new-form' prefill.id %}"
+              hx-target="#docsearch-form-div">New Doc Search</button>
+    </div>
+  </div>
+
+  <div class="table-scroll has-list">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Lookup</th>
+        <th>Maps to</th>
+        <th>Type</th>
+        <th>Entity</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ds in docsearches %}
+      <tr class="row"
+          data-search="{{ ds.keyword|lower }} {{ ds.table_name|lower }} {% if ds.account %}{{ ds.account.name|lower }}{% endif %} {{ ds.selection|lower }}"
+          :class="{ selected: selectedId === {{ ds.id }} }"
+          x-show="matches($el)"
+          @click="selectedId = {{ ds.id }}"
+          hx-get="{% url 'settings-docsearch-form' prefill.id ds.id %}"
+          hx-target="#docsearch-form-div">
+        <td class="td-name">
+          {% if ds.keyword %}{{ ds.keyword }}{% else %}<span class="td-muted">Table</span> {{ ds.table_name|default:"—" }} · {{ ds.row|default:"—" }}/{{ ds.column|default:"—" }}{% endif %}
+        </td>
+        <td class="td-2">{% if ds.account %}{{ ds.account.name }}{% elif ds.selection %}{{ ds.selection }}{% else %}<span class="td-faint">—</span>{% endif %}</td>
+        <td class="td-muted">{{ ds.get_journal_entry_item_type_display|default:"—" }}</td>
+        <td class="td-muted">{% if ds.entity %}{{ ds.entity.name }}{% else %}<span class="td-faint">—</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <div class="list">
+    {% for ds in docsearches %}
+    <div class="lrow"
+         data-search="{{ ds.keyword|lower }} {{ ds.table_name|lower }} {% if ds.account %}{{ ds.account.name|lower }}{% endif %} {{ ds.selection|lower }}"
+         :class="{ selected: selectedId === {{ ds.id }} }"
+         x-show="matches($el)"
+         @click="selectedId = {{ ds.id }}"
+         hx-get="{% url 'settings-docsearch-form' prefill.id ds.id %}"
+         hx-target="#docsearch-form-div">
+      <div class="lrow-top">
+        <span class="lname">{% if ds.keyword %}{{ ds.keyword }}{% else %}Table · {{ ds.row|default:"—" }}/{{ ds.column|default:"—" }}{% endif %}</span>
+        <span class="lmeta-right">{% if ds.account %}{{ ds.account.name }}{% elif ds.selection %}{{ ds.selection }}{% else %}—{% endif %}</span>
+      </div>
+      <div class="lmeta">{{ ds.get_journal_entry_item_type_display|default:"—" }}{% if ds.entity %} · {{ ds.entity.name }}{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="table-empty" x-show="visible() === 0" x-cloak>
+    No doc searches match "<span x-text="q"></span>".
+  </div>
+
+  <div id="docsearch-form-div">
+    {{ docsearch_form }}
+  </div>
+</div>

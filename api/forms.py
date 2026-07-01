@@ -16,6 +16,7 @@ from api.models import (
     Account,
     Amortization,
     CSVProfile,
+    DocSearch,
     Entity,
     JournalEntry,
     JournalEntryItem,
@@ -665,6 +666,51 @@ class EntityForm(forms.ModelForm):
     class Meta:
         model = Entity
         fields = ["name", "is_closed"]
+
+
+class PrefillForm(forms.ModelForm):
+    """User-facing form for creating/editing prefills via the Settings page.
+
+    A prefill is a named template; Doc Searches (and Prefill Items) hang off it.
+    Mirrors ``EntityForm``.
+    """
+
+    class Meta:
+        model = Prefill
+        fields = ["name", "is_closed"]
+
+
+class DocSearchForm(forms.ModelForm):
+    """User-facing form for creating/editing a prefill's Doc Searches.
+
+    ``prefill`` is intentionally excluded — the view/service scopes each Doc
+    Search to its parent prefill. The either/or field rules (keyword vs
+    table row/column; account+type vs selection) are not re-implemented here:
+    ``ModelForm._post_clean`` calls ``DocSearch.clean()`` (api/models.py), so
+    those surface as ``non_field_errors`` automatically.
+    """
+
+    account = forms.ModelChoiceField(
+        queryset=Account.objects.filter(is_closed=False).order_by("name"),
+        required=False,
+    )
+    entity = forms.ModelChoiceField(
+        queryset=Entity.objects.all().order_by("name"),
+        required=False,
+    )
+
+    class Meta:
+        model = DocSearch
+        fields = [
+            "keyword",
+            "table_name",
+            "row",
+            "column",
+            "account",
+            "journal_entry_item_type",
+            "selection",
+            "entity",
+        ]
 
 
 class UtilityBillRuleForm(forms.ModelForm):
