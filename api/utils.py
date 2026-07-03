@@ -48,6 +48,17 @@ def get_last_days_of_month_tuples():
     return final_days_of_month
 
 
+def get_default_statement_date_range():
+    """First and last day of the last full calendar month.
+
+    The default reporting period shared by the HTML statement views and the
+    read-only reporting API.
+    """
+    last_day = get_last_days_of_month_tuples()[0][0]
+    first_day = get_first_day_of_month_from_date(last_day)
+    return first_day, last_day
+
+
 def get_last_day_of_last_month():
     current_date = datetime.now()
 
