@@ -23,8 +23,14 @@
     <button type="submit" name="transactions" class="btn btn-primary">Submit</button>
 </form>
 
-{% if count %}
+{% if error %}
+<div class="alert alert-danger mt-3" role="alert">{{ error }}</div>
+{% elif count %}
 <div class="alert alert-success mt-3" role="alert">
     Uploaded {{ count }} transactions to {{ account.name }}
+</div>
+{% elif count == 0 %}
+<div class="alert alert-info mt-3" role="alert">
+    No transactions were found in that file.
 </div>
 {% endif %}

@@ -10,12 +10,22 @@ from api import utils
 from api.forms import DocumentForm, UploadTransactionsForm, WalletForm
 from api.services.paystub_services import get_paystubs_table_data
 from api.services.paystub_upload_services import process_paystub_upload
+from api.services.transaction_upload_services import import_transactions_from_csv
 from api.statement import Trend
 from api.views.journal_entry_helpers import (
     render_paystubs_table,
     render_paystubs_table_oob_swap,
 )
 from api.views.page_utils import render_full_page
+
+
+def _flatten_form_errors(form) -> str:
+    """Join a form's validation errors into a single user-facing sentence."""
+    messages = []
+    for field, errors in form.errors.items():
+        label = "" if field == "__all__" else f"{field.replace('_', ' ')}: "
+        messages.extend(f"{label}{error}" for error in errors)
+    return " ".join(messages) or "Please correct the highlighted fields."
 
 
 class UploadTransactionsView(View):
@@ -25,11 +35,17 @@ class UploadTransactionsView(View):
         template = "api/entry_forms/textract-form.html"
         return render_to_string(template, {"form": form, "filename": filename, "error": error})
 
-    def get_csv_form_html(self, transactions_count=None, account=None):
+    def get_csv_form_html(self, transactions_count=None, account=None, error=None):
         form = UploadTransactionsForm()
         template = "api/entry_forms/upload-form.html"
         return render_to_string(
-            template, {"form": form, "count": transactions_count, "account": account}
+            template,
+            {
+                "form": form,
+                "count": transactions_count,
+                "account": account,
+                "error": error,
+            },
         )
 
     def get(self, request):
@@ -51,25 +67,29 @@ class UploadTransactionsView(View):
 
     def handle_transactions_form(self, request):
         form = UploadTransactionsForm(request.POST, request.FILES)
-        if form.is_valid():
-            transactions_count = form.save()
-            return self.get_csv_form_html(
-                transactions_count=transactions_count, account=form.cleaned_data["account"]
-            )
-        return self.get_csv_form_html()
+        if not form.is_valid():
+            return self.get_csv_form_html(error=_flatten_form_errors(form))
+
+        result = import_transactions_from_csv(form)
+        if not result.success:
+            return self.get_csv_form_html(error=result.error)
+        return self.get_csv_form_html(
+            transactions_count=result.count, account=result.account
+        )
 
     def handle_paystubs_form(self, request):
         form = DocumentForm(request.POST, request.FILES)
-        if form.is_valid():
-            result = process_paystub_upload(
-                file=form.cleaned_data["document"],
-                prefill=form.cleaned_data["prefill"],
-            )
-            if not result.success:
-                return self.get_textract_form_html(error=result.error)
-            filename = result.s3file.user_filename if result.s3file else None
-            return self.get_textract_form_html(filename=filename)
-        return self.get_textract_form_html()
+        if not form.is_valid():
+            return self.get_textract_form_html(error=_flatten_form_errors(form))
+
+        result = process_paystub_upload(
+            file=form.cleaned_data["document"],
+            prefill=form.cleaned_data["prefill"],
+        )
+        if not result.success:
+            return self.get_textract_form_html(error=result.error)
+        filename = result.s3file.user_filename if result.s3file else None
+        return self.get_textract_form_html(filename=filename)
 
     def post(self, request):
 
