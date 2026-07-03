@@ -116,10 +116,7 @@ class StatementView(LoginRequiredMixin, View):
 
     def _get_default_dates(self):
         """Get last month date range."""
-        last_month_tuple = utils.get_last_days_of_month_tuples()[0]
-        last_day = last_month_tuple[0]
-        first_day = utils.get_first_day_of_month_from_date(last_day)
-        return first_day, last_day
+        return utils.get_default_statement_date_range()
 
     def _render_income_statement(self, from_date, to_date):
         """Render income statement using services and helpers."""
