@@ -3,7 +3,6 @@
         sections: ['Accounts', 'Bill Rules', 'Utility Bills', 'Loans', 'Entities', 'Prefills', 'Paystubs', 'Auto Tags', 'CSV Profiles'],
         stubs: {
           'Paystubs': 'Saved paystub templates parsed via AWS Textract.',
-          'Auto Tags': 'Rules that auto-categorize incoming transactions.',
           'CSV Profiles': 'Column mappings for each bank\'s CSV export format.'
         }
      }">
@@ -63,6 +62,14 @@
       <div x-show="section === 'Prefills'">
         <div id="prefills-content"
              hx-get="{% url 'settings-prefills' %}" hx-trigger="load">
+          <div class="table-empty">Loading…</div>
+        </div>
+      </div>
+
+      <!-- Auto Tags (functional, lazy-loaded) -->
+      <div x-show="section === 'Auto Tags'">
+        <div id="autotags-content"
+             hx-get="{% url 'settings-autotags' %}" hx-trigger="load">
           <div class="table-empty">Loading…</div>
         </div>
       </div>

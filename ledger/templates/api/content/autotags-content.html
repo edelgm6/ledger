@@ -1,0 +1,75 @@
+<div x-data="searchList({{ total }}, 'autotags', {{ selected_id|default:'null' }})">
+
+  <div class="card-head">
+    <div class="card-head-left">
+      <h2 class="card-title">Auto Tags</h2>
+      <span class="card-count" x-text="countLabel()"></span>
+    </div>
+    <div class="card-head-right">
+      {% include "api/components/search-box.html" with placeholder="Search auto tags" %}
+      <button class="btn btn-secondary"
+              hx-get="{% url 'trigger-autotag' %}"
+              hx-target="#autotag-reapply-result"
+              hx-swap="innerHTML">Re-apply to open transactions</button>
+      <button class="btn btn-primary"
+              @click="selectedId = null"
+              hx-get="{% url 'settings-autotag-new-form' %}"
+              hx-target="#autotag-form-div">New Auto Tag</button>
+    </div>
+  </div>
+
+  <div id="autotag-reapply-result"></div>
+
+  <div class="table-scroll has-list">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Search string</th>
+        <th>Account</th>
+        <th>Type</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for autotag in autotags %}
+      <tr class="row"
+          data-search="{{ autotag.search_string|lower }}"
+          :class="{ selected: selectedId === {{ autotag.id }} }"
+          x-show="matches($el)"
+          @click="selectedId = {{ autotag.id }}"
+          hx-get="{% url 'settings-autotag-form' autotag.id %}"
+          hx-target="#autotag-form-div">
+        <td class="td-name">{{ autotag.search_string }}</td>
+        <td class="td-muted">{{ autotag.account.name|default:"—" }}</td>
+        <td class="td-muted">{{ autotag.get_transaction_type_display|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <div class="list">
+    {% for autotag in autotags %}
+    <div class="lrow"
+         data-search="{{ autotag.search_string|lower }}"
+         :class="{ selected: selectedId === {{ autotag.id }} }"
+         x-show="matches($el)"
+         @click="selectedId = {{ autotag.id }}"
+         hx-get="{% url 'settings-autotag-form' autotag.id %}"
+         hx-target="#autotag-form-div">
+      <div class="lrow-top">
+        <span class="lname">{{ autotag.search_string }}</span>
+        <span class="lmeta-right">{{ autotag.get_transaction_type_display|default:"—" }}</span>
+      </div>
+      <div class="lmeta">{{ autotag.account.name|default:"No account" }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="table-empty" x-show="visible() === 0" x-cloak>
+    No auto tags match "<span x-text="q"></span>".
+  </div>
+
+  <div id="autotag-form-div">
+    {{ autotag_form }}
+  </div>
+</div>
