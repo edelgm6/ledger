@@ -167,11 +167,16 @@ def match_transactions_to_bills(transactions: Iterable[Transaction]) -> int:
     # results without reliable pk/__eq__; bills always have a stable pk.
     txns_for_bill: dict = defaultdict(list)
     bills_for_txn: dict = defaultdict(list)
-    for bill in bills:
-        for txn in txns:
-            if _bill_matches_transaction(bill, txn):
-                txns_for_bill[bill.id].append(txn)
-                bills_for_txn[id(txn)].append(bill)
+    for txn in txns:
+        # Isolate each transaction: advisory tagging is best-effort, so one bad
+        # row must never abort matching for the rest of the batch.
+        try:
+            for bill in bills:
+                if _bill_matches_transaction(bill, txn):
+                    txns_for_bill[bill.id].append(txn)
+                    bills_for_txn[id(txn)].append(bill)
+        except Exception:
+            logger.exception("Bill matching failed for transaction %s", txn.pk)
 
     txns_to_update: List[Transaction] = []
     bills_to_update: List[UtilityBill] = []
