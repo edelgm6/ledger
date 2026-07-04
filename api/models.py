@@ -15,7 +15,7 @@ from api.aws_services import (
     create_textract_job,
     get_textract_results,
 )
-from api.utils import short_error_label
+from api.utils import parse_currency, short_error_label
 from api.validators import non_zero
 
 
@@ -1054,14 +1054,17 @@ class CSVProfile(models.Model):
 
         transactions_list = []
         for row in cleared_rows_csv:
-            if row == {} or self._get_coalesced_amount(row) == 0:
+            if row == {}:
+                break
+            amount = self._get_coalesced_amount(row)
+            if amount == 0:
                 break
 
             # Set defaults
             transaction = Transaction(
                 date=self._get_formatted_date(row[self.date]),
                 account=account,
-                amount=self._get_coalesced_amount(row),
+                amount=amount,
                 description=row[self.description],
                 category=row[self.category],
                 suggested_account=None,  # Default value
@@ -1089,10 +1092,15 @@ class CSVProfile(models.Model):
         return formatted_date
 
     def _get_coalesced_amount(self, row):
-        if row[self.inflow]:
-            return row[self.inflow]
-        else:
-            return row[self.outflow]
+        # CSV cells are strings; coerce to Decimal so the in-memory Transaction
+        # carries the right type (its amount is a DecimalField). Advisory
+        # bill/loan tagging runs on these in-memory objects before they're
+        # re-read from the DB, and does arithmetic on amount, so a raw string
+        # would blow it up. parse_currency also tolerates thousands separators
+        # and dollar signs, matching CommaDecimalField.
+        raw = row[self.inflow] or row[self.outflow]
+        # A blank amount marks the end-of-data row the caller breaks on.
+        return parse_currency(raw) if raw else Decimal(0)
 
     def _clear_prepended_rows(self, csv_data):
         if not self.clear_prepended_until_value:

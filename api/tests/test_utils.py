@@ -1,6 +1,25 @@
+from decimal import Decimal, InvalidOperation
+
 from django.test import SimpleTestCase
 
-from api.utils import friendly_error_message, short_error_label
+from api.utils import friendly_error_message, parse_currency, short_error_label
+
+
+class ParseCurrencyTest(SimpleTestCase):
+    def test_parses_plain_and_signed_numbers(self):
+        self.assertEqual(parse_currency("805.36"), Decimal("805.36"))
+        self.assertEqual(parse_currency("-805.36"), Decimal("-805.36"))
+
+    def test_strips_thousands_separators_and_dollar_signs(self):
+        self.assertEqual(parse_currency("$1,234.56"), Decimal("1234.56"))
+        self.assertEqual(parse_currency("-1,000"), Decimal("-1000"))
+
+    def test_returns_decimal_type(self):
+        self.assertIsInstance(parse_currency("10"), Decimal)
+
+    def test_raises_on_garbage(self):
+        with self.assertRaises(InvalidOperation):
+            parse_currency("not a number")
 
 
 class ErrorLabelTest(SimpleTestCase):
