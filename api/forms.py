@@ -15,6 +15,7 @@ from api.services.tax_services import get_tax_accounts
 from api.models import (
     Account,
     Amortization,
+    AutoTag,
     CSVProfile,
     DocSearch,
     Entity,
@@ -709,6 +710,39 @@ class DocSearchForm(forms.ModelForm):
             "account",
             "journal_entry_item_type",
             "selection",
+            "entity",
+        ]
+
+
+class AutoTagForm(forms.ModelForm):
+    """User-facing form for creating/editing autotags via the Settings page.
+
+    An autotag is a rule: when ``search_string`` appears (case-insensitively) in
+    an incoming transaction's description, the transaction is pre-filled with the
+    tag's account/entity/prefill and transaction type. Only ``search_string`` is
+    required; the target fields are optional. Mirrors ``UtilityBillRuleForm``.
+    """
+
+    account = forms.ModelChoiceField(
+        queryset=Account.objects.filter(is_closed=False).order_by("name"),
+        required=False,
+    )
+    prefill = forms.ModelChoiceField(
+        queryset=Prefill.objects.filter(is_closed=False).order_by("name"),
+        required=False,
+    )
+    entity = forms.ModelChoiceField(
+        queryset=Entity.objects.all().order_by("name"),
+        required=False,
+    )
+
+    class Meta:
+        model = AutoTag
+        fields = [
+            "search_string",
+            "account",
+            "transaction_type",
+            "prefill",
             "entity",
         ]
 
