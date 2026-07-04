@@ -30,7 +30,7 @@ from api.views.journal_entry_helpers import (
     render_paystubs_table,
 )
 from api.views import transaction_helpers
-from api.views.page_utils import render_full_page
+from api.views.page_utils import render_action_status, render_full_page
 
 
 class TriggerAutoTagView(LoginRequiredMixin, View):
@@ -39,9 +39,7 @@ class TriggerAutoTagView(LoginRequiredMixin, View):
 
     def get(self, request):
         count = apply_autotags_to_open_transactions()
-        return HttpResponse(
-            f"<small class=text-success>Autotag complete ({count} transactions)</small>"
-        )
+        return HttpResponse(render_action_status("Autotag complete", count))
 
 
 # Called every time the page is filtered
