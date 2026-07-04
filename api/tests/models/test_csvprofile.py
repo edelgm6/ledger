@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.test import TestCase
 from api.models import CSVColumnValuePair, Transaction, AutoTag
 from api.tests.testing_factories import CSVProfileFactory, AccountFactory, PrefillFactory
@@ -127,6 +129,42 @@ class CSVProfileModelTest(TestCase):
         }
         value = self.csv_profile._get_coalesced_amount(test_row)
         self.assertEqual(value, 500)
+
+    def test_get_coalesced_amount_coerces_string_cells_to_decimal(self):
+        # CSV cells arrive as strings; the amount must come back as a Decimal so
+        # advisory bill/loan tagging (which does arithmetic on the in-memory
+        # Transaction before it's re-read from the DB) doesn't blow up.
+        value = self.csv_profile._get_coalesced_amount(
+            {'Inflow': '', 'Outflow': '-805.36'}
+        )
+        self.assertEqual(value, Decimal('-805.36'))
+        self.assertIsInstance(value, Decimal)
+
+    def test_get_coalesced_amount_tolerates_thousands_and_dollar_signs(self):
+        # Reuses utils.parse_currency, so formatted CSV cells no longer raise.
+        value = self.csv_profile._get_coalesced_amount(
+            {'Inflow': '$1,234.56', 'Outflow': ''}
+        )
+        self.assertEqual(value, Decimal('1234.56'))
+
+    def test_get_coalesced_amount_blank_row_returns_zero(self):
+        # A blank amount marks the end-of-data row the importer breaks on; it
+        # must return 0 rather than raise on Decimal('').
+        value = self.csv_profile._get_coalesced_amount({'Inflow': '', 'Outflow': ''})
+        self.assertEqual(value, Decimal(0))
+
+    def test_created_transactions_have_decimal_amounts(self):
+        # Regression: bulk_create leaves the in-memory objects' amount as the
+        # raw CSV string; the model must coerce so callers (tagging) get Decimals.
+        copied_list = list(csv_data)
+        copied_list.append({})
+        account = AccountFactory()
+
+        created = self.csv_profile.create_transactions_from_csv(copied_list, account)
+
+        self.assertTrue(created)
+        for transaction in created:
+            self.assertIsInstance(transaction.amount, Decimal)
 
     def test_date_string_formatted(self):
         test_date = '31-2023-03'
