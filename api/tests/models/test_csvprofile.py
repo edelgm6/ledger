@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.test import TestCase
 from api.models import CSVColumnValuePair, Transaction, AutoTag
 from api.tests.testing_factories import CSVProfileFactory, AccountFactory, PrefillFactory
@@ -160,6 +162,23 @@ class CSVProfileModelTest(TestCase):
         self.assertEqual(transaction.type, Transaction.TransactionType.PURCHASE)
         transaction = Transaction.objects.get(description='Dividends')
         self.assertEqual(transaction.type, Transaction.TransactionType.INCOME)
+
+    def test_import_succeeds_when_bill_matching_raises(self):
+        # Bill/loan matching is best-effort tagging that runs after the import.
+        # If it raises, the import (and its returned count) must not break — the
+        # upload view relies on that count to show a success message.
+        copied_list = list(csv_data)
+        copied_list.append({})
+        account = AccountFactory()
+
+        with patch(
+            'api.services.bill_services.match_transactions_to_bills',
+            side_effect=Exception('boom'),
+        ):
+            count = self.csv_profile.create_transactions_from_csv(copied_list, account)
+
+        self.assertEqual(count, 3)
+        self.assertEqual(Transaction.objects.filter(account=account).count(), 3)
 
 
     # search_string = models.CharField(max_length=20)
