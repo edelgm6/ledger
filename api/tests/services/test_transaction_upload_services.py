@@ -25,18 +25,26 @@ class ImportTransactionsFromCsvTest(TestCase):
         return form
 
     def test_successful_import_returns_count_and_account(self):
+        # form.save() returns the created transactions; the service counts them
+        # and tags them (tagging is exercised in test_tagging_services).
         form = self._valid_form()
-        with patch.object(form, "save", return_value=5):
+        created = [object(), object(), object(), object(), object()]
+        with patch.object(form, "save", return_value=created), patch(
+            "api.services.transaction_upload_services.tag_transactions"
+        ) as mock_tag:
             result = import_transactions_from_csv(form)
 
         self.assertTrue(result.success)
         self.assertEqual(result.count, 5)
         self.assertEqual(result.account, self.account)
         self.assertIsNone(result.error)
+        mock_tag.assert_called_once_with(created)
 
     def test_zero_rows_is_still_success(self):
         form = self._valid_form()
-        with patch.object(form, "save", return_value=0):
+        with patch.object(form, "save", return_value=[]), patch(
+            "api.services.transaction_upload_services.tag_transactions"
+        ):
             result = import_transactions_from_csv(form)
 
         self.assertTrue(result.success)

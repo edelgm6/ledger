@@ -1,6 +1,5 @@
 import calendar
 import datetime
-import logging
 import math
 import re
 from decimal import ROUND_HALF_UP, Decimal
@@ -18,8 +17,6 @@ from api.aws_services import (
 )
 from api.utils import short_error_label
 from api.validators import non_zero
-
-logger = logging.getLogger(__name__)
 
 
 class Entity(models.Model):
@@ -1076,26 +1073,11 @@ class CSVProfile(models.Model):
         Transaction.apply_autotags(transactions_list)
         created = Transaction.objects.bulk_create(transactions_list)
 
-        # Tag any transactions that match a parsed utility bill or a loan
-        # schedule. Imported locally to avoid a models <-> services import cycle.
-        # This is a best-effort convenience tag, not part of the core import, so a
-        # failure here must never break the import or its returned count (which the
-        # upload view relies on to show a success message).
-        from api.services.bill_services import match_transactions_to_bills
-        from api.services.loan_services import match_transactions_to_loans
-
-        try:
-            match_transactions_to_bills(created)
-            match_transactions_to_loans(created)
-        except Exception:
-            logger.exception(
-                "Bill/loan matching failed after importing %d transactions for "
-                "account %s; import succeeded, tagging skipped.",
-                len(transactions_list),
-                account,
-            )
-
-        return len(transactions_list)
+        # Best-effort bill/loan tagging is applied by the caller (the upload
+        # service) via api.services.tagging_services, keeping the models layer
+        # free of service imports. Return the created objects so the caller can
+        # tag them; callers wanting a count use len(...).
+        return created
 
     def _get_formatted_date(self, date_string):
         # Parse the original date using the input format
