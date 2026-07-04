@@ -50,6 +50,10 @@ from api.views.loan_views import (
     LoanScheduleView,
     LoanSettingsView,
 )
+from api.views.autotag_settings_views import (
+    AutoTagFormView,
+    AutoTagSettingsView,
+)
 from api.views.prefill_settings_views import (
     DocSearchFormView,
     DocSearchView,
@@ -375,6 +379,27 @@ urlpatterns = [
         "settings/prefills/<int:prefill_id>/docsearches/<int:docsearch_id>/form/",
         DocSearchFormView.as_view(),
         name="settings-docsearch-form",
+    ),
+    # Settings — autotags (config CRUD)
+    path(
+        "settings/autotags/",
+        AutoTagSettingsView.as_view(),
+        name="settings-autotags",
+    ),
+    path(
+        "settings/autotags/new/form/",
+        AutoTagFormView.as_view(),
+        name="settings-autotag-new-form",
+    ),
+    path(
+        "settings/autotags/<int:autotag_id>/",
+        AutoTagSettingsView.as_view(),
+        name="settings-autotag",
+    ),
+    path(
+        "settings/autotags/<int:autotag_id>/form/",
+        AutoTagFormView.as_view(),
+        name="settings-autotag-form",
     ),
     path("tag/", TagEntitiesView.as_view(), name="tag-entities"),
     path("tag/balances/", EntityGroupedBalancesView.as_view(), name="entity-balances"),

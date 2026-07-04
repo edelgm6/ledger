@@ -1,0 +1,88 @@
+<div class="form">
+
+  <div class="form-header">
+    {% if autotag %}Edit auto tag{% else %}New auto tag{% endif %}
+  </div>
+
+  {% if change == "create" %}
+    <div class="alert alert-success">Auto tag created.</div>
+  {% elif change == "update" %}
+    <div class="alert alert-success">Auto tag updated.</div>
+  {% elif change == "delete" %}
+    <div class="alert alert-success">Auto tag deleted.</div>
+  {% endif %}
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <form method="post"
+        {% if autotag %}hx-post="{% url 'settings-autotag' autotag.id %}"{% else %}hx-post="{% url 'settings-autotags' %}"{% endif %}
+        hx-target="#autotags-content"
+        hx-swap="innerHTML">
+    {% csrf_token %}
+
+    <p class="muted fs-body">When <strong>search string</strong> appears in a transaction's description, the transaction is pre-filled with the account, entity, prefill, and type below.</p>
+
+    <div class="grid grid-4 grid-end">
+      <div>
+        <label class="label">Search string</label>
+        <input class="input" name="search_string" value="{{ values.search_string }}" maxlength="20" placeholder="e.g. amazon" />
+        {% for e in form.search_string.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="label">Account</label>
+        <select class="select" name="account">
+          <option value="" {% if not values.account %}selected{% endif %}>Select…</option>
+          {% for account in accounts %}
+          <option value="{{ account.id }}" {% if values.account == account.id|stringformat:'s' %}selected{% endif %}>{{ account.name }}</option>
+          {% endfor %}
+        </select>
+        {% for e in form.account.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="label">Type</label>
+        <select class="select" name="transaction_type">
+          <option value="" {% if not values.transaction_type %}selected{% endif %}>Select…</option>
+          {% for value, label in type_choices %}
+          <option value="{{ value }}" {% if values.transaction_type == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        {% for e in form.transaction_type.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="label">Prefill</label>
+        <select class="select" name="prefill">
+          <option value="" {% if not values.prefill %}selected{% endif %}>Select…</option>
+          {% for prefill in prefills %}
+          <option value="{{ prefill.id }}" {% if values.prefill == prefill.id|stringformat:'s' %}selected{% endif %}>{{ prefill.name }}</option>
+          {% endfor %}
+        </select>
+        {% for e in form.prefill.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="label">Entity</label>
+        <select class="select" name="entity">
+          <option value="" {% if not values.entity %}selected{% endif %}>Select…</option>
+          {% for entity in entities %}
+          <option value="{{ entity.id }}" {% if values.entity == entity.id|stringformat:'s' %}selected{% endif %}>{{ entity.name }}</option>
+          {% endfor %}
+        </select>
+        {% for e in form.entity.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="submit" name="action" value="save" class="btn btn-primary">{% if autotag %}Save{% else %}Create{% endif %}</button>
+      {% if autotag %}
+      <button type="submit" name="action" value="delete" class="btn btn-danger">Delete</button>
+      {% endif %}
+      <button type="button" class="btn btn-ghost"
+              @click="selectedId = null"
+              hx-get="{% url 'settings-autotag-new-form' %}"
+              hx-target="#autotag-form-div">Clear</button>
+    </div>
+  </form>
+</div>
