@@ -188,6 +188,27 @@ class MatchScheduledTest(TestCase):
         linked = LoanPayment.objects.get(transaction=txn)
         self.assertEqual(linked.kind, LoanPayment.Kind.SCHEDULED)
 
+    def test_bad_transaction_does_not_abort_batch(self):
+        # A single transaction blowing up during matching (here: a str amount,
+        # the exact bug that broke CSV imports) must not stop the rest of the
+        # batch from being tagged. The failure is isolated + logged.
+        loan = make_loan()
+        bad = TransactionFactory(
+            amount=Decimal("-1000.00"), date=datetime.date(2026, 7, 2)
+        )
+        bad.amount = "-1000.00"  # simulate the un-coerced CSV string
+        good = TransactionFactory(
+            amount=Decimal("-1000.00"), date=datetime.date(2026, 7, 2)
+        )
+
+        with self.assertLogs("api.services.loan_services", level="ERROR"):
+            count = match_transactions_to_loans([bad, good])
+
+        self.assertEqual(count, 1)
+        good.refresh_from_db()
+        self.assertEqual(good.suggested_account_id, loan.principal_account_id)
+        self.assertTrue(LoanPayment.objects.filter(transaction=good).exists())
+
     def test_outside_date_window_no_match(self):
         make_loan(date_window_days=3)
         # 2026-07-20 is >3 days from both the 07-01 and 08-01 scheduled rows.
