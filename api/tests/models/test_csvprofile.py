@@ -1,3 +1,4 @@
+import datetime
 from decimal import Decimal
 
 from django.test import TestCase
@@ -153,9 +154,10 @@ class CSVProfileModelTest(TestCase):
         value = self.csv_profile._get_coalesced_amount({'Inflow': '', 'Outflow': ''})
         self.assertEqual(value, Decimal(0))
 
-    def test_created_transactions_have_decimal_amounts(self):
-        # Regression: bulk_create leaves the in-memory objects' amount as the
-        # raw CSV string; the model must coerce so callers (tagging) get Decimals.
+    def test_created_transactions_have_typed_amount_and_date(self):
+        # Regression: bulk_create leaves the in-memory objects' amount/date as
+        # the raw CSV strings; the model must coerce so callers (tagging, which
+        # does arithmetic on both) get a Decimal amount and a date object.
         copied_list = list(csv_data)
         copied_list.append({})
         account = AccountFactory()
@@ -165,13 +167,15 @@ class CSVProfileModelTest(TestCase):
         self.assertTrue(created)
         for transaction in created:
             self.assertIsInstance(transaction.amount, Decimal)
+            self.assertIsInstance(transaction.date, datetime.date)
 
-    def test_date_string_formatted(self):
+    def test_date_string_parsed_to_date_object(self):
         test_date = '31-2023-03'
         self.csv_profile.date_format = "%d-%Y-%m"
         self.csv_profile.save()
-        formatted_date = self.csv_profile._get_formatted_date(test_date)
-        self.assertEqual(formatted_date, '2023-03-31')
+        parsed = self.csv_profile._get_formatted_date(test_date)
+        self.assertEqual(parsed, datetime.date(2023, 3, 31))
+        self.assertIsInstance(parsed, datetime.date)
 
     def test_autotags_applied_to_transactions(self):
         copied_list = list(csv_data)
