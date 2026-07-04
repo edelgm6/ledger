@@ -20,7 +20,7 @@ from django.views import View
 from api.forms import LoanForm
 from api.models import Loan, LoanPayment
 from api.services import loan_services
-from api.views import loan_helpers
+from api.views import loan_helpers, page_utils
 
 
 class LoanSettingsView(LoginRequiredMixin, View):
@@ -195,3 +195,18 @@ class LoanScheduleView(LoginRequiredMixin, View):
         loan.refresh_from_db()
         rows = loan_services.get_schedule(loan.id)
         return HttpResponse(loan_helpers.render_loan_schedule(loan, rows, message=message))
+
+
+class LoanRematchView(LoginRequiredMixin, View):
+    """Re-run loan matching over open, unmatched transactions on demand.
+
+    Mirrors TriggerAutoTagView: a GET that returns a small success fragment
+    HTMX-swapped into the Loans settings result div.
+    """
+
+    login_url = "/login/"
+    redirect_field_name = "next"
+
+    def get(self, request):
+        count = loan_services.rematch_open_transactions()
+        return HttpResponse(page_utils.render_action_status("Loan matching complete", count))

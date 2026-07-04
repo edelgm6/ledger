@@ -303,3 +303,17 @@ def _tag_one_transaction(
     txn.type = Transaction.TransactionType.PAYMENT
     txn.save()
     return True
+
+
+def rematch_open_transactions() -> int:
+    """Re-run loan matching on open transactions not already linked to a loan
+    payment, returning the number newly tagged.
+
+    The ``loan_payment__isnull=True`` filter is what makes repeated runs safe:
+    ``match_transactions_to_loans`` is not idempotent on already-matched
+    transactions (it would double-book a row or duplicate an off-schedule
+    payment), and a transaction tagged on one run is excluded from the next.
+    """
+    return match_transactions_to_loans(
+        Transaction.objects.filter(is_closed=False, loan_payment__isnull=True)
+    )

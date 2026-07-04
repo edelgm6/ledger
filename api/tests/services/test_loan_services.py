@@ -10,6 +10,7 @@ from api.services.loan_services import (
     get_loan_form_options,
     get_loans,
     match_transactions_to_loans,
+    rematch_open_transactions,
     save_loan,
     save_schedule_row,
 )
@@ -317,4 +318,49 @@ class MatchScopingTest(TestCase):
             amount=Decimal("1000.00"), date=datetime.date(2026, 7, 2)
         )
         count = match_transactions_to_loans([txn])
+        self.assertEqual(count, 0)
+
+
+class RematchOpenTransactionsTest(TestCase):
+    def test_tags_unmatched_open_transaction(self):
+        loan = make_loan()
+        txn = TransactionFactory(
+            amount=Decimal("-1000.00"), date=datetime.date(2026, 7, 2)
+        )
+
+        count = rematch_open_transactions()
+
+        self.assertEqual(count, 1)
+        txn.refresh_from_db()
+        self.assertEqual(txn.type, Transaction.TransactionType.PAYMENT)
+        self.assertEqual(txn.suggested_account_id, loan.principal_account_id)
+        self.assertTrue(LoanPayment.objects.filter(transaction=txn).exists())
+
+    def test_is_idempotent_on_second_run(self):
+        # The safety property: a transaction tagged on the first run gains a
+        # loan_payment link and is excluded from the next, so re-running never
+        # double-books a row or creates a duplicate off-schedule payment.
+        make_loan()
+        TransactionFactory(
+            amount=Decimal("-1000.00"), date=datetime.date(2026, 7, 2)
+        )
+
+        first = rematch_open_transactions()
+        payments_after_first = LoanPayment.objects.count()
+        second = rematch_open_transactions()
+
+        self.assertEqual(first, 1)
+        self.assertEqual(second, 0)
+        self.assertEqual(LoanPayment.objects.count(), payments_after_first)
+
+    def test_skips_closed_transactions(self):
+        make_loan()
+        TransactionFactory(
+            amount=Decimal("-1000.00"),
+            date=datetime.date(2026, 7, 2),
+            is_closed=True,
+        )
+
+        count = rematch_open_transactions()
+
         self.assertEqual(count, 0)

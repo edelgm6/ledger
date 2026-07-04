@@ -7,12 +7,18 @@
     </div>
     <div class="card-head-right">
       {% include "api/components/search-box.html" with placeholder="Search loans" %}
+      <button class="btn btn-secondary"
+              hx-get="{% url 'settings-loan-rematch' %}"
+              hx-target="#loan-rematch-result"
+              hx-swap="innerHTML">Re-run loan matching</button>
       <button class="btn btn-primary"
               @click="selectedId = null"
               hx-get="{% url 'settings-loan-new-form' %}"
               hx-target="#loan-form-div">New Loan</button>
     </div>
   </div>
+
+  <div id="loan-rematch-result"></div>
 
   <div class="table-scroll has-list">
   <table class="table">

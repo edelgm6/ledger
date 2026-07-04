@@ -16,3 +16,9 @@ from django.shortcuts import render
 def render_full_page(request, content_html: str) -> HttpResponse:
     """Wrap a pre-rendered content fragment in the base.html shell."""
     return render(request, "api/shell.html", {"content": content_html})
+
+
+def render_action_status(message: str, count: int) -> str:
+    """A small success fragment reporting how many transactions a batch action
+    affected, HTMX-swapped into a result div (autotag re-apply, loan re-match)."""
+    return f"<small class=text-success>{message} ({count} transactions)</small>"
