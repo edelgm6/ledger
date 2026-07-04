@@ -1083,13 +1083,12 @@ class CSVProfile(models.Model):
         return created
 
     def _get_formatted_date(self, date_string):
-        # Parse the original date using the input format
-        original_date = datetime.datetime.strptime(date_string, self.date_format)
-
-        # Format the date to the desired output format
-        formatted_date = original_date.strftime("%Y-%m-%d")
-
-        return formatted_date
+        # Parse using the profile's input format and return a date object (not a
+        # string) so the in-memory Transaction carries the right type for its
+        # DateField. Advisory bill/loan tagging does date arithmetic on these
+        # objects before they're re-read from the DB, so a str would blow up
+        # (same class of bug as _get_coalesced_amount coercing to Decimal).
+        return datetime.datetime.strptime(date_string, self.date_format).date()
 
     def _get_coalesced_amount(self, row):
         # CSV cells are strings; coerce to Decimal so the in-memory Transaction
