@@ -9,7 +9,7 @@ API's read-only guarantee and needs no database credentials — only the base UR
 and the shared API key.
 
 Config (env vars):
-  LEDGER_API_BASE_URL  e.g. https://fast-cliffs-86166.herokuapp.com/api/v1
+  LEDGER_API_BASE_URL  your deployed Ledger API root, e.g. https://<your-app-host>/api/v1
   LEDGER_API_KEY       the same key the server checks (Authorization: Api-Key ...)
 
 Run:  uv run --with 'mcp[cli]' --with httpx python mcp_server/server.py
