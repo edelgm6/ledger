@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<!--
+  Ledger finance dashboard — self-contained artifact.
+
+  Built by the `finance-dashboard` skill. All data lives in the
+  <script id="ledger-data"> block below; the skill replaces its contents with
+  one JSON blob assembled from the `ledger` MCP tools, then writes the result
+  to dashboards/dashboard.html. This template carries NO financial data and is
+  safe to commit; the generated copy does NOT go in git.
+
+  Data contract (see the skill's SKILL.md for how each field is fetched):
+    meta:              { built_at, from_date, to_date, months: ["YYYY-MM", ...] }
+    trend:             [ { account, account_type, sub_type, amount, flow_type, date }, ... ]
+    cash_flow_by_month:{ "YYYY-MM": { cash_from_operations, cash_from_financing,
+                                       cash_from_investing, net_cash_flow,
+                                       operations_flows[], financing_flows[],
+                                       investing_flows[] }, ... }
+    spending_by_month: { "YYYY-MM": { income_total, expense_total, net_income,
+                                       income_sub_types[], expense_sub_types[] }, ... }
+    accounts:          [ { id, name, type, sub_type, is_closed, entity }, ... ]
+    entities:          [ { id, name, is_closed }, ... ]
+    account_detail:    { "<account_id>": { account, items: [ {date,label,amount,type,entity} ] } }
+    callouts:          [ { severity: good|bad|warn|info|neutral, title, detail }, ... ]
+
+  Money fields arrive as 2-dp strings ("1234.56"); parse with MONEY(). Report
+  amounts are signed at the account level: income & expense amounts are stored
+  positive, so net income = sum(income) - sum(expense).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ledger — Finance Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  /* Design tokens copied from ledger/static/css/app.css so the artifact is
+     self-contained (it can't <link> the Django static file when opened standalone). */
+  :root {
+    --color-primary:#007bff; --color-primary-strong:#1c63d4; --color-danger:#dc3545;
+    --status-success-fg:#1e7e44; --status-success-bg:#e9f7ef;
+    --status-info-fg:#1c63d4;   --status-info-bg:#eaf2ff;
+    --status-warning-fg:#b76e00; --status-warning-bg:#fff4e5;
+    --status-danger-fg:#b02a37;  --status-danger-bg:#fdecee;
+    --status-neutral-fg:#6c757d; --status-neutral-bg:#f1f3f5;
+    --text-1:#212529; --text-2:#343a40; --text-3:#495057; --text-4:#6c757d;
+    --text-muted:#9aa0a6; --text-faint:#b6bcc2;
+    --surface:#fff; --surface-alt:#f7f9fb; --surface-stub:#fafbfc;
+    --selected:#f2f8ff; --highlight:#fcfcd5;
+    --border:#e2e5e8; --border-faint:#f0f2f4; --border-divider:#e9ecef; --input-border:#ced4da;
+    --space-1:4px; --space-2:8px; --space-3:12px; --space-4:18px; --space-5:24px; --space-6:38px;
+    --radius:4px; --radius-lg:8px; --radius-pill:10px;
+    --focus-border:#80bdff; --focus-ring:rgba(0,123,255,.25);
+    --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+    --fs-sm:11px; --fs-body:12px; --fs-md:13px; --fs-lg:14px; --fs-h2:16px;
+    --control-h:30px; --page-max:1160px;
+    /* Chart palette derived from the token set (app ships no chart CSS). */
+    --c-blue:#007bff; --c-green:#1e7e44; --c-red:#b02a37; --c-amber:#b76e00;
+    --c-info:#1c63d4; --c-neutral:#6c757d;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:var(--font); font-size:var(--fs-body);
+    color:var(--text-1); background:var(--surface-alt); }
+  a { color:var(--color-primary); text-decoration:none; }
+  .page { max-width:var(--page-max); margin:0 auto; padding:var(--space-5) var(--space-5) 60px; }
+
+  .topbar { display:flex; align-items:flex-end; justify-content:space-between;
+    gap:var(--space-4); flex-wrap:wrap; margin-bottom:var(--space-5); }
+  .topbar h1 { font-size:22px; margin:0; color:var(--text-1); font-weight:600; }
+  .topbar .sub { color:var(--text-4); font-size:var(--fs-md); margin-top:var(--space-1); }
+
+  .controls { display:flex; align-items:center; gap:var(--space-3); flex-wrap:wrap; }
+  .seg { display:inline-flex; border:1px solid var(--input-border); border-radius:var(--radius);
+    overflow:hidden; background:var(--surface); height:var(--control-h); }
+  .seg button { border:0; background:transparent; padding:0 var(--space-3); font-size:var(--fs-body);
+    color:var(--text-3); cursor:pointer; font-family:inherit; }
+  .seg button + button { border-left:1px solid var(--border); }
+  .seg button.active { background:var(--color-primary); color:#fff; }
+  select, .navbtn { height:var(--control-h); border:1px solid var(--input-border);
+    border-radius:var(--radius); background:var(--surface); color:var(--text-2);
+    font-size:var(--fs-body); font-family:inherit; padding:0 var(--space-3); cursor:pointer; }
+  .navbtn { width:var(--control-h); padding:0; }
+  .navbtn:disabled { opacity:.4; cursor:default; }
+
+  .grid { display:grid; gap:var(--space-4); }
+  .grid-auto { grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); }
+
+  .card { background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius-lg); padding:var(--space-5); margin-bottom:var(--space-4); }
+  .section-label { font-size:var(--fs-sm); font-weight:600; letter-spacing:.05em;
+    text-transform:uppercase; color:var(--text-muted); margin-bottom:var(--space-3); }
+
+  .kpi { border:1px solid var(--border); border-radius:var(--radius-lg);
+    padding:var(--space-3) var(--space-4); text-align:center; background:var(--surface); }
+  .kpi-value { font-size:20px; font-weight:600; color:var(--text-1); }
+  .kpi-label { font-size:var(--fs-sm); letter-spacing:.04em; text-transform:uppercase;
+    color:var(--text-muted); margin-top:var(--space-1); }
+  .kpi-delta { font-size:var(--fs-sm); margin-top:var(--space-1); }
+  .up { color:var(--status-success-fg); } .down { color:var(--status-danger-fg); }
+
+  .callout { display:flex; gap:var(--space-3); align-items:flex-start;
+    padding:var(--space-2) 0; border-bottom:1px solid var(--border-faint); }
+  .callout:last-child { border-bottom:0; }
+  .badge { display:inline-block; font-size:var(--fs-sm); font-weight:600; letter-spacing:.03em;
+    text-transform:uppercase; padding:2px var(--space-2); border-radius:var(--radius-pill);
+    white-space:nowrap; }
+  .b-good { color:var(--status-success-fg); background:var(--status-success-bg); }
+  .b-bad  { color:var(--status-danger-fg);  background:var(--status-danger-bg); }
+  .b-warn { color:var(--status-warning-fg); background:var(--status-warning-bg); }
+  .b-info { color:var(--status-info-fg);    background:var(--status-info-bg); }
+  .b-neutral { color:var(--status-neutral-fg); background:var(--status-neutral-bg); }
+  .callout .co-title { font-weight:600; color:var(--text-2); }
+  .callout .co-detail { color:var(--text-4); }
+
+  .tabs { display:flex; gap:var(--space-1); border-bottom:1px solid var(--border);
+    margin-bottom:var(--space-4); }
+  .tabs button { border:0; background:transparent; padding:var(--space-2) var(--space-3);
+    font-size:var(--fs-md); color:var(--text-4); cursor:pointer; font-family:inherit;
+    border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .tabs button.active { color:var(--color-primary); border-bottom-color:var(--color-primary); }
+
+  .stmt-layout { display:grid; grid-template-columns:1.4fr 1fr; gap:var(--space-5); align-items:start; }
+  .table { width:100%; border-collapse:collapse; }
+  .table th { padding:var(--space-2) var(--space-3); font-size:var(--fs-sm); letter-spacing:.04em;
+    text-transform:uppercase; color:var(--text-muted); font-weight:600; text-align:left;
+    border-bottom:1px solid var(--border); }
+  .table td { padding:var(--space-2) var(--space-3); font-size:var(--fs-body);
+    border-bottom:1px solid var(--border-faint); }
+  .table th.right, .table td.right { text-align:right; font-variant-numeric:tabular-nums; }
+  .table tbody tr.acct { cursor:pointer; }
+  .table tbody tr.acct:hover { background:var(--surface-alt); }
+  .row-type td { font-weight:600; color:var(--text-1); background:var(--surface-stub); }
+  .row-sub td { color:var(--text-3); }
+  .row-sub td:first-child { padding-left:var(--space-5); }
+  .row-acct td:first-child { padding-left:var(--space-6); color:var(--text-3); }
+  .neg { color:var(--status-danger-fg); }
+
+  .chart-wrap { position:relative; height:300px; }
+  .chart-sm { position:relative; height:240px; }
+
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.35); display:none;
+    align-items:center; justify-content:center; padding:var(--space-4); z-index:50; }
+  .overlay.open { display:flex; }
+  .modal { background:var(--surface); border-radius:var(--radius-lg); width:min(760px,100%);
+    max-height:88vh; overflow:auto; padding:var(--space-5);
+    box-shadow:0 12px 40px rgba(0,0,0,.18); }
+  .modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:var(--space-3); }
+  .modal-head h3 { margin:0 0 var(--space-1); font-size:var(--fs-h2); }
+  .modal .close { border:0; background:transparent; font-size:20px; cursor:pointer; color:var(--text-4); }
+  .muted { color:var(--text-muted); }
+  .empty { color:var(--text-muted); font-style:italic; padding:var(--space-3) 0; }
+
+  @media (max-width:760px) {
+    .stmt-layout { grid-template-columns:1fr; }
+    .topbar { align-items:flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <div>
+      <h1>Finance Dashboard</h1>
+      <div class="sub" id="sub-line">—</div>
+    </div>
+    <div class="controls">
+      <div class="seg" id="gran">
+        <button data-g="M" class="active">Month</button>
+        <button data-g="Q">Quarter</button>
+        <button data-g="Y">Year</button>
+      </div>
+      <button class="navbtn" id="prev" title="Previous period">‹</button>
+      <select id="period"></select>
+      <button class="navbtn" id="next" title="Next period">›</button>
+    </div>
+  </div>
+
+  <div class="grid grid-auto" id="kpis"></div>
+
+  <div class="card" id="callouts-card">
+    <div class="section-label">Callouts</div>
+    <div id="callouts"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Trend — trailing window</div>
+    <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <div class="tabs" id="stmt-tabs">
+      <button data-t="income" class="active">Income Statement</button>
+      <button data-t="balance">Balance Sheet</button>
+      <button data-t="cash">Cash Flow</button>
+      <button data-t="entity">Spending by Entity</button>
+    </div>
+    <div class="stmt-layout">
+      <div id="stmt-table"></div>
+      <div class="chart-sm"><canvas id="stmtChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h3 id="m-title">Account</h3>
+        <div class="muted" id="m-sub"></div>
+      </div>
+      <button class="close" id="m-close">×</button>
+    </div>
+    <div class="chart-sm" style="height:180px"><canvas id="acctSpark"></canvas></div>
+    <div id="m-items"></div>
+  </div>
+</div>
+
+<script id="ledger-data" type="application/json">
+{"meta":{"built_at":null,"from_date":null,"to_date":null,"months":[]},"trend":[],"cash_flow_by_month":{},"spending_by_month":{},"accounts":[],"entities":[],"account_detail":{},"callouts":[]}
+</script>
+
+<script>
+// ---- data + helpers -------------------------------------------------------
+const DATA = JSON.parse(document.getElementById('ledger-data').textContent);
+const CH = {}; // live Chart.js instances, keyed so we can destroy on re-render
+
+const MONEY = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
+const usd = n => (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US',
+  { minimumFractionDigits:0, maximumFractionDigits:0 });
+const usd2 = n => (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US',
+  { minimumFractionDigits:2, maximumFractionDigits:2 });
+const pct = n => (n == null || !Number.isFinite(n)) ? '—' : (n * 100).toFixed(1) + '%';
+const mkey = isoDate => (isoDate || '').slice(0, 7);            // "2026-06-30" -> "2026-06"
+const monthLabel = k => { const [y,m] = k.split('-');
+  return new Date(y, m-1, 1).toLocaleString('en-US',{month:'short',year:'2-digit'}); };
+const titleCase = s => (s || '').replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+
+const CSS = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const PALETTE = ['--c-blue','--c-green','--c-amber','--c-info','--c-red','--c-neutral']
+  .map(CSS).concat(['#4c9aff','#2fa36b','#d99a3a','#5b7cc4','#c65b66','#95a0aa']);
+
+const TYPE_LABEL = { asset:'Assets', liability:'Liabilities', income:'Income',
+  expense:'Expenses', equity:'Equity' };
+const TYPE_ORDER = ['asset','liability','income','expense','equity'];
+
+// ---- period model ---------------------------------------------------------
+// The trend backbone is monthly; quarters/years are just buckets of months.
+const MONTHS = DATA.meta.months.slice().sort();          // chronological "YYYY-MM"
+function buildPeriods(gran) {
+  if (gran === 'M') return MONTHS.map(m => ({ key:m, label:monthLabel(m), months:[m] }));
+  const buckets = new Map();
+  for (const m of MONTHS) {
+    const [y, mm] = m.split('-').map(Number);
+    const key = gran === 'Q' ? `${y}-Q${Math.floor((mm-1)/3)+1}` : `${y}`;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(m);
+  }
+  return [...buckets.entries()].map(([key, months]) => ({ key, label:key, months }));
+}
+
+const STATE = { gran:'M', idx:0, periods:buildPeriods('M'), tab:'income' };
+const curPeriod = () => STATE.periods[STATE.idx];
+const prevPeriod = () => STATE.periods[STATE.idx - 1] || null;
+
+// ---- trend reductions (income statement, balance sheet, metrics) ----------
+// Flows (income/expense) sum across the period's months; stocks (balance sheet)
+// take the snapshot at the period's last month-end. Matches the server engine:
+// net income = sum(income) - sum(expense); metrics regroup the same rows.
+function flowRows(months) {
+  const set = new Set(months);
+  return DATA.trend.filter(r => r.flow_type === 'flow'
+    && (r.account_type === 'income' || r.account_type === 'expense')
+    && set.has(mkey(r.date)));
+}
+function stockRows(lastMonth) {
+  return DATA.trend.filter(r => r.flow_type === 'stock' && mkey(r.date) === lastMonth);
+}
+// Aggregate a set of balance rows into type -> sub_type -> accounts, with totals.
+function hierarchy(rows, wantTypes) {
+  const byType = {};
+  for (const t of wantTypes) byType[t] = { total:0, subs:{} };
+  for (const r of rows) {
+    if (!byType[r.account_type]) continue;
+    const T = byType[r.account_type];
+    const amt = MONEY(r.amount);
+    T.total += amt;
+    const st = T.subs[r.sub_type] || (T.subs[r.sub_type] = { total:0, accounts:{} });
+    st.total += amt;
+    st.accounts[r.account] = (st.accounts[r.account] || 0) + amt;
+  }
+  return byType;
+}
+function metrics(months) {
+  const last = months[months.length - 1];
+  const flows = flowRows(months), stocks = stockRows(last);
+  const sumBy = (rows, pred) => rows.filter(pred).reduce((a, r) => a + MONEY(r.amount), 0);
+
+  const income   = sumBy(flows, r => r.account_type === 'income');
+  const expense  = sumBy(flows, r => r.account_type === 'expense');
+  const netIncome = income - expense;
+
+  const unrealized = sumBy(flows, r => r.sub_type === 'unrealized_investment_gains');
+  const nonGainsIncome = income - unrealized;
+  const nonGainsNet = netIncome - unrealized;
+  const savings = nonGainsIncome ? nonGainsNet / nonGainsIncome : null;
+
+  const taxable = sumBy(flows, r => ['salary','dividends_and_interest',
+    'realized_investment_gains'].includes(r.sub_type));
+  const taxes = sumBy(flows, r => r.sub_type === 'tax');
+  const taxRate = taxable ? taxes / taxable : null;
+
+  const assets = sumBy(stocks, r => r.account_type === 'asset');
+  const liabilities = sumBy(stocks, r => r.account_type === 'liability');
+  const equity = sumBy(stocks, r => r.account_type === 'equity');
+  const cash = sumBy(stocks, r => r.sub_type === 'cash');
+  const liquid = cash + sumBy(stocks, r => r.sub_type === 'securities_unrestricted');
+  const debtToEquity = equity ? liabilities / equity : null;
+
+  const cf = months.reduce((acc, m) => {
+    const c = DATA.cash_flow_by_month[m];
+    if (c) acc += MONEY(c.net_cash_flow);
+    return acc;
+  }, 0);
+
+  return { income, expense, netIncome, savings, taxRate, assets, liabilities,
+    equity, cash, liquid, debtToEquity, cashPctAssets: assets ? cash/assets : null,
+    liquidPctAssets: assets ? liquid/assets : null, netCashFlow: cf };
+}
+
+// ---- render: KPIs + callouts ---------------------------------------------
+function delta(cur, prev) {
+  if (prev == null || cur == null || !prev) return '';
+  const d = cur - prev, up = d >= 0;
+  return `<div class="kpi-delta ${up?'up':'down'}">${up?'▲':'▼'} ${usd(Math.abs(d))}</div>`;
+}
+function renderKpis() {
+  const m = metrics(curPeriod().months);
+  const p = prevPeriod() ? metrics(prevPeriod().months) : null;
+  const tiles = [
+    ['Net Income', usd(m.netIncome), delta(m.netIncome, p && p.netIncome)],
+    ['Savings Rate', pct(m.savings), ''],
+    ['Tax Rate', pct(m.taxRate), ''],
+    ['Total Assets', usd(m.assets), delta(m.assets, p && p.assets)],
+    ['Net Cash Flow', usd(m.netCashFlow), delta(m.netCashFlow, p && p.netCashFlow)],
+    ['Debt / Equity', m.debtToEquity == null ? '—' : m.debtToEquity.toFixed(2), ''],
+    ['Liquid Assets', usd(m.liquid), ''],
+    ['Cash % Assets', pct(m.cashPctAssets), ''],
+  ];
+  document.getElementById('kpis').innerHTML = tiles.map(([label, val, d]) =>
+    `<div class="kpi"><div class="kpi-value">${val}</div>
+      <div class="kpi-label">${label}</div>${d}</div>`).join('');
+}
+function renderCallouts() {
+  const cs = DATA.callouts || [];
+  const el = document.getElementById('callouts');
+  if (!cs.length) { document.getElementById('callouts-card').style.display = 'none'; return; }
+  const cls = { good:'b-good', bad:'b-bad', warn:'b-warn', info:'b-info', neutral:'b-neutral' };
+  el.innerHTML = cs.map(c => `<div class="callout">
+    <span class="badge ${cls[c.severity] || 'b-neutral'}">${c.severity || 'note'}</span>
+    <div><span class="co-title">${c.title || ''}</span>
+      ${c.detail ? ` — <span class="co-detail">${c.detail}</span>` : ''}</div></div>`).join('');
+}
+
+// ---- render: trend chart (full window) -----------------------------------
+function renderTrend() {
+  const labels = MONTHS.map(monthLabel);
+  const netInc = MONTHS.map(m => metrics([m]).netIncome);
+  const assets = MONTHS.map(m => metrics([m]).assets);
+  const expense = MONTHS.map(m => metrics([m]).expense);
+  if (CH.trend) CH.trend.destroy();
+  CH.trend = new Chart(document.getElementById('trendChart'), {
+    type:'line',
+    data:{ labels, datasets:[
+      { label:'Total Assets', data:assets, borderColor:CSS('--c-blue'),
+        backgroundColor:'transparent', yAxisID:'y1', tension:.25, borderWidth:2, pointRadius:2 },
+      { label:'Net Income', data:netInc, borderColor:CSS('--c-green'),
+        backgroundColor:'transparent', tension:.25, borderWidth:2, pointRadius:2 },
+      { label:'Expenses', data:expense, borderColor:CSS('--c-red'),
+        backgroundColor:'transparent', tension:.25, borderWidth:2, pointRadius:2 },
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'index', intersect:false },
+      plugins:{ legend:{ labels:{ boxWidth:12, font:{ size:11 } } },
+        tooltip:{ callbacks:{ label:c => `${c.dataset.label}: ${usd2(c.parsed.y)}` } } },
+      scales:{
+        y:{ position:'left', title:{ display:true, text:'Flows' }, ticks:{ callback:usd } },
+        y1:{ position:'right', title:{ display:true, text:'Assets' },
+          grid:{ drawOnChartArea:false }, ticks:{ callback:usd } } } }
+  });
+}
+
+// ---- render: statement tab ------------------------------------------------
+function typeTable(byType, types, opts={}) {
+  let rows = '';
+  for (const t of types) {
+    const T = byType[t]; if (!T) continue;
+    rows += `<tr class="row-type"><td>${TYPE_LABEL[t]}</td><td class="right">${usd(T.total)}</td></tr>`;
+    const subs = Object.entries(T.subs).sort((a,b) => Math.abs(b[1].total) - Math.abs(a[1].total));
+    for (const [sub, S] of subs) {
+      rows += `<tr class="row-sub"><td>${titleCase(sub)}</td><td class="right">${usd(S.total)}</td></tr>`;
+      const accts = Object.entries(S.accounts).sort((a,b) => Math.abs(b[1]) - Math.abs(a[1]));
+      for (const [name, amt] of accts) {
+        const id = (opts.acctId && opts.acctId[name]);
+        rows += `<tr class="row-acct acct" data-acct="${id ?? ''}" data-name="${encodeURIComponent(name)}">
+          <td>${name}</td><td class="right ${amt<0?'neg':''}">${usd(amt)}</td></tr>`;
+      }
+    }
+  }
+  return `<table class="table"><thead><tr><th>Account</th><th class="right">Amount</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+function nameToId() {
+  const map = {}; for (const a of DATA.accounts) map[a.name] = a.id; return map;
+}
+function doughnut(canvasId, entries, title) {
+  const el = document.getElementById(canvasId);
+  if (CH.stmt) CH.stmt.destroy();
+  const top = entries.filter(e => e[1] > 0).sort((a,b) => b[1]-a[1]).slice(0, 8);
+  CH.stmt = new Chart(el, { type:'doughnut',
+    data:{ labels:top.map(e => e[0]),
+      datasets:[{ data:top.map(e => e[1]), backgroundColor:PALETTE, borderWidth:1, borderColor:'#fff' }] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'58%',
+      plugins:{ legend:{ position:'right', labels:{ boxWidth:12, font:{ size:11 } } },
+        title:{ display:!!title, text:title, color:CSS('--text-4') },
+        tooltip:{ callbacks:{ label:c => `${c.label}: ${usd2(c.parsed)}` } } } } });
+}
+function barChart(canvasId, labels, values, title) {
+  const el = document.getElementById(canvasId);
+  if (CH.stmt) CH.stmt.destroy();
+  CH.stmt = new Chart(el, { type:'bar',
+    data:{ labels, datasets:[{ data:values, borderWidth:0,
+      backgroundColor:values.map(v => v >= 0 ? CSS('--c-green') : CSS('--c-red')) }] },
+    options:{ responsive:true, maintainAspectRatio:false, indexAxis: labels.length > 4 ? 'y':'x',
+      plugins:{ legend:{ display:false }, title:{ display:!!title, text:title, color:CSS('--text-4') },
+        tooltip:{ callbacks:{ label:c => usd2(c.parsed.x ?? c.parsed.y) } } },
+      scales:{ x:{ ticks:{ callback:usd } }, y:{ ticks:{ callback:usd } } } } });
+}
+function renderStatement() {
+  const months = curPeriod().months, last = months[months.length - 1];
+  const box = document.getElementById('stmt-table');
+  const acctId = nameToId();
+
+  if (STATE.tab === 'income') {
+    const byType = hierarchy(flowRows(months), ['income','expense']);
+    box.innerHTML = typeTable(byType, ['income','expense'], { acctId });
+    const exp = byType.expense ? Object.entries(byType.expense.subs)
+      .map(([s,S]) => [titleCase(s), S.total]) : [];
+    doughnut('stmtChart', exp, 'Expense mix');
+
+  } else if (STATE.tab === 'balance') {
+    const byType = hierarchy(stockRows(last), ['asset','liability','equity']);
+    box.innerHTML = typeTable(byType, ['asset','liability','equity'], { acctId });
+    const ast = byType.asset ? Object.entries(byType.asset.subs)
+      .map(([s,S]) => [titleCase(s), S.total]) : [];
+    doughnut('stmtChart', ast, 'Asset mix');
+
+  } else if (STATE.tab === 'cash') {
+    // Cash flow can't be rebuilt from trend (no category on flow rows) — use the
+    // per-month cash_flow payloads and sum categories across the period.
+    let ops=0, fin=0, inv=0; const acctSum = {};
+    for (const m of months) {
+      const c = DATA.cash_flow_by_month[m]; if (!c) continue;
+      ops += MONEY(c.cash_from_operations); fin += MONEY(c.cash_from_financing);
+      inv += MONEY(c.cash_from_investing);
+      for (const key of ['operations_flows','financing_flows','investing_flows'])
+        for (const b of (c[key]||[])) acctSum[b.account] = (acctSum[b.account]||0) + MONEY(b.amount);
+    }
+    const net = ops + fin + inv;
+    const rows = [['Operations',ops],['Financing',fin],['Investing',inv]]
+      .map(([n,v]) => `<tr class="row-sub"><td>${n}</td><td class="right ${v<0?'neg':''}">${usd(v)}</td></tr>`).join('');
+    const detail = Object.entries(acctSum).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))
+      .map(([n,v]) => `<tr class="row-acct acct" data-acct="${acctId[n] ?? ''}" data-name="${encodeURIComponent(n)}">
+        <td>${n}</td><td class="right ${v<0?'neg':''}">${usd(v)}</td></tr>`).join('');
+    box.innerHTML = `<table class="table"><thead><tr><th>Category</th><th class="right">Amount</th></tr></thead>
+      <tbody>${rows}<tr class="row-type"><td>Net Cash Flow</td><td class="right">${usd(net)}</td></tr>
+      ${detail}</tbody></table>`;
+    barChart('stmtChart', ['Operations','Financing','Investing'], [ops,fin,inv], 'Cash flow');
+
+  } else { // entity spending
+    const inc = {}, exp = {};
+    for (const m of months) {
+      const s = DATA.spending_by_month[m]; if (!s) continue;
+      for (const sec of (s.expense_sub_types||[])) for (const b of sec.balances)
+        exp[b.entity] = (exp[b.entity]||0) + MONEY(b.amount);
+      for (const sec of (s.income_sub_types||[])) for (const b of sec.balances)
+        inc[b.entity] = (inc[b.entity]||0) + MONEY(b.amount);
+    }
+    const expSorted = Object.entries(exp).sort((a,b)=>b[1]-a[1]);
+    const rows = expSorted.map(([n,v]) =>
+      `<tr class="row-acct"><td>${n}</td><td class="right">${usd(v)}</td></tr>`).join('');
+    const incRows = Object.entries(inc).sort((a,b)=>b[1]-a[1]).map(([n,v]) =>
+      `<tr class="row-acct"><td>${n}</td><td class="right">${usd(v)}</td></tr>`).join('');
+    box.innerHTML = `<table class="table"><thead><tr><th>Payee — expenses</th><th class="right">Amount</th></tr></thead>
+      <tbody>${rows || '<tr><td class="empty" colspan=2>No expense activity</td></tr>'}
+      <tr class="row-type"><td>Income sources</td><td></td></tr>${incRows}</tbody></table>`;
+    const top = expSorted.slice(0, 8);
+    barChart('stmtChart', top.map(e=>e[0]), top.map(e=>e[1]), 'Top payees');
+  }
+
+  box.querySelectorAll('tr.acct').forEach(tr =>
+    tr.addEventListener('click', () => openAccount(tr.dataset.acct,
+      decodeURIComponent(tr.dataset.name))));
+}
+
+// ---- account drill-down ---------------------------------------------------
+function openAccount(id, name) {
+  document.getElementById('m-title').textContent = name;
+  const months = curPeriod().months, set = new Set(months);
+  const spark = MONTHS.map(m => DATA.trend.filter(r => r.account === name && mkey(r.date) === m)
+    .reduce((a,r) => a + MONEY(r.amount), 0));
+  if (CH.spark) CH.spark.destroy();
+  CH.spark = new Chart(document.getElementById('acctSpark'), {
+    type:'line', data:{ labels:MONTHS.map(monthLabel),
+      datasets:[{ data:spark, borderColor:CSS('--c-blue'), backgroundColor:'transparent',
+        tension:.25, borderWidth:2, pointRadius:2 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false },
+      tooltip:{ callbacks:{ label:c => usd2(c.parsed.y) } } }, scales:{ y:{ ticks:{ callback:usd } } } } });
+
+  const det = DATA.account_detail[id];
+  const sub = document.getElementById('m-sub');
+  const box = document.getElementById('m-items');
+  if (!det || !det.items || !det.items.length) {
+    sub.textContent = 'No line-item detail was fetched for this account.';
+    box.innerHTML = ''; document.getElementById('overlay').classList.add('open'); return;
+  }
+  const items = det.items.filter(it => set.has(mkey(it.date)));
+  sub.textContent = `${items.length} line item${items.length===1?'':'s'} in ${curPeriod().label}`;
+  box.innerHTML = items.length ? `<table class="table" style="margin-top:var(--space-3)">
+    <thead><tr><th>Date</th><th>Label</th><th class="right">Amount</th></tr></thead><tbody>${
+      items.map(it => `<tr><td>${it.date}</td><td>${it.label || ''}</td>
+        <td class="right ${MONEY(it.amount)<0?'neg':''}">${usd2(MONEY(it.amount))}</td></tr>`).join('')
+    }</tbody></table>` : '<div class="empty">No line items in the selected period.</div>';
+  document.getElementById('overlay').classList.add('open');
+}
+
+// ---- wiring ---------------------------------------------------------------
+function fillPeriodSelect() {
+  const sel = document.getElementById('period');
+  sel.innerHTML = STATE.periods.map((p,i) => `<option value="${i}">${p.label}</option>`).join('');
+  sel.value = STATE.idx;
+  document.getElementById('prev').disabled = STATE.idx <= 0;
+  document.getElementById('next').disabled = STATE.idx >= STATE.periods.length - 1;
+}
+function renderAll() { fillPeriodSelect(); renderKpis(); renderStatement(); }
+
+function setGran(g) {
+  STATE.gran = g; STATE.periods = buildPeriods(g); STATE.idx = STATE.periods.length - 1;
+  document.querySelectorAll('#gran button').forEach(b =>
+    b.classList.toggle('active', b.dataset.g === g));
+  renderAll();
+}
+document.querySelectorAll('#gran button').forEach(b =>
+  b.addEventListener('click', () => setGran(b.dataset.g)));
+document.getElementById('prev').onclick = () => { if (STATE.idx>0){ STATE.idx--; renderAll(); } };
+document.getElementById('next').onclick = () => {
+  if (STATE.idx<STATE.periods.length-1){ STATE.idx++; renderAll(); } };
+document.getElementById('period').onchange = e => { STATE.idx = +e.target.value; renderAll(); };
+document.querySelectorAll('#stmt-tabs button').forEach(b => b.addEventListener('click', () => {
+  STATE.tab = b.dataset.t;
+  document.querySelectorAll('#stmt-tabs button').forEach(x =>
+    x.classList.toggle('active', x === b));
+  renderStatement();
+}));
+document.getElementById('m-close').onclick = () =>
+  document.getElementById('overlay').classList.remove('open');
+document.getElementById('overlay').addEventListener('click', e => {
+  if (e.target.id === 'overlay') e.target.classList.remove('open'); });
+
+// ---- boot -----------------------------------------------------------------
+(function init() {
+  if (!MONTHS.length) {
+    document.querySelector('.page').innerHTML =
+      '<div class="card"><div class="section-label">No data</div>' +
+      'This dashboard has no embedded data yet. Run the <code>finance-dashboard</code> ' +
+      'skill to fetch from the Ledger MCP server and populate it.</div>';
+    return;
+  }
+  const built = DATA.meta.built_at ? new Date(DATA.meta.built_at).toLocaleString() : '';
+  document.getElementById('sub-line').textContent =
+    `${DATA.meta.from_date} → ${DATA.meta.to_date}` + (built ? `  ·  built ${built}` : '');
+  STATE.idx = STATE.periods.length - 1;   // default to the most recent period
+  renderTrend(); renderCallouts(); renderAll();
+})();
+</script>
+</body>
+</html>

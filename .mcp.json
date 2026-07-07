@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "ledger": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "set -a; [ -f mcp_server/.env ] && . mcp_server/.env; set +a; exec uv run --with 'mcp[cli]' --with httpx python mcp_server/server.py"
+      ]
+    }
+  }
+}
