@@ -1,117 +1,99 @@
 ---
 name: finance-dashboard
-description: Build or refresh an interactive, visual HTML dashboard of the user's finances (income statement, balance sheet, cash flow, KPIs, callouts, account drill-downs, month/quarter/year views) from the Ledger MCP server. Use when the user asks to create, update, or open a finance/accounting dashboard, or to visualize their ledger data. Reads only via the read-only `ledger` MCP tools; writes a self-contained dashboards/dashboard.html.
+description: Build or refresh an interactive, visual HTML dashboard of the user's finances (income statement, balance sheet, cash flow, KPIs, callouts, account drill-downs, month/quarter/year views) from the Ledger reporting API. Use when the user asks to create, update, or open a finance/accounting dashboard, or to visualize their ledger data. Read-only; writes a self-contained dashboards/dashboard.html.
 ---
 
 # Finance dashboard
 
-Fetch financial data through the read-only **`ledger` MCP server**, inject it into the
-prebuilt shell at `template.html` (in this skill's directory), and write a self-contained
-`dashboards/dashboard.html`. All interactivity — Month/Quarter/Year toggle, the three
-statements, KPI tiles, callouts, and account drill-downs — is already built into the
-template and runs client-side over the embedded JSON. Your job is just: **fetch → assemble
-one JSON blob → inject → write.**
+Fetch financial data, inject it into the prebuilt shell at `template.html` (in this skill's
+directory), and write a self-contained `dashboards/dashboard.html`. All interactivity —
+Month/Quarter/Year toggle, the three statements, KPI tiles, callouts, and account drill-downs
+— is already built into the template and runs client-side over the embedded JSON.
+
+**Do this with `fetch.py` (the fast path below), not by hand.** The script fetches, computes
+callouts, assembles the blob, injects it, and writes the file in one shot — in ~15s. Fetching
+piecemeal through MCP tools and re-transcribing the payloads by hand is the slow path and can
+take many minutes; only fall back to it if the script genuinely can't run.
 
 ## Critical guardrails
 
 - **Never commit the output.** `dashboards/dashboard.html` contains real financial figures;
-  this repo is public. `dashboards/` is gitignored — keep it that way, and don't `git add`
-  it. The skill files (`SKILL.md`, `template.html`) hold no data and are safe to commit.
-- **Read-only.** Only call the `mcp__ledger__*` GET tools. Never write to the DB or app.
-- **Don't print the API key** or the raw prod host in your replies.
+  this repo is public. `dashboards/` is gitignored — keep it that way, and don't `git add` it.
+  The skill files (`SKILL.md`, `template.html`, `fetch.py`) hold no data and are safe to commit.
+- **Read-only.** Only GET the reporting endpoints (`/api/v1/reports/*` + the account/entity
+  lists) — via `fetch.py` or the `mcp__ledger__*` tools. Never write to the DB or app.
+- **Don't print the API key or the raw prod host** in your replies. `fetch.py` reads them from
+  the environment / `mcp_server/.env` and never echoes them — keep it that way.
 
-## Step 1 — Preflight
+## Fast path — run the script
 
-Confirm the `ledger` MCP tools are available (`mcp__ledger__get_trend`, etc.). If they are
-not registered, stop and tell the user to register the server per `mcp_server/README.md`
-(set `LEDGER_API_BASE_URL` + `LEDGER_API_KEY`), then re-run.
+```bash
+python3 .claude/skills/finance-dashboard/fetch.py            # trailing 12 full months
+python3 .claude/skills/finance-dashboard/fetch.py --full     # drill EVERY open account (slower)
+python3 .claude/skills/finance-dashboard/fetch.py --from 2025-01-01 --to 2025-12-31
+python3 .claude/skills/finance-dashboard/fetch.py --top 20   # drill the 20 largest accounts (default 12)
+```
 
-## Step 2 — Choose the window
+It is stdlib-only (no install), reads `LEDGER_API_BASE_URL` / `LEDGER_API_KEY` from the env or
+`mcp_server/.env`, and:
 
-Default: **trailing 12 full months.** With today = the run date, `to_date` = the last day
-of last full month; `from_date` = the first day of the month 11 months before that. Build
-the list of month keys `months = ["YYYY-MM", ...]` (12 entries, chronological). Honor an
-explicit override if the user names a range or a different length.
+1. Picks the window (default: **trailing 12 full months** — `to_date` = last day of last full
+   month, `from_date` = first day of the month 11 months earlier). Override with `--from/--to`.
+2. Fetches `reports/trend/` (the backbone), then per-month `reports/cash-flow/` and
+   `reports/spending-by-entity/`, plus `accounts/` and `entities/` — concurrently.
+3. Drills `reports/account-detail/` for the largest accounts by default (`--top N`, `--full`
+   for all). The template degrades gracefully — undrilled accounts just show an empty panel.
+4. Computes 3–6 callouts, injects the blob into the `<script id="ledger-data">` placeholder,
+   and writes `dashboards/dashboard.html`.
 
-## Step 3 — Fetch (map tool output straight into the blob)
+Then verify and report (Step 6). If the run fails because the tools/creds aren't reachable,
+tell the user to register/point the server per `mcp_server/README.md`, or use the fallback.
 
-Dates are `YYYY-MM-DD`. Money fields come back as 2-dp **strings**; keep them as-is (the
-template parses them). Make these calls:
+## Fallback — MCP tools by hand (only if the script can't run)
 
-1. `get_trend(from_date, to_date)` — **the backbone.** One flat `balances` array of
-   `{account, account_type, sub_type, amount, flow_type, date}`. The template rebuilds the
-   income statement, balance sheet, all KPIs, and every rate/ratio from this for any
-   selected period, so this single call powers most of the dashboard. Put its `balances`
-   array at `trend`.
-2. For **each month** `m` in `months`, with that month's first/last day:
-   - `get_cash_flow(from, to)` → store the full response at `cash_flow_by_month[m]`
-     (cash flow can't be rebuilt from trend — it needs the operations/financing/investing
-     split).
-   - `spending_by_entity(from, to)` → store at `spending_by_month[m]` (entity breakdown
-     isn't in trend).
-   These 24 calls make the Cash Flow and Spending-by-Entity tabs dynamic per period.
-3. `list_accounts()` → `accounts` (gives the id↔name map the drill-down needs).
-   `list_entities()` → `entities`.
-4. `account_detail(account_id, from_date, to_date)` for each **open** account (from
-   `list_accounts`, `is_closed=false`) over the full window → store items at
-   `account_detail["<id>"]`. This is the slow step (~one call per account). If the user
-   asked for a fast build, fetch detail only for the largest accounts and note that the
-   rest will populate on a fuller re-run (the template degrades gracefully — accounts
-   without detail just show an empty drill-down).
-
-Run independent calls in parallel where the tooling allows.
-
-## Step 4 — Callouts
-
-From the fetched data, compute a short, curated list (aim for 3–6) of the most useful
-observations for the latest period and the window. Good candidates: largest expense
-category and its biggest payee; biggest month-over-month swing in net income or spending;
-savings-rate or tax-rate shift; any month that looks anomalous vs. its neighbors; notable
-change in total assets or debt. Each is `{severity, title, detail}` where `severity` is one
-of `good | bad | warn | info | neutral` (drives the badge color). Put them at `callouts`.
-
-## Step 5 — Assemble, inject, write
-
-Assemble one JSON object with exactly these keys:
+Use this only when `fetch.py` can't reach the API (e.g. no `.env`, or an MCP-only environment
+where the `mcp__ledger__*` tools work but the script's network/creds don't). It produces the
+same blob, just slowly. Call the tools, assemble one JSON object with **exactly** these keys,
+and inject it the same way the script does:
 
 ```
 {
   "meta": { "built_at": <ISO timestamp>, "from_date": ..., "to_date": ..., "months": [...] },
-  "trend": [ ...balances... ],
-  "cash_flow_by_month": { "YYYY-MM": {...}, ... },
-  "spending_by_month":  { "YYYY-MM": {...}, ... },
-  "accounts": [...], "entities": [...],
-  "account_detail": { "<id>": {...}, ... },
-  "callouts": [ {severity, title, detail}, ... ]
+  "trend": [ ...balances... ],                       # get_trend → .balances
+  "cash_flow_by_month": { "YYYY-MM": {...}, ... },   # get_cash_flow per month
+  "spending_by_month":  { "YYYY-MM": {...}, ... },   # spending_by_entity per month
+  "accounts": [...], "entities": [...],              # list_accounts / list_entities
+  "account_detail": { "<id>": { account, items:[{date,label,amount}] }, ... },  # account_detail per open account
+  "callouts": [ {severity, title, detail}, ... ]     # severity: good|bad|warn|info|neutral
 }
 ```
 
-Then:
-1. Read `template.html` from this skill's directory.
-2. Replace the entire contents of the `<script id="ledger-data" type="application/json">
-   ... </script>` block with the assembled JSON (the placeholder is the single-line
-   `{"meta":...}` object). Leave the rest of the file byte-for-byte unchanged.
-3. Write the result to `dashboards/dashboard.html` (create `dashboards/` if missing).
-
-Prefer doing the injection with a tiny script (read template, `json.dumps` the blob, string-
-replace the placeholder line, write output) rather than hand-editing — it's reliable and
-keeps the large JSON out of the transcript.
+`get_trend` is large and the harness spills it to a `tool-results/*.txt` file — read that file
+directly (jq) instead of through context. Do the injection with a tiny script (read
+`template.html`, `json.dumps` the blob, regex-replace the single-line `{"meta":...}`
+placeholder, write `dashboards/dashboard.html`) — never hand-edit the large JSON.
 
 ## Step 6 — Report
 
-Tell the user the output path and offer to open it (`open dashboards/dashboard.html` on
-macOS). Mention it needs an internet connection on open (Chart.js loads from CDN). Do **not**
-commit it. To refresh later, just re-run this skill — it re-fetches and overwrites.
+Tell the user the output path and offer to open it (`open dashboards/dashboard.html` on macOS).
+Mention it needs an internet connection on open (Chart.js loads from CDN). Note how many
+accounts were drilled (e.g. "top 12; re-run with `--full` for all"). Do **not** commit it.
 
 ## Notes on the data contract (so the blob lines up with the template)
 
 - **Signs:** income and expense `amount`s are positive; the template computes
-  `net_income = sum(income) − sum(expense)`. Ratios (`tax_rate`, `savings_rate`, balance-
-  sheet `metrics`) are floats or `null` — but the template recomputes these itself from
-  trend, so you don't need the dedicated income/balance-sheet endpoints.
+  `net_income = sum(income) − sum(expense)` and recomputes every ratio (`tax_rate`,
+  `savings_rate`, balance-sheet `metrics`) itself from `trend` — so the dedicated
+  income/balance-sheet endpoints aren't needed.
 - **Trend rows** carry a month-end `date`; the template keys periods off `date[:7]`.
   Income-statement rows are `flow_type:"flow"` with `account_type` income/expense; balance-
   sheet rows are `flow_type:"stock"`; it ignores the asset/liability flow rows so nothing
   double-counts.
-- **`spending_by_entity`** omits empty sections and pre-sorts descending — fine, the
-  template re-aggregates and re-sorts across the selected months.
+- **`spending_by_entity`** omits empty sections and pre-sorts descending — fine, the template
+  re-aggregates and re-sorts across the selected months.
+- **Trend row origin (important):** every `reports/trend/` row carries a `statement` field
+  (`"income_statement"` / `"balance_sheet"` / `"cash_flow"`). Filter on it — `flowRows` takes
+  `income_statement`, `stockRows` takes `balance_sheet`. Don't sum flow rows by
+  `flow_type`/`account_type` alone: the cash-flow statement re-emits non-cash expenses (e.g.
+  depreciation) as add-backs identical to the income-statement line, so you'd double-count.
+  (`template.html` keeps a dedupe fallback for servers that predate the field.)

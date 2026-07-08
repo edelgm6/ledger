@@ -108,7 +108,11 @@ def get_trend(
 ) -> Any:
     """Month-by-month balances across a range — the time series for dashboards.
 
-    Returns one row per account per month, each tagged with its month-end date.
+    Returns one row per account per month, each tagged with its month-end date
+    and a ``statement`` origin ("income_statement", "balance_sheet", or
+    "cash_flow"). Filter by ``statement`` to reconstruct a single statement: the
+    cash-flow rows re-emit non-cash expenses (e.g. depreciation) as add-backs, so
+    summing all flow rows would otherwise double-count them.
     """
     return _get("reports/trend/", {"from_date": from_date, "to_date": to_date})
 
