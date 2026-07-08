@@ -222,6 +222,13 @@
 // ---- data + helpers -------------------------------------------------------
 const DATA = JSON.parse(document.getElementById('ledger-data').textContent);
 const CH = {}; // live Chart.js instances, keyed so we can destroy on re-render
+// Trend rows tag their originating statement ("income_statement" / "balance_sheet"
+// / "cash_flow"). We filter on it so the cash-flow statement's non-cash add-backs
+// (e.g. depreciation) aren't mistaken for income-statement lines.
+// TRANSITIONAL: fetch.py points at the live API, which may predate the `statement`
+// field; the flowRows/stockRows fallback below keeps the dashboard correct against
+// such a server. Drop HAS_ORIGIN and the fallback branches once it's deployed.
+const HAS_ORIGIN = DATA.trend.some(r => r.statement != null);
 
 const MONEY = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
 const usd = n => (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US',
@@ -267,12 +274,29 @@ const prevPeriod = () => STATE.periods[STATE.idx - 1] || null;
 // net income = sum(income) - sum(expense); metrics regroup the same rows.
 function flowRows(months) {
   const set = new Set(months);
-  return DATA.trend.filter(r => r.flow_type === 'flow'
-    && (r.account_type === 'income' || r.account_type === 'expense')
-    && set.has(mkey(r.date)));
+  if (HAS_ORIGIN) {
+    return DATA.trend.filter(r =>
+      set.has(mkey(r.date)) && r.statement === 'income_statement');
+  }
+  // Fallback for older servers that don't tag origin: the heuristic, plus a dedupe
+  // of identical rows — the cash-flow statement re-emits non-cash expenses (e.g.
+  // depreciation) as byte-identical add-backs, and the income statement has exactly
+  // one row per account/month, so any identical duplicate is a redundant re-emission.
+  const seen = new Set(), out = [];
+  for (const r of DATA.trend) {
+    if (!(r.flow_type === 'flow'
+          && (r.account_type === 'income' || r.account_type === 'expense')
+          && set.has(mkey(r.date)))) continue;
+    const k = r.account + '|' + r.date + '|' + r.amount;
+    if (seen.has(k)) continue;
+    seen.add(k); out.push(r);
+  }
+  return out;
 }
 function stockRows(lastMonth) {
-  return DATA.trend.filter(r => r.flow_type === 'stock' && mkey(r.date) === lastMonth);
+  return DATA.trend.filter(r => mkey(r.date) === lastMonth && (HAS_ORIGIN
+    ? r.statement === 'balance_sheet'
+    : r.flow_type === 'stock'));
 }
 // Aggregate a set of balance rows into type -> sub_type -> accounts, with totals.
 function hierarchy(rows, wantTypes) {

@@ -107,9 +107,17 @@ def serialize_cash_flow_metrics(metrics: CashFlowMetrics) -> Dict[str, Any]:
 
 
 def serialize_trend_balances(balances: List[Balance]) -> List[Dict[str, Any]]:
-    """Monthly time-series rows; each balance carries its month-end date."""
+    """Monthly time-series rows; each balance carries its month-end date and the
+    statement it came from ("income_statement" / "balance_sheet" / "cash_flow"),
+    so a consumer can reconstruct one statement without double-counting rows the
+    cash-flow statement re-emits (e.g. depreciation add-backs)."""
     return [
-        {**serialize_balance(balance), "date": balance.date} for balance in balances
+        {
+            **serialize_balance(balance),
+            "date": balance.date,
+            "statement": getattr(balance, "statement", None),
+        }
+        for balance in balances
     ]
 
 
