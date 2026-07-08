@@ -24,7 +24,7 @@ class SettingsViewTest(HTMXViewTestCase):
     def test_page_contains_flat_menu_sections(self):
         response = self.client.get(reverse("settings"))
         # The flat menu is client-rendered from this section list.
-        self.assertContains(response, "'Entities', 'Prefills', 'Paystubs', 'Auto Tags', 'CSV Profiles'")
+        self.assertContains(response, "'Entities', 'Prefills', 'Auto Tags', 'CSV Profiles'")
 
     def test_new_account_form_view(self):
         response = self.client.get(reverse("settings-account-new-form"))
