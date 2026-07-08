@@ -10,6 +10,7 @@ from api.services.loan_services import (
     get_loan_form_options,
     get_loans,
     match_transactions_to_loans,
+    rematch_open_transactions,
     save_loan,
     save_schedule_row,
 )
@@ -188,6 +189,27 @@ class MatchScheduledTest(TestCase):
         linked = LoanPayment.objects.get(transaction=txn)
         self.assertEqual(linked.kind, LoanPayment.Kind.SCHEDULED)
 
+    def test_bad_transaction_does_not_abort_batch(self):
+        # A single transaction blowing up during matching (here: a str amount,
+        # the exact bug that broke CSV imports) must not stop the rest of the
+        # batch from being tagged. The failure is isolated + logged.
+        loan = make_loan()
+        bad = TransactionFactory(
+            amount=Decimal("-1000.00"), date=datetime.date(2026, 7, 2)
+        )
+        bad.amount = "-1000.00"  # simulate the un-coerced CSV string
+        good = TransactionFactory(
+            amount=Decimal("-1000.00"), date=datetime.date(2026, 7, 2)
+        )
+
+        with self.assertLogs("api.services.loan_services", level="ERROR"):
+            count = match_transactions_to_loans([bad, good])
+
+        self.assertEqual(count, 1)
+        good.refresh_from_db()
+        self.assertEqual(good.suggested_account_id, loan.principal_account_id)
+        self.assertTrue(LoanPayment.objects.filter(transaction=good).exists())
+
     def test_outside_date_window_no_match(self):
         make_loan(date_window_days=3)
         # 2026-07-20 is >3 days from both the 07-01 and 08-01 scheduled rows.
@@ -296,4 +318,49 @@ class MatchScopingTest(TestCase):
             amount=Decimal("1000.00"), date=datetime.date(2026, 7, 2)
         )
         count = match_transactions_to_loans([txn])
+        self.assertEqual(count, 0)
+
+
+class RematchOpenTransactionsTest(TestCase):
+    def test_tags_unmatched_open_transaction(self):
+        loan = make_loan()
+        txn = TransactionFactory(
+            amount=Decimal("-1000.00"), date=datetime.date(2026, 7, 2)
+        )
+
+        count = rematch_open_transactions()
+
+        self.assertEqual(count, 1)
+        txn.refresh_from_db()
+        self.assertEqual(txn.type, Transaction.TransactionType.PAYMENT)
+        self.assertEqual(txn.suggested_account_id, loan.principal_account_id)
+        self.assertTrue(LoanPayment.objects.filter(transaction=txn).exists())
+
+    def test_is_idempotent_on_second_run(self):
+        # The safety property: a transaction tagged on the first run gains a
+        # loan_payment link and is excluded from the next, so re-running never
+        # double-books a row or creates a duplicate off-schedule payment.
+        make_loan()
+        TransactionFactory(
+            amount=Decimal("-1000.00"), date=datetime.date(2026, 7, 2)
+        )
+
+        first = rematch_open_transactions()
+        payments_after_first = LoanPayment.objects.count()
+        second = rematch_open_transactions()
+
+        self.assertEqual(first, 1)
+        self.assertEqual(second, 0)
+        self.assertEqual(LoanPayment.objects.count(), payments_after_first)
+
+    def test_skips_closed_transactions(self):
+        make_loan()
+        TransactionFactory(
+            amount=Decimal("-1000.00"),
+            date=datetime.date(2026, 7, 2),
+            is_closed=True,
+        )
+
+        count = rematch_open_transactions()
+
         self.assertEqual(count, 0)

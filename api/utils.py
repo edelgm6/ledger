@@ -1,5 +1,14 @@
 import calendar
 from datetime import date, datetime, timedelta
+from decimal import Decimal
+
+
+def parse_currency(value) -> Decimal:
+    """Parse a currency string like '$1,234.56', '-805.36', or a plain number
+    into a Decimal, stripping thousands separators and dollar signs. Raises
+    decimal.InvalidOperation on an unparseable value (same as bare Decimal())."""
+    cleaned = str(value).replace(",", "").replace("$", "")
+    return Decimal(cleaned)
 
 
 def format_datetime_to_string(form_date):

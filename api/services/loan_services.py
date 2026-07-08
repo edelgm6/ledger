@@ -7,6 +7,7 @@ functions, which return dataclass result objects (per the service-layer
 pattern). Mirrors bill_rule_services + bill_services.match_transactions_to_bills.
 """
 
+import logging
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -16,6 +17,8 @@ from django.db.models import Max, QuerySet
 
 from api.models import Account, Entity, Loan, LoanPayment, Transaction
 from api.services import crud
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -263,27 +266,54 @@ def match_transactions_to_loans(transactions: Iterable[Transaction]) -> int:
     matched = 0
     taken_row_ids: set = set()
     for txn in transactions:
-        candidates = _candidate_loans(txn, loans)
-        if len(candidates) != 1:
-            continue
-        loan = candidates[0]
-        amount = abs(txn.amount)
-
-        row = _match_scheduled_row(loan, txn, amount, taken_row_ids)
-        if row is not None:
-            row.transaction = txn
-            row.save()
-        else:
-            # _record_off_schedule creates and links the payment itself.
-            row = _record_off_schedule(loan, txn, amount)
-            if row is None:
-                continue
-        taken_row_ids.add(row.id)
-
-        txn.suggested_account = loan.principal_account
-        txn.suggested_entity = loan.entity
-        txn.type = Transaction.TransactionType.PAYMENT
-        txn.save()
-        matched += 1
+        # Isolate each transaction: advisory tagging is best-effort, so one bad
+        # row must never abort matching for the rest of the batch.
+        try:
+            if _tag_one_transaction(txn, loans, taken_row_ids):
+                matched += 1
+        except Exception:
+            logger.exception("Loan matching failed for transaction %s", txn.pk)
 
     return matched
+
+
+def _tag_one_transaction(
+    txn: Transaction, loans: List[Loan], taken_row_ids: set
+) -> bool:
+    """Match and tag a single transaction. Returns True if it was tagged."""
+    candidates = _candidate_loans(txn, loans)
+    if len(candidates) != 1:
+        return False
+    loan = candidates[0]
+    amount = abs(txn.amount)
+
+    row = _match_scheduled_row(loan, txn, amount, taken_row_ids)
+    if row is not None:
+        row.transaction = txn
+        row.save()
+    else:
+        # _record_off_schedule creates and links the payment itself.
+        row = _record_off_schedule(loan, txn, amount)
+        if row is None:
+            return False
+    taken_row_ids.add(row.id)
+
+    txn.suggested_account = loan.principal_account
+    txn.suggested_entity = loan.entity
+    txn.type = Transaction.TransactionType.PAYMENT
+    txn.save()
+    return True
+
+
+def rematch_open_transactions() -> int:
+    """Re-run loan matching on open transactions not already linked to a loan
+    payment, returning the number newly tagged.
+
+    The ``loan_payment__isnull=True`` filter is what makes repeated runs safe:
+    ``match_transactions_to_loans`` is not idempotent on already-matched
+    transactions (it would double-book a row or duplicate an off-schedule
+    payment), and a transaction tagged on one run is excluded from the next.
+    """
+    return match_transactions_to_loans(
+        Transaction.objects.filter(is_closed=False, loan_payment__isnull=True)
+    )

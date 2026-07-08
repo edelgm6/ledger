@@ -1,3 +1,6 @@
+import datetime
+from decimal import Decimal
+
 from django.test import TestCase
 from api.models import CSVColumnValuePair, Transaction, AutoTag
 from api.tests.testing_factories import CSVProfileFactory, AccountFactory, PrefillFactory
@@ -128,12 +131,51 @@ class CSVProfileModelTest(TestCase):
         value = self.csv_profile._get_coalesced_amount(test_row)
         self.assertEqual(value, 500)
 
-    def test_date_string_formatted(self):
+    def test_get_coalesced_amount_coerces_string_cells_to_decimal(self):
+        # CSV cells arrive as strings; the amount must come back as a Decimal so
+        # advisory bill/loan tagging (which does arithmetic on the in-memory
+        # Transaction before it's re-read from the DB) doesn't blow up.
+        value = self.csv_profile._get_coalesced_amount(
+            {'Inflow': '', 'Outflow': '-805.36'}
+        )
+        self.assertEqual(value, Decimal('-805.36'))
+        self.assertIsInstance(value, Decimal)
+
+    def test_get_coalesced_amount_tolerates_thousands_and_dollar_signs(self):
+        # Reuses utils.parse_currency, so formatted CSV cells no longer raise.
+        value = self.csv_profile._get_coalesced_amount(
+            {'Inflow': '$1,234.56', 'Outflow': ''}
+        )
+        self.assertEqual(value, Decimal('1234.56'))
+
+    def test_get_coalesced_amount_blank_row_returns_zero(self):
+        # A blank amount marks the end-of-data row the importer breaks on; it
+        # must return 0 rather than raise on Decimal('').
+        value = self.csv_profile._get_coalesced_amount({'Inflow': '', 'Outflow': ''})
+        self.assertEqual(value, Decimal(0))
+
+    def test_created_transactions_have_typed_amount_and_date(self):
+        # Regression: bulk_create leaves the in-memory objects' amount/date as
+        # the raw CSV strings; the model must coerce so callers (tagging, which
+        # does arithmetic on both) get a Decimal amount and a date object.
+        copied_list = list(csv_data)
+        copied_list.append({})
+        account = AccountFactory()
+
+        created = self.csv_profile.create_transactions_from_csv(copied_list, account)
+
+        self.assertTrue(created)
+        for transaction in created:
+            self.assertIsInstance(transaction.amount, Decimal)
+            self.assertIsInstance(transaction.date, datetime.date)
+
+    def test_date_string_parsed_to_date_object(self):
         test_date = '31-2023-03'
         self.csv_profile.date_format = "%d-%Y-%m"
         self.csv_profile.save()
-        formatted_date = self.csv_profile._get_formatted_date(test_date)
-        self.assertEqual(formatted_date, '2023-03-31')
+        parsed = self.csv_profile._get_formatted_date(test_date)
+        self.assertEqual(parsed, datetime.date(2023, 3, 31))
+        self.assertIsInstance(parsed, datetime.date)
 
     def test_autotags_applied_to_transactions(self):
         copied_list = list(csv_data)
