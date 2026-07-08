@@ -173,3 +173,6 @@ cython_debug/
 
 # Collected static files (build artifact; STATIC_ROOT)
 staticfiles/
+
+# Generated finance dashboards — contain real financial figures, never commit
+/dashboards/

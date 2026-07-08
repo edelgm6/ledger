@@ -9,7 +9,7 @@ from django.urls import reverse
 
 from api.models import Account, Loan
 from api.tests.test_helpers import HTMXViewTestCase
-from api.tests.testing_factories import AccountFactory
+from api.tests.testing_factories import AccountFactory, TransactionFactory
 
 
 def make_loan(**kwargs):
@@ -88,3 +88,17 @@ class LoanScheduleRowSaveTest(HTMXViewTestCase):
         self.assertEqual(response.status_code, 200)
         loan.refresh_from_db()
         self.assertFalse(loan.payments.filter(balance_override__isnull=False).exists())
+
+
+class LoanRematchViewTest(HTMXViewTestCase):
+    def test_get_rematches_and_reports_count(self):
+        # View-level: the button wires to the service and renders its count.
+        # The tagging side effects are covered by the service tests.
+        make_loan()
+        TransactionFactory(amount=Decimal("-1000.00"), date=datetime.date(2026, 7, 2))
+
+        response = self.client.get(reverse("settings-loan-rematch"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Loan matching complete")
+        self.assertContains(response, "(1 transactions)")

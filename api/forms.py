@@ -55,9 +55,7 @@ class CommaDecimalField(DecimalField):
         if value is None or "":
             return value
         try:
-            value = str(value).replace(",", "")
-            value = str(value).replace("$", "")
-            value = Decimal(value)
+            value = utils.parse_currency(value)
         except InvalidOperation:
             return None
         return super().to_python(value)

@@ -30,8 +30,9 @@ Dates are `YYYY-MM-DD`. Omit them to default to the last full calendar month.
 
 Two environment variables:
 
-- `LEDGER_API_BASE_URL` — e.g. `https://fast-cliffs-86166.herokuapp.com/api/v1`
-  (use `http://127.0.0.1:8000/api/v1` to point at a local dev server)
+- `LEDGER_API_BASE_URL` — your deployed Ledger API root, e.g.
+  `https://<your-app-host>/api/v1` (use `http://127.0.0.1:8000/api/v1` to point
+  at a local dev server)
 - `LEDGER_API_KEY` — the same value set as `LEDGER_API_KEY` on the server
 
 ### Register with Claude Code / Cowork
@@ -48,7 +49,7 @@ Add to your MCP config (e.g. `.mcp.json` or the Claude Code MCP settings):
         "python", "mcp_server/server.py"
       ],
       "env": {
-        "LEDGER_API_BASE_URL": "https://fast-cliffs-86166.herokuapp.com/api/v1",
+        "LEDGER_API_BASE_URL": "https://<your-app-host>/api/v1",
         "LEDGER_API_KEY": "your-api-key-here"
       }
     }

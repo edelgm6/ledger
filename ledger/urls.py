@@ -47,6 +47,7 @@ from api.views.bill_settings_views import (
 )
 from api.views.loan_views import (
     LoanFormView,
+    LoanRematchView,
     LoanScheduleView,
     LoanSettingsView,
 )
@@ -318,6 +319,11 @@ urlpatterns = [
         "settings/loans/new/form/",
         LoanFormView.as_view(),
         name="settings-loan-new-form",
+    ),
+    path(
+        "settings/loans/rematch/",
+        LoanRematchView.as_view(),
+        name="settings-loan-rematch",
     ),
     path(
         "settings/loans/<int:loan_id>/",
