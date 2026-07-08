@@ -1,3 +1,4 @@
+import copy
 from collections import namedtuple
 from datetime import date, datetime, timedelta
 
@@ -5,6 +6,22 @@ from dateutil.relativedelta import relativedelta
 from django.db.models import Case, DecimalField, Q, Sum, Value, When
 
 from api.models import Account, JournalEntryItem
+
+
+def _tagged_balances(rows, origin):
+    """Shallow-copy `rows`, labeling each with its originating statement.
+
+    Copying is load-bearing: the cash-flow statement reuses the income
+    statement's Balance instances for non-cash add-backs (see
+    CashFlowStatement.get_cash_from_operations_balances), so tagging in place
+    would relabel a row two statements share.
+    """
+    tagged = []
+    for row in rows:
+        clone = copy.copy(row)
+        clone.statement = origin
+        tagged.append(clone)
+    return tagged
 
 
 class Trend:
@@ -45,9 +62,16 @@ class Trend:
                 income_statement, balance_sheet_start, balance_sheet
             )
 
-            balances += income_statement.get_balances()
-            balances += balance_sheet.get_balances()
-            balances += cash_flow_statement.get_balances()
+            # Tag each row with its originating statement so a consumer can pick
+            # one statement's rows without double-counting the cash-flow
+            # statement's non-cash add-backs (e.g. depreciation).
+            balances += _tagged_balances(
+                income_statement.get_balances(), "income_statement"
+            )
+            balances += _tagged_balances(balance_sheet.get_balances(), "balance_sheet")
+            balances += _tagged_balances(
+                cash_flow_statement.get_balances(), "cash_flow"
+            )
 
         return balances
 
@@ -58,6 +82,11 @@ class Balance:
         self.amount = amount
         self.date = date
         self.type = type
+        # Which statement this row came from: "income_statement",
+        # "balance_sheet", or "cash_flow". Set by Trend (via _tagged_balances) so
+        # consumers can reconstruct a single statement without mistaking cash-flow
+        # add-backs (e.g. depreciation) for income-statement lines. None off Trend.
+        self.statement = None
 
 
 EntityBalance = namedtuple(

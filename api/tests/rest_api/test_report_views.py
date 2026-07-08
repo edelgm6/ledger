@@ -148,6 +148,12 @@ class ReportEndpointsTest(TestCase):
         self.assertIsInstance(response.data["balances"], list)
         self.assertTrue(response.data["balances"])
         self.assertIn("date", response.data["balances"][0])
+        # every row carries its originating statement so consumers can rebuild a
+        # single statement without double-counting cash-flow add-backs
+        valid = {"income_statement", "balance_sheet", "cash_flow"}
+        self.assertTrue(
+            all(row.get("statement") in valid for row in response.data["balances"])
+        )
 
     def test_account_detail(self):
         response = self._get(
