@@ -68,7 +68,11 @@ class Trend:
             balances += _tagged_balances(
                 income_statement.get_balances(), "income_statement"
             )
-            balances += _tagged_balances(balance_sheet.get_balances(), "balance_sheet")
+            # Use `.balances` (not get_balances()) so the synthetic retained-earnings
+            # and investment-gains equity rows the BalanceSheet appends are included —
+            # otherwise the trend's equity total is just the posted equity accounts
+            # (e.g. starting equity) and understates true equity.
+            balances += _tagged_balances(balance_sheet.balances, "balance_sheet")
             balances += _tagged_balances(
                 cash_flow_statement.get_balances(), "cash_flow"
             )
