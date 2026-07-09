@@ -31,7 +31,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ledger — Finance Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<!-- Chart.js is inlined here (from vendor/chart.umd.min.js) so the dashboard is
+     fully self-contained and works offline — no CDN, no network on open. -->
+<script>/*__CHARTJS__*/</script>
 <style>
   /* Design tokens copied from ledger/static/css/app.css so the artifact is
      self-contained (it can't <link> the Django static file when opened standalone). */
@@ -119,6 +121,10 @@
   .tabs button.active { color:var(--color-primary); border-bottom-color:var(--color-primary); }
 
   .stmt-layout { display:grid; grid-template-columns:1.4fr 1fr; gap:var(--space-5); align-items:start; }
+  /* Size the statement chart to fit a typical laptop viewport (so the whole thing
+     is visible) and keep it pinned in view while scrolling a long table. */
+  .stmt-layout .chart-sm { height:min(62vh,520px); min-height:320px;
+    position:sticky; top:var(--space-4); }
   .table { width:100%; border-collapse:collapse; }
   .table th { padding:var(--space-2) var(--space-3); font-size:var(--fs-sm); letter-spacing:.04em;
     text-transform:uppercase; color:var(--text-muted); font-weight:600; text-align:left;
@@ -166,6 +172,7 @@
       <div class="seg" id="gran">
         <button data-g="M" class="active">Month</button>
         <button data-g="Q">Quarter</button>
+        <button data-g="YTD">YTD</button>
         <button data-g="Y">Year</button>
       </div>
       <button class="navbtn" id="prev" title="Previous period">‹</button>
@@ -242,8 +249,18 @@ const monthLabel = k => { const [y,m] = k.split('-');
 const titleCase = s => (s || '').replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
 
 const CSS = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const PALETTE = ['--c-blue','--c-green','--c-amber','--c-info','--c-red','--c-neutral']
-  .map(CSS).concat(['#4c9aff','#2fa36b','#d99a3a','#5b7cc4','#c65b66','#95a0aa']);
+// Above-the-line (income / assets) vs below-the-line (expense / liabilities) hue
+// families for the diverging statement bars, so segments stay side-coded.
+const POS_COLORS = ['--c-green','--c-blue','--c-info'].map(CSS)
+  .concat(['#2fa36b','#4c9aff','#5b7cc4','#3a9d8f']);
+const NEG_COLORS = ['--c-red','--c-amber','--c-neutral'].map(CSS)
+  .concat(['#c65b66','#d99a3a','#b0563a','#95a0aa']);
+// Cash-flow activities are categorical (each can be + or −), not diverging by sign,
+// so they get their own deliberately distinct hues — teal / amber / purple, picked
+// for readability rather than the design tokens (whose blues were too close).
+const ACTIVITY_COLORS = ['#2a9d8f', '#d98a1e', '#6f42c1'];
+// Income sub_type excluded from the income statement's real operating result.
+const GAINS_SUB = 'unrealized_investment_gains';
 
 const TYPE_LABEL = { asset:'Assets', liability:'Liabilities', income:'Income',
   expense:'Expenses', equity:'Equity' };
@@ -254,6 +271,19 @@ const TYPE_ORDER = ['asset','liability','income','expense','equity'];
 const MONTHS = DATA.meta.months.slice().sort();          // chronological "YYYY-MM"
 function buildPeriods(gran) {
   if (gran === 'M') return MONTHS.map(m => ({ key:m, label:monthLabel(m), months:[m] }));
+  if (gran === 'YTD') {
+    // Year-to-date: truncate every year to the latest month present, so multi-year
+    // windows compare like-for-like (e.g. Jan–Jun 2025 vs Jan–Jun 2026).
+    const cutoff = Number(MONTHS[MONTHS.length - 1].split('-')[1]);
+    const buckets = new Map();
+    for (const m of MONTHS) {
+      const [y, mm] = m.split('-').map(Number);
+      if (mm > cutoff) continue;
+      if (!buckets.has(`${y}`)) buckets.set(`${y}`, []);
+      buckets.get(`${y}`).push(m);
+    }
+    return [...buckets.entries()].map(([key, months]) => ({ key, label:`${key} YTD`, months }));
+  }
   const buckets = new Map();
   for (const m of MONTHS) {
     const [y, mm] = m.split('-').map(Number);
@@ -322,7 +352,7 @@ function metrics(months) {
   const expense  = sumBy(flows, r => r.account_type === 'expense');
   const netIncome = income - expense;
 
-  const unrealized = sumBy(flows, r => r.sub_type === 'unrealized_investment_gains');
+  const unrealized = sumBy(flows, r => r.sub_type === GAINS_SUB);
   const nonGainsIncome = income - unrealized;
   const nonGainsNet = netIncome - unrealized;
   const savings = nonGainsIncome ? nonGainsNet / nonGainsIncome : null;
@@ -334,20 +364,27 @@ function metrics(months) {
 
   const assets = sumBy(stocks, r => r.account_type === 'asset');
   const liabilities = sumBy(stocks, r => r.account_type === 'liability');
-  const equity = sumBy(stocks, r => r.account_type === 'equity');
+  // Total equity = assets − liabilities (the accounting identity), which captures
+  // retained earnings even when the trend feed only carries posted equity accounts
+  // (e.g. starting equity). Summing equity rows alone understates it.
+  const equity = assets - liabilities;
   const cash = sumBy(stocks, r => r.sub_type === 'cash');
   const liquid = cash + sumBy(stocks, r => r.sub_type === 'securities_unrestricted');
   const debtToEquity = equity ? liabilities / equity : null;
 
-  const cf = months.reduce((acc, m) => {
+  let cf = 0, levered = 0;
+  for (const m of months) {
     const c = DATA.cash_flow_by_month[m];
-    if (c) acc += MONEY(c.net_cash_flow);
-    return acc;
-  }, 0);
+    if (!c) continue;
+    cf += MONEY(c.net_cash_flow);
+    levered += MONEY(c.levered_cash_flow);
+  }
 
-  return { income, expense, netIncome, savings, taxRate, assets, liabilities,
-    equity, cash, liquid, debtToEquity, cashPctAssets: assets ? cash/assets : null,
-    liquidPctAssets: assets ? liquid/assets : null, netCashFlow: cf };
+  return { income, expense, netIncome, nonGainsNet, savings, taxRate,
+    assets, liabilities, equity, cash, liquid, debtToEquity,
+    cashPctAssets: assets ? cash/assets : null,
+    liquidPctAssets: assets ? liquid/assets : null,
+    netCashFlow: cf, leveredCashFlow: levered };
 }
 
 // ---- render: KPIs + callouts ---------------------------------------------
@@ -360,11 +397,13 @@ function renderKpis() {
   const m = metrics(curPeriod().months);
   const p = prevPeriod() ? metrics(prevPeriod().months) : null;
   const tiles = [
-    ['Net Income', usd(m.netIncome), delta(m.netIncome, p && p.netIncome)],
+    ['Net Income', usd(m.nonGainsNet), delta(m.nonGainsNet, p && p.nonGainsNet)],
+    ['Net Income (incl. gains)', usd(m.netIncome), delta(m.netIncome, p && p.netIncome)],
     ['Savings Rate', pct(m.savings), ''],
     ['Tax Rate', pct(m.taxRate), ''],
-    ['Total Assets', usd(m.assets), delta(m.assets, p && p.assets)],
     ['Net Cash Flow', usd(m.netCashFlow), delta(m.netCashFlow, p && p.netCashFlow)],
+    ['Levered Cash Flow', usd(m.leveredCashFlow), delta(m.leveredCashFlow, p && p.leveredCashFlow)],
+    ['Total Assets', usd(m.assets), delta(m.assets, p && p.assets)],
     ['Debt / Equity', m.debtToEquity == null ? '—' : m.debtToEquity.toFixed(2), ''],
     ['Liquid Assets', usd(m.liquid), ''],
     ['Cash % Assets', pct(m.cashPctAssets), ''],
@@ -386,28 +425,29 @@ function renderCallouts() {
 
 // ---- render: trend chart (full window) -----------------------------------
 function renderTrend() {
+  if (typeof Chart === 'undefined') return;   // charts are optional; never block the numbers
   const labels = MONTHS.map(monthLabel);
-  const netInc = MONTHS.map(m => metrics([m]).netIncome);
-  const assets = MONTHS.map(m => metrics([m]).assets);
-  const expense = MONTHS.map(m => metrics([m]).expense);
+  const monthly = MONTHS.map(m => metrics([m]));
+  const netInc = monthly.map(x => x.nonGainsNet);
+  const equity = monthly.map(x => x.equity);
   if (CH.trend) CH.trend.destroy();
   CH.trend = new Chart(document.getElementById('trendChart'), {
     type:'line',
     data:{ labels, datasets:[
-      { label:'Total Assets', data:assets, borderColor:CSS('--c-blue'),
+      { label:'Equity', data:equity, borderColor:CSS('--c-blue'),
         backgroundColor:'transparent', yAxisID:'y1', tension:.25, borderWidth:2, pointRadius:2 },
-      { label:'Net Income', data:netInc, borderColor:CSS('--c-green'),
-        backgroundColor:'transparent', tension:.25, borderWidth:2, pointRadius:2 },
-      { label:'Expenses', data:expense, borderColor:CSS('--c-red'),
+      { label:'Net Income (ex-gains)', data:netInc, borderColor:CSS('--c-green'),
         backgroundColor:'transparent', tension:.25, borderWidth:2, pointRadius:2 },
     ]},
     options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'index', intersect:false },
       plugins:{ legend:{ labels:{ boxWidth:12, font:{ size:11 } } },
         tooltip:{ callbacks:{ label:c => `${c.dataset.label}: ${usd2(c.parsed.y)}` } } },
       scales:{
-        y:{ position:'left', title:{ display:true, text:'Flows' }, ticks:{ callback:usd } },
-        y1:{ position:'right', title:{ display:true, text:'Assets' },
-          grid:{ drawOnChartArea:false }, ticks:{ callback:usd } } } }
+        x:{ grid:{ display:false } },
+        y:{ position:'left', title:{ display:true, text:'Flows' },
+          grid:{ display:false }, ticks:{ callback:usd } },
+        y1:{ position:'right', title:{ display:true, text:'Equity' },
+          grid:{ display:false }, ticks:{ callback:usd } } } }
   });
 }
 
@@ -434,28 +474,64 @@ function typeTable(byType, types, opts={}) {
 function nameToId() {
   const map = {}; for (const a of DATA.accounts) map[a.name] = a.id; return map;
 }
-function doughnut(canvasId, entries, title) {
+// A single diverging bar for a statement: each segment is signed, so positive
+// segments stack above the zero line and negative ones below, with a dashed
+// reference line marking the net (income statement → net income; balance sheet →
+// equity; cash flow → net cash flow). Replaces the old doughnut — no circle charts.
+function statementBar(canvasId, segments, net, title) {
+  if (typeof Chart === 'undefined') return;
   const el = document.getElementById(canvasId);
   if (CH.stmt) CH.stmt.destroy();
-  const top = entries.filter(e => e[1] > 0).sort((a,b) => b[1]-a[1]).slice(0, 8);
-  CH.stmt = new Chart(el, { type:'doughnut',
-    data:{ labels:top.map(e => e[0]),
-      datasets:[{ data:top.map(e => e[1]), backgroundColor:PALETTE, borderWidth:1, borderColor:'#fff' }] },
-    options:{ responsive:true, maintainAspectRatio:false, cutout:'58%',
-      plugins:{ legend:{ position:'right', labels:{ boxWidth:12, font:{ size:11 } } },
+  const netLine = {
+    id:'netLine',
+    afterDatasetsDraw(chart) {
+      const y = chart.scales.y.getPixelForValue(net.value);
+      const { left, right } = chart.chartArea, ctx = chart.ctx;
+      ctx.save();
+      ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y);
+      ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.strokeStyle = CSS('--text-2');
+      ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = CSS('--text-2'); ctx.font = '600 11px ' + CSS('--font');
+      ctx.textAlign = 'right'; ctx.textBaseline = net.value >= 0 ? 'bottom' : 'top';
+      ctx.fillText(`${net.label}: ${usd(net.value)}`, right - 4, y + (net.value >= 0 ? -3 : 3));
+      ctx.restore();
+    }
+  };
+  CH.stmt = new Chart(el, { type:'bar',
+    data:{ labels:[''], datasets:segments.map(s => ({
+      label:s.label, data:[s.value], backgroundColor:s.color, borderWidth:0 })) },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ boxWidth:12, font:{ size:11 } } },
         title:{ display:!!title, text:title, color:CSS('--text-4') },
-        tooltip:{ callbacks:{ label:c => `${c.label}: ${usd2(c.parsed)}` } } } } });
+        tooltip:{ callbacks:{ label:c => `${c.dataset.label}: ${usd2(c.parsed.y)}` } } },
+      scales:{ x:{ stacked:true },
+        y:{ stacked:true, ticks:{ callback:usd }, grid:{ color:CSS('--border-faint') } } } },
+    plugins:[netLine] });
 }
 function barChart(canvasId, labels, values, title) {
+  if (typeof Chart === 'undefined') return;
   const el = document.getElementById(canvasId);
   if (CH.stmt) CH.stmt.destroy();
+  const horiz = labels.length > 4;   // long category lists read better horizontally
   CH.stmt = new Chart(el, { type:'bar',
     data:{ labels, datasets:[{ data:values, borderWidth:0,
       backgroundColor:values.map(v => v >= 0 ? CSS('--c-green') : CSS('--c-red')) }] },
-    options:{ responsive:true, maintainAspectRatio:false, indexAxis: labels.length > 4 ? 'y':'x',
+    options:{ responsive:true, maintainAspectRatio:false, indexAxis: horiz ? 'y':'x',
       plugins:{ legend:{ display:false }, title:{ display:!!title, text:title, color:CSS('--text-4') },
         tooltip:{ callbacks:{ label:c => usd2(c.parsed.x ?? c.parsed.y) } } },
-      scales:{ x:{ ticks:{ callback:usd } }, y:{ ticks:{ callback:usd } } } } });
+      // Only the value axis is money-formatted; the category axis keeps its labels
+      // (formatting it as usd would print the tick index as "$0/$1/$2").
+      scales: horiz ? { x:{ ticks:{ callback:usd } } } : { y:{ ticks:{ callback:usd } } } } });
+}
+// Turn one account-type group (from hierarchy()) into signed, colored bar
+// segments — one per sub_type, largest first, optionally dropping some sub_types.
+function subSegments(typeGroup, sign, colors, exclude) {
+  if (!typeGroup) return [];
+  return Object.entries(typeGroup.subs)
+    .filter(([sub]) => !(exclude && exclude.has(sub)))
+    .sort((a,b) => Math.abs(b[1].total) - Math.abs(a[1].total))
+    .map(([sub, S], i) => ({ label:titleCase(sub), value:sign * S.total,
+      color:colors[i % colors.length] }));
 }
 function renderStatement() {
   const months = curPeriod().months, last = months[months.length - 1];
@@ -465,38 +541,65 @@ function renderStatement() {
   if (STATE.tab === 'income') {
     const byType = hierarchy(flowRows(months), ['income','expense']);
     box.innerHTML = typeTable(byType, ['income','expense'], { acctId });
-    const exp = byType.expense ? Object.entries(byType.expense.subs)
-      .map(([s,S]) => [titleCase(s), S.total]) : [];
-    doughnut('stmtChart', exp, 'Expense mix');
+    // Exclude unrealized investment gains from both the bar and the net line, so
+    // the chart shows the real operating result (income ex-gains − expenses).
+    // Reuse the byType totals just built — no need for a second full metrics() pass.
+    const gains = byType.income?.subs[GAINS_SUB]?.total || 0;
+    const netExGains = (byType.income?.total || 0) - gains - (byType.expense?.total || 0);
+    const segs = [
+      ...subSegments(byType.income, 1, POS_COLORS, new Set([GAINS_SUB])),
+      ...subSegments(byType.expense, -1, NEG_COLORS),
+    ];
+    statementBar('stmtChart', segs,
+      { label:'Net Income', value:netExGains }, 'Income statement (ex-gains)');
 
   } else if (STATE.tab === 'balance') {
     const byType = hierarchy(stockRows(last), ['asset','liability','equity']);
     box.innerHTML = typeTable(byType, ['asset','liability','equity'], { acctId });
-    const ast = byType.asset ? Object.entries(byType.asset.subs)
-      .map(([s,S]) => [titleCase(s), S.total]) : [];
-    doughnut('stmtChart', ast, 'Asset mix');
+    const assets = byType.asset ? byType.asset.total : 0;
+    const liab = byType.liability ? byType.liability.total : 0;
+    const segs = [
+      ...subSegments(byType.asset, 1, POS_COLORS),
+      ...subSegments(byType.liability, -1, NEG_COLORS),
+    ];
+    statementBar('stmtChart', segs,
+      { label:'Equity', value:assets - liab }, 'Balance sheet');
 
   } else if (STATE.tab === 'cash') {
     // Cash flow can't be rebuilt from trend (no category on flow rows) — use the
-    // per-month cash_flow payloads and sum categories across the period.
-    let ops=0, fin=0, inv=0; const acctSum = {};
+    // per-month cash_flow payloads, grouped by activity like the app's cash-flow view.
+    const SECTIONS = [
+      ['Operations', 'cash_from_operations', 'operations_flows'],
+      ['Investing',  'cash_from_investing',  'investing_flows'],
+      ['Financing',  'cash_from_financing',  'financing_flows'],
+    ];
+    const totals = {}, acctBy = {}; let net = 0, levered = 0;
+    for (const [name] of SECTIONS) { totals[name] = 0; acctBy[name] = {}; }
     for (const m of months) {
       const c = DATA.cash_flow_by_month[m]; if (!c) continue;
-      ops += MONEY(c.cash_from_operations); fin += MONEY(c.cash_from_financing);
-      inv += MONEY(c.cash_from_investing);
-      for (const key of ['operations_flows','financing_flows','investing_flows'])
-        for (const b of (c[key]||[])) acctSum[b.account] = (acctSum[b.account]||0) + MONEY(b.amount);
+      net += MONEY(c.net_cash_flow); levered += MONEY(c.levered_cash_flow);
+      for (const [name, totKey, flowKey] of SECTIONS) {
+        totals[name] += MONEY(c[totKey]);
+        for (const b of (c[flowKey] || []))
+          acctBy[name][b.account] = (acctBy[name][b.account] || 0) + MONEY(b.amount);
+      }
     }
-    const net = ops + fin + inv;
-    const rows = [['Operations',ops],['Financing',fin],['Investing',inv]]
-      .map(([n,v]) => `<tr class="row-sub"><td>${n}</td><td class="right ${v<0?'neg':''}">${usd(v)}</td></tr>`).join('');
-    const detail = Object.entries(acctSum).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))
-      .map(([n,v]) => `<tr class="row-acct acct" data-acct="${acctId[n] ?? ''}" data-name="${encodeURIComponent(n)}">
-        <td>${n}</td><td class="right ${v<0?'neg':''}">${usd(v)}</td></tr>`).join('');
-    box.innerHTML = `<table class="table"><thead><tr><th>Category</th><th class="right">Amount</th></tr></thead>
-      <tbody>${rows}<tr class="row-type"><td>Net Cash Flow</td><td class="right">${usd(net)}</td></tr>
-      ${detail}</tbody></table>`;
-    barChart('stmtChart', ['Operations','Financing','Investing'], [ops,fin,inv], 'Cash flow');
+    let body = '';
+    for (const [name] of SECTIONS) {
+      body += `<tr class="row-type"><td>${name}</td>
+        <td class="right ${totals[name]<0?'neg':''}">${usd(totals[name])}</td></tr>`;
+      for (const [n,v] of Object.entries(acctBy[name]).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1])))
+        body += `<tr class="row-acct acct" data-acct="${acctId[n] ?? ''}" data-name="${encodeURIComponent(n)}">
+          <td>${n}</td><td class="right ${v<0?'neg':''}">${usd(v)}</td></tr>`;
+    }
+    body += `<tr class="row-type"><td>Net Cash Flow</td><td class="right ${net<0?'neg':''}">${usd(net)}</td></tr>
+      <tr class="row-type"><td>Levered Cash Flow</td><td class="right ${levered<0?'neg':''}">${usd(levered)}</td></tr>`;
+    box.innerHTML = `<table class="table"><thead><tr><th>Activity</th><th class="right">Amount</th></tr></thead>
+      <tbody>${body}</tbody></table>`;
+    statementBar('stmtChart',
+      ['Operations','Investing','Financing'].map((name, i) =>
+        ({ label:name, value:totals[name], color:ACTIVITY_COLORS[i] })),
+      { label:'Net Cash Flow', value:net }, 'Cash flow by activity');
 
   } else { // entity spending
     const inc = {}, exp = {};
@@ -530,13 +633,15 @@ function openAccount(id, name) {
   const months = curPeriod().months, set = new Set(months);
   const spark = MONTHS.map(m => DATA.trend.filter(r => r.account === name && mkey(r.date) === m)
     .reduce((a,r) => a + MONEY(r.amount), 0));
-  if (CH.spark) CH.spark.destroy();
-  CH.spark = new Chart(document.getElementById('acctSpark'), {
-    type:'line', data:{ labels:MONTHS.map(monthLabel),
-      datasets:[{ data:spark, borderColor:CSS('--c-blue'), backgroundColor:'transparent',
-        tension:.25, borderWidth:2, pointRadius:2 }] },
-    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false },
-      tooltip:{ callbacks:{ label:c => usd2(c.parsed.y) } } }, scales:{ y:{ ticks:{ callback:usd } } } } });
+  if (typeof Chart !== 'undefined') {
+    if (CH.spark) CH.spark.destroy();
+    CH.spark = new Chart(document.getElementById('acctSpark'), {
+      type:'line', data:{ labels:MONTHS.map(monthLabel),
+        datasets:[{ data:spark, borderColor:CSS('--c-blue'), backgroundColor:'transparent',
+          tension:.25, borderWidth:2, pointRadius:2 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false },
+        tooltip:{ callbacks:{ label:c => usd2(c.parsed.y) } } }, scales:{ y:{ ticks:{ callback:usd } } } } });
+  }
 
   const det = DATA.account_detail[id];
   const sub = document.getElementById('m-sub');

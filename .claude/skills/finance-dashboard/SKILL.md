@@ -76,8 +76,9 @@ placeholder, write `dashboards/dashboard.html`) — never hand-edit the large JS
 ## Step 6 — Report
 
 Tell the user the output path and offer to open it (`open dashboards/dashboard.html` on macOS).
-Mention it needs an internet connection on open (Chart.js loads from CDN). Note how many
-accounts were drilled (e.g. "top 12; re-run with `--full` for all"). Do **not** commit it.
+The file is fully self-contained (Chart.js is inlined by `fetch.py`), so it works offline — on a
+phone or in an app's in-app browser — with no network on open. Note how many accounts were
+drilled (e.g. "top 12; re-run with `--full` for all"). Do **not** commit it.
 
 ## Notes on the data contract (so the blob lines up with the template)
 

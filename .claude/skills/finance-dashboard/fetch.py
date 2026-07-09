@@ -22,6 +22,7 @@ from concurrent.futures import ThreadPoolExecutor
 SKILL_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(SKILL_DIR, "..", "..", ".."))
 TEMPLATE  = os.path.join(SKILL_DIR, "template.html")
+CHARTJS   = os.path.join(SKILL_DIR, "vendor", "chart.umd.min.js")
 OUT       = os.path.join(REPO_ROOT, "dashboards", "dashboard.html")
 ENV_FILE  = os.path.join(REPO_ROOT, "mcp_server", ".env")
 
@@ -136,11 +137,12 @@ def build_callouts(trend, spending, months):
         out.append({"severity": "warn",
                     "title": f"Biggest month-over-month swing: {mk}",
                     "detail": f"Net income moved {usd(swing[0])} vs. the prior month."})
-    # top expense category (latest month) + top payees (window)
+    # top expense category (latest month) + top payees (window). Taxes are always a
+    # large line, so we exclude them — they'd drown out real, actionable signal.
     cat = {}
     for r in trend:
         if r.get("flow_type") == "flow" and r["account_type"] == "expense" \
-                and r["date"][:7] == last:
+                and r.get("sub_type") != "tax" and r["date"][:7] == last:
             cat[r["account"]] = cat.get(r["account"], 0) + num(r["amount"])
     payee = {}
     for mk in months:
@@ -255,6 +257,14 @@ def main():
                  html, count=1, flags=re.M)
     if new == html:
         sys.exit("ERROR: ledger-data placeholder not found in template.html")
+    # Inline Chart.js so the output is fully self-contained — works offline, on a
+    # phone, or in an app's in-app browser, with no CDN/network on open. Escape any
+    # "</script" in the library so it can't close the inline <script> early.
+    with open(CHARTJS) as f:
+        chartjs = f.read().replace("</script", "<\\/script")
+    if "/*__CHARTJS__*/" not in new:
+        sys.exit("ERROR: Chart.js placeholder not found in template.html")
+    new = new.replace("/*__CHARTJS__*/", chartjs)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w") as f:
         f.write(new)
