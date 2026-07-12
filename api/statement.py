@@ -632,6 +632,9 @@ class BalanceSheet(Statement):
         investment_gains_losses, net_retained_earnings = (
             self.get_retained_earnings_values()
         )
+        # These are synthetic display-only rows, not persisted accounts. The
+        # 9000-9199 number band is reserved for them across the chart of
+        # accounts, so real accounts must never use it.
         retained_earnings_account = Account(
             name="9000-Net Retained Earnings",
             type=Account.Type.EQUITY,
