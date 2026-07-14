@@ -1,3 +1,5 @@
+import calendar
+import datetime
 from decimal import Decimal
 
 from django.core.management.base import BaseCommand
@@ -19,26 +21,23 @@ INVESTING_SUB_TYPES = [
     Account.SubType.VEHICLES,
 ]
 
+# Residuals below this are floating-point / rounding noise, not a real gap.
+THRESHOLD = Decimal("0.005")
+
 
 class Command(BaseCommand):
     help = (
         "Read-only. Reproduce the global cash-flow discrepancy and localize it. "
-        "Investing is the only bucket built from raw journal-entry items with a "
-        "whole-JE exclusion, so it is the only place the reconstruction can drift "
-        "from the balance-sheet identity. This reports (1) JEs whose real cash leg "
-        "is dropped because the same entry also carries an unrealized-gain or "
-        "depreciation leg, and (2) any investing account whose JEI-based flow "
-        "diverges from its balance-sheet delta."
+        "First checks the specific whole-JE-exclusion hypothesis (a real cash leg "
+        "dropped from investing because its entry also carries an unrealized-gain "
+        "or depreciation leg). If that does not explain it, bisect the residual in "
+        "time (year -> month -> day) and dump the entries on the offending day. "
+        "The period residual is cash_delta - net_cash_flow - change in starting "
+        "equity, which telescopes to the global discrepancy."
     )
 
     def handle(self, *args, **options):
-        cash_flow = CashFlowStatement(
-            income_statement=IncomeStatement(
-                end_date=GLOBAL_END, start_date=GLOBAL_START
-            ),
-            end_balance_sheet=BalanceSheet(end_date=GLOBAL_END),
-            start_balance_sheet=BalanceSheet(end_date=GLOBAL_START),
-        )
+        cash_flow = self._statement(GLOBAL_START, GLOBAL_END)
 
         try:
             discrepancy = cash_flow.get_cash_flow_discrepancy()
@@ -64,25 +63,66 @@ class Command(BaseCommand):
         self.stdout.write(f"net_cash_flow: {cash_flow.net_cash_flow}\n")
 
         dropped = self._report_dropped_cash_legs()
-        self._report_account_gaps(cash_flow)
+        if dropped == discrepancy:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    "\nThe dropped cash legs above fully explain the discrepancy "
+                    f"({dropped}). Fix: stop excluding whole JEs in "
+                    "get_cash_from_investing_balances."
+                )
+            )
+            return
 
-        if dropped != 0:
-            if dropped == discrepancy:
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        "\nThe dropped cash legs above fully explain the "
-                        f"discrepancy ({dropped}). Fix: stop excluding whole JEs "
-                        "in get_cash_from_investing_balances."
-                    )
-                )
-            else:
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"\nDropped cash legs ({dropped}) do not fully match the "
-                        f"discrepancy ({discrepancy}); see the per-account gaps "
-                        "above."
-                    )
-                )
+        self._localize_in_time()
+
+    # -- statement / residual helpers ------------------------------------
+
+    def _statement(self, start, end) -> CashFlowStatement:
+        """A CashFlowStatement covering [start, end] (dates or ISO strings)."""
+        prior_day = _to_date(start) - datetime.timedelta(days=1)
+        return CashFlowStatement(
+            income_statement=IncomeStatement(end_date=end, start_date=start),
+            end_balance_sheet=BalanceSheet(end_date=end),
+            start_balance_sheet=BalanceSheet(end_date=prior_day),
+        )
+
+    @staticmethod
+    def _starting_equity(balance_sheet) -> Decimal:
+        return sum(
+            (
+                balance.amount
+                for balance in balance_sheet.balances
+                if balance.account.special_type == Account.SpecialType.STARTING_EQUITY
+            ),
+            Decimal("0"),
+        )
+
+    def _period_residual(self, start, end) -> Decimal:
+        """Unexplained cash for [start, end].
+
+        cash_delta - net_cash_flow - change in starting equity. Operations and
+        financing telescope by construction, so a nonzero value points at a JE
+        in this window whose cash effect the reconstruction fails to mirror.
+        """
+        cash_flow = self._statement(start, end)
+        cash_delta = cash_flow.get_cash_balance(
+            cash_flow.end_balance_sheet
+        ) - cash_flow.get_cash_balance(cash_flow.start_balance_sheet)
+        starting_equity_delta = self._starting_equity(
+            cash_flow.end_balance_sheet
+        ) - self._starting_equity(cash_flow.start_balance_sheet)
+        return cash_delta - cash_flow.net_cash_flow - starting_equity_delta
+
+    def _flagged(self, periods):
+        """(start, end, residual) for periods whose residual clears THRESHOLD."""
+        found = []
+        for start, end in periods:
+            residual = self._period_residual(start, end)
+            if abs(residual) > THRESHOLD:
+                found.append((start, end, residual))
+        return found
+
+    # -- reports ---------------------------------------------------------
 
     def _report_dropped_cash_legs(self) -> Decimal:
         """JEs the investing query excludes wholesale that also move real cash.
@@ -121,15 +161,8 @@ class Command(BaseCommand):
             ]
             if not cash_legs:
                 continue
-            lines.append(
-                f"  JE {journal_entry.id} {journal_entry.date} "
-                f"{journal_entry.description}"
-            )
-            lines.extend(
-                f"      {leg.type:6} {leg.account.name:38} {leg.amount:>12} "
-                f"deprec={leg.account.is_depreciation} sub={leg.account.sub_type}"
-                for leg in legs
-            )
+            lines.append(self._describe(journal_entry))
+            lines.extend(self._describe_leg(leg) for leg in legs)
             net_dropped += sum(
                 (leg.get_signed_amount() for leg in cash_legs), Decimal("0")
             )
@@ -139,27 +172,88 @@ class Command(BaseCommand):
         self.stdout.write(f"  net cash dropped: {net_dropped}\n")
         return net_dropped
 
-    def _report_account_gaps(self, cash_flow: CashFlowStatement) -> None:
-        """Per investing account, JEI-based flow vs its balance-sheet delta.
+    def _localize_in_time(self) -> None:
+        """Bisect the residual year -> month -> day and dump the offending day."""
+        first = JournalEntry.objects.order_by("date").values_list(
+            "date", flat=True
+        ).first()
+        last = JournalEntry.objects.order_by("-date").values_list(
+            "date", flat=True
+        ).first()
+        if first is None:
+            self.stdout.write("No journal entries to scan.")
+            return
 
-        Both figures are already carried on the cash_flow object (keyed by the
-        Account instances), so derive the account set from them rather than
-        issuing another query.
-        """
-        bs_delta = {
-            b.account: b.amount
-            for b in cash_flow.balance_sheet_deltas
-            if b.account.sub_type in INVESTING_SUB_TYPES
-        }
-        jei_flow = {b.account: b.amount for b in cash_flow.cash_from_investing_balances}
+        self.stdout.write(
+            "Localizing residual (cash_delta - net_cash_flow - change in starting "
+            "equity):"
+        )
+        for y_start, y_end, y_res in self._flagged(_year_bounds(first, last)):
+            self.stdout.write(f"  {y_start.year}: {y_res}")
+            for m_start, m_end, m_res in self._flagged(_month_bounds(y_start, y_end)):
+                self.stdout.write(f"    {m_start:%Y-%m}: {m_res}")
+                for d_start, _d_end, d_res in self._flagged(
+                    _day_bounds(m_start, m_end)
+                ):
+                    self.stdout.write(f"      {d_start}: {d_res}")
+                    self._dump_day(d_start)
 
-        self.stdout.write("Per-account gaps (JEI investing flow vs balance-sheet delta):")
-        rows = []
-        for account in sorted(bs_delta.keys() | jei_flow.keys(), key=lambda a: a.name):
-            jei = jei_flow.get(account, Decimal("0"))
-            bs = bs_delta.get(account, Decimal("0"))
-            gap = jei - bs
-            if abs(gap) > Decimal("0.005"):
-                rows.append(f"  {account.name:38} jei={jei} bs_delta={bs} gap={gap}")
-        for row in rows or ["  (none)"]:
-            self.stdout.write(row)
+    def _dump_day(self, day: datetime.date) -> None:
+        entries = (
+            JournalEntry.objects.filter(date=day)
+            .order_by("id")
+            .prefetch_related(
+                Prefetch(
+                    "journal_entry_items",
+                    queryset=JournalEntryItem.objects.select_related("account"),
+                )
+            )
+        )
+        for journal_entry in entries:
+            self.stdout.write("        " + self._describe(journal_entry).strip())
+            for leg in journal_entry.journal_entry_items.all():
+                self.stdout.write("    " + self._describe_leg(leg))
+
+    # -- formatting ------------------------------------------------------
+
+    @staticmethod
+    def _describe(journal_entry) -> str:
+        return (
+            f"  JE {journal_entry.id} {journal_entry.date} "
+            f"{journal_entry.description}"
+        )
+
+    @staticmethod
+    def _describe_leg(leg) -> str:
+        return (
+            f"      {leg.type:6} {leg.account.name:38} {leg.amount:>12} "
+            f"deprec={leg.account.is_depreciation} sub={leg.account.sub_type}"
+        )
+
+
+def _to_date(value) -> datetime.date:
+    if isinstance(value, datetime.date):
+        return value
+    return datetime.date.fromisoformat(value)
+
+
+def _year_bounds(first: datetime.date, last: datetime.date):
+    for year in range(first.year, last.year + 1):
+        yield datetime.date(year, 1, 1), datetime.date(year, 12, 31)
+
+
+def _month_bounds(first: datetime.date, last: datetime.date):
+    year, month = first.year, first.month
+    while (year, month) <= (last.year, last.month):
+        last_day = calendar.monthrange(year, month)[1]
+        yield datetime.date(year, month, 1), datetime.date(year, month, last_day)
+        month += 1
+        if month > 12:
+            month, year = 1, year + 1
+
+
+def _day_bounds(first: datetime.date, last: datetime.date):
+    day = first
+    while day <= last:
+        yield day, day
+        day += datetime.timedelta(days=1)
