@@ -1,6 +1,7 @@
 import datetime
 from decimal import Decimal
 from django.test import TestCase
+from django.core.exceptions import ValidationError
 from django.db.utils import IntegrityError
 from api.models import Reconciliation, Account, JournalEntryItem
 from api.tests.testing_factories import AccountFactory, EntityFactory, TransactionFactory, JournalEntryFactory, JournalEntryItemFactory
@@ -45,9 +46,10 @@ class ReconciliationTests(TestCase):
             type=Account.Type.INCOME,
             special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES
         )
-        cash_account = AccountFactory(
-            name='cash',
-            type=Account.Type.ASSET
+        investment_account = AccountFactory(
+            name='brokerage',
+            type=Account.Type.ASSET,
+            sub_type=Account.SubType.SECURITIES_UNRESTRICTED
         )
         income_account = AccountFactory(
             name='income',
@@ -64,7 +66,7 @@ class ReconciliationTests(TestCase):
         )
         journal_entry_item = JournalEntryItemFactory(
             journal_entry=journal_entry,
-            account=cash_account,
+            account=investment_account,
             amount=100,
             type=JournalEntryItem.JournalEntryType.DEBIT
         )
@@ -75,21 +77,43 @@ class ReconciliationTests(TestCase):
             type=JournalEntryItem.JournalEntryType.CREDIT
         )
         reconciliation = Reconciliation.objects.create(
-            account=cash_account,
+            account=investment_account,
             date=today,
             amount=Decimal('200.00')
         )
         reconciliation.plug_investment_change()
 
         self.assertEqual(reconciliation.transaction.amount, 100)
-        self.assertEqual(cash_account.get_balance(end_date=today), 200)
+        self.assertEqual(investment_account.get_balance(end_date=today), 200)
         self.assertEqual(unrealized_account.get_balance(today,start_date=today), 100)
 
         reconciliation.amount = Decimal('50.00')
         reconciliation.plug_investment_change()
         self.assertEqual(reconciliation.transaction.amount, Decimal('-50.00'))
-        self.assertEqual(cash_account.get_balance(today), 50)
+        self.assertEqual(investment_account.get_balance(today), 50)
         self.assertEqual(unrealized_account.get_balance(today,start_date=today), Decimal('-50.00'))
+
+    def test_plug_rejects_non_investment_account(self):
+        # A gain/loss plug marks an account to unrealized investment gains, which
+        # only reconciles for investment accounts. Plugging anything else (here a
+        # receivable) would leave a permanent cash-flow discrepancy, so it must
+        # raise instead of writing the entry.
+        today = datetime.date.today()
+        # No unrealized-gains account is needed: the guard rejects before the
+        # plug ever looks one up.
+        receivable_account = AccountFactory(
+            name='espp',
+            type=Account.Type.ASSET,
+            sub_type=Account.SubType.ACCOUNTS_RECEIVABLE
+        )
+        reconciliation = Reconciliation.objects.create(
+            account=receivable_account,
+            date=today,
+            amount=Decimal('200.00')
+        )
+        with self.assertRaises(ValidationError):
+            reconciliation.plug_investment_change()
+        self.assertIsNone(reconciliation.transaction)
 
     def _plug_items_for_account_entity(self, entity):
         today = datetime.date.today()
@@ -100,6 +124,7 @@ class ReconciliationTests(TestCase):
         investment_account = AccountFactory(
             name='vanguard',
             type=Account.Type.ASSET,
+            sub_type=Account.SubType.SECURITIES_UNRESTRICTED,
             entity=entity
         )
         reconciliation = Reconciliation.objects.create(

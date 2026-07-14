@@ -1,4 +1,5 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import ValidationError
 from django.forms import modelformset_factory
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
@@ -107,7 +108,10 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
             reconciliation = get_object_or_404(
                 Reconciliation, pk=request.POST.get("plug")
             )
-            reconciliation.plug_investment_change()
+            try:
+                reconciliation.plug_investment_change()
+            except ValidationError as error:
+                return HttpResponse(error.messages[0], status=400)
         else:
             ReconciliationFormset = modelformset_factory(
                 Reconciliation, ReconciliationForm, extra=0

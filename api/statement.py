@@ -423,12 +423,7 @@ class CashFlowStatement(Statement):
     def get_cash_from_investing_balances(self):
         start_date = self.income_statement.start_date
         end_date = self.income_statement.end_date
-        account_sub_types = [
-            Account.SubType.SECURITIES_RETIREMENT,
-            Account.SubType.SECURITIES_UNRESTRICTED,
-            Account.SubType.REAL_ESTATE,
-            Account.SubType.VEHICLES,
-        ]
+        account_sub_types = Account.INVESTMENT_SUB_TYPES
         # Drop entries whose offsetting leg is non-cash: an unrealized-gain mark
         # or a depreciation drawdown. A real purchase or sale touches neither,
         # so it stays in investing. One .exclude() keeps it to a single subquery.
