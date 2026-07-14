@@ -284,6 +284,15 @@ class Reconciliation(models.Model):
         return str(self.date) + " " + self.account.name
 
     def plug_investment_change(self):
+        if self.account.sub_type not in Account.INVESTMENT_SUB_TYPES:
+            raise ValidationError(
+                f"Cannot plug a gain/loss for {self.account.name}: reconciliation "
+                "gain/loss plugs mark an account to unrealized investment gains, "
+                "which is only valid for investment accounts (securities, real "
+                "estate, vehicles). Marking any other account breaks the "
+                "cash-flow reconciliation."
+            )
+
         GAIN_LOSS_ACCOUNT = Account.objects.get(
             special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES
         )
@@ -652,6 +661,20 @@ class Account(models.Model):
         ],
         Type.EXPENSE: [SubType.OPERATING, SubType.INTEREST, SubType.TAX],
     }
+
+    # Asset classes carried at fair value, whose balance changes can be non-cash
+    # marks (unrealized gains/losses). The cash flow statement excludes these
+    # marks from investing (get_cash_from_investing_balances) and from net income
+    # (net_income_less_gains_and_losses), so a mark cancels out cleanly. Marking
+    # any *other* account to unrealized gains has no such offset and breaks the
+    # cash-flow reconciliation, so plug_investment_change is restricted to this
+    # set.
+    INVESTMENT_SUB_TYPES = [
+        SubType.SECURITIES_UNRESTRICTED,
+        SubType.SECURITIES_RETIREMENT,
+        SubType.REAL_ESTATE,
+        SubType.VEHICLES,
+    ]
 
     name = models.CharField(max_length=200, unique=True)
     type = models.CharField(max_length=9, choices=Type.choices)
