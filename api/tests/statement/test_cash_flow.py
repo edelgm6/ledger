@@ -47,7 +47,7 @@ def create_cash_flow_scenario():
     accounts['vanguard'] = Account.objects.create(
         name='7000-Vanguard',
         type=Account.Type.ASSET,
-        sub_type=Account.SubType.SECURITIES_RETIREMENT
+        sub_type=Account.SubType.SECURITIES_RESTRICTED
     )
     accounts['income'] = Account.objects.create(
         name='8000-Income',
@@ -233,7 +233,7 @@ class CashFlowTest(TestCase):
             cash_flow_statement.get_levered_after_tax_cash_flow()
         )
 
-    def test_levered_cash_flow_post_retirement(self):
+    def test_levered_cash_flow_post_restricted(self):
         cash_flow_statement = CashFlowStatement(
             self.income_statement,
             self.start_balance_sheet,
@@ -241,7 +241,7 @@ class CashFlowTest(TestCase):
         )
         self.assertEqual(
             540,
-            cash_flow_statement.get_levered_after_tax_after_retirement_cash_flow()
+            cash_flow_statement.get_levered_after_tax_after_restricted_cash_flow()
         )
 
     def test_get_balance_sheet_account_deltas(self):

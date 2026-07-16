@@ -15,7 +15,7 @@ GLOBAL_END = "2500-01-01"
 
 # The sub_types that feed the investing section (get_cash_from_investing_balances).
 INVESTING_SUB_TYPES = [
-    Account.SubType.SECURITIES_RETIREMENT,
+    Account.SubType.SECURITIES_RESTRICTED,
     Account.SubType.SECURITIES_UNRESTRICTED,
     Account.SubType.REAL_ESTATE,
     Account.SubType.VEHICLES,

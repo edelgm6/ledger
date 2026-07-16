@@ -145,7 +145,7 @@ def create_chart_of_accounts(include_special=True):
     result['accounts']['401k'] = Account.objects.create(
         name='401k',
         type=Account.Type.ASSET,
-        sub_type=Account.SubType.SECURITIES_RETIREMENT,
+        sub_type=Account.SubType.SECURITIES_RESTRICTED,
     )
     result['accounts']['home'] = Account.objects.create(
         name='Home',
@@ -403,7 +403,7 @@ class StatementTestScenario:
         self.accounts['retirement'] = Account.objects.create(
             name='7000-Vanguard',
             type=Account.Type.ASSET,
-            sub_type=Account.SubType.SECURITIES_RETIREMENT,
+            sub_type=Account.SubType.SECURITIES_RESTRICTED,
         )
 
         # Liabilities

@@ -613,7 +613,7 @@ class Account(models.Model):
             "securities_unrestricted",
             _("Securities-Unrestricted"),
         )
-        SECURITIES_RETIREMENT = ("securities_retirement", _("Securities-Retirement"))
+        SECURITIES_RESTRICTED = ("securities_restricted", _("Securities-Restricted"))
         REAL_ESTATE = "real_estate", _("Real Estate")
         VEHICLES = "vehicles", _("Vehicles")
         # Equity types
@@ -647,7 +647,7 @@ class Account(models.Model):
             SubType.ACCOUNTS_RECEIVABLE,
             SubType.PREPAID_EXPENSES,
             SubType.SECURITIES_UNRESTRICTED,
-            SubType.SECURITIES_RETIREMENT,
+            SubType.SECURITIES_RESTRICTED,
             SubType.REAL_ESTATE,
             SubType.VEHICLES,
         ],
@@ -671,7 +671,7 @@ class Account(models.Model):
     # set.
     INVESTMENT_SUB_TYPES = [
         SubType.SECURITIES_UNRESTRICTED,
-        SubType.SECURITIES_RETIREMENT,
+        SubType.SECURITIES_RESTRICTED,
         SubType.REAL_ESTATE,
         SubType.VEHICLES,
     ]

@@ -48,7 +48,7 @@ def create_standard_statement_scenario():
     accounts['vanguard'] = Account.objects.create(
         name='7000-Vanguard',
         type=Account.Type.ASSET,
-        sub_type=Account.SubType.SECURITIES_RETIREMENT
+        sub_type=Account.SubType.SECURITIES_RESTRICTED
     )
     accounts['income'] = Account.objects.create(
         name='8000-Income',
