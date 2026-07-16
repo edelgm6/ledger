@@ -282,6 +282,46 @@ class ValidationResult:
     errors: List[str]
 
 
+def validate_unrealized_gains_offset(
+    debits_data: List[dict],
+    credits_data: List[dict],
+) -> Optional[str]:
+    """Enforce the unrealized-gains / cash-flow invariant at the write layer.
+
+    A credit to the unrealized-gains account (special_type
+    UNREALIZED_GAINS_AND_LOSSES) marks an asset to fair value. The cash-flow
+    statement only cancels that mark cleanly when the offsetting debit is an
+    investment account (Account.INVESTMENT_SUB_TYPES). Marking any other account
+    leaves a permanent cash-flow residual, so we reject those entries here. See
+    Reconciliation.plug_investment_change for the sibling guard on the plug path.
+
+    Returns an error string, or None when valid. Only entries that actually
+    credit the unrealized-gains account are checked, so ordinary multi-leg
+    entries are unaffected.
+    """
+    credits_unrealized_gains = any(
+        item.get("account")
+        and item["account"].special_type
+        == Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES
+        for item in credits_data
+    )
+    if not credits_unrealized_gains:
+        return None
+
+    for item in debits_data:
+        account = item.get("account")
+        if not account:
+            continue
+        if not account.is_investment:
+            return (
+                f"Cannot credit unrealized investment gains against {account.name}: "
+                "marking to unrealized gains is only valid for investment accounts "
+                "(securities, real estate, vehicles). Marking any other account "
+                "breaks the cash-flow reconciliation."
+            )
+    return None
+
+
 def validate_journal_entry_balance(
     transaction: Transaction,
     debits_data: List[dict],
@@ -303,6 +343,11 @@ def validate_journal_entry_balance(
     # Check balance
     if debit_total != credit_total:
         errors.append(f"Debits (${debit_total}) and Credits (${credit_total}) must balance.")
+
+    # Enforce the unrealized-gains / cash-flow invariant
+    invariant_error = validate_unrealized_gains_offset(debits_data, credits_data)
+    if invariant_error:
+        errors.append(invariant_error)
 
     # Check transaction match
     formset_data = debits_data if transaction.amount >= 0 else credits_data
@@ -364,6 +409,16 @@ def save_journal_entry(
     Returns SaveResult with journal_entry on success.
     """
     try:
+        # 0. Reject invariant-breaking entries before writing anything. This is
+        # the write-layer backstop shared by every producer (form + REST), so a
+        # caller that skips validate_journal_entry_balance still cannot persist a
+        # mark that would break the cash-flow reconciliation.
+        invariant_error = validate_unrealized_gains_offset(debits_data, credits_data)
+        if invariant_error:
+            return SaveResult(
+                success=False, journal_entry=None, error=invariant_error
+            )
+
         # 1. Get or create JournalEntry
         try:
             journal_entry = transaction_obj.journal_entry

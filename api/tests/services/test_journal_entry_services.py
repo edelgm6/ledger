@@ -201,6 +201,74 @@ class ValidateJournalEntryBalanceTest(TestCase):
         # Should still pass - empty items are ignored
         self.assertTrue(result.is_valid)
 
+    def test_validate_unrealized_gains_offset_allows_investment_debit(self):
+        """Crediting unrealized gains is valid when offset by an investment debit."""
+        securities_account = AccountFactory(
+            type=Account.Type.ASSET,
+            sub_type=Account.SubType.SECURITIES_UNRESTRICTED,
+        )
+        gains_account = AccountFactory(
+            type=Account.Type.INCOME,
+            sub_type=Account.SubType.UNREALIZED_INVESTMENT_GAINS,
+            special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES,
+        )
+        transaction = TransactionFactory(
+            account=securities_account, amount=Decimal("100.00")
+        )
+        debits_data = [
+            {"account": securities_account, "amount": Decimal("100.00"), "entity": None, "id": None}
+        ]
+        credits_data = [
+            {"account": gains_account, "amount": Decimal("100.00"), "entity": None, "id": None}
+        ]
+
+        result = validate_journal_entry_balance(transaction, debits_data, credits_data)
+
+        self.assertTrue(result.is_valid)
+
+    def test_validate_unrealized_gains_offset_rejects_non_investment_debit(self):
+        """Crediting unrealized gains against a receivable breaks cash flow."""
+        receivable_account = AccountFactory(
+            type=Account.Type.ASSET,
+            sub_type=Account.SubType.ACCOUNTS_RECEIVABLE,
+        )
+        gains_account = AccountFactory(
+            type=Account.Type.INCOME,
+            sub_type=Account.SubType.UNREALIZED_INVESTMENT_GAINS,
+            special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES,
+        )
+        transaction = TransactionFactory(
+            account=receivable_account, amount=Decimal("100.00")
+        )
+        debits_data = [
+            {"account": receivable_account, "amount": Decimal("100.00"), "entity": None, "id": None}
+        ]
+        credits_data = [
+            {"account": gains_account, "amount": Decimal("100.00"), "entity": None, "id": None}
+        ]
+
+        result = validate_journal_entry_balance(transaction, debits_data, credits_data)
+
+        self.assertFalse(result.is_valid)
+        self.assertTrue(
+            any("unrealized investment gains" in error for error in result.errors)
+        )
+
+    def test_validate_unrealized_gains_offset_ignores_unrelated_entries(self):
+        """Entries that don't touch the gains account are unaffected."""
+        debits_data = [
+            {"account": self.asset_account, "amount": Decimal("100.00"), "entity": None, "id": None}
+        ]
+        credits_data = [
+            {"account": self.expense_account, "amount": Decimal("100.00"), "entity": None, "id": None}
+        ]
+
+        result = validate_journal_entry_balance(
+            self.transaction, debits_data, credits_data
+        )
+
+        self.assertTrue(result.is_valid)
+
 
 class CreateJournalEntryItemTest(TestCase):
     """Tests for _create_journal_entry_item() helper function."""
@@ -334,6 +402,37 @@ class SaveJournalEntryTest(TestCase):
         debit_item = items.filter(type=JournalEntryItem.JournalEntryType.DEBIT).first()
         self.assertEqual(debit_item.amount, Decimal("100.00"))
         self.assertEqual(debit_item.account, self.asset_account)
+
+    def test_save_rejects_unrealized_gains_against_non_investment(self):
+        """save_journal_entry refuses the invariant-breaking entry and writes nothing."""
+        receivable_account = AccountFactory(
+            type=Account.Type.ASSET,
+            sub_type=Account.SubType.ACCOUNTS_RECEIVABLE,
+        )
+        gains_account = AccountFactory(
+            type=Account.Type.INCOME,
+            sub_type=Account.SubType.UNREALIZED_INVESTMENT_GAINS,
+            special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES,
+        )
+        transaction = TransactionFactory(
+            account=receivable_account, amount=Decimal("100.00"), is_closed=False
+        )
+        debits_data = [
+            {"account": receivable_account, "amount": Decimal("100.00"), "entity": None, "id": None}
+        ]
+        credits_data = [
+            {"account": gains_account, "amount": Decimal("100.00"), "entity": None, "id": None}
+        ]
+
+        result = save_journal_entry(
+            transaction, debits_data, credits_data, paystub_id=None
+        )
+
+        self.assertFalse(result.success)
+        self.assertIsNone(result.journal_entry)
+        self.assertFalse(
+            JournalEntry.objects.filter(transaction=transaction).exists()
+        )
 
     def test_save_updates_existing_items(self):
         """Test existing JournalEntryItems are bulk updated."""
