@@ -34,7 +34,7 @@ PREFIX_MAP = {
     "1400": "1320",
     "1410": "1330",
     "1320": "1340",
-    # Securities - Retirement (1400-1599): 401k -> HSA -> IRA -> 529 -> stock comp
+    # Securities - Restricted (1400-1599): 401k -> HSA -> IRA -> 529 -> stock comp
     "1500": "1400",
     "1501": "1410",
     "1502": "1420",

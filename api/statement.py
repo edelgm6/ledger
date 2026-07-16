@@ -266,8 +266,8 @@ class CashFlowStatement(Statement):
                 self.get_levered_after_tax_cash_flow(),
             ),
             Metric(
-                "Levered post-tax post-retirement Free Cash Flow",
-                self.get_levered_after_tax_after_retirement_cash_flow(),
+                "Levered post-tax post-restricted Free Cash Flow",
+                self.get_levered_after_tax_after_restricted_cash_flow(),
             ),
         ]
 
@@ -317,17 +317,17 @@ class CashFlowStatement(Statement):
             ]
         )
 
-    def get_levered_after_tax_after_retirement_cash_flow(self):
+    def get_levered_after_tax_after_restricted_cash_flow(self):
         levered_after_tax_cash_flow = self.get_levered_after_tax_cash_flow()
         cash_from_investing_balances = self.cash_from_investing_balances
-        retirement_cash_flow = sum(
+        restricted_cash_flow = sum(
             [
                 balance.amount
                 for balance in cash_from_investing_balances
-                if balance.account.sub_type == Account.SubType.SECURITIES_RETIREMENT
+                if balance.account.sub_type == Account.SubType.SECURITIES_RESTRICTED
             ]
         )
-        return levered_after_tax_cash_flow + retirement_cash_flow
+        return levered_after_tax_cash_flow + restricted_cash_flow
 
     def get_balance_sheet_account_deltas(self):
         accounts = Account.objects.filter(

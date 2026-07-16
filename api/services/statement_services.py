@@ -101,7 +101,7 @@ class CashFlowMetrics:
     cash_from_investing: Decimal
     net_cash_flow: Decimal
     levered_cash_flow: Decimal
-    levered_cash_flow_post_retirement: Decimal
+    levered_cash_flow_post_restricted: Decimal
     cash_flow_discrepancy: Optional[Decimal]
 
 
@@ -479,6 +479,6 @@ def calculate_cash_flow_metrics(from_date: date, to_date: date) -> CashFlowMetri
         cash_from_investing=get_summary_value("Cash Flow From Investing"),
         net_cash_flow=get_summary_value("Net Cash Flow"),
         levered_cash_flow=cash_statement.get_levered_after_tax_cash_flow(),
-        levered_cash_flow_post_retirement=cash_statement.get_levered_after_tax_after_retirement_cash_flow(),
+        levered_cash_flow_post_restricted=cash_statement.get_levered_after_tax_after_restricted_cash_flow(),
         cash_flow_discrepancy=cash_flow_discrepancy,
     )

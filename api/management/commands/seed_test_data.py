@@ -213,8 +213,8 @@ class Command(BaseCommand):
 
             # Securities
             ('Vanguard Brokerage', Account.Type.ASSET, Account.SubType.SECURITIES_UNRESTRICTED, entities.get('self')),
-            ('Fidelity 401k', Account.Type.ASSET, Account.SubType.SECURITIES_RETIREMENT, entities.get('self')),
-            ('Partner Roth IRA', Account.Type.ASSET, Account.SubType.SECURITIES_RETIREMENT, entities.get('partner')),
+            ('Fidelity 401k', Account.Type.ASSET, Account.SubType.SECURITIES_RESTRICTED, entities.get('self')),
+            ('Partner Roth IRA', Account.Type.ASSET, Account.SubType.SECURITIES_RESTRICTED, entities.get('partner')),
 
             # Other assets
             ('Home', Account.Type.ASSET, Account.SubType.REAL_ESTATE, entities.get('joint')),

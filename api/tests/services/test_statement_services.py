@@ -511,7 +511,7 @@ class CalculateCashFlowMetricsTest(TestCase):
         )
 
         self.assertIsNotNone(result.levered_cash_flow)
-        self.assertIsNotNone(result.levered_cash_flow_post_retirement)
+        self.assertIsNotNone(result.levered_cash_flow_post_restricted)
 
     def test_filters_closed_accounts_in_flows(self):
         """Closed accounts with zero balance should be filtered from flows."""
