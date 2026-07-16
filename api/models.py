@@ -284,7 +284,7 @@ class Reconciliation(models.Model):
         return str(self.date) + " " + self.account.name
 
     def plug_investment_change(self):
-        if self.account.sub_type not in Account.INVESTMENT_SUB_TYPES:
+        if not self.account.is_investment:
             raise ValidationError(
                 f"Cannot plug a gain/loss for {self.account.name}: reconciliation "
                 "gain/loss plugs mark an account to unrealized investment gains, "
@@ -741,6 +741,10 @@ class Account(models.Model):
 
         if self.tax_rate is not None and self.tax_amount is not None:
             raise ValidationError("Only one of tax_rate or tax_amount can be set.")
+
+    @property
+    def is_investment(self):
+        return self.sub_type in Account.INVESTMENT_SUB_TYPES
 
     @staticmethod
     def get_balance_from_debit_and_credit(account_type, debits, credits):

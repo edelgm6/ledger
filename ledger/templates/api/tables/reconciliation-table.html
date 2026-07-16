@@ -7,6 +7,9 @@
     hx-include="#reconciliation-filter-form"
 >
     {% csrf_token %}
+    {% if error %}
+    {% include "api/components/_alert.html" with message=error extra_class="mt-3" %}
+    {% endif %}
     <div class="grid grid-2">
         <div>
             <table class="table">
@@ -32,7 +35,9 @@
                                 </div>
                             </td>
                             <td>
+                                {% if reconciliation.account.is_investment %}
                                 <button type="submit" name="plug" value="{{ form.instance.id }}" class="btn btn-secondary">Plug</button>
+                                {% endif %}
                             </td>
                         </tr>
                     {% endfor %}
@@ -63,7 +68,9 @@
                                 </div>
                             </td>
                             <td>
+                                {% if reconciliation.account.is_investment %}
                                 <button type="submit" name="plug" value="{{ form.instance.id }}" class="btn btn-secondary">Plug</button>
+                                {% endif %}
                             </td>
                         </tr>
                     {% endfor %}

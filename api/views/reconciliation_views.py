@@ -20,7 +20,7 @@ class ReconciliationTableMixin:
         balance = balance_sheet.get_balance(account)
         return balance
 
-    def get_reconciliation_html(self, reconciliations, date):
+    def get_reconciliation_html(self, reconciliations, date, error=None):
         reconciliations = reconciliations.select_related("account").order_by("account")
 
         balance_sheet = BalanceSheet(date)
@@ -53,6 +53,7 @@ class ReconciliationTableMixin:
                 "left_reconciliations": left_reconciliations,
                 "right_reconciliations": right_reconciliations,
                 "formset": formset,
+                "error": error,
             },
         )
 
@@ -104,6 +105,7 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
         return render_full_page(request, html)
 
     def post(self, request):
+        plug_error = None
         if request.POST.get("plug"):
             reconciliation = get_object_or_404(
                 Reconciliation, pk=request.POST.get("plug")
@@ -111,7 +113,7 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
             try:
                 reconciliation.plug_investment_change()
             except ValidationError as error:
-                return HttpResponse(error.messages[0], status=400)
+                plug_error = error.messages[0]
         else:
             ReconciliationFormset = modelformset_factory(
                 Reconciliation, ReconciliationForm, extra=0
@@ -126,7 +128,7 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
             reconciliations = filter_form.get_reconciliations()
 
         reconciliation_table = self.get_reconciliation_html(
-            reconciliations, date=filter_form.cleaned_data["date"]
+            reconciliations, date=filter_form.cleaned_data["date"], error=plug_error
         )
 
         return HttpResponse(reconciliation_table)

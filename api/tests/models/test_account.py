@@ -70,3 +70,13 @@ class AccountModelTest(TestCase):
         # Test balance calculation for income account within a date range
         balance = self.income_account.get_balance(end_date=self.income_statement_date, start_date=self.income_statement_date)
         self.assertEqual(balance, Decimal('50.00'), "Balance should be credits minus debits for income account")
+
+    def test_is_investment_true_for_investment_sub_types(self):
+        for sub_type in Account.INVESTMENT_SUB_TYPES:
+            account = AccountFactory(type=Account.Type.ASSET, sub_type=sub_type)
+            self.assertTrue(account.is_investment)
+
+    def test_is_investment_false_for_non_investment_sub_types(self):
+        for sub_type in [Account.SubType.CASH, Account.SubType.ACCOUNTS_RECEIVABLE]:
+            account = AccountFactory(type=Account.Type.ASSET, sub_type=sub_type)
+            self.assertFalse(account.is_investment)
