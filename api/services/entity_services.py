@@ -18,6 +18,14 @@ from api.models import Account, Entity, JournalEntryItem
 from api.services import crud
 
 
+# Journal-entry items in scope for the Balances/Payables-Receivables tab:
+# all liability accounts plus Accounts Receivable.
+RELEVANT_ITEMS_Q = (
+    Q(account__type=Account.Type.LIABILITY)
+    | Q(account__sub_type=Account.SubType.ACCOUNTS_RECEIVABLE)
+)
+
+
 @dataclass
 class EntityResult:
     """Result of an entity create/update/delete operation."""
@@ -84,17 +92,14 @@ class UntaggedItemsData:
 
 def get_entities_balances() -> List[EntityBalance]:
     """
-    Gets aggregated balances for all entities with accounts receivable activity.
+    Gets aggregated balances for all entities with liability or accounts
+    receivable activity.
 
     Returns balances ordered by absolute balance (descending), then by
     most recent activity date.
     """
     entities_balances_qs = (
-        JournalEntryItem.objects.filter(
-            account__sub_type__in=[
-                Account.SubType.ACCOUNTS_RECEIVABLE,
-            ]
-        )
+        JournalEntryItem.objects.filter(RELEVANT_ITEMS_Q)
         .exclude(entity__isnull=True)
         .values("entity__id", "entity__name")
         .annotate(
@@ -142,7 +147,8 @@ def get_entities_balances() -> List[EntityBalance]:
 
 def get_grouped_entities_balances(hide_zero: bool = True) -> List[GroupedEntityBalances]:
     """
-    Gets entity balances grouped by account for all AR-type accounts.
+    Gets entity balances grouped by account for all liability and accounts
+    receivable accounts.
 
     Returns one GroupedEntityBalances per account, ordered by account name.
     Within each group, rows are ordered by absolute balance (desc), then by
@@ -152,9 +158,7 @@ def get_grouped_entities_balances(hide_zero: bool = True) -> List[GroupedEntityB
     zero_eps = Decimal("0.005")
 
     qs = (
-        JournalEntryItem.objects.filter(
-            account__sub_type__in=[Account.SubType.ACCOUNTS_RECEIVABLE]
-        )
+        JournalEntryItem.objects.filter(RELEVANT_ITEMS_Q)
         .exclude(entity__isnull=True)
         .values(
             "account__id",
@@ -240,17 +244,11 @@ def get_untagged_journal_entry_items() -> UntaggedItemsData:
     """
     Gets journal entry items without an assigned entity.
 
-    Filters to accounts receivable sub_type and orders by date.
+    Filters to liability and accounts receivable accounts and orders by date.
     Returns items and the first item (for form pre-selection).
     """
-    relevant_account_types = [
-        Account.SubType.ACCOUNTS_RECEIVABLE,
-    ]
-
     untagged_items = list(
-        JournalEntryItem.objects.filter(
-            entity__isnull=True, account__sub_type__in=relevant_account_types
-        )
+        JournalEntryItem.objects.filter(RELEVANT_ITEMS_Q, entity__isnull=True)
         .select_related("journal_entry__transaction")
         .order_by("journal_entry__date")
     )
@@ -266,12 +264,13 @@ def get_entity_history(
     """
     Gets the transaction history for an entity with running balances.
 
-    When account_id is supplied, history is scoped to that account only.
-    Returns items ordered by date with a calculated running balance.
+    Scoped to liability and accounts receivable accounts. When account_id is
+    supplied, history is scoped to that account only. Returns items ordered by
+    date with a calculated running balance.
     """
     qs = JournalEntryItem.objects.filter(
+        RELEVANT_ITEMS_Q,
         entity__pk=entity_id,
-        account__sub_type__in=[Account.SubType.ACCOUNTS_RECEIVABLE],
     )
     if account_id is not None:
         qs = qs.filter(account__pk=account_id)
