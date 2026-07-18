@@ -244,13 +244,14 @@ def get_untagged_journal_entry_items() -> UntaggedItemsData:
     """
     Gets journal entry items without an assigned entity.
 
-    Filters to liability and accounts receivable accounts and orders by date.
-    Returns items and the first item (for form pre-selection).
+    Filters to liability and accounts receivable accounts and orders by
+    account, then date. Returns items and the first item (for form
+    pre-selection).
     """
     untagged_items = list(
         JournalEntryItem.objects.filter(RELEVANT_ITEMS_Q, entity__isnull=True)
-        .select_related("journal_entry__transaction")
-        .order_by("journal_entry__date")
+        .select_related("journal_entry__transaction", "account")
+        .order_by("account__name", "journal_entry__date")
     )
 
     first_item = untagged_items[0] if untagged_items else None

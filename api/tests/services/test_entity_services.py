@@ -434,6 +434,39 @@ class GetUntaggedJournalEntryItemsTest(TestCase):
         self.assertEqual(len(result.items), 1)
         self.assertEqual(result.items[0].id, item.id)
 
+    def test_orders_by_account_then_date(self):
+        """Items are ordered by account name first, then by date."""
+        account_a = AccountFactory(
+            name="Aardvark AR",
+            type=Account.Type.ASSET,
+            sub_type=Account.SubType.ACCOUNTS_RECEIVABLE,
+        )
+        account_z = AccountFactory(
+            name="Zebra Debt",
+            type=Account.Type.LIABILITY,
+            sub_type=Account.SubType.LONG_TERM_DEBT,
+        )
+
+        def _item(account, day):
+            je = JournalEntryFactory(date=date(2026, 1, day))
+            return JournalEntryItemFactory(
+                journal_entry=je, account=account, entity=None,
+                type=JournalEntryItem.JournalEntryType.CREDIT, amount=Decimal("10.00"),
+            )
+
+        # Created out of order to prove sorting isn't insertion order.
+        z_early = _item(account_z, 1)
+        a_late = _item(account_a, 5)
+        a_early = _item(account_a, 2)
+
+        result = get_untagged_journal_entry_items()
+
+        self.assertEqual(
+            [i.id for i in result.items],
+            [a_early.id, a_late.id, z_early.id],
+        )
+        self.assertEqual(result.first_item, a_early)
+
     def test_filters_by_accounts_receivable_sub_type(self):
         """Test only accounts receivable items are returned."""
         journal_entry = JournalEntryFactory()
