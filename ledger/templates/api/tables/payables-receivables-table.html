@@ -17,7 +17,7 @@
                 hx-get="{% url 'tag-entities-form' payable_receivable.pk %}"
                 hx-target="#form"
             >
-                <td class="td-name">{{ payable_receivable.account.name }}</td>
+                <td class="td-name">{{ payable_receivable.account }}</td>
                 <td>{{ payable_receivable.journal_entry.transaction.date }}</td>
                 <td>{{ payable_receivable.type }}</td>
                 <td>{{ payable_receivable.amount }}</td>

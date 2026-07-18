@@ -448,9 +448,8 @@ class GetUntaggedJournalEntryItemsTest(TestCase):
         )
 
         def _item(account, day):
-            je = JournalEntryFactory(date=date(2026, 1, day))
             return JournalEntryItemFactory(
-                journal_entry=je, account=account, entity=None,
+                journal_entry__date=date(2026, 1, day), account=account, entity=None,
                 type=JournalEntryItem.JournalEntryType.CREDIT, amount=Decimal("10.00"),
             )
 
