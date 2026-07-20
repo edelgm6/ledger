@@ -9,11 +9,11 @@ whole session (chat + plan), so it lives here — global to both tabs.
 <div class="flex flex-between">
     <div class="flex gap-2">
         <button type="button" class="btn"
-                :class="mode === 'agent' ? 'btn-primary' : 'btn-secondary'"
-                @click="mode = 'agent'">Ask agent</button>
-        <button type="button" class="btn"
                 :class="mode === 'manual' ? 'btn-primary' : 'btn-secondary'"
                 @click="mode = 'manual'">Build manually</button>
+        <button type="button" class="btn"
+                :class="mode === 'agent' ? 'btn-primary' : 'btn-secondary'"
+                @click="mode = 'agent'">Ask agent</button>
     </div>
     <button type="button" class="btn btn-ghost"
             hx-post="{% url 'recharacterize-reset' %}"
@@ -23,7 +23,7 @@ whole session (chat + plan), so it lives here — global to both tabs.
 
 <div class="grid grid-2 mt-3">
     <div class="card">
-        <div x-show="mode === 'agent'">
+        <div x-show="mode === 'agent'" x-cloak>
             <div id="chat-log" class="chat-log">
                 {% for message in messages %}
                     {% include "api/components/recharacterize-chat-message.html" with role=message.role text=message.text %}
@@ -63,7 +63,7 @@ whole session (chat + plan), so it lives here — global to both tabs.
             </form>
         </div>
 
-        <div x-show="mode === 'manual'" x-cloak>
+        <div x-show="mode === 'manual'">
             {% include "api/components/recharacterize-manual.html" %}
         </div>
     </div>
