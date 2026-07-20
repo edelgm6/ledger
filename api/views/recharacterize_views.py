@@ -45,7 +45,7 @@ def _render_main(
     *,
     flash=None,
     error=None,
-    active_tab="agent",
+    active_tab="manual",
     manual_form=None,
     catalogs=None,
     edit_index=None,
@@ -81,10 +81,14 @@ def _render_main(
     )
 
 
-def _render_unchanged(messages, operations) -> str:
-    """Re-renders the main region without running a turn (state untouched)."""
+def _render_unchanged(messages, operations, *, active_tab="manual") -> str:
+    """Re-renders the main region without running a turn (state untouched).
+
+    ``active_tab`` defaults to the home (manual) pane; the agent chat flows pass
+    ``"agent"`` so a no-op turn keeps the user on the chat.
+    """
     preview = recharacterize_services.preview_plan(operations)
-    return _render_main(messages, preview)
+    return _render_main(messages, preview, active_tab=active_tab)
 
 
 def _run_turn_and_render(request, messages, operations) -> str:
@@ -103,12 +107,12 @@ def _run_turn_and_render(request, messages, operations) -> str:
         _save_state(request, messages=messages, operations=operations)
         preview = recharacterize_services.preview_plan(operations)
         error = recharacterize_helpers.build_turn_error(turn.error)
-        return _render_main(messages, preview, error=error)
+        return _render_main(messages, preview, error=error, active_tab="agent")
 
     messages.append({"role": "assistant", "text": turn.reply})
     preview = recharacterize_services.preview_plan(turn.operations)
     _save_state(request, messages=messages, operations=turn.operations)
-    return _render_main(messages, preview)
+    return _render_main(messages, preview, active_tab="agent")
 
 
 class RecharacterizeView(LoginRequiredMixin, View):
@@ -135,7 +139,9 @@ class RecharacterizeMessageView(LoginRequiredMixin, View):
 
         user_text = (request.POST.get("message") or "").strip()
         if not user_text:
-            return HttpResponse(_render_unchanged(messages, state["operations"]))
+            return HttpResponse(
+                _render_unchanged(messages, state["operations"], active_tab="agent")
+            )
 
         messages.append({"role": "user", "text": user_text})
         html = _run_turn_and_render(request, messages, state["operations"])
@@ -156,7 +162,9 @@ class RecharacterizeRetryView(LoginRequiredMixin, View):
 
         if not messages or messages[-1]["role"] != "user":
             # Nothing to retry (no unanswered user turn); just re-render.
-            return HttpResponse(_render_unchanged(messages, state["operations"]))
+            return HttpResponse(
+                _render_unchanged(messages, state["operations"], active_tab="agent")
+            )
 
         html = _run_turn_and_render(request, messages, state["operations"])
         return HttpResponse(html)
