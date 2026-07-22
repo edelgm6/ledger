@@ -22,6 +22,7 @@ from api.services.statement_services import (
     find_unbalanced_journal_entries,
     get_statement_detail_items,
     get_statement_detail_items_by_entity,
+    partition_income_balances,
 )
 from api.statement import Balance, IncomeStatement
 from api.tests.testing_factories import (
@@ -218,6 +219,60 @@ class BuildStatementSummaryTest(TestCase):
         cash_sub = next(s for s in asset_summary.sub_types if s.name == "Cash")
         # Only open account should be in balances
         self.assertEqual(len(cash_sub.balances), 1)
+
+
+class PartitionIncomeBalancesTest(TestCase):
+    """Tests for partition_income_balances()."""
+
+    def test_splits_realized_from_unrealized(self):
+        """Unrealized-gains rows go to the second list, everything else the first."""
+        salary = AccountFactory(
+            type=Account.Type.INCOME,
+            sub_type=Account.SubType.SALARY,
+            is_closed=False,
+        )
+        other = AccountFactory(
+            type=Account.Type.INCOME,
+            sub_type=Account.SubType.OTHER_INCOME,
+            is_closed=False,
+        )
+        unrealized = AccountFactory(
+            type=Account.Type.INCOME,
+            sub_type=Account.SubType.UNREALIZED_INVESTMENT_GAINS,
+            is_closed=False,
+        )
+
+        mock_statement = MagicMock()
+        mock_statement.balances = [
+            Balance(account=salary, amount=Decimal("400"), date=date.today()),
+            Balance(account=other, amount=Decimal("150"), date=date.today()),
+            Balance(account=unrealized, amount=Decimal("200"), date=date.today()),
+        ]
+
+        summary = build_statement_summary(mock_statement)
+        realized, unrealized_balances = partition_income_balances(summary)
+
+        realized_accounts = {b.account for b in realized}
+        self.assertEqual(realized_accounts, {salary, other})
+        self.assertEqual([b.account for b in unrealized_balances], [unrealized])
+
+    def test_no_unrealized_returns_empty_second_list(self):
+        salary = AccountFactory(
+            type=Account.Type.INCOME,
+            sub_type=Account.SubType.SALARY,
+            is_closed=False,
+        )
+
+        mock_statement = MagicMock()
+        mock_statement.balances = [
+            Balance(account=salary, amount=Decimal("400"), date=date.today()),
+        ]
+
+        summary = build_statement_summary(mock_statement)
+        realized, unrealized_balances = partition_income_balances(summary)
+
+        self.assertEqual([b.account for b in realized], [salary])
+        self.assertEqual(unrealized_balances, [])
 
 
 class FindUnbalancedJournalEntriesTest(TestCase):

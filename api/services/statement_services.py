@@ -28,6 +28,7 @@ class SubTypeSummary:
     """Summary for a single account sub_type."""
 
     name: str
+    sub_type: str
     total: Decimal
     balances: List[Balance]
 
@@ -177,6 +178,7 @@ def build_statement_summary(statement: Any) -> StatementSummary:
             sub_type_summaries.append(
                 SubTypeSummary(
                     name=sub_type.label,
+                    sub_type=sub_type.value,
                     total=sub_type_total,
                     balances=filter_closed_accounts(balances),
                 )
@@ -193,6 +195,28 @@ def build_statement_summary(statement: Any) -> StatementSummary:
         )
 
     return StatementSummary(account_types=account_types)
+
+
+def partition_income_balances(
+    summary: StatementSummary,
+) -> Tuple[List[Balance], List[Balance]]:
+    """Split income rows into (realized, unrealized) for display.
+
+    Presentation-only: the Realized Income *total* comes from
+    ``IncomeStatement.get_realized_income`` (shared with the savings rate); this
+    just groups the account rows so unrealized gains can render on their own line.
+    """
+    income = summary.account_types[Account.Type.INCOME]
+    realized: List[Balance] = []
+    unrealized: List[Balance] = []
+    for sub in income.sub_types:
+        target = (
+            unrealized
+            if sub.sub_type == Account.SubType.UNREALIZED_INVESTMENT_GAINS
+            else realized
+        )
+        target.extend(sub.balances)
+    return realized, unrealized
 
 
 def _build_entity_sub_type_summaries(

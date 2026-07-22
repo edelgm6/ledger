@@ -24,17 +24,19 @@
                 <h4>Income: ${{ summary.income.total|floatformat:"0"|intcomma }}</h4>
                 <table class="table">
                     <tbody>
-                        {% for account in summary.income.balances %}
-                            {% for balance in account.balances %}
-                            <tr
-                                class="clickable-row"
-                                hx-get="{% url 'statement-detail' balance.account.id %}?from_date={{ from_date|date:"Y-m-d" }}&to_date={{ to_date|date:"Y-m-d" }}"
-                                hx-target="#detail"
-                            >
-                                <td class="td-name">{{ balance.account }}</td>
-                                <td class="right">${{ balance.amount|floatformat:"0"|intcomma }}</td>
-                            </tr>
-                            {% endfor %}
+                        <tr>
+                            <td class="td-strong">Realized Income</td>
+                            <td class="right td-strong">${{ realized_income|floatformat:"0"|intcomma }}</td>
+                        </tr>
+                        {% for balance in income_balances %}
+                        <tr
+                            class="clickable-row"
+                            hx-get="{% url 'statement-detail' balance.account.id %}?from_date={{ from_date|date:"Y-m-d" }}&to_date={{ to_date|date:"Y-m-d" }}"
+                            hx-target="#detail"
+                        >
+                            <td class="td-name">{{ balance.account }}</td>
+                            <td class="right">${{ balance.amount|floatformat:"0"|intcomma }}</td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>

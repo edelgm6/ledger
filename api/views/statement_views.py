@@ -122,11 +122,17 @@ class StatementView(LoginRequiredMixin, View):
         """Render income statement using services and helpers."""
         income_statement = IncomeStatement(end_date=to_date, start_date=from_date)
         summary = statement_services.build_statement_summary(income_statement)
+        realized_balances, unrealized_balances = (
+            statement_services.partition_income_balances(summary)
+        )
 
         return statement_helpers.render_income_statement(
             summary=summary,
             tax_rate=income_statement.get_tax_rate(),
             savings_rate=income_statement.get_savings_rate(),
+            realized_income=income_statement.get_realized_income(),
+            # Realized rows first, unrealized gains last (its own line at the bottom).
+            income_balances=realized_balances + unrealized_balances,
             from_date=from_date,
             to_date=to_date,
         )
