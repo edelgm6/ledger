@@ -55,6 +55,8 @@ class RecharacterizeViewsTest(TestCase):
         # The manual builder renders with the shared typeahead-multiselect bound
         # to the account field (its <select multiple> lists the accounts).
         self.assertContains(resp, "Build manually")
+        # The page opens on the manual builder by default, not the agent chat.
+        self.assertContains(resp, "mode: 'manual'")
         self.assertContains(resp, 'name="account"')
         self.assertContains(resp, "ta-trigger")
         self.assertContains(resp, "Ally Checking")
