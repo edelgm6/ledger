@@ -5,6 +5,10 @@
         <div class="kpi-label">Savings Rate</div>
     </div>
     <div class="kpi">
+        <div class="kpi-value">{{ post_tax_savings_rate|multiply:100|floatformat:1 }}%</div>
+        <div class="kpi-label">Post-Tax Savings Rate</div>
+    </div>
+    <div class="kpi">
         <div class="kpi-value">{{ tax_rate|multiply:100|floatformat:1 }}%</div>
         <div class="kpi-label">Tax Rate</div>
     </div>

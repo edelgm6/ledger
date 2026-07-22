@@ -76,6 +76,7 @@ def render_income_statement(
     summary: StatementSummary,
     tax_rate: Optional[float],
     savings_rate: Optional[float],
+    post_tax_savings_rate: Optional[float],
     realized_income: Decimal,
     realized_income_balances: List,
     unrealized_gains_balances: List,
@@ -89,6 +90,7 @@ def render_income_statement(
         summary: StatementSummary with account type/sub_type hierarchy
         tax_rate: Effective tax rate (or None)
         savings_rate: Savings rate (or None)
+        post_tax_savings_rate: Savings rate on after-income-tax income (or None)
         realized_income: Income excluding unrealized gains (the Savings Rate base)
         realized_income_balances: Income account rows excluding unrealized gains
         unrealized_gains_balances: Unrealized-gains rows, rendered as a separate group
@@ -105,6 +107,9 @@ def render_income_statement(
         "summary": summary_dict,
         "tax_rate": tax_rate if tax_rate is not None else 0,
         "savings_rate": savings_rate if savings_rate is not None else 0,
+        "post_tax_savings_rate": (
+            post_tax_savings_rate if post_tax_savings_rate is not None else 0
+        ),
         "realized_income": realized_income,
         "realized_income_balances": realized_income_balances,
         "unrealized_gains_balances": unrealized_gains_balances,
@@ -119,6 +124,7 @@ def render_income_statement_by_entity(
     summary: EntityIncomeSummary,
     tax_rate: Optional[float],
     savings_rate: Optional[float],
+    post_tax_savings_rate: Optional[float],
     from_date: date,
     to_date: date,
 ) -> str:
@@ -129,6 +135,7 @@ def render_income_statement_by_entity(
         summary: EntityIncomeSummary with per-entity income/expense balances
         tax_rate: Effective tax rate (or None)
         savings_rate: Savings rate (or None)
+        post_tax_savings_rate: Savings rate on after-income-tax income (or None)
         from_date: Start date
         to_date: End date
 
@@ -139,6 +146,9 @@ def render_income_statement_by_entity(
         "summary": summary,
         "tax_rate": tax_rate if tax_rate is not None else 0,
         "savings_rate": savings_rate if savings_rate is not None else 0,
+        "post_tax_savings_rate": (
+            post_tax_savings_rate if post_tax_savings_rate is not None else 0
+        ),
         "from_date": from_date,
         "to_date": to_date,
     }

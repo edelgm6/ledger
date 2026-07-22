@@ -589,6 +589,7 @@ class Account(models.Model):
         STATE_TAXES = "state_taxes", _("State Taxes")
         FEDERAL_TAXES = "federal_taxes", _("Federal Taxes")
         PROPERTY_TAXES = "property_taxes", _("Property Taxes")
+        PAYROLL_TAXES = "payroll_taxes", _("Payroll Taxes")
         WALLET = "wallet", _("Wallet")
         PREPAID_EXPENSES = "prepaid_expenses", _("Prepaid Expenses")
         STARTING_EQUITY = "starting_equity", _("Starting Equity")
@@ -676,6 +677,16 @@ class Account(models.Model):
         SubType.VEHICLES,
     ]
 
+    # Income taxes for the post-tax savings rate: federal, state, and payroll
+    # withholding. Property tax is intentionally excluded — it isn't income-based.
+    # (Distinct from tax_services.get_tax_accounts, which covers the manually
+    # charged taxes — federal, state, property — and excludes payroll.)
+    INCOME_TAX_SPECIAL_TYPES = (
+        SpecialType.FEDERAL_TAXES,
+        SpecialType.STATE_TAXES,
+        SpecialType.PAYROLL_TAXES,
+    )
+
     name = models.CharField(max_length=200, unique=True)
     type = models.CharField(max_length=9, choices=Type.choices)
     sub_type = models.CharField(max_length=30, choices=SubType.choices)
@@ -728,7 +739,13 @@ class Account(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["special_type"],
-                condition=~Q(special_type__in=["property_taxes", "prepaid_expenses"]),
+                condition=~Q(
+                    special_type__in=[
+                        "property_taxes",
+                        "prepaid_expenses",
+                        "payroll_taxes",
+                    ]
+                ),
                 name="unique_special_type_except_property_taxes",
             )
         ]

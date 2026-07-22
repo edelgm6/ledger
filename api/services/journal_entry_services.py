@@ -358,18 +358,19 @@ def validate_journal_entry_balance(
     ]
 
     if len(matching_items) != 1:
+        # Log account IDs only, never the Account objects — their __str__
+        # renders the account label, which is sensitive on a public repo.
         logger.warning(
             "Transaction match validation failed: "
-            "transaction.amount=%s, abs=%s, transaction.account=%s (id=%s), "
+            "transaction.amount=%s, abs=%s, transaction.account_id=%s, "
             "looking in %s side, items: %s",
             transaction.amount,
             abs(transaction.amount),
-            transaction.account,
             transaction.account_id,
             "debits" if transaction.amount >= 0 else "credits",
             [
                 {"amount": item.get("amount"), "amount_type": type(item.get("amount")).__name__,
-                 "account": item.get("account"), "account_id": getattr(item.get("account"), "id", None)}
+                 "account_id": getattr(item.get("account"), "id", None)}
                 for item in formset_data
             ],
         )

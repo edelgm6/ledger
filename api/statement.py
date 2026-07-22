@@ -620,6 +620,24 @@ class IncomeStatement(Statement):
             return None
         return non_gains_net_income / non_gains_income
 
+    def get_income_taxes(self):
+        """Federal + state + payroll taxes; excludes property tax.
+
+        Identifies tax accounts by ``special_type`` so payroll taxes count
+        regardless of their ``sub_type`` and property tax stays excluded.
+        """
+        return sum(
+            balance.amount
+            for balance in self.balances
+            if balance.account.special_type in Account.INCOME_TAX_SPECIAL_TYPES
+        )
+
+    def get_post_tax_savings_rate(self):
+        after_tax_income = self.get_realized_income() - self.get_income_taxes()
+        if after_tax_income == 0:
+            return None
+        return self._get_non_investment_gains_net_income() / after_tax_income
+
 
 class BalanceSheet(Statement):
     def __init__(self, end_date):

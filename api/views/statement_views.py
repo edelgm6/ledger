@@ -130,6 +130,7 @@ class StatementView(LoginRequiredMixin, View):
             summary=summary,
             tax_rate=income_statement.get_tax_rate(),
             savings_rate=income_statement.get_savings_rate(),
+            post_tax_savings_rate=income_statement.get_post_tax_savings_rate(),
             realized_income=income_statement.get_realized_income(),
             realized_income_balances=realized_balances,
             unrealized_gains_balances=unrealized_balances,
@@ -146,6 +147,7 @@ class StatementView(LoginRequiredMixin, View):
             summary=summary,
             tax_rate=income_statement.get_tax_rate(),
             savings_rate=income_statement.get_savings_rate(),
+            post_tax_savings_rate=income_statement.get_post_tax_savings_rate(),
             from_date=from_date,
             to_date=to_date,
         )
