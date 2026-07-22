@@ -1,7 +1,9 @@
 {% load humanize %}
-{# Clickable account row that loads the account's drill-down into #detail.
-   Expects `balance`, `from_date`, `to_date` in context (passed through by the
-   including loop). Reused by the Income and Expenses sections. #}
+{% comment %}
+Clickable account row that loads the account's drill-down into #detail.
+Expects `balance`, `from_date`, `to_date` in context (passed through by the
+including loop). Reused by the Income and Expenses sections.
+{% endcomment %}
 <tr
     class="clickable-row"
     hx-get="{% url 'statement-detail' balance.account.id %}?from_date={{ from_date|date:"Y-m-d" }}&to_date={{ to_date|date:"Y-m-d" }}"
