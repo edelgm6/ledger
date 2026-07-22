@@ -76,6 +76,8 @@ def render_income_statement(
     summary: StatementSummary,
     tax_rate: Optional[float],
     savings_rate: Optional[float],
+    realized_income: Decimal,
+    income_balances: List,
     from_date: date,
     to_date: date,
 ) -> str:
@@ -86,6 +88,8 @@ def render_income_statement(
         summary: StatementSummary with account type/sub_type hierarchy
         tax_rate: Effective tax rate (or None)
         savings_rate: Savings rate (or None)
+        realized_income: Income excluding unrealized gains (the Savings Rate base)
+        income_balances: Income account rows, unrealized gains ordered last
         from_date: Start date
         to_date: End date
 
@@ -99,6 +103,8 @@ def render_income_statement(
         "summary": summary_dict,
         "tax_rate": tax_rate if tax_rate is not None else 0,
         "savings_rate": savings_rate if savings_rate is not None else 0,
+        "realized_income": realized_income,
+        "income_balances": income_balances,
         "from_date": from_date,
         "to_date": to_date,
     }

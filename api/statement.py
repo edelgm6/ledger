@@ -580,6 +580,15 @@ class IncomeStatement(Statement):
     def _get_non_investment_gains_net_income(self):
         return self.net_income - self.investment_gains
 
+    def get_realized_income(self):
+        return sum(
+            balance.amount
+            for balance in self.balances
+            if balance.account.type == Account.Type.INCOME
+            and balance.account.sub_type
+            != Account.SubType.UNREALIZED_INVESTMENT_GAINS
+        )
+
     def get_tax_rate(self):
         taxable_income = sum(
             [
@@ -606,15 +615,7 @@ class IncomeStatement(Statement):
 
     def get_savings_rate(self):
         non_gains_net_income = self._get_non_investment_gains_net_income()
-        non_gains_income = sum(
-            [
-                balance.amount
-                for balance in self.balances
-                if balance.account.sub_type
-                != Account.SubType.UNREALIZED_INVESTMENT_GAINS
-                and balance.account.type == Account.Type.INCOME
-            ]
-        )
+        non_gains_income = self.get_realized_income()
         if non_gains_income == 0:
             return None
         return non_gains_net_income / non_gains_income

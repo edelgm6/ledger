@@ -173,6 +173,23 @@ class IncomeStatementTest(TestCase):
         unrealized_gains = income_statement.get_unrealized_gains_and_losses()
         self.assertEqual(unrealized_gains, 200)
 
+    def test_realized_income(self):
+        income_statement = IncomeStatement('2023-01-31', '2023-01-01')
+        # Salary (400) + Other Income (150); excludes unrealized gains (200)
+        self.assertEqual(income_statement.get_realized_income(), 550)
+
+    def test_realized_income_matches_savings_rate_base(self):
+        income_statement = IncomeStatement('2023-01-31', '2023-01-01')
+        realized_income = income_statement.get_realized_income()
+        savings_rate = income_statement.get_savings_rate()
+        non_gains_net_income = (
+            income_statement._get_non_investment_gains_net_income()
+        )
+        self.assertEqual(
+            round(savings_rate, 2),
+            round(non_gains_net_income / realized_income, 2),
+        )
+
     def test_non_investment_gains_net_income(self):
         income_statement = IncomeStatement('2023-01-31', '2023-01-01')
         non_investment_income = (
