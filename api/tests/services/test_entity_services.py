@@ -83,10 +83,6 @@ class GetEntitiesBalancesTest(TestCase):
             type=Account.Type.ASSET,
             sub_type=Account.SubType.CASH,
         )
-        self.liability_account = AccountFactory(
-            type=Account.Type.LIABILITY,
-            sub_type=Account.SubType.SHORT_TERM_DEBT,
-        )
         self.entity1 = EntityFactory(name="Entity One")
         self.entity2 = EntityFactory(name="Entity Two")
 
@@ -190,23 +186,6 @@ class GetEntitiesBalancesTest(TestCase):
 
         self.assertEqual(len(balances), 0)
 
-    def test_includes_liability_accounts(self):
-        """Liability account activity is included alongside AR."""
-        journal_entry = JournalEntryFactory()
-        JournalEntryItemFactory(
-            journal_entry=journal_entry,
-            account=self.liability_account,
-            entity=self.entity1,
-            type=JournalEntryItem.JournalEntryType.CREDIT,
-            amount=Decimal("100.00"),
-        )
-
-        balances = get_entities_balances()
-
-        self.assertEqual(len(balances), 1)
-        self.assertEqual(balances[0].entity_id, self.entity1.id)
-        self.assertEqual(balances[0].balance, Decimal("100.00"))
-
     def test_returns_empty_list_when_no_data(self):
         """Test returns empty list when no matching items."""
         balances = get_entities_balances()
@@ -226,11 +205,6 @@ class GetGroupedEntitiesBalancesTest(TestCase):
         self.non_ar_account = AccountFactory(
             type=Account.Type.ASSET,
             sub_type=Account.SubType.CASH,
-        )
-        self.liability_account = AccountFactory(
-            type=Account.Type.LIABILITY,
-            sub_type=Account.SubType.SHORT_TERM_DEBT,
-            is_closed=False,
         )
         self.entity1 = EntityFactory(name="Entity One")
         self.entity2 = EntityFactory(name="Entity Two")
@@ -311,26 +285,12 @@ class GetGroupedEntitiesBalancesTest(TestCase):
         self.assertEqual(len(result[0].rows), 2)
         self.assertEqual(result[0].zero_count, 0)
 
-    def test_excludes_non_ar_non_liability_accounts(self):
+    def test_excludes_non_ar_accounts(self):
         self._make_item(self.non_ar_account, self.entity1, JournalEntryItem.JournalEntryType.CREDIT, "100.00")
 
         result = get_grouped_entities_balances()
 
         self.assertEqual(result, [])
-
-    def test_includes_liability_account_group(self):
-        """A liability account produces its own group alongside AR accounts."""
-        self._make_item(self.ar_account, self.entity1, JournalEntryItem.JournalEntryType.CREDIT, "100.00")
-        # Liability net: credits 120 - debits 20 = 100
-        self._make_item(self.liability_account, self.entity2, JournalEntryItem.JournalEntryType.CREDIT, "120.00")
-        self._make_item(self.liability_account, self.entity2, JournalEntryItem.JournalEntryType.DEBIT, "20.00")
-
-        result = get_grouped_entities_balances(hide_zero=False)
-
-        by_account = {g.account_id: g for g in result}
-        self.assertIn(self.ar_account.id, by_account)
-        self.assertIn(self.liability_account.id, by_account)
-        self.assertEqual(by_account[self.liability_account.id].net_balance, Decimal("100.00"))
 
     def test_excludes_items_without_entity(self):
         je = JournalEntryFactory()
@@ -411,10 +371,6 @@ class GetUntaggedJournalEntryItemsTest(TestCase):
             type=Account.Type.ASSET,
             sub_type=Account.SubType.CASH,
         )
-        self.liability_account = AccountFactory(
-            type=Account.Type.LIABILITY,
-            sub_type=Account.SubType.LONG_TERM_DEBT,
-        )
         self.entity = EntityFactory()
 
     def test_returns_items_with_null_entity(self):
@@ -442,9 +398,9 @@ class GetUntaggedJournalEntryItemsTest(TestCase):
             sub_type=Account.SubType.ACCOUNTS_RECEIVABLE,
         )
         account_z = AccountFactory(
-            name="Zebra Debt",
-            type=Account.Type.LIABILITY,
-            sub_type=Account.SubType.LONG_TERM_DEBT,
+            name="Zebra AR",
+            type=Account.Type.ASSET,
+            sub_type=Account.SubType.ACCOUNTS_RECEIVABLE,
         )
 
         def _item(account, day):
@@ -480,22 +436,6 @@ class GetUntaggedJournalEntryItemsTest(TestCase):
         result = get_untagged_journal_entry_items()
 
         self.assertEqual(len(result.items), 0)
-
-    def test_includes_untagged_liability_items(self):
-        """Untagged liability items appear in the tagging inbox."""
-        journal_entry = JournalEntryFactory()
-        item = JournalEntryItemFactory(
-            journal_entry=journal_entry,
-            account=self.liability_account,
-            entity=None,
-            type=JournalEntryItem.JournalEntryType.CREDIT,
-            amount=Decimal("100.00"),
-        )
-
-        result = get_untagged_journal_entry_items()
-
-        self.assertEqual(len(result.items), 1)
-        self.assertEqual(result.items[0].id, item.id)
 
     def test_excludes_items_with_entity(self):
         """Test items with entity are excluded."""
@@ -543,10 +483,6 @@ class GetEntityHistoryTest(TestCase):
             type=Account.Type.ASSET,
             sub_type=Account.SubType.ACCOUNTS_RECEIVABLE,
         )
-        self.liability_account = AccountFactory(
-            type=Account.Type.LIABILITY,
-            sub_type=Account.SubType.SHORT_TERM_DEBT,
-        )
         self.entity = EntityFactory()
 
     def test_returns_items_for_entity(self):
@@ -592,23 +528,6 @@ class GetEntityHistoryTest(TestCase):
         # Credits increase balance, debits decrease
         self.assertIn(Decimal("100.00"), balances)
         self.assertIn(Decimal("70.00"), balances)
-
-    def test_includes_liability_items_in_history(self):
-        """Liability items are included in an entity's history."""
-        journal_entry = JournalEntryFactory()
-        item = JournalEntryItemFactory(
-            journal_entry=journal_entry,
-            account=self.liability_account,
-            entity=self.entity,
-            type=JournalEntryItem.JournalEntryType.CREDIT,
-            amount=Decimal("100.00"),
-        )
-
-        result = get_entity_history(self.entity.id)
-
-        self.assertEqual(len(result.items), 1)
-        self.assertEqual(result.items[0].journal_entry_item.id, item.id)
-        self.assertEqual(result.items[0].running_balance, Decimal("100.00"))
 
     def test_returns_empty_for_no_items(self):
         """Test returns empty list when entity has no items."""

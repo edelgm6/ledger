@@ -18,12 +18,9 @@ from api.models import Account, Entity, JournalEntryItem
 from api.services import crud
 
 
-# Journal-entry items in scope for the Balances/Payables-Receivables tab:
-# all liability accounts plus Accounts Receivable.
-RELEVANT_ITEMS_Q = (
-    Q(account__type=Account.Type.LIABILITY)
-    | Q(account__sub_type=Account.SubType.ACCOUNTS_RECEIVABLE)
-)
+# Journal-entry items in scope for the Balances/Receivables tab:
+# Accounts Receivable accounts only.
+RELEVANT_ITEMS_Q = Q(account__sub_type=Account.SubType.ACCOUNTS_RECEIVABLE)
 
 
 @dataclass
@@ -92,8 +89,7 @@ class UntaggedItemsData:
 
 def get_entities_balances() -> List[EntityBalance]:
     """
-    Gets aggregated balances for all entities with liability or accounts
-    receivable activity.
+    Gets aggregated balances for all entities with accounts receivable activity.
 
     Returns balances ordered by absolute balance (descending), then by
     most recent activity date.
@@ -147,8 +143,7 @@ def get_entities_balances() -> List[EntityBalance]:
 
 def get_grouped_entities_balances(hide_zero: bool = True) -> List[GroupedEntityBalances]:
     """
-    Gets entity balances grouped by account for all liability and accounts
-    receivable accounts.
+    Gets entity balances grouped by account for all AR-type accounts.
 
     Returns one GroupedEntityBalances per account, ordered by account name.
     Within each group, rows are ordered by absolute balance (desc), then by
@@ -244,9 +239,8 @@ def get_untagged_journal_entry_items() -> UntaggedItemsData:
     """
     Gets journal entry items without an assigned entity.
 
-    Filters to liability and accounts receivable accounts and orders by
-    account, then date. Returns items and the first item (for form
-    pre-selection).
+    Filters to accounts receivable accounts and orders by account, then date.
+    Returns items and the first item (for form pre-selection).
     """
     untagged_items = list(
         JournalEntryItem.objects.filter(RELEVANT_ITEMS_Q, entity__isnull=True)
@@ -265,9 +259,9 @@ def get_entity_history(
     """
     Gets the transaction history for an entity with running balances.
 
-    Scoped to liability and accounts receivable accounts. When account_id is
-    supplied, history is scoped to that account only. Returns items ordered by
-    date with a calculated running balance.
+    Scoped to accounts receivable accounts. When account_id is supplied, history
+    is scoped to that account only. Returns items ordered by date with a
+    calculated running balance.
     """
     qs = JournalEntryItem.objects.filter(
         RELEVANT_ITEMS_Q,
