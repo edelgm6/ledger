@@ -255,3 +255,104 @@ class IncomeStatementTest(TestCase):
         income_statement = IncomeStatement('2023-01-31', '2023-01-01')
         tax_rate = income_statement.get_tax_rate()
         self.assertEqual(tax_rate, None)
+
+
+class PostTaxSavingsRateTest(TestCase):
+    """Covers get_income_taxes / get_post_tax_savings_rate.
+
+    Income taxes are identified by ``special_type`` (federal, state, payroll)
+    so payroll counts regardless of its ``sub_type`` and property tax is
+    excluded from the net-out.
+    """
+
+    def setUp(self):
+        self.txn_date = '2023-01-28'
+        self.cash = Account.objects.create(
+            name='900-Ally', type=Account.Type.ASSET,
+            sub_type=Account.SubType.CASH,
+        )
+        self.salary = Account.objects.create(
+            name='8000-Salary', type=Account.Type.INCOME,
+            sub_type=Account.SubType.SALARY,
+        )
+        self.federal = Account.objects.create(
+            name='9000-Federal Taxes', type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.TAX,
+            special_type=Account.SpecialType.FEDERAL_TAXES,
+        )
+        self.state = Account.objects.create(
+            name='9100-State Taxes', type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.TAX,
+            special_type=Account.SpecialType.STATE_TAXES,
+        )
+        # Payroll deliberately lives under OPERATING to prove special_type,
+        # not sub_type, drives inclusion.
+        self.payroll = Account.objects.create(
+            name='9200-Payroll Taxes', type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.OPERATING,
+            special_type=Account.SpecialType.PAYROLL_TAXES,
+        )
+        self.property_tax = Account.objects.create(
+            name='9300-Property Taxes', type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.TAX,
+            special_type=Account.SpecialType.PROPERTY_TAXES,
+        )
+        self.groceries = Account.objects.create(
+            name='5000-Groceries', type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.OPERATING,
+        )
+
+    def _expense(self, account, amount):
+        create_closed_transaction_with_journal_entry(
+            date=self.txn_date,
+            debit_account=account,
+            credit_account=self.cash,
+            amount=Decimal(amount),
+            transaction_account=account,
+        )
+
+    def _earn_salary(self, amount):
+        create_closed_transaction_with_journal_entry(
+            date=self.txn_date,
+            debit_account=self.cash,
+            credit_account=self.salary,
+            amount=Decimal(amount),
+            transaction_account=self.salary,
+        )
+
+    def _populate_standard_scenario(self):
+        """Salary 1000; federal 100, state 50, payroll 30, property 40, groceries 80."""
+        self._earn_salary('1000')
+        self._expense(self.federal, '100')
+        self._expense(self.state, '50')
+        self._expense(self.payroll, '30')
+        self._expense(self.property_tax, '40')
+        self._expense(self.groceries, '80')
+
+    def test_get_income_taxes_sums_federal_state_payroll_excludes_property(self):
+        self._populate_standard_scenario()
+
+        income_statement = IncomeStatement('2023-01-31', '2023-01-01')
+        # 100 federal + 50 state + 30 payroll; property (40) excluded.
+        self.assertEqual(income_statement.get_income_taxes(), 180)
+
+    def test_post_tax_savings_rate(self):
+        self._populate_standard_scenario()
+
+        income_statement = IncomeStatement('2023-01-31', '2023-01-01')
+        # net income 700 / after-income-tax income (1000 - 180) = 820
+        self.assertEqual(
+            round(income_statement.get_post_tax_savings_rate(), 4),
+            round(Decimal(700) / Decimal(820), 4),
+        )
+
+    def test_post_tax_savings_rate_none_when_no_after_tax_income(self):
+        # Realized income fully consumed by income taxes -> denominator 0.
+        self._earn_salary('180')
+        self._expense(self.federal, '100')
+        self._expense(self.state, '50')
+        self._expense(self.payroll, '30')
+
+        income_statement = IncomeStatement('2023-01-31', '2023-01-01')
+        self.assertEqual(income_statement.get_income_taxes(), 180)
+        self.assertIsNone(income_statement.get_post_tax_savings_rate())
