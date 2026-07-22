@@ -77,7 +77,8 @@ def render_income_statement(
     tax_rate: Optional[float],
     savings_rate: Optional[float],
     realized_income: Decimal,
-    income_balances: List,
+    realized_income_balances: List,
+    unrealized_gains_balances: List,
     from_date: date,
     to_date: date,
 ) -> str:
@@ -89,7 +90,8 @@ def render_income_statement(
         tax_rate: Effective tax rate (or None)
         savings_rate: Savings rate (or None)
         realized_income: Income excluding unrealized gains (the Savings Rate base)
-        income_balances: Income account rows, unrealized gains ordered last
+        realized_income_balances: Income account rows excluding unrealized gains
+        unrealized_gains_balances: Unrealized-gains rows, rendered as a separate group
         from_date: Start date
         to_date: End date
 
@@ -104,7 +106,8 @@ def render_income_statement(
         "tax_rate": tax_rate if tax_rate is not None else 0,
         "savings_rate": savings_rate if savings_rate is not None else 0,
         "realized_income": realized_income,
-        "income_balances": income_balances,
+        "realized_income_balances": realized_income_balances,
+        "unrealized_gains_balances": unrealized_gains_balances,
         "from_date": from_date,
         "to_date": to_date,
     }

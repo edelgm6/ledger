@@ -131,8 +131,8 @@ class StatementView(LoginRequiredMixin, View):
             tax_rate=income_statement.get_tax_rate(),
             savings_rate=income_statement.get_savings_rate(),
             realized_income=income_statement.get_realized_income(),
-            # Realized rows first, unrealized gains last (its own line at the bottom).
-            income_balances=realized_balances + unrealized_balances,
+            realized_income_balances=realized_balances,
+            unrealized_gains_balances=unrealized_balances,
             from_date=from_date,
             to_date=to_date,
         )
