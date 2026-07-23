@@ -18,7 +18,6 @@ from .models import (
     Paystub,
     PaystubValue,
     Prefill,
-    PrefillItem,
     Reconciliation,
     S3File,
     TaxCharge,
@@ -101,18 +100,13 @@ class TransactionAdmin(ImportExportModelAdmin):
     journal_entry_link.admin_order_field = "journal_entry"
 
 
-class PrefillItemInline(admin.TabularInline):
-    model = PrefillItem
-    extra = 8
-
-
 class DocSearchInline(admin.TabularInline):
     model = DocSearch
     extra = 8
 
 
 class PrefillAdmin(admin.ModelAdmin):
-    inlines = [PrefillItemInline, DocSearchInline]
+    inlines = [DocSearchInline]
     list_display = ("description",)
 
     def description(self, obj):
@@ -176,7 +170,6 @@ admin.site.register(Reconciliation)
 admin.site.register(TaxCharge)
 admin.site.register(CSVColumnValuePair)
 admin.site.register(Amortization)
-admin.site.register(PrefillItem)
 admin.site.register(S3File, S3FileAdmin)
 admin.site.register(DocSearch)
 admin.site.register(Paystub, PaystubAdmin)

@@ -949,22 +949,6 @@ class Prefill(models.Model):
         return self.name
 
 
-class PrefillItem(models.Model):
-    prefill = models.ForeignKey("Prefill", on_delete=models.CASCADE)
-    account = models.ForeignKey("Account", on_delete=models.CASCADE)
-    journal_entry_item_type = models.CharField(
-        max_length=25, choices=JournalEntryItem.JournalEntryType.choices
-    )
-    order = models.PositiveSmallIntegerField()
-    entity = models.ForeignKey(
-        "Entity",
-        related_name="prefill_item",
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-    )
-
-
 class Paystub(models.Model):
     document = models.ForeignKey(
         "S3File", on_delete=models.CASCADE, related_name="documents"
