@@ -48,38 +48,6 @@ def get_debits_and_credits(
     return debits, credits
 
 
-def get_prefill_initial_data(
-    transaction: Transaction,
-    debits_initial_data: List[Dict[str, str | int]],
-    credits_initial_data: List[Dict[str, str | int]],
-) -> Tuple[List[Dict[str, str | int]], List[Dict[str, str | int]]]:
-
-    prefill_items = (
-        transaction.prefill.prefillitem_set.all()
-        .select_related("account", "entity")
-        .order_by("order")
-    )
-    for item in prefill_items:
-        if item.journal_entry_item_type == JournalEntryItem.JournalEntryType.DEBIT:
-            debits_initial_data.append(
-                {
-                    "account": item.account.name,
-                    "amount": 0,
-                    "entity": item.entity.name if item.entity else None,
-                }
-            )
-        else:
-            credits_initial_data.append(
-                {
-                    "account": item.account.name,
-                    "amount": 0,
-                    "entity": item.entity.name if item.entity else None,
-                }
-            )
-
-    return debits_initial_data, credits_initial_data
-
-
 def get_paystub_initial_data(
     paystub_id: int,
 ) -> Tuple[List[Dict[str, str | int]], List[Dict[str, str | int]]]:
@@ -201,13 +169,6 @@ def get_initial_data(
         }
     )
 
-    if transaction.prefill:
-        return get_prefill_initial_data(
-            transaction=transaction,
-            debits_initial_data=debits_initial_data,
-            credits_initial_data=credits_initial_data,
-        )
-
     return debits_initial_data, credits_initial_data
 
 
@@ -232,20 +193,22 @@ def get_formsets(
     bound_credits_count: int,
 ) -> Tuple[BaseModelFormSet, BaseModelFormSet]:
 
-    prefill_debits_count = len(debits_initial_data)
-    prefill_credits_count = len(credits_initial_data)
+    # Ensure enough extra forms to render every initial-data row (paystub/loan
+    # splits can exceed the default 10-row fill).
+    initial_debits_count = len(debits_initial_data)
+    initial_credits_count = len(credits_initial_data)
 
     debit_formset = modelformset_factory(
         JournalEntryItem,
         form=JournalEntryItemForm,
         formset=BaseJournalEntryItemFormset,
-        extra=max((10 - bound_debits_count), prefill_debits_count),
+        extra=max((10 - bound_debits_count), initial_debits_count),
     )
     credit_formset = modelformset_factory(
         JournalEntryItem,
         form=JournalEntryItemForm,
         formset=BaseJournalEntryItemFormset,
-        extra=max((10 - bound_credits_count), prefill_credits_count),
+        extra=max((10 - bound_credits_count), initial_credits_count),
     )
 
     accounts_choices = get_accounts_choices()

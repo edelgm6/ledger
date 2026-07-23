@@ -25,7 +25,6 @@ from api.models import (
     Paystub,
     PaystubValue,
     Prefill,
-    PrefillItem,
     S3File,
     Transaction,
 )
@@ -60,7 +59,7 @@ class Command(BaseCommand):
             accounts = self._create_accounts(entities)
             csv_profiles = self._create_csv_profiles()
             self._link_csv_profiles_to_accounts(accounts, csv_profiles)
-            prefills = self._create_prefills(accounts, entities)
+            prefills = self._create_prefills()
             self._create_autotags(accounts, prefills, entities)
             self._create_paystubs(accounts, entities, prefills)
             self._create_transaction_history(accounts, entities, prefills, months)
@@ -103,7 +102,6 @@ class Command(BaseCommand):
         JournalEntry.objects.all().delete()
         Transaction.objects.all().delete()
         AutoTag.objects.all().delete()
-        PrefillItem.objects.all().delete()
         Prefill.objects.all().delete()
         Account.objects.all().delete()
         Entity.objects.all().delete()
@@ -310,36 +308,13 @@ class Command(BaseCommand):
                 accounts[name].csv_profile = csv_profiles['ally']
                 accounts[name].save()
 
-    def _create_prefills(self, accounts, entities):
+    def _create_prefills(self):
         """Create prefill templates for common transactions."""
         prefills = {}
 
         # Paycheck prefill
         paycheck = Prefill.objects.create(name='Employer Inc Paycheck')
         prefills['paycheck'] = paycheck
-
-        # Add prefill items for a paycheck
-        PrefillItem.objects.create(
-            prefill=paycheck,
-            account=accounts.get('salary___self', accounts.get('salary', list(accounts.values())[0])),
-            journal_entry_item_type=JournalEntryItem.JournalEntryType.CREDIT,
-            order=1,
-            entity=entities.get('employer_inc'),
-        )
-        if 'ally_checking' in accounts:
-            PrefillItem.objects.create(
-                prefill=paycheck,
-                account=accounts['ally_checking'],
-                journal_entry_item_type=JournalEntryItem.JournalEntryType.DEBIT,
-                order=2,
-            )
-        if 'fidelity_401k' in accounts:
-            PrefillItem.objects.create(
-                prefill=paycheck,
-                account=accounts['fidelity_401k'],
-                journal_entry_item_type=JournalEntryItem.JournalEntryType.DEBIT,
-                order=3,
-            )
 
         # Grocery prefill
         grocery = Prefill.objects.create(name='Grocery Shopping')

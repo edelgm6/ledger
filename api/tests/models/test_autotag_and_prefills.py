@@ -1,6 +1,5 @@
 from django.test import TestCase
-from api.models import JournalEntryItem
-from api.tests.testing_factories import AutoTagFactory, PrefillFactory, PrefillItemFactory, AccountFactory
+from api.tests.testing_factories import AutoTagFactory, PrefillFactory, AccountFactory
 
 class AutoTagModelTest(TestCase):
     def setUp(self):
@@ -28,14 +27,4 @@ class PrefillModelTest(TestCase):
     def test_prefill_str_representation(self):
         """Test the string representation of the Prefill model."""
         self.assertEqual(str(self.prefill), self.prefill.name, "String representation should be the name of the Prefill")
-
-class PrefillItemModelTest(TestCase):
-    def setUp(self):
-        self.prefill = PrefillFactory()
-        self.account = AccountFactory()
-        self.prefill_item = PrefillItemFactory(prefill=self.prefill, account=self.account, journal_entry_item_type=JournalEntryItem.JournalEntryType.DEBIT, order=1)
-
-    def test_prefill_item_creation(self):
-        """Test the creation of a PrefillItem instance."""
-        self.assertIsNotNone(self.prefill_item.pk, "Should create a PrefillItem instance")
 

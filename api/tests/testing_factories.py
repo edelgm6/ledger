@@ -2,7 +2,7 @@ import datetime
 from decimal import Decimal
 
 import factory
-from api.models import Account, CSVProfile, Entity, Transaction, Amortization, Reconciliation, JournalEntry, JournalEntryItem, AutoTag, Prefill, PrefillItem, TaxCharge, Loan, LoanPayment
+from api.models import Account, CSVProfile, Entity, Transaction, Amortization, Reconciliation, JournalEntry, JournalEntryItem, AutoTag, Prefill, TaxCharge, Loan, LoanPayment
 
 
 # Entity Factory
@@ -99,16 +99,6 @@ class PrefillFactory(factory.django.DjangoModelFactory):
         model = Prefill
 
     name = factory.Faker('word')
-
-# PrefillItem Factory
-class PrefillItemFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = PrefillItem
-
-    prefill = factory.SubFactory(PrefillFactory)
-    account = factory.SubFactory(AccountFactory)
-    journal_entry_item_type = factory.Iterator(JournalEntryItem.JournalEntryType.choices, getter=lambda c: c[0])
-    order = factory.Sequence(lambda n: n)
 
 # AutoTag Factory
 class AutoTagFactory(factory.django.DjangoModelFactory):
