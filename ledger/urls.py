@@ -29,14 +29,11 @@ from api.views.journal_entry_views import (
 from api.views.reconciliation_views import ReconciliationTableView, ReconciliationView
 from api.views.recharacterize_views import (
     RecharacterizeApplyView,
-    RecharacterizeEditAgentView,
     RecharacterizeEditView,
     RecharacterizeExportView,
     RecharacterizeManualView,
-    RecharacterizeMessageView,
     RecharacterizePageView,
     RecharacterizeResetView,
-    RecharacterizeRetryView,
     RecharacterizeRevertView,
     RecharacterizeView,
 )
@@ -191,13 +188,8 @@ urlpatterns = [
         AmortizeFormView.as_view(),
         name="amortize-form",
     ),
-    # Recharacterize (agentic bulk edit)
+    # Recharacterize (bulk edit)
     path("recharacterize/", RecharacterizeView.as_view(), name="recharacterize"),
-    path(
-        "recharacterize/message/",
-        RecharacterizeMessageView.as_view(),
-        name="recharacterize-message",
-    ),
     path(
         "recharacterize/manual/",
         RecharacterizeManualView.as_view(),
@@ -209,11 +201,6 @@ urlpatterns = [
         name="recharacterize-edit",
     ),
     path(
-        "recharacterize/edit-agent/",
-        RecharacterizeEditAgentView.as_view(),
-        name="recharacterize-edit-agent",
-    ),
-    path(
         "recharacterize/apply/",
         RecharacterizeApplyView.as_view(),
         name="recharacterize-apply",
@@ -222,11 +209,6 @@ urlpatterns = [
         "recharacterize/revert/",
         RecharacterizeRevertView.as_view(),
         name="recharacterize-revert",
-    ),
-    path(
-        "recharacterize/retry/",
-        RecharacterizeRetryView.as_view(),
-        name="recharacterize-retry",
     ),
     path(
         "recharacterize/reset/",

@@ -1,9 +1,9 @@
 """
-Views for the agentic bulk-recharacterization tool.
+Views for the bulk-recharacterization tool.
 
 HTTP orchestration only: parse requests, drive recharacterize_services, render
-via recharacterize_helpers. The conversation and the latest proposed plan live
-in the session; apply always re-validates from the stored plan.
+via recharacterize_helpers. The latest proposed plan lives in the session; apply
+always re-validates from the stored plan.
 """
 
 import csv
@@ -21,11 +21,11 @@ SESSION_KEY = "recharacterize"
 
 
 def _get_state(request) -> dict:
-    return request.session.get(SESSION_KEY, {"messages": [], "operations": []})
+    return request.session.get(SESSION_KEY, {"operations": []})
 
 
-def _save_state(request, messages, operations) -> None:
-    request.session[SESSION_KEY] = {"messages": messages, "operations": operations}
+def _save_state(request, operations) -> None:
+    request.session[SESSION_KEY] = {"operations": operations}
     request.session.modified = True
 
 
@@ -40,79 +40,39 @@ def _parse_int_param(request, key: str, default: int = -1) -> int:
 
 
 def _render_main(
-    messages,
     preview=None,
     *,
     flash=None,
-    error=None,
-    active_tab="manual",
+    flash_error=None,
     manual_form=None,
     catalogs=None,
     edit_index=None,
-    edit_agent_error=None,
 ) -> str:
     """Renders the main region, always with the current history panel attached.
 
     Every render of #recharacterize-main must reflect the live history, so this
     is the single seam that fetches it — call sites never thread it themselves.
-    ``active_tab`` keeps the agent or manual tab open across htmx swaps. The
-    manual builder needs a form for its select options; a fresh one is built when
-    none was threaded in (the invalid-submit and edit paths pass a bound/prefilled
-    form). ``edit_index`` puts the manual builder in edit mode for that operation.
+    The manual builder needs a form for its select options; a fresh one is built
+    when none was threaded in (the invalid-submit and edit paths pass a
+    bound/prefilled form). ``edit_index`` puts the manual builder in edit mode for
+    that operation. ``flash`` / ``flash_error`` surface an apply/revert outcome
+    above the preview.
 
-    The manual builder is always in the swapped DOM (a hidden tab), so its form —
-    and the account/entity catalogs it needs — is built on every render. A view
-    that already built the catalogs (to validate a submit or prefill an edit)
-    threads them in via ``catalogs`` so the request queries them only once.
+    A view that already built the account/entity catalogs (to validate a submit or
+    prefill an edit) threads them in via ``catalogs`` so the request queries them
+    only once.
     """
     if manual_form is None:
         catalogs = catalogs or recharacterize_services.manual_form_catalogs()
         manual_form = RecharacterizeOperationForm(catalogs=catalogs)
     return recharacterize_helpers.render_main(
-        messages,
         preview,
         flash=flash,
-        error=error,
+        flash_error=flash_error,
         history=recharacterize_services.list_recent_changes(),
-        active_tab=active_tab,
         manual_form=manual_form,
         edit_index=edit_index,
-        edit_agent_error=edit_agent_error,
     )
-
-
-def _render_unchanged(messages, operations, *, active_tab="manual") -> str:
-    """Re-renders the main region without running a turn (state untouched).
-
-    ``active_tab`` defaults to the home (manual) pane; the agent chat flows pass
-    ``"agent"`` so a no-op turn keeps the user on the chat.
-    """
-    preview = recharacterize_services.preview_plan(operations)
-    return _render_main(messages, preview, active_tab=active_tab)
-
-
-def _run_turn_and_render(request, messages, operations) -> str:
-    """Runs one Gemini turn against ``messages`` and renders the main region.
-
-    Shared by the message and retry views. ``operations`` is the plan already in
-    the session: on a failed turn it is preserved (so a transient error never
-    discards a proposed plan) and surfaced as a typed error banner with a Retry;
-    on success the model's new plan replaces it.
-    """
-    turn = recharacterize_services.run_turn(messages)
-
-    if turn.failed:
-        # Keep the trailing user message so Retry can re-send it; don't add a
-        # misleading assistant bubble. Hold onto the previously proposed plan.
-        _save_state(request, messages=messages, operations=operations)
-        preview = recharacterize_services.preview_plan(operations)
-        error = recharacterize_helpers.build_turn_error(turn.error)
-        return _render_main(messages, preview, error=error, active_tab="agent")
-
-    messages.append({"role": "assistant", "text": turn.reply})
-    preview = recharacterize_services.preview_plan(turn.operations)
-    _save_state(request, messages=messages, operations=turn.operations)
-    return _render_main(messages, preview, active_tab="agent")
 
 
 class RecharacterizeView(LoginRequiredMixin, View):
@@ -121,53 +81,9 @@ class RecharacterizeView(LoginRequiredMixin, View):
     login_url = "/login/"
 
     def get(self, request):
-        _save_state(request, messages=[], operations=[])
-        html = recharacterize_helpers.render_page(
-            _render_main(messages=[], preview=None)
-        )
+        _save_state(request, operations=[])
+        html = recharacterize_helpers.render_page(_render_main(preview=None))
         return render_full_page(request, html)
-
-
-class RecharacterizeMessageView(LoginRequiredMixin, View):
-    """Handles a chat message: ask the model, preview the proposed plan."""
-
-    login_url = "/login/"
-
-    def post(self, request):
-        state = _get_state(request)
-        messages = state["messages"]
-
-        user_text = (request.POST.get("message") or "").strip()
-        if not user_text:
-            return HttpResponse(
-                _render_unchanged(messages, state["operations"], active_tab="agent")
-            )
-
-        messages.append({"role": "user", "text": user_text})
-        html = _run_turn_and_render(request, messages, state["operations"])
-        return HttpResponse(html)
-
-
-class RecharacterizeRetryView(LoginRequiredMixin, View):
-    """Re-runs the last turn after a transient Gemini failure.
-
-    Re-sends the trailing (unanswered) user message — no new message is appended.
-    """
-
-    login_url = "/login/"
-
-    def post(self, request):
-        state = _get_state(request)
-        messages = state["messages"]
-
-        if not messages or messages[-1]["role"] != "user":
-            # Nothing to retry (no unanswered user turn); just re-render.
-            return HttpResponse(
-                _render_unchanged(messages, state["operations"], active_tab="agent")
-            )
-
-        html = _run_turn_and_render(request, messages, state["operations"])
-        return HttpResponse(html)
 
 
 def _valid_op_index(operations, raw):
@@ -196,7 +112,7 @@ def _prefilled_form(operations, edit_index, catalogs):
 
 
 class RecharacterizeManualView(LoginRequiredMixin, View):
-    """Adds or overwrites a manually built operation — no LLM involved.
+    """Adds or overwrites a manually built operation.
 
     Builds a ``{filter, action}`` operation from the manual form. With a valid
     ``op`` index in the POST it overwrites that operation (edit mode); otherwise it
@@ -209,7 +125,6 @@ class RecharacterizeManualView(LoginRequiredMixin, View):
 
     def post(self, request):
         state = _get_state(request)
-        messages = state["messages"]
         operations = state["operations"]
 
         # Build the catalogs once and reuse them for both validating the bound form
@@ -219,17 +134,15 @@ class RecharacterizeManualView(LoginRequiredMixin, View):
         edit_index = _valid_op_index(operations, request.POST.get("op"))
         form = RecharacterizeOperationForm(request.POST, catalogs=catalogs)
         if not form.is_valid():
-            # Re-render with field errors, keeping the user on the Manual tab (and
-            # in edit mode when they were editing an existing operation).
+            # Re-render with field errors, staying in edit mode when they were
+            # editing an existing operation.
             preview = (
                 recharacterize_services.preview_plan(operations)
                 if operations
                 else None
             )
             html = _render_main(
-                messages,
                 preview,
-                active_tab="manual",
                 manual_form=form,
                 edit_index=edit_index,
             )
@@ -241,27 +154,24 @@ class RecharacterizeManualView(LoginRequiredMixin, View):
             operations[edit_index] = operation  # overwrite: keep its position
         else:
             operations.insert(0, operation)  # new op stacks on top (newest first)
-        _save_state(request, messages=messages, operations=operations)
+        _save_state(request, operations=operations)
         preview = recharacterize_services.preview_plan(operations)
         # Saving exits edit mode back to the empty builder; appending stays there.
-        return HttpResponse(
-            _render_main(messages, preview, active_tab="manual", catalogs=catalogs)
-        )
+        return HttpResponse(_render_main(preview, catalogs=catalogs))
 
 
 class RecharacterizeEditView(LoginRequiredMixin, View):
     """Opens the manual builder prefilled to edit one operation (or cancels).
 
     With a valid ``op`` index, prefills the builder from that operation and renders
-    the Manual tab in edit mode. Without one (Cancel), renders a fresh builder. The
-    session plan is never mutated here, so the preview is preserved either way.
+    it in edit mode. Without one (Cancel), renders a fresh builder. The session
+    plan is never mutated here, so the preview is preserved either way.
     """
 
     login_url = "/login/"
 
     def get(self, request):
         state = _get_state(request)
-        messages = state["messages"]
         operations = state["operations"]
 
         preview = (
@@ -272,66 +182,12 @@ class RecharacterizeEditView(LoginRequiredMixin, View):
         catalogs = recharacterize_services.manual_form_catalogs()
         edit_index = _valid_op_index(operations, request.GET.get("op"))
         html = _render_main(
-            messages,
             preview,
-            active_tab="manual",
             manual_form=_prefilled_form(operations, edit_index, catalogs),
             catalogs=catalogs,
             edit_index=edit_index,
         )
         return HttpResponse(html)
-
-
-class RecharacterizeEditAgentView(LoginRequiredMixin, View):
-    """Scoped one-shot LLM edit of a single operation.
-
-    Sends the targeted operation plus a plain-language instruction to Gemini and
-    overwrites that one operation with the revised result. The main chat log is
-    untouched. On a transient failure or a non-answer, stays in edit mode and
-    surfaces the issue.
-    """
-
-    login_url = "/login/"
-
-    def post(self, request):
-        state = _get_state(request)
-        messages = state["messages"]
-        operations = state["operations"]
-
-        edit_index = _valid_op_index(operations, request.GET.get("op"))
-        instruction = (request.POST.get("instruction") or "").strip()
-        edit_agent_error = None
-
-        if edit_index is not None and instruction:
-            result = recharacterize_services.revise_operation(
-                operations[edit_index], instruction
-            )
-            if result.success:
-                # Overwrite just this op; stay in edit mode re-prefilled from the
-                # revised op so the user can keep tweaking it.
-                operations = list(operations)
-                operations[edit_index] = result.operation
-                _save_state(request, messages=messages, operations=operations)
-            elif result.failed:
-                edit_agent_error = "The agent couldn't be reached. Please try again."
-            else:
-                edit_agent_error = result.message
-
-        preview = (
-            recharacterize_services.preview_plan(operations) if operations else None
-        )
-        catalogs = recharacterize_services.manual_form_catalogs()
-        return HttpResponse(
-            _render_main(
-                messages,
-                preview,
-                active_tab="manual",
-                edit_index=edit_index,
-                manual_form=_prefilled_form(operations, edit_index, catalogs),
-                catalogs=catalogs,
-                edit_agent_error=edit_agent_error,
-            )
-        )
 
 
 class RecharacterizeApplyView(LoginRequiredMixin, View):
@@ -346,46 +202,37 @@ class RecharacterizeApplyView(LoginRequiredMixin, View):
 
     def post(self, request):
         state = _get_state(request)
-        messages = state["messages"]
         operations = state["operations"]
 
         op_index = _valid_op_index(operations, request.GET.get("op"))
         if op_index is None:
-            return HttpResponse(_render_unchanged(messages, operations))
+            preview = recharacterize_services.preview_plan(operations)
+            return HttpResponse(_render_main(preview))
 
         result = recharacterize_services.apply_operation(operations, op_index)
 
         if not result.success:
-            # Surface the apply error as an assistant message so it's visible.
-            messages.append({"role": "assistant", "text": result.error})
-            _save_state(request, messages=messages, operations=operations)
+            # Surface the apply error above the preview so it's visible.
             preview = recharacterize_services.preview_plan(operations)
-            return HttpResponse(_render_main(messages, preview))
+            return HttpResponse(_render_main(preview, flash_error=result.error))
 
         # Drop the applied operation; the rest stay so they can be applied next.
         remaining = operations[:op_index] + operations[op_index + 1 :]
-        # The confirmation lives in the chat log (consistent with every other
-        # turn); the remaining-ops preview re-renders below it.
-        messages.append(
-            {
-                "role": "assistant",
-                "text": (
-                    f"Applied: {result.action_summary}. Updated "
-                    f"{result.updated_count} journal entry "
-                    f"item{'' if result.updated_count == 1 else 's'}."
-                ),
-            }
+        flash = (
+            f"Applied: {result.action_summary}. Updated "
+            f"{result.updated_count} journal entry "
+            f"item{'' if result.updated_count == 1 else 's'}."
         )
-        _save_state(request, messages=messages, operations=remaining)
+        _save_state(request, operations=remaining)
         preview = recharacterize_services.preview_plan(remaining) if remaining else None
-        return HttpResponse(_render_main(messages, preview))
+        return HttpResponse(_render_main(preview, flash=flash))
 
 
 class RecharacterizeRevertView(LoginRequiredMixin, View):
     """Reverts a previously applied operation from the persisted history.
 
-    Restores the items the change still owns to their prior values, records the
-    outcome in the chat log, and re-renders the main region (history panel
+    Restores the items the change still owns to their prior values, surfaces the
+    outcome above the preview, and re-renders the main region (history panel
     included) so the change now shows as reverted.
     """
 
@@ -393,14 +240,14 @@ class RecharacterizeRevertView(LoginRequiredMixin, View):
 
     def post(self, request):
         state = _get_state(request)
-        messages = state["messages"]
         operations = state["operations"]
 
         change_id = _parse_int_param(request, "change")
         result = recharacterize_services.revert_change(change_id)
 
+        flash = flash_error = None
         if not result.success:
-            messages.append({"role": "assistant", "text": result.error})
+            flash_error = result.error
         else:
             note = (
                 f"Reverted: {result.action_summary}. "
@@ -411,13 +258,12 @@ class RecharacterizeRevertView(LoginRequiredMixin, View):
                 note += f" {result.conflict_count} skipped (changed since)."
             if result.missing_count:
                 note += f" {result.missing_count} no longer exist."
-            messages.append({"role": "assistant", "text": note})
+            flash = note
 
-        _save_state(request, messages=messages, operations=operations)
         preview = (
             recharacterize_services.preview_plan(operations) if operations else None
         )
-        return HttpResponse(_render_main(messages, preview))
+        return HttpResponse(_render_main(preview, flash=flash, flash_error=flash_error))
 
 
 class RecharacterizePageView(LoginRequiredMixin, View):
@@ -493,10 +339,10 @@ class RecharacterizeExportView(LoginRequiredMixin, View):
 
 
 class RecharacterizeResetView(LoginRequiredMixin, View):
-    """Clears the conversation and proposed plan."""
+    """Clears the proposed plan."""
 
     login_url = "/login/"
 
     def post(self, request):
-        _save_state(request, messages=[], operations=[])
-        return HttpResponse(_render_main(messages=[], preview=None))
+        _save_state(request, operations=[])
+        return HttpResponse(_render_main(preview=None))

@@ -1,5 +1,4 @@
 import datetime
-import json
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -20,7 +19,6 @@ from api.services.recharacterize_services import (
     list_recent_changes,
     preview_plan,
     revert_change,
-    run_turn,
 )
 from api.tests.testing_factories import (
     AccountFactory,
@@ -569,36 +567,6 @@ class RecharacterizeServicesTest(TestCase):
         self.assertEqual(build_export_rows(blocked_ops, 5), [])
         self.assertEqual(build_export_rows([], 0), [])
 
-    # --- turn orchestration (model mocked) ----------------------------------
-
-    @patch("api.services.recharacterize_services.gemini_services.call_gemini_conversation")
-    def test_run_turn_parses_reply_and_operations(self, mock_call):
-        mock_call.return_value = json.dumps(
-            {
-                "reply": "Sure, here's the plan.",
-                "operations": [
-                    {
-                        "filter": {"account": "Ally Checking"},
-                        "action": {"type": "set_entity", "entity": "Ally Bank"},
-                    }
-                ],
-            }
-        )
-        turn = run_turn([{"role": "user", "text": "tag ally checking"}])
-        self.assertEqual(turn.reply, "Sure, here's the plan.")
-        self.assertEqual(len(turn.operations), 1)
-        self.assertIsNone(turn.error)
-        self.assertFalse(turn.failed)
-
-    @patch("api.services.recharacterize_services.gemini_services.call_gemini_conversation")
-    def test_run_turn_degrades_on_model_error(self, mock_call):
-        mock_call.side_effect = RuntimeError("503 UNAVAILABLE")
-        turn = run_turn([{"role": "user", "text": "hi"}])
-        self.assertEqual(turn.operations, [])
-        self.assertEqual(turn.reply, "")
-        self.assertTrue(turn.failed)
-        self.assertIn("503", turn.error)
-
     def test_apply_one_at_a_time_good_op_commits_blocked_sibling_does_not(self):
         ops = [
             {
@@ -963,7 +931,6 @@ class BuildManualOperationTest(TestCase):
         catalogs = recharacterize_services.manual_form_catalogs()
         self.assertIn("Ally Checking", catalogs.accounts)
         self.assertIn("Ally Bank", catalogs.entities)
-        self.assertIn("Starting Equity", catalogs.swap_blocked)
 
 
 class OperationToFormInitialTest(TestCase):
@@ -1020,55 +987,6 @@ class OperationToFormInitialTest(TestCase):
         self.assertFalse(initial["entity_is_empty"])
 
 
-class ReviseOperationTest(TestCase):
-    def setUp(self):
-        self.checking = AccountFactory(name="Ally Checking", is_closed=False)
-
-    @patch(
-        "api.services.recharacterize_services.gemini_services.call_gemini_conversation"
-    )
-    def test_returns_first_revised_operation(self, mock_call):
-        revised = {
-            "filter": {"description_contains": "Verizon", "entry_type": "debit"},
-            "action": {"type": "view"},
-        }
-        mock_call.return_value = json.dumps({"reply": "Done.", "operations": [revised]})
-        result = recharacterize_services.revise_operation(
-            {"filter": {"description_contains": "Verizon"}, "action": {"type": "view"}},
-            "only debits",
-        )
-        self.assertTrue(result.success)
-        self.assertEqual(result.operation, revised)
-        self.assertFalse(result.failed)
-
-    @patch(
-        "api.services.recharacterize_services.gemini_services.call_gemini_conversation"
-    )
-    def test_no_operation_surfaces_model_reply(self, mock_call):
-        mock_call.return_value = json.dumps(
-            {"reply": "Which account did you mean?", "operations": []}
-        )
-        result = recharacterize_services.revise_operation(
-            {"filter": {"description_contains": "x"}, "action": {"type": "view"}},
-            "change the account",
-        )
-        self.assertFalse(result.success)
-        self.assertFalse(result.failed)
-        self.assertEqual(result.message, "Which account did you mean?")
-
-    @patch(
-        "api.services.recharacterize_services.gemini_services.call_gemini_conversation"
-    )
-    def test_degrades_on_model_error(self, mock_call):
-        mock_call.side_effect = RuntimeError("503 UNAVAILABLE")
-        result = recharacterize_services.revise_operation(
-            {"filter": {"description_contains": "x"}, "action": {"type": "view"}},
-            "only debits",
-        )
-        self.assertFalse(result.success)
-        self.assertTrue(result.failed)
-
-
 class ManualFormCatalogsTest(TestCase):
     """The view builds the catalogs and passes them into the form, so the form
     never reaches back into the service. ``catalogs`` is therefore required."""
@@ -1077,7 +995,6 @@ class ManualFormCatalogsTest(TestCase):
         return recharacterize_services.FormCatalogs(
             accounts=["Groceries", "Dining"],
             entities=["Ally Bank"],
-            swap_blocked=[],
         )
 
     def test_passed_catalogs_populate_choices(self):

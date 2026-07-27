@@ -1,5 +1,9 @@
 <h2>Recharacterize</h2>
-<p class="muted">Build a plan of changes to your journal entry items — by hand or with the
-agent — review the preview, then apply.</p>
+<p class="muted">Build a plan of changes to your journal entry items by hand, review the
+preview, then apply.</p>
 
+<div id="recharacterize-root"
+     hx-on:htmx:before-request="if (event.detail.elt.closest('.rc-keep-scroll')) this.dataset.keepScroll = window.scrollY"
+     hx-on:htmx:after-settle="if (this.dataset.keepScroll !== undefined) { window.scrollTo(0, +this.dataset.keepScroll); delete this.dataset.keepScroll; }">
 {{ main|safe }}
+</div>

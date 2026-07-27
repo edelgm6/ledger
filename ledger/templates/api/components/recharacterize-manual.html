@@ -1,24 +1,20 @@
 {% if edit_index is not None %}
 <div class="flex flex-between">
     <h5 class="card-title">Editing operation {{ edit_index|add:1 }}</h5>
-    <button type="button" class="btn btn-ghost btn-sm"
+    <button type="button" class="btn btn-ghost btn-sm rc-keep-scroll"
             hx-get="{% url 'recharacterize-edit' %}"
             hx-target="#recharacterize-main"
             hx-swap="outerHTML">Cancel</button>
 </div>
 <p class="muted">
-    Change this operation by hand, or ask the agent to revise it below. Either way,
-    your changes overwrite just this operation.
+    Edit the fields below to change this operation. Your changes overwrite just
+    this operation.
 </p>
-
-{% include "api/components/_revise-with-agent.html" %}
-
-<div class="criteria-head muted mt-3">Or edit the fields directly:</div>
 {% else %}
-<h5 class="card-title">Build manually</h5>
+<h5 class="card-title">Build an operation</h5>
 <p class="muted">
-    Construct an operation by hand — no agent involved. It’s added to the plan and
-    previewed on the right, exactly like an agent-proposed one.
+    Construct an operation by hand. It’s added to the plan and previewed on the
+    right.
 </p>
 {% endif %}
 
@@ -26,7 +22,7 @@
 {% include "api/components/_alert.html" with extra_class="mt-2" errors=manual_form.errors %}
 {% endif %}
 
-<form class="form mt-3"
+<form class="form mt-3 rc-keep-scroll"
       hx-post="{% url 'recharacterize-manual' %}"
       hx-target="#recharacterize-main"
       hx-swap="outerHTML"
