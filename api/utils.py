@@ -123,25 +123,3 @@ def short_error_label(error_message: str) -> str:
         "empty": "",
         "generic": "processing error",
     }[_classify_error(error_message)]
-
-
-def friendly_error_message(error_message: str) -> str:
-    """A full-sentence, recovery-oriented message for a Gemini/processing error.
-
-    Companion to ``short_error_label`` (which gives the compact badge). Used where
-    a synchronous flow shows the failure inline and offers a retry, so the copy
-    steers the user toward retrying for transient errors rather than rephrasing.
-    """
-    generic = (
-        "Something went wrong reaching the AI service. You can retry, or rephrase "
-        "your request."
-    )
-    return {
-        "overload": (
-            "The AI service is temporarily overloaded. Your message wasn't lost — "
-            "wait a moment and retry."
-        ),
-        "rate_limit": "The AI service is rate limited right now. Wait a moment and retry.",
-        "empty": generic,
-        "generic": generic,
-    }[_classify_error(error_message)]

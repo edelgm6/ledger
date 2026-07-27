@@ -96,12 +96,11 @@ def _parse_date(value: Any) -> Tuple[Optional[datetime.date], Optional[str]]:
         return None, f"Could not read the date '{value}'."
 
 
-def _build_catalogs() -> Tuple[List[str], List[str], List[str]]:
-    # Every account is available for entity tagging, so all names go in the
-    # usable catalog. The swap-blocked subset is flagged separately so the LLM
-    # knows those names may never be the source/target of an account swap.
-    accounts = list(Account.objects.all().order_by("name"))
-    account_names = [a.name for a in accounts]
-    swap_blocked_names = [a.name for a in accounts if is_swap_blocked_account(a)]
+def _build_catalogs() -> Tuple[List[str], List[str]]:
+    # Every account is available for entity tagging and the account dropdowns, so
+    # all names go in the usable catalog.
+    account_names = list(
+        Account.objects.order_by("name").values_list("name", flat=True)
+    )
     entity_names = list(Entity.objects.order_by("name").values_list("name", flat=True))
-    return account_names, entity_names, swap_blocked_names
+    return account_names, entity_names
