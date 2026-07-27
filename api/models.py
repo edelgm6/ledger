@@ -293,8 +293,8 @@ class Reconciliation(models.Model):
                 "cash-flow reconciliation."
             )
 
-        GAIN_LOSS_ACCOUNT = Account.objects.get(
-            special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES
+        GAIN_LOSS_ACCOUNT = Account.objects.system(
+            Account.SystemRole.UNREALIZED_GAINS_AND_LOSSES
         )
 
         transaction_amount = (
@@ -577,22 +577,66 @@ class TaxCharge(models.Model):
         super().save(*args, **kwargs)
 
 
+class AccountManager(models.Manager):
+    def system(self, role):
+        """Return the singleton account playing a given SystemRole.
+
+        Replaces the old ``get(special_type=<singleton>)`` lookups. Raises the
+        usual ``DoesNotExist`` / ``MultipleObjectsReturned`` if the role is not
+        a configured singleton.
+        """
+        return self.get(system_role=role)
+
+    def tax_expense_accounts(self):
+        """The manually-charged tax expense accounts (federal, state, property).
+
+        Single source of truth for "which accounts are taxes" for the
+        recommendations service, the tax forms, and bulk tax-charge creation.
+        Deliberately distinct from ``income_tax_accounts`` (see the grouping
+        constants on ``Account``).
+        """
+        return self.filter(tax_kind__in=Account.TAX_EXPENSE_KINDS)
+
+    def income_tax_accounts(self):
+        """Income tax accounts for the post-tax savings rate (federal, state, payroll).
+
+        Includes payroll and excludes property — the opposite trade-off from
+        ``tax_expense_accounts``. The divergence is intentional; see the
+        grouping-constant comments on ``Account``.
+        """
+        return self.filter(tax_kind__in=Account.INCOME_TAX_KINDS)
+
+
 class Account(models.Model):
-    class SpecialType(models.TextChoices):
+    class SystemRole(models.TextChoices):
+        """Special accounting roles a single account can play.
+
+        WALLET, STARTING_EQUITY and UNREALIZED_GAINS_AND_LOSSES are true
+        singletons (one per ledger, enforced by a unique constraint); look them
+        up with ``Account.objects.system(role)``. PREPAID_EXPENSES is a
+        repeatable capability tag used to source amortizable items.
+        """
+
+        WALLET = "wallet", _("Wallet")
+        STARTING_EQUITY = "starting_equity", _("Starting Equity")
         UNREALIZED_GAINS_AND_LOSSES = (
             "unrealized_gains_and_losses",
             _("Unrealized Gains and Losses"),
         )
-        STATE_TAXES_PAYABLE = "state_taxes_payable", _("State Taxes Payable")
-        FEDERAL_TAXES_PAYABLE = ("federal_taxes_payable", _("Federal Taxes Payable"))
-        PROPERTY_TAXES_PAYABLE = ("property_taxes_payable", _("Property Taxes Payable"))
-        STATE_TAXES = "state_taxes", _("State Taxes")
-        FEDERAL_TAXES = "federal_taxes", _("Federal Taxes")
-        PROPERTY_TAXES = "property_taxes", _("Property Taxes")
-        PAYROLL_TAXES = "payroll_taxes", _("Payroll Taxes")
-        WALLET = "wallet", _("Wallet")
         PREPAID_EXPENSES = "prepaid_expenses", _("Prepaid Expenses")
-        STARTING_EQUITY = "starting_equity", _("Starting Equity")
+
+    class TaxKind(models.TextChoices):
+        """Which tax a tax expense account represents.
+
+        Set on the expense account; the offsetting liability is reached via
+        ``tax_payable_account``. Group membership is defined by the
+        ``TAX_EXPENSE_KINDS`` / ``INCOME_TAX_KINDS`` constants below.
+        """
+
+        FEDERAL = "federal", _("Federal")
+        STATE = "state", _("State")
+        PROPERTY = "property", _("Property")
+        PAYROLL = "payroll", _("Payroll")
 
     class Type(models.TextChoices):
         ASSET = "asset", _("Asset")
@@ -677,14 +721,24 @@ class Account(models.Model):
         SubType.VEHICLES,
     ]
 
+    # Manually-charged tax expense accounts: federal, state, and property.
+    # Used by the recommendations service, tax forms, and bulk tax-charge
+    # creation (Account.objects.tax_expense_accounts()). Excludes payroll, which
+    # is withheld rather than charged. Deliberately different from
+    # INCOME_TAX_KINDS below.
+    TAX_EXPENSE_KINDS = (
+        TaxKind.FEDERAL,
+        TaxKind.STATE,
+        TaxKind.PROPERTY,
+    )
+
     # Income taxes for the post-tax savings rate: federal, state, and payroll
     # withholding. Property tax is intentionally excluded — it isn't income-based.
-    # (Distinct from tax_services.get_tax_accounts, which covers the manually
-    # charged taxes — federal, state, property — and excludes payroll.)
-    INCOME_TAX_SPECIAL_TYPES = (
-        SpecialType.FEDERAL_TAXES,
-        SpecialType.STATE_TAXES,
-        SpecialType.PAYROLL_TAXES,
+    # Deliberately different from TAX_EXPENSE_KINDS above.
+    INCOME_TAX_KINDS = (
+        TaxKind.FEDERAL,
+        TaxKind.STATE,
+        TaxKind.PAYROLL,
     )
 
     name = models.CharField(max_length=200, unique=True)
@@ -697,10 +751,18 @@ class Account(models.Model):
         null=True,
         blank=True,
     )
-    special_type = models.CharField(
-        max_length=30, choices=SpecialType.choices, null=True, blank=True
+    system_role = models.CharField(
+        max_length=30, choices=SystemRole.choices, null=True, blank=True
+    )
+    tax_kind = models.CharField(
+        max_length=10, choices=TaxKind.choices, null=True, blank=True
     )
     is_closed = models.BooleanField(default=False)
+    # A cash-flow "non-cash offset" marker. Its sibling is the
+    # UNREALIZED_INVESTMENT_GAINS sub_type; both flag balance changes that must
+    # net out of the investing/operations split (see get_cash_from_operations_
+    # balances and get_cash_from_investing_balances in statement.py). Distinct
+    # from Amortization.is_depreciation (a computed property on that model).
     is_depreciation = models.BooleanField(
         default=False,
         help_text=(
@@ -734,20 +796,32 @@ class Account(models.Model):
         help_text="Flat tax amount (e.g., 1000.00)",
     )
 
+    objects = AccountManager()
+
     class Meta:
         ordering = ("name",)
         constraints = [
+            # Singleton system roles: exactly one WALLET / STARTING_EQUITY /
+            # UNREALIZED_GAINS_AND_LOSSES account. PREPAID_EXPENSES is a
+            # repeatable capability tag and is excluded from uniqueness.
             models.UniqueConstraint(
-                fields=["special_type"],
-                condition=~Q(
-                    special_type__in=[
-                        "property_taxes",
-                        "prepaid_expenses",
-                        "payroll_taxes",
+                fields=["system_role"],
+                condition=Q(
+                    system_role__in=[
+                        "wallet",
+                        "starting_equity",
+                        "unrealized_gains_and_losses",
                     ]
                 ),
-                name="unique_special_type_except_property_taxes",
-            )
+                name="unique_singleton_system_role",
+            ),
+            # At most one FEDERAL and one STATE tax expense account; PROPERTY and
+            # PAYROLL may repeat.
+            models.UniqueConstraint(
+                fields=["tax_kind"],
+                condition=Q(tax_kind__in=["federal", "state"]),
+                name="unique_federal_state_tax_kind",
+            ),
         ]
 
     def __str__(self):
@@ -756,12 +830,42 @@ class Account(models.Model):
     def clean(self):
         super().clean()
 
+        # Recommendation rate strategy: a tax account computes its recommended
+        # charge from either a percentage (tax_rate * taxable income) or a flat
+        # amount, never both.
         if self.tax_rate is not None and self.tax_amount is not None:
             raise ValidationError("Only one of tax_rate or tax_amount can be set.")
+
+        # Tax-account integrity: a tax expense account needs a liability to
+        # credit, and that liability must actually be a taxes-payable account.
+        if self.tax_kind and self.tax_payable_account is None:
+            raise ValidationError(
+                "A tax account (tax_kind set) must have a tax_payable_account."
+            )
+        if (
+            self.tax_payable_account is not None
+            and self.tax_payable_account.sub_type != Account.SubType.TAXES_PAYABLE
+        ):
+            raise ValidationError(
+                "tax_payable_account must be a taxes-payable liability account."
+            )
 
     @property
     def is_investment(self):
         return self.sub_type in Account.INVESTMENT_SUB_TYPES
+
+    @property
+    def is_income_tax(self):
+        """A federal/state/payroll tax expense account (post-tax savings rate)."""
+        return self.tax_kind in Account.INCOME_TAX_KINDS
+
+    @property
+    def is_starting_equity(self):
+        return self.system_role == Account.SystemRole.STARTING_EQUITY
+
+    @property
+    def is_unrealized_gains(self):
+        return self.system_role == Account.SystemRole.UNREALIZED_GAINS_AND_LOSSES
 
     @staticmethod
     def get_balance_from_debit_and_credit(account_type, debits, credits):

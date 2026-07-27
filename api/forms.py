@@ -534,7 +534,7 @@ class TransactionForm(forms.ModelForm):
         # Remove the 'None' option
         self.fields["type"].choices = Transaction.TransactionType.choices
         eligible_accounts = Account.objects.exclude(
-            special_type__in=[Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES],
+            system_role__in=[Account.SystemRole.UNREALIZED_GAINS_AND_LOSSES],
         ).filter(is_closed=False)
         account_tuples = [(account.name, account.name) for account in eligible_accounts]
         self.fields["suggested_account"].choices = account_tuples
@@ -584,7 +584,7 @@ class WalletForm(forms.ModelForm):
         self.fields["type"].initial = Transaction.TransactionType.PURCHASE
         eligible_accounts = Account.objects.filter(
             type__in=[Account.Type.INCOME, Account.Type.EXPENSE]
-        ).exclude(special_type=Account.SpecialType.WALLET)
+        ).exclude(system_role=Account.SystemRole.WALLET)
         self.fields["suggested_account"].choices = [
             (account.name, account.name) for account in eligible_accounts
         ]
@@ -600,7 +600,7 @@ class WalletForm(forms.ModelForm):
         if instance.type == Transaction.TransactionType.PURCHASE:
             instance.amount *= -1
 
-        wallet = Account.objects.get(special_type=Account.SpecialType.WALLET)
+        wallet = Account.objects.system(Account.SystemRole.WALLET)
         instance.account = wallet
 
         if commit:
@@ -612,9 +612,9 @@ class WalletForm(forms.ModelForm):
 class AccountForm(forms.ModelForm):
     """User-facing form for creating/editing accounts via the Settings page.
 
-    Exposes a curated subset of fields. System-managed fields (special_type,
-    tax_payable_account, tax_rate, tax_amount) are intentionally hidden so users
-    can't corrupt tax/statement behavior.
+    Exposes a curated subset of fields. System-managed fields (system_role,
+    tax_kind, tax_payable_account, tax_rate, tax_amount) are intentionally hidden
+    so users can't corrupt tax/statement behavior.
     """
 
     entity = forms.ModelChoiceField(

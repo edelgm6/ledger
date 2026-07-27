@@ -161,13 +161,7 @@ def get_tax_accounts() -> QuerySet:
     Single source of truth for "which accounts are taxes" — shared by the
     recommendations service, the tax forms, and bulk tax-charge creation.
     """
-    return Account.objects.filter(
-        special_type__in=[
-            Account.SpecialType.FEDERAL_TAXES,
-            Account.SpecialType.STATE_TAXES,
-            Account.SpecialType.PROPERTY_TAXES,
-        ]
-    )
+    return Account.objects.tax_expense_accounts()
 
 
 def get_tax_account_recommendations(

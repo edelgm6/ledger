@@ -24,40 +24,37 @@ class TaxesViewTest(TestCase):
             name='State Taxes Pay Account',
             type=Account.Type.LIABILITY,
             sub_type=Account.SubType.TAXES_PAYABLE,
-            special_type=Account.SpecialType.STATE_TAXES_PAYABLE
         )
         fed_pay_account = Account.objects.create(
             name='Fed Taxes Pay Account',
             type=Account.Type.LIABILITY,
             sub_type=Account.SubType.TAXES_PAYABLE,
-            special_type=Account.SpecialType.FEDERAL_TAXES_PAYABLE
         )
         property_pay_account = Account.objects.create(
             name='Prop Taxes Pay Account',
             type=Account.Type.LIABILITY,
             sub_type=Account.SubType.TAXES_PAYABLE,
-            special_type=Account.SpecialType.PROPERTY_TAXES_PAYABLE
         )
         # Now create the expense accounts and link to payable accounts
         Account.objects.create(
             name='State Taxes Account',
             type=Account.Type.EXPENSE,
             sub_type=Account.SubType.TAX,
-            special_type=Account.SpecialType.STATE_TAXES,
+            tax_kind=Account.TaxKind.STATE,
             tax_payable_account=state_pay_account
         )
         Account.objects.create(
             name='Fed Taxes Account',
             type=Account.Type.EXPENSE,
             sub_type=Account.SubType.TAX,
-            special_type=Account.SpecialType.FEDERAL_TAXES,
+            tax_kind=Account.TaxKind.FEDERAL,
             tax_payable_account=fed_pay_account
         )
         Account.objects.create(
             name='Prop Taxes Account',
             type=Account.Type.EXPENSE,
             sub_type=Account.SubType.TAX,
-            special_type=Account.SpecialType.PROPERTY_TAXES,
+            tax_kind=Account.TaxKind.PROPERTY,
             tax_payable_account=property_pay_account
         )
 

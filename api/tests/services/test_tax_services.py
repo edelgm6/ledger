@@ -89,7 +89,7 @@ class EnrichTaxChargesWithRatesTest(TestCase):
         # Create a tax account
         self.tax_account = AccountFactory(
             type=Account.Type.EXPENSE,
-            special_type=Account.SpecialType.FEDERAL_TAXES,
+            tax_kind=Account.TaxKind.FEDERAL,
             tax_payable_account=self.tax_payable,
         )
 
@@ -157,7 +157,7 @@ class EnrichTaxChargesWithRatesTest(TestCase):
         )
         second_tax_account = AccountFactory(
             type=Account.Type.EXPENSE,
-            special_type=Account.SpecialType.STATE_TAXES,
+            tax_kind=Account.TaxKind.STATE,
             tax_payable_account=second_tax_payable,
         )
 
@@ -230,12 +230,12 @@ class GetTaxAccountRecommendationsTest(TestCase):
         """Test returns recommendations for all tax accounts."""
         federal = AccountFactory(
             type=Account.Type.EXPENSE,
-            special_type=Account.SpecialType.FEDERAL_TAXES,
+            tax_kind=Account.TaxKind.FEDERAL,
             tax_rate=Decimal("0.25"),
         )
         state = AccountFactory(
             type=Account.Type.EXPENSE,
-            special_type=Account.SpecialType.STATE_TAXES,
+            tax_kind=Account.TaxKind.STATE,
             tax_rate=Decimal("0.05"),
         )
 
@@ -248,7 +248,7 @@ class GetTaxAccountRecommendationsTest(TestCase):
         """Test recommended tax uses tax_rate * taxable_income."""
         federal = AccountFactory(
             type=Account.Type.EXPENSE,
-            special_type=Account.SpecialType.FEDERAL_TAXES,
+            tax_kind=Account.TaxKind.FEDERAL,
             tax_rate=Decimal("0.25"),
             tax_amount=None,
         )
@@ -262,7 +262,7 @@ class GetTaxAccountRecommendationsTest(TestCase):
         """Test recommended tax uses tax_amount for fixed taxes."""
         property_tax = AccountFactory(
             type=Account.Type.EXPENSE,
-            special_type=Account.SpecialType.PROPERTY_TAXES,
+            tax_kind=Account.TaxKind.PROPERTY,
             tax_rate=None,
             tax_amount=Decimal("500.00"),
         )
@@ -276,7 +276,7 @@ class GetTaxAccountRecommendationsTest(TestCase):
         """Test recommended tax is None when account has no rate or amount."""
         federal = AccountFactory(
             type=Account.Type.EXPENSE,
-            special_type=Account.SpecialType.FEDERAL_TAXES,
+            tax_kind=Account.TaxKind.FEDERAL,
             tax_rate=None,
             tax_amount=None,
         )
@@ -291,12 +291,12 @@ class GetTaxAccountRecommendationsTest(TestCase):
         # Create a non-tax account
         AccountFactory(
             type=Account.Type.EXPENSE,
-            special_type=None,
+            tax_kind=None,
         )
         # Create a tax account
         federal = AccountFactory(
             type=Account.Type.EXPENSE,
-            special_type=Account.SpecialType.FEDERAL_TAXES,
+            tax_kind=Account.TaxKind.FEDERAL,
             tax_rate=Decimal("0.25"),
         )
 
@@ -304,7 +304,7 @@ class GetTaxAccountRecommendationsTest(TestCase):
 
         # Should only return the federal tax account
         self.assertEqual(len(result), 1)
-        self.assertEqual(result[0].account.special_type, Account.SpecialType.FEDERAL_TAXES)
+        self.assertEqual(result[0].account.tax_kind, Account.TaxKind.FEDERAL)
 
 
 class ApplyTaxRecommendationTest(TestCase):
@@ -315,7 +315,7 @@ class ApplyTaxRecommendationTest(TestCase):
         self.tax_payable = AccountFactory(type=Account.Type.LIABILITY)
         self.federal_account = AccountFactory(
             type=Account.Type.EXPENSE,
-            special_type=Account.SpecialType.FEDERAL_TAXES,
+            tax_kind=Account.TaxKind.FEDERAL,
             tax_payable_account=self.tax_payable,
             tax_rate=Decimal("0.25"),
             tax_amount=None,
@@ -387,7 +387,7 @@ class ApplyTaxRecommendationTest(TestCase):
         property_payable = AccountFactory(type=Account.Type.LIABILITY)
         property_account = AccountFactory(
             type=Account.Type.EXPENSE,
-            special_type=Account.SpecialType.PROPERTY_TAXES,
+            tax_kind=Account.TaxKind.PROPERTY,
             tax_payable_account=property_payable,
             tax_rate=None,
             tax_amount=Decimal("500.00"),
@@ -410,7 +410,7 @@ class ApplyTaxRecommendationTest(TestCase):
         no_rate_payable = AccountFactory(type=Account.Type.LIABILITY)
         no_rate_account = AccountFactory(
             type=Account.Type.EXPENSE,
-            special_type=Account.SpecialType.STATE_TAXES,
+            tax_kind=Account.TaxKind.STATE,
             tax_payable_account=no_rate_payable,
             tax_rate=None,
             tax_amount=None,
@@ -445,12 +445,12 @@ class GetFilteredTaxChargesTest(TestCase):
 
         self.federal_account = AccountFactory(
             type=Account.Type.EXPENSE,
-            special_type=Account.SpecialType.FEDERAL_TAXES,
+            tax_kind=Account.TaxKind.FEDERAL,
             tax_payable_account=self.federal_tax_payable,
         )
         self.state_account = AccountFactory(
             type=Account.Type.EXPENSE,
-            special_type=Account.SpecialType.STATE_TAXES,
+            tax_kind=Account.TaxKind.STATE,
             tax_payable_account=self.state_tax_payable,
         )
 

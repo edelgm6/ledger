@@ -210,7 +210,7 @@ class ValidateJournalEntryBalanceTest(TestCase):
         gains_account = AccountFactory(
             type=Account.Type.INCOME,
             sub_type=Account.SubType.UNREALIZED_INVESTMENT_GAINS,
-            special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES,
+            system_role=Account.SystemRole.UNREALIZED_GAINS_AND_LOSSES,
         )
         transaction = TransactionFactory(
             account=securities_account, amount=Decimal("100.00")
@@ -235,7 +235,7 @@ class ValidateJournalEntryBalanceTest(TestCase):
         gains_account = AccountFactory(
             type=Account.Type.INCOME,
             sub_type=Account.SubType.UNREALIZED_INVESTMENT_GAINS,
-            special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES,
+            system_role=Account.SystemRole.UNREALIZED_GAINS_AND_LOSSES,
         )
         transaction = TransactionFactory(
             account=receivable_account, amount=Decimal("100.00")
@@ -412,7 +412,7 @@ class SaveJournalEntryTest(TestCase):
         gains_account = AccountFactory(
             type=Account.Type.INCOME,
             sub_type=Account.SubType.UNREALIZED_INVESTMENT_GAINS,
-            special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES,
+            system_role=Account.SystemRole.UNREALIZED_GAINS_AND_LOSSES,
         )
         transaction = TransactionFactory(
             account=receivable_account, amount=Decimal("100.00"), is_closed=False

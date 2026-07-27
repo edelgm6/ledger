@@ -35,8 +35,8 @@ from .constants import (
     MUTATING_ACTIONS,
     RECHARACTERIZE_HISTORY_LIMIT,
     SAMPLE_LIMIT,
-    SWAP_BLOCKED_SPECIAL_TYPES,
     SWAP_BLOCKED_SUB_TYPES,
+    SWAP_BLOCKED_SYSTEM_ROLES,
     VALID_ENTRY_TYPES,
 )
 from .evaluation import EvaluatedOperation, _evaluate_operation
@@ -74,8 +74,8 @@ __all__ = [
     "MUTATING_ACTIONS",
     "RECHARACTERIZE_HISTORY_LIMIT",
     "SAMPLE_LIMIT",
-    "SWAP_BLOCKED_SPECIAL_TYPES",
     "SWAP_BLOCKED_SUB_TYPES",
+    "SWAP_BLOCKED_SYSTEM_ROLES",
     "VALID_ENTRY_TYPES",
     # resolution
     "is_swap_blocked_account",

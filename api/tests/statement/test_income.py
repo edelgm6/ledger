@@ -260,7 +260,7 @@ class IncomeStatementTest(TestCase):
 class PostTaxSavingsRateTest(TestCase):
     """Covers get_income_taxes / get_post_tax_savings_rate.
 
-    Income taxes are identified by ``special_type`` (federal, state, payroll)
+    Income taxes are identified by ``tax_kind`` (federal, state, payroll)
     so payroll counts regardless of its ``sub_type`` and property tax is
     excluded from the net-out.
     """
@@ -278,24 +278,24 @@ class PostTaxSavingsRateTest(TestCase):
         self.federal = Account.objects.create(
             name='9000-Federal Taxes', type=Account.Type.EXPENSE,
             sub_type=Account.SubType.TAX,
-            special_type=Account.SpecialType.FEDERAL_TAXES,
+            tax_kind=Account.TaxKind.FEDERAL,
         )
         self.state = Account.objects.create(
             name='9100-State Taxes', type=Account.Type.EXPENSE,
             sub_type=Account.SubType.TAX,
-            special_type=Account.SpecialType.STATE_TAXES,
+            tax_kind=Account.TaxKind.STATE,
         )
-        # Payroll deliberately lives under OPERATING to prove special_type,
+        # Payroll deliberately lives under OPERATING to prove tax_kind,
         # not sub_type, drives inclusion.
         self.payroll = Account.objects.create(
             name='9200-Payroll Taxes', type=Account.Type.EXPENSE,
             sub_type=Account.SubType.OPERATING,
-            special_type=Account.SpecialType.PAYROLL_TAXES,
+            tax_kind=Account.TaxKind.PAYROLL,
         )
         self.property_tax = Account.objects.create(
             name='9300-Property Taxes', type=Account.Type.EXPENSE,
             sub_type=Account.SubType.TAX,
-            special_type=Account.SpecialType.PROPERTY_TAXES,
+            tax_kind=Account.TaxKind.PROPERTY,
         )
         self.groceries = Account.objects.create(
             name='5000-Groceries', type=Account.Type.EXPENSE,

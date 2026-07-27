@@ -44,7 +44,7 @@ class Command(BaseCommand):
         except IndexError:
             self.stdout.write(
                 self.style.ERROR(
-                    "No account has special_type=STARTING_EQUITY, so the "
+                    "No account has system_role=STARTING_EQUITY, so the "
                     "discrepancy cannot be computed. This is a separate, more "
                     "serious problem than a bucketing residual."
                 )
@@ -92,7 +92,7 @@ class Command(BaseCommand):
             (
                 balance.amount
                 for balance in balance_sheet.balances
-                if balance.account.special_type == Account.SpecialType.STARTING_EQUITY
+                if balance.account.is_starting_equity
             ),
             Decimal("0"),
         )

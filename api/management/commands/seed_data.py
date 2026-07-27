@@ -13,37 +13,36 @@ class Command(BaseCommand):
                 "name": "Unrealized Gains and Losses",
                 "type": Account.Type.EQUITY,
                 "sub_type": Account.SubType.UNREALIZED_INVESTMENT_GAINS,
-                "special_type": Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES,
+                "system_role": Account.SystemRole.UNREALIZED_GAINS_AND_LOSSES,
             },
+            # Taxes-payable liabilities carry no marker; they are reached via the
+            # reverse of a tax account's tax_payable_account FK.
             {
                 "name": "State Taxes Payable",
                 "type": Account.Type.LIABILITY,
                 "sub_type": Account.SubType.TAXES_PAYABLE,
-                "special_type": Account.SpecialType.STATE_TAXES_PAYABLE,
             },
             {
                 "name": "Federal Taxes Payable",
                 "type": Account.Type.LIABILITY,
                 "sub_type": Account.SubType.TAXES_PAYABLE,
-                "special_type": Account.SpecialType.FEDERAL_TAXES_PAYABLE,
             },
             {
                 "name": "Property Taxes Payable",
                 "type": Account.Type.LIABILITY,
                 "sub_type": Account.SubType.TAXES_PAYABLE,
-                "special_type": Account.SpecialType.PROPERTY_TAXES_PAYABLE,
             },
             {
                 "name": "Wallet",
                 "type": Account.Type.ASSET,
                 "sub_type": Account.SubType.CASH,
-                "special_type": Account.SpecialType.WALLET,
+                "system_role": Account.SystemRole.WALLET,
             },
             {
                 "name": "Prepaid Expenses",
                 "type": Account.Type.ASSET,
                 "sub_type": Account.SubType.PREPAID_EXPENSES,
-                "special_type": Account.SpecialType.PREPAID_EXPENSES,
+                "system_role": Account.SystemRole.PREPAID_EXPENSES,
             },
             # Add one account for each subtype
             {
@@ -86,7 +85,7 @@ class Command(BaseCommand):
 
         # Optionally, create some Transactions if needed
         if Account.objects.exists():
-            wallet_account = Account.objects.get(name="Wallet")
+            wallet_account = Account.objects.system(Account.SystemRole.WALLET)
             Transaction.objects.get_or_create(
                 date="2024-01-01",
                 account=wallet_account,

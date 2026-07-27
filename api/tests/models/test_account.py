@@ -1,4 +1,5 @@
 from decimal import Decimal
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.test import TestCase
 from api.tests.testing_factories import AccountFactory, JournalEntryItemFactory, JournalEntryFactory
@@ -80,3 +81,82 @@ class AccountModelTest(TestCase):
         for sub_type in [Account.SubType.CASH, Account.SubType.ACCOUNTS_RECEIVABLE]:
             account = AccountFactory(type=Account.Type.ASSET, sub_type=sub_type)
             self.assertFalse(account.is_investment)
+
+
+class AccountCleanTest(TestCase):
+    def _payable(self):
+        return AccountFactory(
+            type=Account.Type.LIABILITY, sub_type=Account.SubType.TAXES_PAYABLE
+        )
+
+    def _tax_account(self, payable):
+        return AccountFactory(
+            type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.TAX,
+            tax_kind=Account.TaxKind.FEDERAL,
+            tax_payable_account=payable,
+        )
+
+    def test_tax_rate_and_amount_mutually_exclusive(self):
+        account = AccountFactory(tax_rate=Decimal("0.25"), tax_amount=Decimal("100.00"))
+        with self.assertRaises(ValidationError):
+            account.clean()
+
+    def test_tax_kind_requires_payable_account(self):
+        account = self._tax_account(payable=None)
+        with self.assertRaises(ValidationError):
+            account.clean()
+
+    def test_payable_account_must_be_taxes_payable_subtype(self):
+        wrong = AccountFactory(type=Account.Type.ASSET, sub_type=Account.SubType.CASH)
+        account = self._tax_account(payable=wrong)
+        with self.assertRaises(ValidationError):
+            account.clean()
+
+    def test_valid_tax_account_pairing_passes(self):
+        account = self._tax_account(payable=self._payable())
+        account.clean()  # should not raise
+
+
+class AccountManagerTest(TestCase):
+    def test_system_returns_singleton_by_role(self):
+        wallet = AccountFactory(
+            type=Account.Type.ASSET,
+            sub_type=Account.SubType.CASH,
+            system_role=Account.SystemRole.WALLET,
+        )
+        self.assertEqual(
+            Account.objects.system(Account.SystemRole.WALLET), wallet
+        )
+
+    def test_tax_expense_vs_income_tax_groupings(self):
+        kinds = {
+            Account.TaxKind.FEDERAL: AccountFactory(
+                type=Account.Type.EXPENSE, sub_type=Account.SubType.TAX,
+                tax_kind=Account.TaxKind.FEDERAL,
+            ),
+            Account.TaxKind.STATE: AccountFactory(
+                type=Account.Type.EXPENSE, sub_type=Account.SubType.TAX,
+                tax_kind=Account.TaxKind.STATE,
+            ),
+            Account.TaxKind.PROPERTY: AccountFactory(
+                type=Account.Type.EXPENSE, sub_type=Account.SubType.TAX,
+                tax_kind=Account.TaxKind.PROPERTY,
+            ),
+            Account.TaxKind.PAYROLL: AccountFactory(
+                type=Account.Type.EXPENSE, sub_type=Account.SubType.OPERATING,
+                tax_kind=Account.TaxKind.PAYROLL,
+            ),
+        }
+        # tax_expense = federal/state/property (excludes payroll)
+        self.assertEqual(
+            set(Account.objects.tax_expense_accounts()),
+            {kinds[Account.TaxKind.FEDERAL], kinds[Account.TaxKind.STATE],
+             kinds[Account.TaxKind.PROPERTY]},
+        )
+        # income_tax = federal/state/payroll (excludes property)
+        self.assertEqual(
+            set(Account.objects.income_tax_accounts()),
+            {kinds[Account.TaxKind.FEDERAL], kinds[Account.TaxKind.STATE],
+             kinds[Account.TaxKind.PAYROLL]},
+        )

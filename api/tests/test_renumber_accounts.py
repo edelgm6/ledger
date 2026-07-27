@@ -38,17 +38,17 @@ class RenumberAccountsTest(TestCase):
         first = AccountFactory(name="4020-Account One")
         second = AccountFactory(
             name="4100-Account Two",
-            special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES,
+            system_role=Account.SystemRole.UNREALIZED_GAINS_AND_LOSSES,
         )
         self._run()
         first.refresh_from_db()
         second.refresh_from_db()
         self.assertEqual(first.name, "4100-Account One")
         self.assertEqual(second.name, "4400-Account Two")
-        # special_type is left untouched by the rename.
+        # system_role is left untouched by the rename.
         self.assertEqual(
-            second.special_type,
-            Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES,
+            second.system_role,
+            Account.SystemRole.UNREALIZED_GAINS_AND_LOSSES,
         )
 
     def test_rebands_account_into_correct_band(self):
