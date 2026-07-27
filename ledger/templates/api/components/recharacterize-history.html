@@ -3,30 +3,35 @@
     <p class="muted">Applied operations you can revert. Older changes age out automatically.</p>
 
     {% if history %}
-        {% for change in history %}
-        <div class="card mt-2">
-            <div class="flex flex-between gap-3">
-                <div>
-                    <div><strong>{{ change.action_summary }}</strong></div>
-                    {% if change.criteria_summary %}
-                    <div class="muted mt-2">{{ change.criteria_summary }}</div>
-                    {% endif %}
-                    <div class="muted mt-2">
-                        {{ change.updated_count }} item{{ change.updated_count|pluralize }}
-                        · {{ change.created_at|date:"M j, Y g:i A" }}
-                    </div>
-                </div>
-                <div>
-                    {% if change.is_reverted %}
-                    <span class="muted">Reverted {{ change.reverted_at|date:"M j, Y g:i A" }}</span>
-                    {% else %}
-                    {% url 'recharacterize-revert' as revert_url %}
-                    {% include "api/components/_inline-confirm-button.html" with trigger_label="Revert" confirm_url=revert_url confirm_param="change" confirm_value=change.id %}
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        {% endfor %}
+        {% url 'recharacterize-revert' as revert_url %}
+        <table class="table mt-2">
+            <thead>
+                <tr>
+                    <th>Action</th>
+                    <th>Match</th>
+                    <th class="right">Items</th>
+                    <th>Applied</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for change in history %}
+                <tr>
+                    <td class="td-strong">{{ change.action_summary }}</td>
+                    <td class="cell-clip muted">{{ change.criteria_summary|default:"—" }}</td>
+                    <td class="right">{{ change.updated_count }}</td>
+                    <td class="muted">{{ change.created_at|date:"M j, Y g:i A" }}</td>
+                    <td class="right">
+                        {% if change.is_reverted %}
+                        <span class="muted">Reverted {{ change.reverted_at|date:"M j, Y g:i A" }}</span>
+                        {% else %}
+                        {% include "api/components/_inline-confirm-button.html" with trigger_label="Revert" confirm_url=revert_url confirm_param="change" confirm_value=change.id %}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     {% else %}
         <p class="muted">No changes applied yet.</p>
     {% endif %}
