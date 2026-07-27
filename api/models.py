@@ -590,21 +590,13 @@ class AccountManager(models.Manager):
     def tax_expense_accounts(self):
         """The manually-charged tax expense accounts (federal, state, property).
 
-        Single source of truth for "which accounts are taxes" for the
-        recommendations service, the tax forms, and bulk tax-charge creation.
-        Deliberately distinct from ``income_tax_accounts`` (see the grouping
-        constants on ``Account``).
+        Single source of truth for "which accounts are taxes" — the
+        recommendations service, the tax forms, and bulk tax-charge creation all
+        resolve to this queryset. The post-tax savings rate uses a different
+        grouping (federal/state/payroll) via the ``Account.is_income_tax``
+        property; the divergence is intentional (see the grouping constants).
         """
         return self.filter(tax_kind__in=Account.TAX_EXPENSE_KINDS)
-
-    def income_tax_accounts(self):
-        """Income tax accounts for the post-tax savings rate (federal, state, payroll).
-
-        Includes payroll and excludes property — the opposite trade-off from
-        ``tax_expense_accounts``. The divergence is intentional; see the
-        grouping-constant comments on ``Account``.
-        """
-        return self.filter(tax_kind__in=Account.INCOME_TAX_KINDS)
 
 
 class Account(models.Model):
@@ -721,20 +713,18 @@ class Account(models.Model):
         SubType.VEHICLES,
     ]
 
-    # Manually-charged tax expense accounts: federal, state, and property.
-    # Used by the recommendations service, tax forms, and bulk tax-charge
-    # creation (Account.objects.tax_expense_accounts()). Excludes payroll, which
-    # is withheld rather than charged. Deliberately different from
-    # INCOME_TAX_KINDS below.
+    # Manually-charged taxes (excludes payroll, which is withheld). Membership
+    # for Account.objects.tax_expense_accounts(); intentionally differs from
+    # INCOME_TAX_KINDS.
     TAX_EXPENSE_KINDS = (
         TaxKind.FEDERAL,
         TaxKind.STATE,
         TaxKind.PROPERTY,
     )
 
-    # Income taxes for the post-tax savings rate: federal, state, and payroll
-    # withholding. Property tax is intentionally excluded — it isn't income-based.
-    # Deliberately different from TAX_EXPENSE_KINDS above.
+    # Income-based taxes for the post-tax savings rate (excludes property).
+    # Membership for the Account.is_income_tax property; intentionally differs
+    # from TAX_EXPENSE_KINDS.
     INCOME_TAX_KINDS = (
         TaxKind.FEDERAL,
         TaxKind.STATE,
