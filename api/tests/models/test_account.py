@@ -129,34 +129,27 @@ class AccountManagerTest(TestCase):
             Account.objects.system(Account.SystemRole.WALLET), wallet
         )
 
-    def test_tax_expense_vs_income_tax_groupings(self):
+    def test_tax_expense_accounts_and_income_tax_divergence(self):
         kinds = {
-            Account.TaxKind.FEDERAL: AccountFactory(
-                type=Account.Type.EXPENSE, sub_type=Account.SubType.TAX,
-                tax_kind=Account.TaxKind.FEDERAL,
-            ),
-            Account.TaxKind.STATE: AccountFactory(
-                type=Account.Type.EXPENSE, sub_type=Account.SubType.TAX,
-                tax_kind=Account.TaxKind.STATE,
-            ),
-            Account.TaxKind.PROPERTY: AccountFactory(
-                type=Account.Type.EXPENSE, sub_type=Account.SubType.TAX,
-                tax_kind=Account.TaxKind.PROPERTY,
-            ),
-            Account.TaxKind.PAYROLL: AccountFactory(
-                type=Account.Type.EXPENSE, sub_type=Account.SubType.OPERATING,
-                tax_kind=Account.TaxKind.PAYROLL,
-            ),
+            kind: AccountFactory(
+                type=Account.Type.EXPENSE, sub_type=Account.SubType.TAX, tax_kind=kind
+            )
+            for kind in (
+                Account.TaxKind.FEDERAL,
+                Account.TaxKind.STATE,
+                Account.TaxKind.PROPERTY,
+                Account.TaxKind.PAYROLL,
+            )
         }
-        # tax_expense = federal/state/property (excludes payroll)
+        # tax_expense_accounts() = federal/state/property (excludes payroll)
         self.assertEqual(
             set(Account.objects.tax_expense_accounts()),
             {kinds[Account.TaxKind.FEDERAL], kinds[Account.TaxKind.STATE],
              kinds[Account.TaxKind.PROPERTY]},
         )
-        # income_tax = federal/state/payroll (excludes property)
+        # is_income_tax = federal/state/payroll (excludes property) — the
+        # opposite trade-off; this is the intentional divergence.
         self.assertEqual(
-            set(Account.objects.income_tax_accounts()),
-            {kinds[Account.TaxKind.FEDERAL], kinds[Account.TaxKind.STATE],
-             kinds[Account.TaxKind.PAYROLL]},
+            {k for k, a in kinds.items() if a.is_income_tax},
+            {Account.TaxKind.FEDERAL, Account.TaxKind.STATE, Account.TaxKind.PAYROLL},
         )

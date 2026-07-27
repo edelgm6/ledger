@@ -155,12 +155,7 @@ def enrich_tax_charges_with_rates(
 
 
 def get_tax_accounts() -> QuerySet:
-    """
-    Return the tax expense accounts (federal, state, property).
-
-    Single source of truth for "which accounts are taxes" — shared by the
-    recommendations service, the tax forms, and bulk tax-charge creation.
-    """
+    """Service-layer entry point; delegates to ``Account.objects.tax_expense_accounts()``."""
     return Account.objects.tax_expense_accounts()
 
 
