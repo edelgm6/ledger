@@ -251,7 +251,7 @@ def validate_unrealized_gains_offset(
 ) -> Optional[str]:
     """Enforce the unrealized-gains / cash-flow invariant at the write layer.
 
-    A credit to the unrealized-gains account (special_type
+    A credit to the unrealized-gains account (system_role
     UNREALIZED_GAINS_AND_LOSSES) marks an asset to fair value. The cash-flow
     statement only cancels that mark cleanly when the offsetting debit is an
     investment account (Account.INVESTMENT_SUB_TYPES). Marking any other account
@@ -263,9 +263,7 @@ def validate_unrealized_gains_offset(
     entries are unaffected.
     """
     credits_unrealized_gains = any(
-        item.get("account")
-        and item["account"].special_type
-        == Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES
+        item.get("account") and item["account"].is_unrealized_gains
         for item in credits_data
     )
     if not credits_unrealized_gains:

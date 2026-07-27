@@ -58,7 +58,7 @@ class AmortizationTableMixin:
         # Get all JEIs where it's a prepaid expense account, there is no
         # existing amortization, and it's not part of an amortizing txn
         unattached_journal_entries = JournalEntryItem.objects.filter(
-            account__special_type=Account.SpecialType.PREPAID_EXPENSES,
+            account__system_role=Account.SystemRole.PREPAID_EXPENSES,
             amortization__isnull=True,
             journal_entry__transaction__amortization__isnull=True,
         ).select_related("journal_entry__transaction", "account")

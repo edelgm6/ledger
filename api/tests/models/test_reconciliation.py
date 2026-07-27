@@ -44,7 +44,7 @@ class ReconciliationTests(TestCase):
         today = datetime.date.today()
         unrealized_account = AccountFactory(
             type=Account.Type.INCOME,
-            special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES
+            system_role=Account.SystemRole.UNREALIZED_GAINS_AND_LOSSES
         )
         investment_account = AccountFactory(
             name='brokerage',
@@ -119,7 +119,7 @@ class ReconciliationTests(TestCase):
         today = datetime.date.today()
         AccountFactory(
             type=Account.Type.INCOME,
-            special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES
+            system_role=Account.SystemRole.UNREALIZED_GAINS_AND_LOSSES
         )
         investment_account = AccountFactory(
             name='vanguard',

@@ -8,16 +8,16 @@ from decimal import Decimal
 class TaxChargeModelTests(TestCase):
 
     def setUp(self):
-        self.property_tax_account = AccountFactory(special_type=Account.SpecialType.PROPERTY_TAXES, type=Account.Type.EXPENSE)
-        self.property_tax_payable_account = AccountFactory(special_type=Account.SpecialType.PROPERTY_TAXES_PAYABLE, type=Account.Type.LIABILITY)
+        self.property_tax_account = AccountFactory(tax_kind=Account.TaxKind.PROPERTY, type=Account.Type.EXPENSE)
+        self.property_tax_payable_account = AccountFactory(type=Account.Type.LIABILITY, sub_type=Account.SubType.TAXES_PAYABLE)
         # Link the tax account to its payable account
         self.property_tax_account.tax_payable_account = self.property_tax_payable_account
         self.property_tax_account.save()
 
-        self.state_tax_account = AccountFactory(special_type=Account.SpecialType.STATE_TAXES, type=Account.Type.EXPENSE)
-        self.state_tax_payable_account = AccountFactory(special_type=Account.SpecialType.STATE_TAXES_PAYABLE, type=Account.Type.LIABILITY)
-        self.federal_tax_account = AccountFactory(special_type=Account.SpecialType.FEDERAL_TAXES, type=Account.Type.EXPENSE)
-        self.federal_tax_payable_account = AccountFactory(special_type=Account.SpecialType.FEDERAL_TAXES_PAYABLE, type=Account.Type.LIABILITY)
+        self.state_tax_account = AccountFactory(tax_kind=Account.TaxKind.STATE, type=Account.Type.EXPENSE)
+        self.state_tax_payable_account = AccountFactory(type=Account.Type.LIABILITY, sub_type=Account.SubType.TAXES_PAYABLE)
+        self.federal_tax_account = AccountFactory(tax_kind=Account.TaxKind.FEDERAL, type=Account.Type.EXPENSE)
+        self.federal_tax_payable_account = AccountFactory(type=Account.Type.LIABILITY, sub_type=Account.SubType.TAXES_PAYABLE)
 
     def test_create_tax_charge(self):
         # Test creating a TaxCharge instance

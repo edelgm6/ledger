@@ -163,43 +163,46 @@ class Command(BaseCommand):
         """Create chart of accounts."""
         accounts = {}
 
-        # Special accounts required by the system
+        # Special accounts required by the system.
+        # (name, type, sub_type, system_role, tax_kind). Taxes-payable
+        # liabilities carry neither marker — they're reached via the reverse of
+        # a tax account's tax_payable_account FK.
+        SR = Account.SystemRole
+        TK = Account.TaxKind
         special_accounts = [
-            ('Unrealized Gains and Losses', Account.Type.INCOME, Account.SubType.UNREALIZED_INVESTMENT_GAINS, Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES),
-            ('State Taxes Payable', Account.Type.LIABILITY, Account.SubType.TAXES_PAYABLE, Account.SpecialType.STATE_TAXES_PAYABLE),
-            ('Federal Taxes Payable', Account.Type.LIABILITY, Account.SubType.TAXES_PAYABLE, Account.SpecialType.FEDERAL_TAXES_PAYABLE),
-            ('Property Taxes Payable', Account.Type.LIABILITY, Account.SubType.TAXES_PAYABLE, Account.SpecialType.PROPERTY_TAXES_PAYABLE),
-            ('State Taxes', Account.Type.EXPENSE, Account.SubType.TAX, Account.SpecialType.STATE_TAXES),
-            ('Federal Taxes', Account.Type.EXPENSE, Account.SubType.TAX, Account.SpecialType.FEDERAL_TAXES),
-            ('Property Taxes', Account.Type.EXPENSE, Account.SubType.TAX, Account.SpecialType.PROPERTY_TAXES),
-            ('Wallet', Account.Type.ASSET, Account.SubType.CASH, Account.SpecialType.WALLET),
-            ('Prepaid Expenses', Account.Type.ASSET, Account.SubType.PREPAID_EXPENSES, Account.SpecialType.PREPAID_EXPENSES),
-            ('Starting Equity', Account.Type.EQUITY, Account.SubType.RETAINED_EARNINGS, Account.SpecialType.STARTING_EQUITY),
+            ('Unrealized Gains and Losses', Account.Type.INCOME, Account.SubType.UNREALIZED_INVESTMENT_GAINS, SR.UNREALIZED_GAINS_AND_LOSSES, None),
+            ('State Taxes Payable', Account.Type.LIABILITY, Account.SubType.TAXES_PAYABLE, None, None),
+            ('Federal Taxes Payable', Account.Type.LIABILITY, Account.SubType.TAXES_PAYABLE, None, None),
+            ('Property Taxes Payable', Account.Type.LIABILITY, Account.SubType.TAXES_PAYABLE, None, None),
+            ('State Taxes', Account.Type.EXPENSE, Account.SubType.TAX, None, TK.STATE),
+            ('Federal Taxes', Account.Type.EXPENSE, Account.SubType.TAX, None, TK.FEDERAL),
+            ('Property Taxes', Account.Type.EXPENSE, Account.SubType.TAX, None, TK.PROPERTY),
+            ('Wallet', Account.Type.ASSET, Account.SubType.CASH, SR.WALLET, None),
+            ('Prepaid Expenses', Account.Type.ASSET, Account.SubType.PREPAID_EXPENSES, SR.PREPAID_EXPENSES, None),
+            ('Starting Equity', Account.Type.EQUITY, Account.SubType.RETAINED_EARNINGS, SR.STARTING_EQUITY, None),
         ]
 
-        for name, acct_type, sub_type, special_type in special_accounts:
+        for name, acct_type, sub_type, system_role, tax_kind in special_accounts:
             account, _ = Account.objects.get_or_create(
                 name=name,
                 defaults={
                     'type': acct_type,
                     'sub_type': sub_type,
-                    'special_type': special_type,
+                    'system_role': system_role,
+                    'tax_kind': tax_kind,
                 }
             )
             accounts[name.lower().replace(' ', '_').replace('-', '_')] = account
 
-        # Link tax accounts to payable accounts
-        state_taxes = Account.objects.get(special_type=Account.SpecialType.STATE_TAXES)
-        state_taxes.tax_payable_account = Account.objects.get(special_type=Account.SpecialType.STATE_TAXES_PAYABLE)
-        state_taxes.save()
-
-        federal_taxes = Account.objects.get(special_type=Account.SpecialType.FEDERAL_TAXES)
-        federal_taxes.tax_payable_account = Account.objects.get(special_type=Account.SpecialType.FEDERAL_TAXES_PAYABLE)
-        federal_taxes.save()
-
-        property_taxes = Account.objects.get(special_type=Account.SpecialType.PROPERTY_TAXES)
-        property_taxes.tax_payable_account = Account.objects.get(special_type=Account.SpecialType.PROPERTY_TAXES_PAYABLE)
-        property_taxes.save()
+        # Link tax expense accounts to their payable liabilities (by name).
+        for kind, payable_name in (
+            (TK.STATE, 'State Taxes Payable'),
+            (TK.FEDERAL, 'Federal Taxes Payable'),
+            (TK.PROPERTY, 'Property Taxes Payable'),
+        ):
+            tax_account = Account.objects.get(tax_kind=kind)
+            tax_account.tax_payable_account = Account.objects.get(name=payable_name)
+            tax_account.save()
 
         # Regular accounts - Assets
         regular_accounts = [

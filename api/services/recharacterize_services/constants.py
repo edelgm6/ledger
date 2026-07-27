@@ -13,9 +13,9 @@ from api.models import Account, JournalEntryItem
 # and Reconciliation.plug_investment_change), so their balances must never be
 # moved by an account swap. Their items may still be re-tagged with an entity —
 # entity tagging never touches a balance — so this set blocks account swaps only.
-SWAP_BLOCKED_SPECIAL_TYPES = [
-    Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES,
-    Account.SpecialType.STARTING_EQUITY,
+SWAP_BLOCKED_SYSTEM_ROLES = [
+    Account.SystemRole.UNREALIZED_GAINS_AND_LOSSES,
+    Account.SystemRole.STARTING_EQUITY,
 ]
 SWAP_BLOCKED_SUB_TYPES = [
     Account.SubType.RETAINED_EARNINGS,

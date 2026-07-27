@@ -22,9 +22,9 @@ from api.models import (
 
 def create_special_accounts():
     """
-    Create all special_type accounts needed by TaxCharge, Reconciliation, and Amortization.
+    Create all special-role accounts needed by TaxCharge, Reconciliation, and Amortization.
 
-    Returns a dict keyed by special_type value for easy access.
+    Returns a dict keyed by a stable short name for easy access.
     """
     special_accounts = {}
 
@@ -33,39 +33,37 @@ def create_special_accounts():
         name='State Taxes',
         type=Account.Type.EXPENSE,
         sub_type=Account.SubType.TAX,
-        special_type=Account.SpecialType.STATE_TAXES,
+        tax_kind=Account.TaxKind.STATE,
     )
     special_accounts['federal_taxes'] = Account.objects.create(
         name='Federal Taxes',
         type=Account.Type.EXPENSE,
         sub_type=Account.SubType.TAX,
-        special_type=Account.SpecialType.FEDERAL_TAXES,
+        tax_kind=Account.TaxKind.FEDERAL,
     )
     special_accounts['property_taxes'] = Account.objects.create(
         name='Property Taxes',
         type=Account.Type.EXPENSE,
         sub_type=Account.SubType.TAX,
-        special_type=Account.SpecialType.PROPERTY_TAXES,
+        tax_kind=Account.TaxKind.PROPERTY,
     )
 
-    # Tax payable (liability) accounts - linked to their expense counterparts
+    # Tax payable (liability) accounts - reached via each expense account's
+    # tax_payable_account FK; they carry no role marker of their own.
     special_accounts['state_taxes_payable'] = Account.objects.create(
         name='State Taxes Payable',
         type=Account.Type.LIABILITY,
         sub_type=Account.SubType.TAXES_PAYABLE,
-        special_type=Account.SpecialType.STATE_TAXES_PAYABLE,
     )
     special_accounts['federal_taxes_payable'] = Account.objects.create(
         name='Federal Taxes Payable',
         type=Account.Type.LIABILITY,
         sub_type=Account.SubType.TAXES_PAYABLE,
-        special_type=Account.SpecialType.FEDERAL_TAXES_PAYABLE,
     )
     special_accounts['property_taxes_payable'] = Account.objects.create(
         name='Property Taxes Payable',
         type=Account.Type.LIABILITY,
         sub_type=Account.SubType.TAXES_PAYABLE,
-        special_type=Account.SpecialType.PROPERTY_TAXES_PAYABLE,
     )
 
     # Link tax expense accounts to their payable accounts
@@ -81,25 +79,25 @@ def create_special_accounts():
         name='Unrealized Gains and Losses',
         type=Account.Type.INCOME,
         sub_type=Account.SubType.UNREALIZED_INVESTMENT_GAINS,
-        special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES,
+        system_role=Account.SystemRole.UNREALIZED_GAINS_AND_LOSSES,
     )
     special_accounts['wallet'] = Account.objects.create(
         name='Wallet',
         type=Account.Type.ASSET,
         sub_type=Account.SubType.CASH,
-        special_type=Account.SpecialType.WALLET,
+        system_role=Account.SystemRole.WALLET,
     )
     special_accounts['prepaid_expenses'] = Account.objects.create(
         name='Prepaid Expenses',
         type=Account.Type.ASSET,
         sub_type=Account.SubType.PREPAID_EXPENSES,
-        special_type=Account.SpecialType.PREPAID_EXPENSES,
+        system_role=Account.SystemRole.PREPAID_EXPENSES,
     )
     special_accounts['starting_equity'] = Account.objects.create(
         name='Starting Equity',
         type=Account.Type.EQUITY,
         sub_type=Account.SubType.RETAINED_EARNINGS,
-        special_type=Account.SpecialType.STARTING_EQUITY,
+        system_role=Account.SystemRole.STARTING_EQUITY,
     )
 
     return special_accounts
@@ -110,11 +108,11 @@ def create_chart_of_accounts(include_special=True):
     Create a complete chart of accounts covering all types and subtypes.
 
     Args:
-        include_special: If True, also creates all special_type accounts
+        include_special: If True, also creates all special-role accounts
 
     Returns a dict with two keys:
         - 'accounts': dict of regular accounts keyed by name
-        - 'special': dict of special accounts keyed by special_type (if include_special=True)
+        - 'special': dict of special accounts keyed by short name (if include_special=True)
     """
     result = {'accounts': {}, 'special': {}}
 

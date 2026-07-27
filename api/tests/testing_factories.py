@@ -30,7 +30,8 @@ class AccountFactory(factory.django.DjangoModelFactory):
     type = factory.Iterator(Account.Type.choices, getter=lambda c: c[0])
     sub_type = factory.Iterator(Account.SubType.choices, getter=lambda c: c[0])
     csv_profile = factory.SubFactory(CSVProfileFactory)
-    special_type = None
+    system_role = None
+    tax_kind = None
     is_closed = factory.Faker('boolean')
 
 # Transaction Factory

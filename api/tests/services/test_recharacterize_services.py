@@ -89,7 +89,7 @@ class RecharacterizeServicesTest(TestCase):
         self.starting_equity = AccountFactory(
             name="Starting Equity",
             type=Account.Type.EQUITY,
-            special_type=Account.SpecialType.STARTING_EQUITY,
+            system_role=Account.SystemRole.STARTING_EQUITY,
             is_closed=False,
         )
         self.ally_bank = EntityFactory(name="Ally Bank")
@@ -225,7 +225,7 @@ class RecharacterizeServicesTest(TestCase):
             name="Unrealized Gains",
             type=Account.Type.INCOME,
             sub_type=Account.SubType.UNREALIZED_INVESTMENT_GAINS,
-            special_type=Account.SpecialType.UNREALIZED_GAINS_AND_LOSSES,
+            system_role=Account.SystemRole.UNREALIZED_GAINS_AND_LOSSES,
             is_closed=False,
         )
         ops = [
@@ -845,7 +845,7 @@ class BuildManualOperationTest(TestCase):
         self.starting_equity = AccountFactory(
             name="Starting Equity",
             type=Account.Type.EQUITY,
-            special_type=Account.SpecialType.STARTING_EQUITY,
+            system_role=Account.SystemRole.STARTING_EQUITY,
             is_closed=False,
         )
         self.ally_bank = EntityFactory(name="Ally Bank")

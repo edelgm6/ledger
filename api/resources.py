@@ -8,12 +8,13 @@ from .models import Account, JournalEntry, JournalEntryItem, Transaction
 class AccountResource(resources.ModelResource):
     class Meta:
         model = Account
-        fields = ("id", "name", "type", "sub_type", "special_type", "is_closed")
+        fields = ("id", "name", "type", "sub_type", "system_role", "tax_kind", "is_closed")
 
     def before_import_row(self, row, **kwargs):
-        # If 'special_type' in row and it's empty, set it explicitly to None
-        if "special_type" in row and not row["special_type"].strip():
-            row["special_type"] = None
+        # Blank role/kind cells import as NULL rather than empty strings.
+        for column in ("system_role", "tax_kind"):
+            if column in row and not row[column].strip():
+                row[column] = None
 
 
 class JournalEntryItemResource(resources.ModelResource):

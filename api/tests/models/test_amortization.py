@@ -10,7 +10,7 @@ class AmortizationTests(TestCase):
     def setUp(self):
         self.suggested_account = AccountFactory.create()
         self.prepaid_account = AccountFactory(
-            special_type=Account.SpecialType.PREPAID_EXPENSES
+            system_role=Account.SystemRole.PREPAID_EXPENSES
         )
         # Create a JournalEntryItem for the accrued_journal_entry_item field
         transaction = TransactionFactory.create()

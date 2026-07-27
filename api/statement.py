@@ -279,7 +279,7 @@ class CashFlowStatement(Statement):
         starting_equity = [
             balance
             for balance in self.end_balance_sheet.balances
-            if balance.account.special_type == Account.SpecialType.STARTING_EQUITY
+            if balance.account.is_starting_equity
         ][0]
 
         measured_cash_flow = self.net_cash_flow + starting_equity.amount
@@ -623,13 +623,13 @@ class IncomeStatement(Statement):
     def get_income_taxes(self):
         """Federal + state + payroll taxes; excludes property tax.
 
-        Identifies tax accounts by ``special_type`` so payroll taxes count
+        Identifies tax accounts by ``tax_kind`` so payroll taxes count
         regardless of their ``sub_type`` and property tax stays excluded.
         """
         return sum(
             balance.amount
             for balance in self.balances
-            if balance.account.special_type in Account.INCOME_TAX_SPECIAL_TYPES
+            if balance.account.is_income_tax
         )
 
     def get_post_tax_savings_rate(self):

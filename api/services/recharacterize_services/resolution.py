@@ -12,14 +12,14 @@ from api.models import Account, Entity
 
 from .constants import (
     MUTATING_ACTIONS,
-    SWAP_BLOCKED_SPECIAL_TYPES,
     SWAP_BLOCKED_SUB_TYPES,
+    SWAP_BLOCKED_SYSTEM_ROLES,
 )
 
 
 def is_swap_blocked_account(account: Account) -> bool:
     return (
-        account.special_type in SWAP_BLOCKED_SPECIAL_TYPES
+        account.system_role in SWAP_BLOCKED_SYSTEM_ROLES
         or account.sub_type in SWAP_BLOCKED_SUB_TYPES
     )
 
