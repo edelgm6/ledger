@@ -132,6 +132,8 @@ h4, h5 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--space-2); 
 .grid-tight { gap: var(--space-3); }
 /* Wide main pane + narrower side pane (e.g. table + detail/paystubs) */
 .grid-main-side { grid-template-columns: 2fr 1fr; }
+/* Guard against grid content blowout so tracks hold their ratio */
+.grid-main-side > * { min-width: 0; }
 /* Auto-flowing responsive columns (no breakpoint needed) */
 .grid-auto { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 .grid-end { align-items: end; }
@@ -560,6 +562,7 @@ h4, h5 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--space-2); 
 .gap-3 { gap: var(--space-3); }
 .sticky-pane { position: sticky; top: 1rem; }
 .cell-clip { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cell-wrap { max-width: 260px; white-space: normal; overflow-wrap: anywhere; }
 
 .hidden { display: none; }
 .mt-0 { margin-top: 0; }   .mb-0 { margin-bottom: 0; }
