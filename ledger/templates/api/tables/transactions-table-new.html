@@ -22,7 +22,7 @@
                 <td class="td-name">{{ transaction.date }}</td>
                 <td>{{ transaction.account }}</td>
                 <td>${{ transaction.amount|floatformat:2|intcomma }}</td>
-                <td>{{ transaction.description }}</td>
+                <td><div class="cell-wrap">{{ transaction.description }}</div></td>
                 <td class="td-muted">{{ transaction.get_type_display }}</td>
             </tr>
             {% endfor %}
