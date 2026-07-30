@@ -19,7 +19,7 @@ Params:
      @click.outside="closeMenu()"
      @keydown.escape="closeMenu()">
 
-    <label class="ta-label" @click="toggleMenu()">
+    <label class="label ta-label" @click="toggleMenu()">
         {{ label }}
         <template x-if="count > 0"><span class="ta-badge" x-text="count"></span></template>
     </label>

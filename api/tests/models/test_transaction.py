@@ -134,6 +134,61 @@ class TransactionQuerySetTest(TestCase):
         self.assertIn(self.transaction2, date_range_transactions)
         self.assertIn(self.transaction3, date_range_transactions)
 
+    def test_filter_for_table_suggested_first(self):
+        suggestion_account = AccountFactory()
+        # An early-dated transaction WITHOUT a suggestion and a later-dated one WITH.
+        untagged = TransactionFactory(
+            date=self.start_date,
+            account=self.account1,
+            suggested_account=None,
+        )
+        tagged = TransactionFactory(
+            date=self.end_date,
+            account=self.account1,
+            suggested_account=suggestion_account,
+        )
+
+        # Default ordering is purely by date/account/pk, so the older untagged
+        # transaction comes before the newer tagged one.
+        default_order = list(
+            Transaction.objects.filter_for_table(accounts=[self.account1])
+        )
+        self.assertLess(
+            default_order.index(untagged), default_order.index(tagged)
+        )
+
+        # With suggested_first, the tagged transaction floats above the untagged
+        # one despite its later date.
+        suggested_order = list(
+            Transaction.objects.filter_for_table(
+                accounts=[self.account1], suggested_first=True
+            )
+        )
+        self.assertLess(
+            suggested_order.index(tagged), suggested_order.index(untagged)
+        )
+
+    def test_filter_for_table_suggested_first_preserves_secondary_sort(self):
+        suggestion_account = AccountFactory()
+        earlier = TransactionFactory(
+            date=self.start_date,
+            account=self.account1,
+            suggested_account=suggestion_account,
+        )
+        later = TransactionFactory(
+            date=self.end_date,
+            account=self.account1,
+            suggested_account=suggestion_account,
+        )
+
+        # Within the suggested group, the existing date/account/pk order holds.
+        ordered = list(
+            Transaction.objects.filter_for_table(
+                accounts=[self.account1], suggested_first=True
+            )
+        )
+        self.assertLess(ordered.index(earlier), ordered.index(later))
+
 class TransactionManagerTest(TestCase):
     def setUp(self):
         self.account1 = AccountFactory()
