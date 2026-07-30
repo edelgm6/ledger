@@ -4,7 +4,7 @@ import math
 import re
 from decimal import ROUND_HALF_UP, Decimal
 
-from django.db.models import Q
+from django.db.models import Case, Q, Value, When
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -371,6 +371,7 @@ class TransactionQuerySet(models.QuerySet):
         date_from=None,
         date_to=None,
         related_accounts=None,
+        suggested_first=False,
     ):
         queryset = self
         if is_closed is not None:
@@ -391,7 +392,16 @@ class TransactionQuerySet(models.QuerySet):
             queryset = queryset.filter(
                 journal_entry__journal_entry_items__account__in=related_accounts
             ).distinct()
-        return queryset.order_by("date", "account", "pk")
+        if suggested_first:
+            queryset = queryset.annotate(
+                _has_suggestion=Case(
+                    When(suggested_account__isnull=False, then=Value(0)),
+                    default=Value(1),
+                )
+            ).order_by("_has_suggestion", "date", "account", "pk")
+        else:
+            queryset = queryset.order_by("date", "account", "pk")
+        return queryset
 
 
 class TransactionManager(models.Manager):

@@ -134,6 +134,7 @@ class JournalEntryView(LoginRequiredMixin, View):
                 Transaction.TransactionType.INCOME,
                 Transaction.TransactionType.PURCHASE,
             ],
+            suggested_first=True,
         )
         transactions = filter_result.transactions
 
@@ -144,6 +145,7 @@ class JournalEntryView(LoginRequiredMixin, View):
                 Transaction.TransactionType.PURCHASE,
             ],
             get_url=reverse("journal-entries-table"),
+            suggested_first=True,
         )
         table_html = transaction_helpers.render_transaction_table(
             transactions=transactions, row_url=reverse("journal-entries")
