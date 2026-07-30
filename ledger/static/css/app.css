@@ -143,6 +143,7 @@ h4, h5 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--space-2); 
 .filter-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3) var(--space-4); margin-bottom: var(--space-4); }
 .filter-bar > * { width: 200px; }
 .filter-bar .field { margin-bottom: 0; }
+.filter-bar .check { color: var(--text-4); font-size: var(--fs-sm); }
 .filter-col { display: flex; flex-direction: column; gap: var(--space-3); }
 .fw-narrow { width: 130px !important; }
 .fw-date   { width: 150px !important; }
@@ -501,7 +502,7 @@ h4, h5 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--space-2); 
 
 /* 12. ---- Typeahead multi-select (markup unchanged; styling tokenized) --- */
 .ta-field { position: relative; }
-.ta-label { color: var(--text-1); cursor: pointer; user-select: none; font-size: var(--fs-sm); font-weight: 500; }
+.ta-label { cursor: pointer; user-select: none; }
 .ta-badge { background: var(--color-primary); color: #fff; font-size: .62rem; font-weight: 600; line-height: 1;
             padding: 2px 6px; border-radius: .7rem; margin-left: 5px; vertical-align: middle; }
 .ta-anchor { position: relative; }

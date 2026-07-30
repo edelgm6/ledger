@@ -48,6 +48,7 @@ def filter_transactions(
     date_from: Optional[datetime.date] = None,
     date_to: Optional[datetime.date] = None,
     related_accounts: Optional[List[Account]] = None,
+    suggested_first: bool = False,
 ) -> TransactionFilterResult:
     """
     Filters transactions based on criteria.
@@ -63,6 +64,7 @@ def filter_transactions(
         date_from: Start date (inclusive)
         date_to: End date (inclusive)
         related_accounts: Filter by related accounts in journal entries
+        suggested_first: Sort transactions with a suggested_account first
 
     Returns:
         TransactionFilterResult with transactions and count
@@ -75,6 +77,7 @@ def filter_transactions(
         date_from=date_from,
         date_to=date_to,
         related_accounts=related_accounts,
+        suggested_first=suggested_first,
     ).select_related("account", "suggested_account")
 
     transactions = list(queryset)

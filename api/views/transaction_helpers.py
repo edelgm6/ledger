@@ -86,6 +86,7 @@ def render_transaction_filter_form(
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     get_url: Optional[str] = None,
+    suggested_first: bool = False,
 ) -> str:
     """
     Renders the transaction filter form HTML.
@@ -97,6 +98,7 @@ def render_transaction_filter_form(
         date_from: Initial value for start date (as string)
         date_to: Initial value for end date (as string)
         get_url: URL for form submission
+        suggested_first: Initial value for the "Suggested first" sort checkbox
 
     Returns:
         HTML string for filter form
@@ -109,6 +111,7 @@ def render_transaction_filter_form(
     form.initial["transaction_type"] = transaction_type
     form.initial["date_from"] = date_from
     form.initial["date_to"] = date_to
+    form.initial["suggested_first"] = suggested_first
 
     context = {
         "filter_form": form,
