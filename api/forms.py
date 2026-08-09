@@ -479,6 +479,7 @@ class TransactionFilterForm(BaseFilterForm):
     has_linked_transaction = forms.ChoiceField(
         required=False, choices=LINKED_TRANSACTION_CHOICES
     )
+    suggested_first = forms.BooleanField(required=False)
 
     def clean_is_closed(self):
         is_closed = self.cleaned_data.get("is_closed", None)
@@ -502,6 +503,7 @@ class TransactionFilterForm(BaseFilterForm):
             date_from=data.get("date_from"),
             date_to=data.get("date_to"),
             related_accounts=data["related_account"],
+            suggested_first=data["suggested_first"],
         ).select_related("account")
         return queryset
 

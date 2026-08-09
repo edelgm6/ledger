@@ -132,6 +132,8 @@ h4, h5 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--space-2); 
 .grid-tight { gap: var(--space-3); }
 /* Wide main pane + narrower side pane (e.g. table + detail/paystubs) */
 .grid-main-side { grid-template-columns: 2fr 1fr; }
+/* Guard against grid content blowout so tracks hold their ratio */
+.grid-main-side > * { min-width: 0; }
 /* Auto-flowing responsive columns (no breakpoint needed) */
 .grid-auto { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 .grid-end { align-items: end; }
@@ -143,6 +145,7 @@ h4, h5 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--space-2); 
 .filter-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3) var(--space-4); margin-bottom: var(--space-4); }
 .filter-bar > * { width: 200px; }
 .filter-bar .field { margin-bottom: 0; }
+.filter-bar .check { color: var(--text-4); font-size: var(--fs-sm); }
 .filter-col { display: flex; flex-direction: column; gap: var(--space-3); }
 .fw-narrow { width: 130px !important; }
 .fw-date   { width: 150px !important; }
@@ -501,7 +504,7 @@ h4, h5 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--space-2); 
 
 /* 12. ---- Typeahead multi-select (markup unchanged; styling tokenized) --- */
 .ta-field { position: relative; }
-.ta-label { color: var(--text-1); cursor: pointer; user-select: none; font-size: var(--fs-sm); font-weight: 500; }
+.ta-label { cursor: pointer; user-select: none; }
 .ta-badge { background: var(--color-primary); color: #fff; font-size: .62rem; font-weight: 600; line-height: 1;
             padding: 2px 6px; border-radius: .7rem; margin-left: 5px; vertical-align: middle; }
 .ta-anchor { position: relative; }
@@ -559,6 +562,7 @@ h4, h5 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--space-2); 
 .gap-3 { gap: var(--space-3); }
 .sticky-pane { position: sticky; top: 1rem; }
 .cell-clip { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cell-wrap { max-width: 260px; white-space: normal; overflow-wrap: anywhere; }
 
 .hidden { display: none; }
 .mt-0 { margin-top: 0; }   .mb-0 { margin-bottom: 0; }

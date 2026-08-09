@@ -25,7 +25,12 @@
             {% include "api/components/typeahead-multiselect.html" with field=filter_form.related_account label="Related Account" all_label="All accounts" %}
         </div>
 
-        <div>
+        <div class="filter-col">
+            <label class="check">
+                <input type="checkbox" name="{{ filter_form.suggested_first.html_name }}"
+                       id="{{ filter_form.suggested_first.auto_id }}"
+                       {% if filter_form.suggested_first.value %}checked{% endif %} />Suggested First
+            </label>
             {% include "api/components/typeahead-multiselect.html" with field=filter_form.transaction_type label="Type" all_label="All types" %}
         </div>
 
