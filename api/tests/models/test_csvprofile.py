@@ -2,8 +2,13 @@ import datetime
 from decimal import Decimal
 
 from django.test import TestCase
-from api.models import CSVColumnValuePair, Transaction, AutoTag
-from api.tests.testing_factories import CSVProfileFactory, AccountFactory, PrefillFactory
+from api.models import Transaction, AutoTag
+from api.tests.testing_factories import (
+    CSVColumnValuePairFactory,
+    CSVProfileFactory,
+    AccountFactory,
+    PrefillFactory,
+)
 
 csv_data = [
     ["Account Number", "Investment Name", "Symbol", "Shares", "Share Price", "Total Value"],
@@ -38,7 +43,6 @@ csv_data = [
 class CSVProfileModelTest(TestCase):
 
     def setUp(self):
-        # Assuming CSVColumnValuePairFactory creates CSVColumnValuePair instances
         self.csv_profile = CSVProfileFactory(
             name="Vanguard",
             date="Trade Date",
@@ -50,31 +54,18 @@ class CSVProfileModelTest(TestCase):
             # date_format="%d-%Y-%m"
             date_format="%Y-%m-%d"
         )
-        pair = CSVColumnValuePair.objects.create(
-            column="Transaction Type",
-            value="Buy"
-        )
-        self.csv_profile.clear_values_column_pairs.add(pair)
-        pair = CSVColumnValuePair.objects.create(
-            column="Transaction Type",
-            value="Sweep out"
-        )
-        self.csv_profile.clear_values_column_pairs.add(pair)
-        pair = CSVColumnValuePair.objects.create(
-            column="Transaction Type",
-            value="Sweep in"
-        )
-        self.csv_profile.clear_values_column_pairs.add(pair)
-        pair = CSVColumnValuePair.objects.create(
-            column="Transaction Type",
-            value="Reinvestment"
-        )
-        self.csv_profile.clear_values_column_pairs.add(pair)
-        pair = CSVColumnValuePair.objects.create(
-            column="Keyerror test",
-            value="Reinvestment"
-        )
-        self.csv_profile.clear_values_column_pairs.add(pair)
+        for column, value in [
+            ("Transaction Type", "Buy"),
+            ("Transaction Type", "Sweep out"),
+            ("Transaction Type", "Sweep in"),
+            ("Transaction Type", "Reinvestment"),
+            ("Keyerror test", "Reinvestment"),
+        ]:
+            CSVColumnValuePairFactory(
+                csv_profile=self.csv_profile,
+                column=column,
+                value=value,
+            )
 
     def test_csv_profile_creation(self):
         """Test the creation of a CSVProfile instance."""

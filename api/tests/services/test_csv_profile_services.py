@@ -9,7 +9,11 @@ from api.services.csv_profile_services import (
     get_csv_profiles,
     save_csv_profile,
 )
-from api.tests.testing_factories import AccountFactory, CSVProfileFactory
+from api.tests.testing_factories import (
+    AccountFactory,
+    CSVColumnValuePairFactory,
+    CSVProfileFactory,
+)
 
 
 def _cleaned_data(**overrides):
@@ -46,9 +50,10 @@ class GetCSVProfilesTest(TestCase):
         AccountFactory(csv_profile=profile)
         AccountFactory(csv_profile=profile)
         # Two exclusion rules on this profile.
-        pair_a = CSVColumnValuePair.objects.create(column="Status", value="Pending")
-        pair_b = CSVColumnValuePair.objects.create(column="Type", value="Fee")
-        profile.clear_values_column_pairs.set([pair_a, pair_b])
+        CSVColumnValuePairFactory(
+            csv_profile=profile, column="Status", value="Pending"
+        )
+        CSVColumnValuePairFactory(csv_profile=profile, column="Type", value="Fee")
 
         result = next(p for p in get_csv_profiles() if p.id == profile.id)
         self.assertEqual(result.account_count, 2)
@@ -130,11 +135,14 @@ class DeleteCSVProfileTest(TestCase):
         self.assertTrue(result.success)
         self.assertFalse(CSVProfile.objects.filter(id=profile.id).exists())
 
-    def test_delete_also_removes_pairs(self):
+    def test_delete_cascades_pairs(self):
+        # The csv_profile FK is on_delete=CASCADE, so deleting the profile
+        # removes its owned pairs at the database level (no manual cleanup).
         create = save_csv_profile(
             _cleaned_data(column_value_pairs=[("Status", "Pending")])
         )
         profile = create.csv_profile
+        self.assertEqual(CSVColumnValuePair.objects.count(), 1)
 
         result = delete_csv_profile(profile.id)
 

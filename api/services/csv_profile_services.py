@@ -7,9 +7,10 @@ This module exposes the list/create/update/delete operations the Settings UI
 needs, delegating scalar writes to the shared ``crud`` helpers.
 
 The novel piece vs. other single-model settings sections is the
-``clear_values_column_pairs`` M2M (row-exclusion rules): the form submits a list
-of ``(column, value)`` pairs, which ``_sync_pairs`` rewrites inside the save
-transaction via ``crud.save_model``'s ``post_save`` hook.
+``clear_values_column_pairs`` relation (row-exclusion rules): each rule is a
+``CSVColumnValuePair`` owned per-profile via a CASCADE FK. The form submits a
+list of ``(column, value)`` pairs, which ``_sync_pairs`` rewrites inside the
+save transaction via ``crud.save_model``'s ``post_save`` hook.
 
 Mirrors ``autotag_services`` (single-model config CRUD).
 """
@@ -17,7 +18,6 @@ Mirrors ``autotag_services`` (single-model config CRUD).
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from django.db import transaction as db_transaction
 from django.db.models import Count
 
 from api.models import CSVColumnValuePair, CSVProfile
@@ -60,20 +60,18 @@ def _sync_pairs(
 ) -> None:
     """Rewrites the profile's row-exclusion rules to exactly ``pairs``.
 
-    The pairs are owned per-profile (created here, never shared), so the old
-    linked rows are deleted before the new ones are created — this avoids
-    orphan ``CSVColumnValuePair`` rows accumulating on every edit. Runs inside
+    The pairs are owned per-profile (a ``CSVColumnValuePair.csv_profile`` FK),
+    so the profile's existing rows are deleted and the new ones created pointing
+    straight at it — no through-table or orphan bookkeeping. Runs inside
     ``crud.save_model``'s atomic transaction.
     """
     profile.clear_values_column_pairs.all().delete()
-    new_pairs = [
-        CSVColumnValuePair(column=column, value=value)
-        for column, value in pairs
-    ]
-    CSVColumnValuePair.objects.bulk_create(new_pairs)
-    # The relation was just cleared, so add() skips the diff SELECT that set()
-    # would run; an empty *new_pairs is a no-op.
-    profile.clear_values_column_pairs.add(*new_pairs)
+    CSVColumnValuePair.objects.bulk_create(
+        [
+            CSVColumnValuePair(csv_profile=profile, column=column, value=value)
+            for column, value in pairs
+        ]
+    )
 
 
 def save_csv_profile(
@@ -101,26 +99,17 @@ def delete_csv_profile(csv_profile_id: int) -> CSVProfileResult:
     ``Account.csv_profile`` is ``on_delete=PROTECT``, so a profile still linked
     to an account can't be deleted; the shared helper turns that ProtectedError
     into a friendly message naming the profile. The profile's row-exclusion rules
-    (a plain M2M, owned per-profile) are deleted alongside it so they don't
-    orphan — but only once the delete actually succeeds.
+    are a ``CSVColumnValuePair.csv_profile`` FK with ``on_delete=CASCADE``, so the
+    database removes them when the profile goes.
     """
-    with db_transaction.atomic():
-        pair_ids = list(
-            CSVColumnValuePair.objects.filter(
-                csvprofile=csv_profile_id
-            ).values_list("id", flat=True)
-        )
-        csv_profile, error = crud.delete_model(
-            CSVProfile,
-            csv_profile_id,
-            not_found="CSV profile not found.",
-            protected=lambda profile: (
-                f'Can\'t delete "{profile.name}" — it\'s still linked to an account.'
-            ),
-        )
-        if error is None and pair_ids:
-            CSVColumnValuePair.objects.filter(id__in=pair_ids).delete()
-
+    csv_profile, error = crud.delete_model(
+        CSVProfile,
+        csv_profile_id,
+        not_found="CSV profile not found.",
+        protected=lambda profile: (
+            f'Can\'t delete "{profile.name}" — it\'s still linked to an account.'
+        ),
+    )
     return CSVProfileResult(
         success=error is None, csv_profile=csv_profile, error=error
     )

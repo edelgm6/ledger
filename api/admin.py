@@ -43,8 +43,14 @@ class AutoTagAdmin(admin.ModelAdmin):
     list_display = ("account", "search_string", "transaction_type")
 
 
+class CSVColumnValuePairInline(admin.TabularInline):
+    model = CSVColumnValuePair
+    extra = 1
+
+
 class CSVProfileAdmin(admin.ModelAdmin):
     list_display = ("name", "date", "description", "category")
+    inlines = [CSVColumnValuePairInline]
 
 
 class JournalEntryItemAdmin(ImportExportModelAdmin):
@@ -168,7 +174,6 @@ admin.site.register(JournalEntry, JournalEntryAdmin)
 admin.site.register(JournalEntryItem, JournalEntryItemAdmin)
 admin.site.register(Reconciliation)
 admin.site.register(TaxCharge)
-admin.site.register(CSVColumnValuePair)
 admin.site.register(Amortization)
 admin.site.register(S3File, S3FileAdmin)
 admin.site.register(DocSearch)
