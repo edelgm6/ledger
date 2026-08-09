@@ -1,0 +1,108 @@
+<div class="form">
+
+  <div class="form-header">
+    {% if csv_profile %}Edit CSV profile{% else %}New CSV profile{% endif %}
+  </div>
+
+  {% if change == "create" %}
+    <div class="alert alert-success">CSV profile created.</div>
+  {% elif change == "update" %}
+    <div class="alert alert-success">CSV profile updated.</div>
+  {% elif change == "delete" %}
+    <div class="alert alert-success">CSV profile deleted.</div>
+  {% endif %}
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <form method="post"
+        {% if csv_profile %}hx-post="{% url 'settings-csv-profile' csv_profile.id %}"{% else %}hx-post="{% url 'settings-csv-profiles' %}"{% endif %}
+        hx-target="#csv-profiles-content"
+        hx-swap="innerHTML">
+    {% csrf_token %}
+
+    <p class="muted fs-body">Maps a bank's CSV export onto transactions. The <strong>column</strong> fields below are the exact header names in that bank's CSV.</p>
+
+    <div class="grid grid-3 grid-end">
+      <div>
+        <label class="label">Name</label>
+        <input class="input" name="name" value="{{ values.name }}" maxlength="200" placeholder="e.g. Chase" />
+        {% for e in form.name.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="label">Date column</label>
+        <input class="input" name="date" value="{{ values.date }}" maxlength="200" placeholder="e.g. Transaction Date" />
+        {% for e in form.date.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="label">Date format</label>
+        <input class="input" name="date_format" value="{{ values.date_format }}" maxlength="200" />
+        {% for e in form.date_format.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="label">Description column</label>
+        <input class="input" name="description" value="{{ values.description }}" maxlength="200" placeholder="e.g. Description" />
+        {% for e in form.description.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="label">Category column</label>
+        <input class="input" name="category" value="{{ values.category }}" maxlength="200" placeholder="e.g. Category" />
+        {% for e in form.category.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="label">Inflow column</label>
+        <input class="input" name="inflow" value="{{ values.inflow }}" maxlength="200" placeholder="e.g. Amount" />
+        {% for e in form.inflow.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="label">Outflow column</label>
+        <input class="input" name="outflow" value="{{ values.outflow }}" maxlength="200" placeholder="e.g. Amount" />
+        {% for e in form.outflow.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+      <div>
+        <label class="label">Clear prepended until</label>
+        <input class="input" name="clear_prepended_until_value" value="{{ values.clear_prepended_until_value }}" maxlength="200" placeholder="optional" />
+        {% for e in form.clear_prepended_until_value.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <label class="label">Exclusion rules</label>
+      <p class="muted fs-body mb-2">Drop any CSV row where a column equals a value (e.g. skip pending rows).</p>
+
+      {{ pairs|json_script:"csv-pairs-data" }}
+      <div x-data="{ pairs: JSON.parse(document.getElementById('csv-pairs-data').textContent) }">
+        <template x-for="(pair, i) in pairs" :key="i">
+          <div class="grid grid-3 grid-end mb-2">
+            <div>
+              <label class="label">Column</label>
+              <input class="input" name="pair_column" x-model="pair.column" maxlength="200" placeholder="e.g. Status" />
+            </div>
+            <div>
+              <label class="label">Value</label>
+              <input class="input" name="pair_value" x-model="pair.value" maxlength="200" placeholder="e.g. Pending" />
+            </div>
+            <div>
+              <button type="button" class="btn btn-ghost btn-sm" @click="pairs.splice(i, 1)">Remove</button>
+            </div>
+          </div>
+        </template>
+        <button type="button" class="btn btn-ghost btn-sm" @click="pairs.push({ column: '', value: '' })">Add exclusion rule</button>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="submit" name="action" value="save" class="btn btn-primary">{% if csv_profile %}Save{% else %}Create{% endif %}</button>
+      {% if csv_profile %}
+      <button type="submit" name="action" value="delete" class="btn btn-danger">Delete</button>
+      {% endif %}
+      <button type="button" class="btn btn-ghost"
+              @click="selectedId = null"
+              hx-get="{% url 'settings-csv-profile-new-form' %}"
+              hx-target="#csv-profile-form-div">Clear</button>
+    </div>
+  </form>
+</div>

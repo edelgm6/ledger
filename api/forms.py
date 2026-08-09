@@ -747,6 +747,73 @@ class AutoTagForm(forms.ModelForm):
         ]
 
 
+def parse_pair_rows(data):
+    """Zips the parallel ``pair_column``/``pair_value`` inputs from a submitted
+    ``QueryDict`` into ``{"column", "value"}`` row dicts, dropping fully-blank
+    rows. Shared by ``CSVProfileForm.clean`` (which validates and strips them)
+    and the settings helper (which echoes them back verbatim on an invalid
+    submit)."""
+    columns = data.getlist("pair_column")
+    values = data.getlist("pair_value")
+    return [
+        {"column": column, "value": value}
+        for column, value in zip(columns, values)
+        if column.strip() or value.strip()
+    ]
+
+
+class CSVProfileForm(forms.ModelForm):
+    """User-facing form for creating/editing CSV profiles via the Settings page.
+
+    A CSV profile maps a bank's CSV export columns onto Transaction fields so an
+    uploaded file can be imported (see ``CSVProfile.create_transactions_from_csv``).
+    ``date``/``description``/``category``/``inflow``/``outflow`` store the CSV
+    *column header names*; all five plus ``name`` are required so a profile can
+    actually import. ``date_format`` defaults to ``%Y-%m-%d`` and
+    ``clear_prepended_until_value`` is optional.
+
+    The ``clear_values_column_pairs`` M2M (row-exclusion rules) is not a ModelForm
+    field; it's submitted as parallel ``pair_column``/``pair_value`` inputs and
+    parsed in ``clean()`` into ``column_value_pairs`` for the service to persist.
+    """
+
+    date_format = forms.CharField(required=False)
+
+    class Meta:
+        model = CSVProfile
+        fields = [
+            "name",
+            "date",
+            "description",
+            "category",
+            "inflow",
+            "outflow",
+            "date_format",
+            "clear_prepended_until_value",
+        ]
+
+    def clean_date_format(self):
+        return self.cleaned_data.get("date_format") or "%Y-%m-%d"
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        pairs = []
+        for row in parse_pair_rows(self.data):
+            column = row["column"].strip()
+            value = row["value"].strip()
+            if not column or not value:
+                self.add_error(
+                    None,
+                    "Each exclusion rule needs both a column and a value.",
+                )
+                continue
+            pairs.append((column, value))
+        cleaned_data["column_value_pairs"] = pairs
+
+        return cleaned_data
+
+
 class UtilityBillRuleForm(forms.ModelForm):
     """User-facing form for creating/editing utility-bill rules via Settings.
 

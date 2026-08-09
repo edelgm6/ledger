@@ -1,0 +1,79 @@
+<div x-data="searchList({{ total }}, 'csv-profiles', {{ selected_id|default:'null' }})">
+
+  <div class="card-head">
+    <div class="card-head-left">
+      <h2 class="card-title">CSV Profiles</h2>
+      <span class="card-count" x-text="countLabel()"></span>
+    </div>
+    <div class="card-head-right">
+      {% include "api/components/search-box.html" with placeholder="Search CSV profiles" %}
+      <button class="btn btn-primary"
+              @click="selectedId = null"
+              hx-get="{% url 'settings-csv-profile-new-form' %}"
+              hx-target="#csv-profile-form-div">New CSV Profile</button>
+    </div>
+  </div>
+
+  <div class="table-scroll has-list">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th class="center th-sort" @click="sortBy('accounts')">
+          Accounts<span class="sort-caret" x-text="sortCaret('accounts')"></span>
+        </th>
+        <th class="center th-sort" @click="sortBy('exclusions')">
+          Exclusions<span class="sort-caret" x-text="sortCaret('exclusions')"></span>
+        </th>
+        <th>Date format</th>
+      </tr>
+    </thead>
+    <tbody data-sortable>
+      {% for csv_profile in csv_profiles %}
+      <tr class="row"
+          data-search="{{ csv_profile.name|lower }}"
+          data-sort-accounts="{{ csv_profile.account_count }}"
+          data-sort-exclusions="{{ csv_profile.exclusion_count }}"
+          :class="{ selected: selectedId === {{ csv_profile.id }} }"
+          x-show="matches($el)"
+          @click="selectedId = {{ csv_profile.id }}"
+          hx-get="{% url 'settings-csv-profile-form' csv_profile.id %}"
+          hx-target="#csv-profile-form-div">
+        <td class="td-name">{{ csv_profile.name }}</td>
+        <td class="td-muted center">{{ csv_profile.account_count }}</td>
+        <td class="td-muted center">{{ csv_profile.exclusion_count }}</td>
+        <td class="td-muted">{{ csv_profile.date_format }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <div class="list" data-sortable>
+    {% for csv_profile in csv_profiles %}
+    <div class="lrow"
+         data-search="{{ csv_profile.name|lower }}"
+         data-sort-accounts="{{ csv_profile.account_count }}"
+         data-sort-exclusions="{{ csv_profile.exclusion_count }}"
+         :class="{ selected: selectedId === {{ csv_profile.id }} }"
+         x-show="matches($el)"
+         @click="selectedId = {{ csv_profile.id }}"
+         hx-get="{% url 'settings-csv-profile-form' csv_profile.id %}"
+         hx-target="#csv-profile-form-div">
+      <div class="lrow-top">
+        <span class="lname">{{ csv_profile.name }}</span>
+        <span class="lmeta-right">{{ csv_profile.account_count }} account{{ csv_profile.account_count|pluralize }}</span>
+      </div>
+      <div class="lmeta">{{ csv_profile.exclusion_count }} exclusion{{ csv_profile.exclusion_count|pluralize }} · {{ csv_profile.date_format }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="table-empty" x-show="visible() === 0" x-cloak>
+    No CSV profiles match "<span x-text="q"></span>".
+  </div>
+
+  <div id="csv-profile-form-div">
+    {{ csv_profile_form }}
+  </div>
+</div>
