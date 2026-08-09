@@ -718,7 +718,7 @@ class GetPostSaveContextTest(TestCase):
         self.assertNotIn(self.transaction3, context.transactions)
 
     def test_context_handles_index_out_of_bounds(self):
-        """Test resets to index 0 when current index invalid."""
+        """Test falls back to the last item when current index invalid."""
         filter_form = Mock(spec=TransactionFilterForm)
         filter_form.is_valid.return_value = True
         filter_form.get_transactions.return_value = [self.transaction1, self.transaction2]
@@ -737,9 +737,40 @@ class GetPostSaveContextTest(TestCase):
             credit_formset=credit_formset,
         )
 
-        # Should reset to 0
-        self.assertEqual(context.highlighted_index, 0)
-        self.assertEqual(context.highlighted_transaction, self.transaction1)
+        # Should fall back to the new last item, not snap to the first
+        self.assertEqual(context.highlighted_index, 1)
+        self.assertEqual(context.highlighted_transaction, self.transaction2)
+
+    def test_context_closing_last_entry_selects_new_last(self):
+        """Closing the final open entry re-selects the new last row.
+
+        When the last open transaction is closed, the re-fetched list has
+        shrunk and current_index points one past the end. Selection should
+        land on the new last item rather than jumping back to the first.
+        """
+        filter_form = Mock(spec=TransactionFilterForm)
+        filter_form.is_valid.return_value = True
+        # transaction3 was the one just closed, so it's gone from the list
+        filter_form.get_transactions.return_value = [
+            self.transaction1,
+            self.transaction2,
+        ]
+
+        debit_formset = Mock()
+        debit_formset.__iter__ = Mock(return_value=iter([]))
+        credit_formset = Mock()
+        credit_formset.__iter__ = Mock(return_value=iter([]))
+
+        # The closed entry had been the last row (index 2 of a 3-item list)
+        context = get_post_save_context(
+            filter_form=filter_form,
+            current_index=2,
+            debit_formset=debit_formset,
+            credit_formset=credit_formset,
+        )
+
+        self.assertEqual(context.highlighted_index, 1)
+        self.assertEqual(context.highlighted_transaction, self.transaction2)
 
     def test_context_extracts_created_entities(self):
         """Test collects entities created during form cleaning."""

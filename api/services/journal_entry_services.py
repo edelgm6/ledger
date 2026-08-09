@@ -530,8 +530,11 @@ def get_post_save_context(
         highlighted_transaction = transactions[current_index]
         highlighted_index = current_index
     except IndexError:
-        highlighted_transaction = transactions[0]
-        highlighted_index = 0
+        # current_index is past the end (e.g. the last open entry was just
+        # closed and the list shrank). Fall back to the new last item rather
+        # than snapping all the way back to the first.
+        highlighted_index = len(transactions) - 1
+        highlighted_transaction = transactions[highlighted_index]
 
     # Extract created entities from formsets
     created_entities = []
