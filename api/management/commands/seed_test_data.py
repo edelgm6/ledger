@@ -294,6 +294,15 @@ class Command(BaseCommand):
         )
         profiles['ally'] = ally
 
+        # Row-exclusion rules, owned per-profile via the CSVColumnValuePair FK.
+        for column, value in [('Category', 'Pending'), ('Category', 'Fee')]:
+            CSVColumnValuePair.objects.get_or_create(
+                csv_profile=chase, column=column, value=value
+            )
+        CSVColumnValuePair.objects.get_or_create(
+            csv_profile=ally, column='Type', value='Transfer'
+        )
+
         self.stdout.write(self.style.SUCCESS("  Created CSV profiles"))
         return profiles
 

@@ -1161,6 +1161,11 @@ class DocSearch(models.Model):
 class CSVColumnValuePair(models.Model):
     column = models.CharField(max_length=200)
     value = models.CharField(max_length=200)
+    csv_profile = models.ForeignKey(
+        "CSVProfile",
+        related_name="clear_values_column_pairs",
+        on_delete=models.CASCADE,
+    )
 
 
 class CSVProfile(models.Model):
@@ -1169,9 +1174,6 @@ class CSVProfile(models.Model):
     description = models.CharField(max_length=200)
     category = models.CharField(max_length=200)
     clear_prepended_until_value = models.CharField(max_length=200, blank=True)
-    clear_values_column_pairs = models.ManyToManyField(
-        CSVColumnValuePair, blank=True
-    )
     inflow = models.CharField(max_length=200)
     outflow = models.CharField(max_length=200)
     date_format = models.CharField(max_length=200, default="%Y-%m-%d")

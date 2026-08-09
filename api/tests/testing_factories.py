@@ -2,7 +2,7 @@ import datetime
 from decimal import Decimal
 
 import factory
-from api.models import Account, CSVProfile, Entity, Transaction, Amortization, Reconciliation, JournalEntry, JournalEntryItem, AutoTag, Prefill, TaxCharge, Loan, LoanPayment
+from api.models import Account, CSVColumnValuePair, CSVProfile, Entity, Transaction, Amortization, Reconciliation, JournalEntry, JournalEntryItem, AutoTag, Prefill, TaxCharge, Loan, LoanPayment
 
 
 # Entity Factory
@@ -20,6 +20,15 @@ class CSVProfileFactory(factory.django.DjangoModelFactory):
 
     name = factory.Faker('word')
     # Add other fields here based on the actual model definition
+
+# CSVColumnValuePair Factory
+class CSVColumnValuePairFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = CSVColumnValuePair
+
+    csv_profile = factory.SubFactory(CSVProfileFactory)
+    column = factory.Faker('word')
+    value = factory.Faker('word')
 
 # Account Factory
 class AccountFactory(factory.django.DjangoModelFactory):

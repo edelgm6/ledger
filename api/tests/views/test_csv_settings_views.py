@@ -4,7 +4,11 @@ from django.urls import reverse
 
 from api.models import CSVProfile
 from api.tests.test_helpers import HTMXViewTestCase
-from api.tests.testing_factories import AccountFactory, CSVProfileFactory
+from api.tests.testing_factories import (
+    AccountFactory,
+    CSVColumnValuePairFactory,
+    CSVProfileFactory,
+)
 
 
 def _post_data(**overrides):
@@ -55,10 +59,9 @@ class CSVProfileSettingsViewTest(HTMXViewTestCase):
 
     def test_edit_form_prefills_existing_pairs(self):
         profile = CSVProfileFactory(name="haspairs")
-        from api.models import CSVColumnValuePair
-
-        pair = CSVColumnValuePair.objects.create(column="Status", value="Pending")
-        profile.clear_values_column_pairs.set([pair])
+        CSVColumnValuePairFactory(
+            csv_profile=profile, column="Status", value="Pending"
+        )
 
         response = self.client.get(
             reverse("settings-csv-profile-form", args=[profile.id])
