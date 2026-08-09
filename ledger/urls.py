@@ -52,6 +52,10 @@ from api.views.autotag_settings_views import (
     AutoTagFormView,
     AutoTagSettingsView,
 )
+from api.views.csv_settings_views import (
+    CSVProfileFormView,
+    CSVProfileSettingsView,
+)
 from api.views.prefill_settings_views import (
     DocSearchFormView,
     DocSearchView,
@@ -388,6 +392,27 @@ urlpatterns = [
         "settings/autotags/<int:autotag_id>/form/",
         AutoTagFormView.as_view(),
         name="settings-autotag-form",
+    ),
+    # Settings — CSV profiles (config CRUD)
+    path(
+        "settings/csv-profiles/",
+        CSVProfileSettingsView.as_view(),
+        name="settings-csv-profiles",
+    ),
+    path(
+        "settings/csv-profiles/new/form/",
+        CSVProfileFormView.as_view(),
+        name="settings-csv-profile-new-form",
+    ),
+    path(
+        "settings/csv-profiles/<int:csv_profile_id>/",
+        CSVProfileSettingsView.as_view(),
+        name="settings-csv-profile",
+    ),
+    path(
+        "settings/csv-profiles/<int:csv_profile_id>/form/",
+        CSVProfileFormView.as_view(),
+        name="settings-csv-profile-form",
     ),
     path("tag/", TagEntitiesView.as_view(), name="tag-entities"),
     path("tag/balances/", EntityGroupedBalancesView.as_view(), name="entity-balances"),

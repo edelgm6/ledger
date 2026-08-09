@@ -1,9 +1,7 @@
 <div x-data="{
         section: 'Accounts',
         sections: ['Accounts', 'Bill Rules', 'Utility Bills', 'Loans', 'Entities', 'Prefills', 'Auto Tags', 'CSV Profiles'],
-        stubs: {
-          'CSV Profiles': 'Column mappings for each bank\'s CSV export format.'
-        }
+        stubs: {}
      }">
   <div class="split">
 
@@ -69,6 +67,14 @@
       <div x-show="section === 'Auto Tags'">
         <div id="autotags-content"
              hx-get="{% url 'settings-autotags' %}" hx-trigger="load">
+          <div class="table-empty">Loading…</div>
+        </div>
+      </div>
+
+      <!-- CSV Profiles (functional, lazy-loaded) -->
+      <div x-show="section === 'CSV Profiles'">
+        <div id="csv-profiles-content"
+             hx-get="{% url 'settings-csv-profiles' %}" hx-trigger="load">
           <div class="table-empty">Loading…</div>
         </div>
       </div>
