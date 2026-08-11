@@ -770,7 +770,9 @@ class CSVProfileForm(forms.ModelForm):
     ``date``/``description``/``category``/``inflow``/``outflow`` store the CSV
     *column header names*; all five plus ``name`` are required so a profile can
     actually import. ``date_format`` defaults to ``%Y-%m-%d`` and
-    ``clear_prepended_until_value`` is optional.
+    ``clear_prepended_until_value`` is optional. ``positive_outflows`` is a
+    checkbox marking an export whose signs run backwards (expenditures positive,
+    refunds negative), which the importer flips.
 
     The ``clear_values_column_pairs`` M2M (row-exclusion rules) is not a ModelForm
     field; it's submitted as parallel ``pair_column``/``pair_value`` inputs and
@@ -790,6 +792,7 @@ class CSVProfileForm(forms.ModelForm):
             "outflow",
             "date_format",
             "clear_prepended_until_value",
+            "positive_outflows",
         ]
 
     def clean_date_format(self):
