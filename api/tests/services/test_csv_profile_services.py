@@ -27,6 +27,7 @@ def _cleaned_data(**overrides):
         "outflow": "Amount",
         "date_format": "%Y-%m-%d",
         "clear_prepended_until_value": "",
+        "positive_outflows": False,
         "column_value_pairs": [],
     }
     data.update(overrides)
@@ -86,6 +87,19 @@ class SaveCSVProfileTest(TestCase):
             sorted((p.column, p.value) for p in pairs),
             [("Status", "Pending"), ("Type", "Fee")],
         )
+
+    def test_unchecking_positive_outflows_clears_it(self):
+        profile = save_csv_profile(
+            _cleaned_data(positive_outflows=True)
+        ).csv_profile
+
+        result = save_csv_profile(
+            _cleaned_data(positive_outflows=False), instance=profile
+        )
+
+        self.assertTrue(result.success)
+        profile.refresh_from_db()
+        self.assertFalse(profile.positive_outflows)
 
     def test_updates_profile_and_replaces_pairs(self):
         create = save_csv_profile(

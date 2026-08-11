@@ -79,6 +79,7 @@ def render_csv_profile_form(
             csv_profile,
             form,
             text=TEXT_FIELDS,
+            booleans=("positive_outflows",),
             defaults={"date_format": "%Y-%m-%d"},
         ),
         "pairs": _resolve_pairs(csv_profile, form),

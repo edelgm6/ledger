@@ -69,6 +69,13 @@
       </div>
     </div>
 
+    <div class="checks mt-4">
+      <label class="check">
+        <input type="checkbox" name="positive_outflows" {% if values.positive_outflows %}checked{% endif %} />Positive outflows
+      </label>
+    </div>
+    <p class="muted fs-body">Check if this export lists expenditures as positive and refunds as negative; the importer flips the sign on import.</p>
+
     <div class="mt-4">
       <label class="label">Exclusion rules</label>
       <p class="muted fs-body mb-2">Drop any CSV row where a column equals a value (e.g. skip pending rows).</p>

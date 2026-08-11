@@ -52,6 +52,7 @@ CSV_PROFILE_FIELDS = (
     "outflow",
     "date_format",
     "clear_prepended_until_value",
+    "positive_outflows",
 )
 
 

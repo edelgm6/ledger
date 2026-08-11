@@ -78,6 +78,8 @@ class CSVProfileSettingsViewTest(HTMXViewTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(CSVProfile.objects.filter(name="Ally").exists())
         self.assertContains(response, "CSV profile created.")
+        # An unchecked box is simply absent from the POST.
+        self.assertFalse(CSVProfile.objects.get(name="Ally").positive_outflows)
 
     def test_create_profile_with_exclusion_pairs(self):
         data = _post_data(
@@ -94,6 +96,23 @@ class CSVProfileSettingsViewTest(HTMXViewTestCase):
             sorted((p.column, p.value) for p in pairs),
             [("Status", "Pending"), ("Type", "Fee")],
         )
+
+    def test_create_profile_with_positive_outflows_checked(self):
+        response = self.client.post(
+            reverse("settings-csv-profiles"),
+            data=_post_data(name="Reversed", positive_outflows="on"),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(CSVProfile.objects.get(name="Reversed").positive_outflows)
+
+    def test_edit_form_checks_positive_outflows_box(self):
+        profile = CSVProfileFactory(name="reversed", positive_outflows=True)
+
+        response = self.client.get(
+            reverse("settings-csv-profile-form", args=[profile.id])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="positive_outflows" checked')
 
     def test_missing_required_field_re_renders_with_error(self):
         data = _post_data(name="")

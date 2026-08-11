@@ -145,6 +145,43 @@ class CSVProfileModelTest(TestCase):
         value = self.csv_profile._get_coalesced_amount({'Inflow': '', 'Outflow': ''})
         self.assertEqual(value, Decimal(0))
 
+    def test_positive_outflows_flips_the_sign_both_ways(self):
+        # Some cards export expenditures as positive and refunds as negative --
+        # the reverse of what journal entry creation assumes -- so the whole row
+        # flips, not just the positives.
+        self.csv_profile.positive_outflows = True
+
+        self.assertEqual(
+            self.csv_profile._get_coalesced_amount({'Inflow': '51.84', 'Outflow': ''}),
+            Decimal('-51.84'),
+        )
+        self.assertEqual(
+            self.csv_profile._get_coalesced_amount({'Inflow': '', 'Outflow': '-4000'}),
+            Decimal('4000'),
+        )
+        # The blank end-of-data cell stays an untouched 0 -- the importer breaks
+        # on `amount == 0` to stop reading the file.
+        self.assertEqual(
+            self.csv_profile._get_coalesced_amount({'Inflow': '', 'Outflow': ''}),
+            Decimal(0),
+        )
+
+    def test_positive_outflows_flips_created_transaction_amounts(self):
+        # End to end: the flip lands on Transaction.amount at creation time, so
+        # everything downstream reads the corrected sign.
+        account = AccountFactory()
+        baseline = self.csv_profile.create_transactions_from_csv(list(csv_data), account)
+        baseline_amounts = [transaction.amount for transaction in baseline]
+        self.assertTrue(baseline_amounts)
+
+        self.csv_profile.positive_outflows = True
+        flipped = self.csv_profile.create_transactions_from_csv(list(csv_data), account)
+
+        self.assertEqual(
+            [transaction.amount for transaction in flipped],
+            [-amount for amount in baseline_amounts],
+        )
+
     def test_created_transactions_have_typed_amount_and_date(self):
         # Regression: bulk_create leaves the in-memory objects' amount/date as
         # the raw CSV strings; the model must coerce so callers (tagging, which

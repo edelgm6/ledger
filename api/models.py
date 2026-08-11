@@ -1177,6 +1177,7 @@ class CSVProfile(models.Model):
     inflow = models.CharField(max_length=200)
     outflow = models.CharField(max_length=200)
     date_format = models.CharField(max_length=200, default="%Y-%m-%d")
+    positive_outflows = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
@@ -1233,7 +1234,13 @@ class CSVProfile(models.Model):
         # and dollar signs, matching CommaDecimalField.
         raw = row[self.inflow] or row[self.outflow]
         # A blank amount marks the end-of-data row the caller breaks on.
-        return parse_currency(raw) if raw else Decimal(0)
+        if not raw:
+            return Decimal(0)
+        # positive_outflows marks an export whose signs run backwards; flipping
+        # the whole row assumes inflow and outflow name the same signed column,
+        # which is the shape those exports come in.
+        sign = -1 if self.positive_outflows else 1
+        return sign * parse_currency(raw)
 
     def _clear_prepended_rows(self, csv_data):
         if not self.clear_prepended_until_value:
