@@ -55,9 +55,6 @@ class PrefillSettingsView(LoginRequiredMixin, View):
     def post(self, request, prefill_id=None):
         action = request.POST.get("action")
 
-        if action == "clear":
-            return HttpResponse(self._render_content())
-
         if action == "delete":
             result = prefill_services.delete_prefill(prefill_id)
             if result.success:
@@ -166,9 +163,6 @@ class DocSearchView(LoginRequiredMixin, View):
     def post(self, request, prefill_id, docsearch_id=None):
         prefill = get_object_or_404(Prefill, pk=prefill_id)
         action = request.POST.get("action")
-
-        if action == "clear":
-            return HttpResponse(self._render_content(prefill))
 
         if action == "delete":
             result = prefill_services.delete_docsearch(docsearch_id)

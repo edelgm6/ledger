@@ -57,9 +57,6 @@ class AutoTagSettingsView(LoginRequiredMixin, View):
     def post(self, request, autotag_id=None):
         action = request.POST.get("action")
 
-        if action == "clear":
-            return HttpResponse(self._render_content())
-
         if action == "delete":
             result = autotag_services.delete_autotag(autotag_id)
             if result.success:

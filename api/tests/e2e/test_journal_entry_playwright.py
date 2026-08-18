@@ -459,7 +459,6 @@ class JournalEntryPaystubTests(JournalEntryE2EBase):
             url="http://example.com/test-paystub.pdf",
             user_filename="May Paystub.pdf",
             s3_filename="test-paystub.pdf",
-            textract_job_id="test-job-id-123",
             status=S3File.Status.COMPLETE,
             analysis_complete=timezone.now(),
         )

@@ -32,17 +32,6 @@ class EntityResult:
 
 
 @dataclass
-class EntityBalance:
-    """Represents an entity's aggregated balance from journal entries."""
-    entity_id: int
-    entity_name: str
-    total_debits: Decimal
-    total_credits: Decimal
-    balance: Decimal
-    last_activity_date: date
-
-
-@dataclass
 class AccountEntityBalance:
     """Entity balance scoped to a specific account."""
     account_id: int
@@ -85,60 +74,6 @@ class UntaggedItemsData:
     """Untagged journal entry items ready for entity assignment."""
     items: List[JournalEntryItem]
     first_item: Optional[JournalEntryItem]
-
-
-def get_entities_balances() -> List[EntityBalance]:
-    """
-    Gets aggregated balances for all entities with accounts receivable activity.
-
-    Returns balances ordered by absolute balance (descending), then by
-    most recent activity date.
-    """
-    entities_balances_qs = (
-        JournalEntryItem.objects.filter(RELEVANT_ITEMS_Q)
-        .exclude(entity__isnull=True)
-        .values("entity__id", "entity__name")
-        .annotate(
-            total_debits=Sum(
-                Case(
-                    When(
-                        type=JournalEntryItem.JournalEntryType.DEBIT,
-                        then=F("amount"),
-                    ),
-                    default=Value(0),
-                    output_field=DecimalField(),
-                )
-            ),
-            total_credits=Sum(
-                Case(
-                    When(
-                        type=JournalEntryItem.JournalEntryType.CREDIT,
-                        then=F("amount"),
-                    ),
-                    default=Value(0),
-                    output_field=DecimalField(),
-                )
-            ),
-            balance=F("total_credits") - F("total_debits"),
-        )
-        .annotate(
-            abs_balance=Abs(F("balance")),
-            max_journalentry_date=Max("journal_entry__date"),
-        )
-        .order_by("-abs_balance", "-max_journalentry_date")
-    )
-
-    return [
-        EntityBalance(
-            entity_id=item["entity__id"],
-            entity_name=item["entity__name"],
-            total_debits=item["total_debits"] or Decimal("0.00"),
-            total_credits=item["total_credits"] or Decimal("0.00"),
-            balance=item["balance"] or Decimal("0.00"),
-            last_activity_date=item["max_journalentry_date"],
-        )
-        for item in entities_balances_qs
-    ]
 
 
 def get_grouped_entities_balances(hide_zero: bool = True) -> List[GroupedEntityBalances]:
@@ -319,17 +254,6 @@ def untag_journal_entry_item(journal_entry_item_id: int) -> Entity:
     entity = journal_entry_item.entity
     journal_entry_item.remove_entity()
     return entity
-
-
-@db_transaction.atomic
-def tag_journal_entry_item(journal_entry_item_id: int, entity_id: int) -> None:
-    """
-    Assigns an entity to a journal entry item.
-    """
-    journal_entry_item = JournalEntryItem.objects.get(pk=journal_entry_item_id)
-    entity = Entity.objects.get(pk=entity_id)
-    journal_entry_item.entity = entity
-    journal_entry_item.save()
 
 
 # --- Entity CRUD for the Settings page (mirrors account_services) -------------
