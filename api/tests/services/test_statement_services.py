@@ -6,7 +6,9 @@ from datetime import date
 from decimal import Decimal
 from unittest.mock import MagicMock
 
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 
 from api.models import Account, JournalEntryItem
 from api.services.statement_services import (
@@ -578,6 +580,56 @@ class CalculateCashFlowMetricsTest(TestCase):
 
         # Just verify we get a valid result
         self.assertIsInstance(result, CashFlowMetrics)
+
+    def test_missing_starting_equity_reports_an_error_not_a_clean_reconcile(self):
+        """A missing STARTING_EQUITY account must not read as "books reconcile".
+
+        The discrepancy check used to be wrapped in a blanket `except IndexError`
+        that set the discrepancy to None -- indistinguishable from a ledger that
+        reconciles. The diagnose_cash_flow_discrepancy command calls this exact
+        condition "a separate, more serious problem".
+        """
+        Account.objects.filter(
+            system_role=Account.SystemRole.STARTING_EQUITY
+        ).update(system_role=None)
+
+        result = calculate_cash_flow_metrics(
+            from_date=date(2024, 1, 1),
+            to_date=date(2024, 12, 31),
+        )
+
+        self.assertIsNone(result.cash_flow_discrepancy)
+        self.assertIsNotNone(
+            result.cash_flow_discrepancy_error,
+            "a missing STARTING_EQUITY account must surface as an error",
+        )
+        self.assertIn("STARTING_EQUITY", result.cash_flow_discrepancy_error)
+
+    def test_global_discrepancy_block_is_half_the_query_cost(self):
+        """Characterizes the all-history reconciliation the audit flagged.
+
+        The block spans 1900-2500 and so is a constant with respect to the
+        requested period, yet every cash-flow page view and REST report call
+        pays for it. This test pins the cost so a regression (or a future
+        optimization) is visible.
+        """
+        from api.services.statement_services import (
+            _get_global_cash_flow_discrepancy,
+        )
+
+        with CaptureQueriesContext(connection) as full:
+            calculate_cash_flow_metrics(
+                from_date=date(2024, 1, 1), to_date=date(2024, 12, 31)
+            )
+        with CaptureQueriesContext(connection) as glob:
+            _get_global_cash_flow_discrepancy()
+
+        self.assertGreater(len(glob), 0)
+        self.assertGreaterEqual(
+            len(full),
+            len(glob),
+            "the global block is part of every calculate_cash_flow_metrics call",
+        )
 
 
 class BuildEntityIncomeSummaryTest(TestCase):

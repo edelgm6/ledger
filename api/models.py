@@ -1082,7 +1082,11 @@ class CSVProfile(models.Model):
             if row == {}:
                 break
             amount = self._get_coalesced_amount(row)
-            if amount == 0:
+            # Only a row with no amount cell at all ends the data. A legitimate
+            # $0.00 row (or a blank spacer column mid-export) used to be
+            # indistinguishable from it and silently truncated the import: the
+            # upload reported success with a short count.
+            if amount is None:
                 break
 
             # Set defaults
@@ -1123,9 +1127,11 @@ class CSVProfile(models.Model):
         # would blow it up. parse_currency also tolerates thousands separators
         # and dollar signs, matching CommaDecimalField.
         raw = row[self.inflow] or row[self.outflow]
-        # A blank amount marks the end-of-data row the caller breaks on.
+        # None means "this row has no amount cell", which marks the end-of-data
+        # row the caller breaks on. It is deliberately distinct from Decimal(0),
+        # which is a real zero-amount row and must import like any other.
         if not raw:
-            return Decimal(0)
+            return None
         # positive_outflows marks an export whose signs run backwards; flipping
         # the whole row assumes inflow and outflow name the same signed column,
         # which is the shape those exports come in.
@@ -1154,20 +1160,22 @@ class CSVProfile(models.Model):
         return list_of_dicts
 
     def _clear_extraneous_rows(self, rows_list):
+        # Fetch the (column, value) pairs once. This used to hit
+        # clear_values_column_pairs.all() inside the per-row loop -- an
+        # uncached reverse-FK manager -- so a 1,500-row export issued 1,500
+        # identical queries on a synchronous upload request.
+        clear_pairs = {
+            (pair.column, pair.value)
+            for pair in self.clear_values_column_pairs.all()
+        }
+
         cleaned_rows = []
         for row in rows_list:
-            include_row = True
-            for key_clear_pair in self.clear_values_column_pairs.all():
-                column_name = key_clear_pair.column
-                clear_out_value = key_clear_pair.value
-                try:
-                    if row[column_name] == clear_out_value:
-                        include_row = False
-                        break
-                except KeyError:
-                    continue
-            if include_row:
-                cleaned_rows.append(row)
+            # Membership test replaces the try/except KeyError that was being
+            # used as control flow for "this row has no such column".
+            if any((column, row[column]) in clear_pairs for column in row):
+                continue
+            cleaned_rows.append(row)
 
         return cleaned_rows
 

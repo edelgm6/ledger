@@ -100,6 +100,7 @@ def serialize_cash_flow_metrics(metrics: CashFlowMetrics) -> Dict[str, Any]:
             metrics.levered_cash_flow_post_restricted
         ),
         "cash_flow_discrepancy": metrics.cash_flow_discrepancy,
+        "cash_flow_discrepancy_error": metrics.cash_flow_discrepancy_error,
         "operations_flows": [serialize_balance(b) for b in metrics.operations_flows],
         "financing_flows": [serialize_balance(b) for b in metrics.financing_flows],
         "investing_flows": [serialize_balance(b) for b in metrics.investing_flows],
