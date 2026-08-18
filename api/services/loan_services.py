@@ -237,8 +237,13 @@ def _record_off_schedule(
     if kind == LoanPayment.Kind.PAYOFF:
         loan.is_closed = True
         loan.save(update_fields=["is_closed"])
-    else:
-        loan.generate_schedule()
+
+    # Always re-amortize. generate_schedule() is the only thing that deletes the
+    # disposable forecast rows; skipping it on payoff left the whole future tail
+    # in the database, so a paid-off loan rendered "paid off" above a dozen
+    # future-dated rows. It early-returns once the loan is closed, so this
+    # clears the tail without forecasting anything new.
+    loan.generate_schedule()
     return row
 
 

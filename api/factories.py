@@ -35,11 +35,10 @@ class TaxChargeFactory:
         tax_charges = TaxCharge.objects.filter(date=date)
         tax_accounts = get_tax_accounts()
 
+        # Match on the charge's own account. Reaching through the transaction
+        # meant an edited charge looked absent, so this re-created it and hit
+        # the ("account", "date") unique constraint on every page load.
+        existing_accounts = {charge.account_id for charge in tax_charges}
         for account in tax_accounts:
-            existing_tax_charge = [
-                charge
-                for charge in tax_charges
-                if charge.transaction.account == account
-            ]
-            if len(existing_tax_charge) == 0:
+            if account.pk not in existing_accounts:
                 TaxCharge.objects.create(date=date, account=account, amount=0)

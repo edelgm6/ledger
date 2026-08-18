@@ -5,6 +5,7 @@ Views handle HTTP requests/responses only, delegating business logic to
 services and rendering to helpers.
 """
 
+import logging
 from datetime import timedelta
 
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -20,6 +21,8 @@ from api.models import Transaction
 from api.services import transaction_services
 from api.views import transaction_helpers
 from api.views.page_utils import render_full_page
+
+logger = logging.getLogger(__name__)
 
 
 # ------------------Transactions View-----------------------
@@ -120,7 +123,7 @@ class TransactionsView(LoginRequiredMixin, View):
         if filter_form.is_valid():
             transactions = list(filter_form.get_transactions())
         else:
-            print(filter_form.errors)
+            logger.warning("Invalid transaction filter form: %s", filter_form.errors)
             transactions = []
 
         # Handle different actions
@@ -268,8 +271,7 @@ class LinkTransactionsView(LoginRequiredMixin, View):
         if form.is_valid():
             form.save()  # TransactionLinkForm handles the linking logic
         else:
-            print(form.errors)
-            print(form.non_field_errors())
+            logger.warning("Invalid transaction link form: %s", form.errors)
 
         # Re-query transactions AFTER linking so linked/closed ones are excluded
         filter_form = TransactionFilterForm(request.POST, prefix="filter")

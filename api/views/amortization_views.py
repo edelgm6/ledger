@@ -14,13 +14,15 @@ class AmortizationTableMixin:
     unattached_transactions_content = "api/content/unattached-transactions-content.html"
     page_template = "api/views/amortizations.html"
 
-    def render_page_html(self):
+    def render_page_html(self, amortization_form=None):
         context = {
             "unattached_transactions": render_to_string(
                 self.unattached_transactions_content,
                 {
                     "table": self.get_unattached_prepaids_table_html(),
-                    "amortization_form": self.get_amortization_form_html(),
+                    "amortization_form": self.get_amortization_form_html(
+                        form=amortization_form
+                    ),
                 },
             ),
             "amortize": render_to_string(
@@ -66,20 +68,22 @@ class AmortizationTableMixin:
             prepaid_table_template, {"journal_entry_items": unattached_journal_entries}
         )
 
-    def get_amortization_form_html(self, journal_entry_item=None):
-        form = AmortizationForm()
+    def get_amortization_form_html(self, journal_entry_item=None, form=None):
+        # A bound form is passed back in when validation failed, so the template
+        # can render its errors instead of a blank form.
+        form = form if form is not None else AmortizationForm()
         if journal_entry_item:
             form.initial["accrued_journal_entry_item"] = journal_entry_item
         form_template = "api/entry_forms/amortization-form.html"
         return render_to_string(form_template, {"form": form})
 
-    def get_amortize_form_html(self, amortization):
+    def get_amortize_form_html(self, amortization, date_form=None):
         form_template = "api/entry_forms/amortize-form.html"
         transactions = amortization.get_related_transactions()
         context = {
             "transactions": transactions,
             "amortization": amortization,
-            "date_form": DateForm(),
+            "date_form": date_form if date_form is not None else DateForm(),
         }
         return render_to_string(form_template, context)
 
@@ -108,6 +112,17 @@ class AmortizeFormView(AmortizationTableMixin, LoginRequiredMixin, View):
             html = render_to_string(amortizations_content_template, context)
             return HttpResponse(html)
 
+        # Without this the view returns None and Django raises
+        # "didn't return an HttpResponse", i.e. a 500 on invalid input.
+        context = {
+            "table": self.get_amortization_table_html(),
+            "amortization_form": self.get_amortize_form_html(
+                amortization, date_form=form
+            ),
+        }
+        html = render_to_string("api/content/amortizations-content.html", context)
+        return HttpResponse(html)
+
 
 class AmortizationFormView(AmortizationTableMixin, LoginRequiredMixin, View):
     login_url = "/login/"
@@ -135,4 +150,6 @@ class AmortizationView(AmortizationTableMixin, LoginRequiredMixin, View):
             form.save()
             return HttpResponse(self.render_page_html())
 
-        print(form.errors)
+        # Re-render with the bound form so its errors show, instead of falling
+        # through and returning None (a 500).
+        return HttpResponse(self.render_page_html(amortization_form=form))

@@ -73,6 +73,23 @@ class JournalEntryTableView(LoginRequiredMixin, View):
             html = render_to_string(view_template, context)
             return HttpResponse(html)
 
+        # An invalid filter form used to fall through and return None (a 500).
+        # Render the page with an empty result set instead.
+        table_html = transaction_helpers.render_transaction_table(
+            transactions=[], row_url=reverse("journal-entries")
+        )
+        paystubs_table_html = render_paystubs_table(get_paystubs_table_data())
+        context = {
+            "entry_form": render_journal_entry_form(transaction=None),
+            "table": table_html,
+            "paystubs_table": paystubs_table_html,
+            "transaction_id": None,
+            "index": 0,
+        }
+        return HttpResponse(
+            render_to_string("api/views/journal-entry-view.html", context)
+        )
+
 
 # Called every time a table row is clicked
 class JournalEntryFormView(LoginRequiredMixin, View):

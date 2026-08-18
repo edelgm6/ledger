@@ -709,27 +709,72 @@ class RecharacterizeRevertTest(TestCase):
         self.d1.refresh_from_db()
         self.assertEqual(self.d1.account, self.groceries)
 
-    def test_revert_skips_items_changed_since(self):
-        first = apply_operation(self._set_entity_op(), 0)
-        # A later op re-tags d1/d2 to Chase, so the first change no longer owns them.
-        second_op = [
+    def _reown_op(self):
+        """A second operation that re-tags d1/d2, taking ownership from the first."""
+        return [
             {
                 "filter": {"description_contains": "Verizon", "account": "Groceries"},
                 "action": {"type": "set_entity", "entity": "Chase"},
             }
         ]
-        self.assertTrue(apply_operation(second_op, 0).success)
+
+    def test_revert_fails_when_every_item_was_changed_since(self):
+        """A revert that restores nothing must not consume the undo.
+
+        Previously this returned success and set is_reverted=True even though
+        zero items were restored, so the operation could never be reverted again
+        even once the blocking operation was itself undone. See
+        test_revert_becomes_possible_again_after_blocker_reverted.
+        """
+        first = apply_operation(self._set_entity_op(), 0)
+        self.assertTrue(apply_operation(self._reown_op(), 0).success)
 
         revert = revert_change(first.change_id)
-        self.assertTrue(revert.success)
+        self.assertFalse(revert.success)
         self.assertEqual(revert.reverted_count, 0)
         self.assertEqual(revert.conflict_count, 2)
+        self.assertIn("Revert that operation first", revert.error)
+
+        # The undo is preserved, not burned.
+        first_change = RecharacterizeChange.objects.get(pk=first.change_id)
+        self.assertFalse(first_change.is_reverted)
+        self.assertIsNone(first_change.reverted_at)
 
         # The later change's values survive — nothing was clobbered.
         self.d1.refresh_from_db()
         self.d2.refresh_from_db()
         self.assertEqual(self.d1.entity, self.chase)
         self.assertEqual(self.d2.entity, self.chase)
+
+    def test_revert_names_the_blocking_operation(self):
+        first = apply_operation(self._set_entity_op(), 0)
+        second = apply_operation(self._reown_op(), 0)
+        self.assertTrue(second.success)
+
+        revert = revert_change(first.change_id)
+        self.assertFalse(revert.success)
+        self.assertIn(second.action_summary, revert.error)
+
+    def test_revert_becomes_possible_again_after_blocker_reverted(self):
+        """Undoing the blocking operation hands the items back, so the first
+        operation is revertible again. This is the sequence the old
+        unconditional is_reverted flag made permanently impossible."""
+        first = apply_operation(self._set_entity_op(), 0)
+        second = apply_operation(self._reown_op(), 0)
+
+        # Blocked while the second operation owns the items.
+        self.assertFalse(revert_change(first.change_id).success)
+
+        # Undo the blocker, returning the items to the first change's value.
+        second_revert = revert_change(second.change_id)
+        self.assertTrue(second_revert.success)
+        self.assertEqual(second_revert.reverted_count, 2)
+
+        # Now the first change reverts cleanly.
+        first_revert = revert_change(first.change_id)
+        self.assertTrue(first_revert.success)
+        self.assertEqual(first_revert.reverted_count, 2)
+        self.assertEqual(first_revert.conflict_count, 0)
 
     def test_revert_counts_deleted_items_as_missing(self):
         result = apply_operation(self._set_entity_op(), 0)

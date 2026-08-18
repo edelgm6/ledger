@@ -532,17 +532,29 @@ class TaxCharge(models.Model):
         account_name = self.account.name if self.account else "No Account"
         return f"{self.date} {account_name}"
 
+    @property
+    def _transaction_description(self):
+        return str(self.date) + " " + self.account.name
+
     def save(self, *args, **kwargs):
         try:
             transaction = self.transaction
+            # Keep the transaction in step with every field it mirrors, not just
+            # amount. account and date are editable on an existing charge, and
+            # letting them drift desynced the charge from its own transaction:
+            # queries that reach through the transaction stopped finding it, and
+            # the bulk factory would then re-create it and trip unique_together.
             transaction.amount = self.amount
+            transaction.account = self.account
+            transaction.date = self.date
+            transaction.description = self._transaction_description
             transaction.save()
         except Transaction.DoesNotExist:
             transaction = Transaction.objects.create(
                 date=self.date,
                 account=self.account,
                 amount=self.amount,
-                description=str(self.date) + " " + self.account.name,
+                description=self._transaction_description,
                 is_closed=True,
                 date_closed=datetime.date.today(),
                 type=Transaction.TransactionType.PURCHASE,
@@ -551,6 +563,11 @@ class TaxCharge(models.Model):
 
         try:
             journal_entry = self.transaction.journal_entry
+            # Without this the expense stays stranded in the old month on every
+            # statement when a charge's date is edited.
+            if journal_entry.date != self.date:
+                journal_entry.date = self.date
+                journal_entry.save(update_fields=["date"])
         except JournalEntry.DoesNotExist:
             journal_entry = JournalEntry.objects.create(
                 date=self.date, transaction=self.transaction

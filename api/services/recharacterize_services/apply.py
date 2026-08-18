@@ -173,6 +173,7 @@ def revert_change(change_id: int) -> RevertResult:
 
     items = change.items.select_related("journal_entry_item")
     to_update: List[JournalEntryItem] = []
+    conflicted_item_ids: List[int] = []
     reverted = conflict = missing = 0
 
     for record in items:
@@ -183,6 +184,7 @@ def revert_change(change_id: int) -> RevertResult:
         if getattr(jei, current_attr) != new_value:
             # The item was changed again by a later operation; don't clobber it.
             conflict += 1
+            conflicted_item_ids.append(jei.pk)
             continue
         setattr(jei, current_attr, getattr(record, f"prior_{field}_id"))
         to_update.append(jei)
@@ -190,6 +192,19 @@ def revert_change(change_id: int) -> RevertResult:
 
     if to_update:
         JournalEntryItem.objects.bulk_update(to_update, [field])
+
+    if not (reverted or missing):
+        # Nothing was restored: a later operation now owns every item this change
+        # touched. Leave the change revertible rather than burning the undo —
+        # reverting the blocking operation hands these items back, at which point
+        # this change becomes perfectly revertible again. Marking is_reverted here
+        # would trip the idempotency guard above and destroy that undo forever.
+        return RevertResult(
+            success=False,
+            conflict_count=conflict,
+            action_summary=change.action_summary,
+            error=_blocked_error(change, conflicted_item_ids),
+        )
 
     change.is_reverted = True
     change.reverted_at = timezone.now()
@@ -201,6 +216,29 @@ def revert_change(change_id: int) -> RevertResult:
         conflict_count=conflict,
         missing_count=missing,
         action_summary=change.action_summary,
+    )
+
+
+def _blocked_error(change: RecharacterizeChange, item_ids: List[int]) -> str:
+    """Explains which later operation is holding the items this revert needs."""
+    blocker = (
+        RecharacterizeChange.objects.filter(
+            items__journal_entry_item_id__in=item_ids,
+            is_reverted=False,
+            created_at__gte=change.created_at,
+        )
+        .exclude(pk=change.pk)
+        .order_by("-created_at", "-pk")
+        .first()
+    )
+    if blocker is None:
+        return (
+            "Nothing to revert: every item this operation touched has since been "
+            "changed by something else."
+        )
+    return (
+        f'Cannot revert: "{blocker.action_summary}" has since changed every item '
+        f"this operation touched. Revert that operation first."
     )
 
 

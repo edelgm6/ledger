@@ -22,13 +22,22 @@ from api.views.page_utils import render_full_page
 
 
 def _parse_date(value):
-    """Convert a string date (YYYY-MM-DD) to a date object, or return as-is if already a date."""
+    """Convert a string date (YYYY-MM-DD) to a date, or None if it isn't one.
+
+    The filter form's date fields are required=False, so they validate with an
+    empty string. Raising here turned a blank filter into a 500.
+    """
     if isinstance(value, date):
         return value
-    return date.fromisoformat(str(value))
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(str(value))
+    except ValueError:
+        return None
 
 
-def _build_table_and_form(tax_charges, end_date: date):
+def _build_table_and_form(tax_charges, end_date: date, bound_form=None):
     """
     Build the tax table + form HTML for a set of charges and the month-end date.
 
@@ -44,12 +53,12 @@ def _build_table_and_form(tax_charges, end_date: date):
 
     table_html = tax_helpers.render_tax_table(enriched)
     form_html = tax_helpers.render_tax_form(
-        None, taxable_income.amount, recommendations, end_date
+        None, taxable_income.amount, recommendations, end_date, bound_form=bound_form
     )
     return table_html, form_html
 
 
-def _render_updated_content(data) -> str:
+def _render_updated_content(data, bound_form=None) -> str:
     """
     Re-render the taxes table + form for an HTMX update.
 
@@ -58,9 +67,14 @@ def _render_updated_content(data) -> str:
     six-month window when the filter form is absent or invalid.
     """
     filter_form = TaxChargeFilterForm(data)
+    date_from = end_date = None
     if filter_form.is_valid():
         date_from = _parse_date(filter_form.cleaned_data["date_from"])
         end_date = _parse_date(filter_form.cleaned_data["date_to"])
+
+    # Both dates must be present to honor the filter; the fields are optional,
+    # so a blank or partial filter falls back to the default window.
+    if date_from and end_date:
         tax_charges = tax_services.get_filtered_tax_charges(
             date_from=date_from,
             date_to=end_date,
@@ -74,7 +88,9 @@ def _render_updated_content(data) -> str:
             date_from=six_months_ago, date_to=end_date
         )
 
-    table_html, form_html = _build_table_and_form(tax_charges, end_date)
+    table_html, form_html = _build_table_and_form(
+        tax_charges, end_date, bound_form=bound_form
+    )
     return tax_helpers.render_taxes_content(table_html, form_html)
 
 
@@ -137,8 +153,11 @@ class TaxesView(LoginRequiredMixin, View):
 
         if form.is_valid():
             form.save()
+            return HttpResponse(_render_updated_content(request.POST))
 
-        return HttpResponse(_render_updated_content(request.POST))
+        # Hand the bound form back so its errors render. Previously an invalid
+        # submission was silently dropped and the page redrew unchanged.
+        return HttpResponse(_render_updated_content(request.POST, bound_form=form))
 
 
 class ApplyTaxRecommendationView(LoginRequiredMixin, View):
