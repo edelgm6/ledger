@@ -35,7 +35,9 @@ class S3File(models.Model):
     url = models.URLField(max_length=200, unique=True)
     user_filename = models.CharField(max_length=200)
     s3_filename = models.CharField(max_length=200)
-    analysis_complete = models.DateTimeField(blank=True, null=True)
+    # `status` is the single source of truth for where a file is in processing.
+    # It replaced a parallel `analysis_complete` timestamp that encoded "done"
+    # independently and could contradict it.
     status = models.CharField(
         max_length=20,
         choices=Status.choices,

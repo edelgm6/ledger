@@ -12,7 +12,6 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from django.utils import timezone
 
 from api.models import (
     Account,
@@ -260,7 +259,7 @@ class JournalEntryViewTest(TestCase):
             url="https://example.com/paystub.pdf",
             user_filename="paystub.pdf",
             s3_filename="paystub.pdf",
-            analysis_complete=timezone.now(),
+            status=S3File.Status.COMPLETE,
         )
         paystub = Paystub.objects.create(
             document=s3file,

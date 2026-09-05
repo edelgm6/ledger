@@ -1,7 +1,6 @@
 import logging
 
 from celery import shared_task
-from django.utils import timezone
 
 from api.aws_services import download_file_from_s3
 from api.models import S3File
@@ -38,5 +37,4 @@ def process_gemini_paystub(s3file_pk: int) -> None:
         raise
 
     s3file.status = S3File.Status.COMPLETE
-    s3file.analysis_complete = timezone.now()
-    s3file.save(update_fields=["status", "analysis_complete"])
+    s3file.save(update_fields=["status"])

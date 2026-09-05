@@ -367,8 +367,6 @@ class Command(BaseCommand):
 
     def _create_paystubs(self, accounts, entities, prefills):
         """Create sample paystubs for testing the paystub-to-journal-entry workflow."""
-        from django.utils import timezone
-
         prefill = prefills.get('paycheck')
         if not prefill:
             self.stdout.write(self.style.WARNING("  Skipping paystubs - no paycheck prefill found"))
@@ -416,7 +414,7 @@ class Command(BaseCommand):
                 url=f"https://example-bucket.s3.amazonaws.com/paystub_{i+1}.pdf",
                 user_filename=f"paystub_{i+1}.pdf",
                 s3_filename=f"paystub_{i+1}.pdf",
-                analysis_complete=timezone.now(),
+                status=S3File.Status.COMPLETE,
             )
 
             paystub = Paystub.objects.create(

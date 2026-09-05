@@ -23,8 +23,9 @@ def render_paystubs_table(data: PaystubsTableData, show_fill_button: bool = True
     """
     Renders the paystubs table HTML.
 
-    Shows a poller if any Textract jobs are still processing,
-    otherwise shows unlinked paystubs.
+    Shows the poller whenever any file has not finished processing. The poller
+    embeds the paystubs table, so failed files render *alongside* the paystubs
+    (with a Retry button) rather than replacing them.
 
     Args:
         data: PaystubsTableData containing has_pending_jobs flag and paystubs list.
@@ -36,6 +37,8 @@ def render_paystubs_table(data: PaystubsTableData, show_fill_button: bool = True
             {
                 "pending_files": data.pending_files,
                 "has_active_jobs": data.has_active_jobs,
+                "paystubs": data.paystubs,
+                "show_fill_button": show_fill_button,
             },
         )
 

@@ -21,7 +21,6 @@ os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 
 from django.contrib.auth.models import User
 from django.test import Client, LiveServerTestCase, tag
-from django.utils import timezone
 from playwright.sync_api import sync_playwright
 
 from api.models import (
@@ -460,7 +459,6 @@ class JournalEntryPaystubTests(JournalEntryE2EBase):
             user_filename="May Paystub.pdf",
             s3_filename="test-paystub.pdf",
             status=S3File.Status.COMPLETE,
-            analysis_complete=timezone.now(),
         )
         self.paystub = Paystub.objects.create(
             document=self.s3file,

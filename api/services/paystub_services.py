@@ -30,27 +30,30 @@ class PaystubDetailData:
 
 def get_paystubs_table_data() -> PaystubsTableData:
     """
-    Returns data for paystubs table.
+    Returns data for the paystubs table.
 
-    Checks for pending Textract jobs first. If any exist, returns
-    has_pending_jobs=True with empty paystubs list.
+    Any file that has not reached COMPLETE is listed so the table can show its
+    state: PENDING/PROCESSING as work in flight, FAILED with a Retry button.
 
-    Otherwise returns unlinked paystubs (those without journal entries).
+    Only work actually *in flight* hides the unlinked paystubs, and only until
+    it lands. FAILED is a terminal state -- it previously kept the list gated
+    forever, so a single un-retried upload hid every unlinked paystub from the
+    journal-entry page until someone noticed and retried it.
     """
-    pending_files = list(
-        S3File.objects.filter(analysis_complete__isnull=True).order_by("pk")
+    unfinished_files = list(
+        S3File.objects.exclude(status=S3File.Status.COMPLETE).order_by("pk")
+    )
+    has_active_jobs = any(
+        f.status in (S3File.Status.PENDING, S3File.Status.PROCESSING)
+        for f in unfinished_files
     )
 
-    if pending_files:
-        has_active_jobs = any(
-            f.status in (S3File.Status.PENDING, S3File.Status.PROCESSING)
-            for f in pending_files
-        )
+    if has_active_jobs:
         return PaystubsTableData(
             has_pending_jobs=True,
             paystubs=[],
-            pending_files=pending_files,
-            has_active_jobs=has_active_jobs,
+            pending_files=unfinished_files,
+            has_active_jobs=True,
         )
 
     paystubs = list(
@@ -59,7 +62,14 @@ def get_paystubs_table_data() -> PaystubsTableData:
         .order_by("title")
     )
 
-    return PaystubsTableData(has_pending_jobs=False, paystubs=paystubs)
+    # Failed files (if any) still render, alongside the paystubs rather than
+    # instead of them.
+    return PaystubsTableData(
+        has_pending_jobs=bool(unfinished_files),
+        paystubs=paystubs,
+        pending_files=unfinished_files,
+        has_active_jobs=False,
+    )
 
 
 def get_paystub_detail_data(paystub_id: int) -> PaystubDetailData:
