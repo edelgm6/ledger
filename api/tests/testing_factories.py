@@ -37,7 +37,13 @@ class AccountFactory(factory.django.DjangoModelFactory):
 
     name = factory.Sequence(lambda n: f"Account {n}")
     type = factory.Iterator(Account.Type.choices, getter=lambda c: c[0])
-    sub_type = factory.Iterator(Account.SubType.choices, getter=lambda c: c[0])
+    # Pick a sub_type that actually belongs to `type`. These were two
+    # independent Iterators (5 types vs 19 sub_types, cycled separately), so the
+    # factory produced mostly-invalid combinations -- the exact contradictory
+    # state Account.save() now prevents. Callers passing sub_type= override this.
+    sub_type = factory.LazyAttribute(
+        lambda o: Account.SUBTYPE_TO_TYPE_MAP[o.type][0]
+    )
     csv_profile = factory.SubFactory(CSVProfileFactory)
     system_role = None
     tax_kind = None

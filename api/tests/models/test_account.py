@@ -153,3 +153,86 @@ class AccountManagerTest(TestCase):
             {k for k, a in kinds.items() if a.is_income_tax},
             {Account.TaxKind.FEDERAL, Account.TaxKind.STATE, Account.TaxKind.PAYROLL},
         )
+
+class AccountTypeDerivationTest(TestCase):
+    """`type` is derived from `sub_type` on every write.
+
+    It used to be an independently-writable field kept in step only by
+    AccountForm.clean(), which the admin, django-import-export and any direct
+    .save() all bypass. A row that disagreed with SUBTYPE_TO_TYPE_MAP
+    double-counted into the wrong statement section (Statement.get_summaries
+    credits both the type and the sub_type bucket) and was silently dropped
+    from its own (iter_sub_type_buckets only walks the sub_types listed under
+    that type).
+    """
+
+    def test_save_overrides_a_contradictory_type(self):
+        account = Account.objects.create(
+            name="Contradictory",
+            type=Account.Type.EQUITY,          # wrong
+            sub_type=Account.SubType.CASH,     # cash is an ASSET sub_type
+        )
+        self.assertEqual(account.type, Account.Type.ASSET)
+        account.refresh_from_db()
+        self.assertEqual(account.type, Account.Type.ASSET)
+
+    def test_every_sub_type_derives_its_mapped_type(self):
+        for account_type, sub_types in Account.SUBTYPE_TO_TYPE_MAP.items():
+            for sub_type in sub_types:
+                account = Account.objects.create(
+                    name=f"Derived {sub_type}",
+                    # Deliberately wrong for every row.
+                    type=Account.Type.EQUITY,
+                    sub_type=sub_type,
+                )
+                self.assertEqual(
+                    account.type,
+                    account_type,
+                    f"{sub_type} should derive {account_type}",
+                )
+
+    def test_editing_sub_type_moves_the_type_with_it(self):
+        account = Account.objects.create(
+            name="Mover", type=Account.Type.ASSET, sub_type=Account.SubType.CASH
+        )
+        account.sub_type = Account.SubType.SALARY
+        account.save()
+        account.refresh_from_db()
+        self.assertEqual(account.type, Account.Type.INCOME)
+
+    def test_update_fields_still_persists_the_derived_type(self):
+        """A caller narrowing the write to update_fields=["sub_type"] would
+        otherwise silently discard the correction."""
+        account = Account.objects.create(
+            name="Narrow", type=Account.Type.ASSET, sub_type=Account.SubType.CASH
+        )
+        account.sub_type = Account.SubType.OPERATING
+        account.save(update_fields=["sub_type"])
+        account.refresh_from_db()
+        self.assertEqual(account.sub_type, Account.SubType.OPERATING)
+        self.assertEqual(account.type, Account.Type.EXPENSE)
+
+    def test_import_export_path_is_covered(self):
+        """django-import-export bypasses the form but goes through save()."""
+        from api.resources import AccountResource
+        import tablib
+
+        dataset = tablib.Dataset(
+            headers=["id", "name", "type", "sub_type", "system_role", "tax_kind", "is_closed"]
+        )
+        dataset.append(["", "Imported", "equity", "cash", "", "", "False"])
+        AccountResource().import_data(dataset, raise_errors=True)
+
+        imported = Account.objects.get(name="Imported")
+        self.assertEqual(
+            imported.type,
+            Account.Type.ASSET,
+            "an import declaring the wrong type must still be corrected",
+        )
+
+    def test_clean_rejects_a_sub_type_absent_from_the_map(self):
+        account = Account(
+            name="Unmapped", type=Account.Type.ASSET, sub_type="not_a_real_sub_type"
+        )
+        with self.assertRaises(ValidationError):
+            account.clean()

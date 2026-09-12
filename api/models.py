@@ -601,6 +601,19 @@ class Account(models.Model):
         Type.EXPENSE: [SubType.OPERATING, SubType.INTEREST, SubType.TAX],
     }
 
+    @classmethod
+    def type_for_sub_type(cls, sub_type):
+        """The Type that owns `sub_type`. Returns None for an unmapped value.
+
+        SUBTYPE_TO_TYPE_MAP is a total, injective function -- every sub_type
+        belongs to exactly one type -- so `type` is derivable and is set from
+        this in save() rather than stored independently.
+        """
+        for account_type, sub_types in cls.SUBTYPE_TO_TYPE_MAP.items():
+            if sub_type in sub_types:
+                return account_type
+        return None
+
     # Asset classes carried at fair value, whose balance changes can be non-cash
     # marks (unrealized gains/losses). The cash flow statement excludes these
     # marks from investing (get_cash_from_investing_balances) and from net income
@@ -719,8 +732,39 @@ class Account(models.Model):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        """Derives `type` from `sub_type` before every write.
+
+        `type` remains a stored column -- dozens of queries filter on
+        `account__type__in=` and the statement engine builds unsaved Account
+        rows that carry a type -- but it is no longer independently writable.
+        It was previously kept in step only by AccountForm.clean(), which the
+        admin, django-import-export and any direct .save() all bypass. A row
+        that disagreed with SUBTYPE_TO_TYPE_MAP double-counted into the wrong
+        statement section and was silently dropped from its own.
+
+        An unmapped sub_type leaves `type` untouched rather than nulling a
+        NOT NULL column; Account.clean() reports it as a validation error.
+        """
+        derived = self.type_for_sub_type(self.sub_type)
+        if derived is not None and self.type != derived:
+            self.type = derived
+            # A caller passing update_fields without "type" would otherwise
+            # silently discard the correction.
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None:
+                kwargs["update_fields"] = set(update_fields) | {"type"}
+        return super().save(*args, **kwargs)
+
     def clean(self):
         super().clean()
+
+        # `type` is derived from `sub_type` in save(), so an unmapped sub_type
+        # is the one case that cannot be repaired automatically.
+        if self.sub_type and self.type_for_sub_type(self.sub_type) is None:
+            raise ValidationError(
+                f"'{self.sub_type}' is not mapped to any account type."
+            )
 
         # Recommendation rate strategy: a tax account computes its recommended
         # charge from either a percentage (tax_rate * taxable income) or a flat
