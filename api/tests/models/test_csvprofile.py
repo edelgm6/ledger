@@ -139,11 +139,19 @@ class CSVProfileModelTest(TestCase):
         )
         self.assertEqual(value, Decimal('1234.56'))
 
-    def test_get_coalesced_amount_blank_row_returns_zero(self):
-        # A blank amount marks the end-of-data row the importer breaks on; it
-        # must return 0 rather than raise on Decimal('').
+    def test_get_coalesced_amount_blank_row_returns_none(self):
+        # A row with no amount cell marks end-of-data and returns None. It used
+        # to return Decimal(0), which the importer could not tell apart from a
+        # legitimate $0.00 row -- so one zero row truncated the whole import.
         value = self.csv_profile._get_coalesced_amount({'Inflow': '', 'Outflow': ''})
-        self.assertEqual(value, Decimal(0))
+        self.assertIsNone(value)
+
+    def test_get_coalesced_amount_real_zero_is_not_end_of_data(self):
+        value = self.csv_profile._get_coalesced_amount(
+            {'Inflow': '0.00', 'Outflow': ''}
+        )
+        self.assertEqual(value, Decimal('0.00'))
+        self.assertIsNotNone(value)
 
     def test_positive_outflows_flips_the_sign_both_ways(self):
         # Some cards export expenditures as positive and refunds as negative --
@@ -159,11 +167,10 @@ class CSVProfileModelTest(TestCase):
             self.csv_profile._get_coalesced_amount({'Inflow': '', 'Outflow': '-4000'}),
             Decimal('4000'),
         )
-        # The blank end-of-data cell stays an untouched 0 -- the importer breaks
-        # on `amount == 0` to stop reading the file.
-        self.assertEqual(
-            self.csv_profile._get_coalesced_amount({'Inflow': '', 'Outflow': ''}),
-            Decimal(0),
+        # The blank end-of-data cell stays None -- the importer breaks on None
+        # to stop reading the file.
+        self.assertIsNone(
+            self.csv_profile._get_coalesced_amount({'Inflow': '', 'Outflow': ''})
         )
 
     def test_positive_outflows_flips_created_transaction_amounts(self):
@@ -236,3 +243,110 @@ class CSVProfileModelTest(TestCase):
     # account = models.ForeignKey('Account',on_delete=models.CASCADE,null=True,blank=True)
     # transaction_type = models.CharField(max_length=25,choices=Transaction.TransactionType.choices,blank=True)
     # prefill = models.ForeignKey('Prefill',on_delete=models.CASCADE,null=True,blank=True)
+
+class CSVImportZeroRowTest(TestCase):
+    """A $0.00 row mid-export must not silently truncate the import."""
+
+    HEADER = ['Trade Date', 'Transaction Description', 'Transaction Type',
+              'Inflow', 'Outflow']
+
+    def setUp(self):
+        self.account = AccountFactory()
+        self.csv_profile = CSVProfileFactory(
+            name="Zeros",
+            date="Trade Date",
+            description="Transaction Description",
+            category="Transaction Type",
+            clear_prepended_until_value="",
+            inflow="Inflow",
+            outflow="Outflow",
+            date_format="%Y-%m-%d",
+        )
+
+    def _import(self, rows):
+        return self.csv_profile.create_transactions_from_csv(
+            [list(self.HEADER)] + [list(r) for r in rows], self.account
+        )
+
+    def test_zero_amount_row_does_not_stop_the_import(self):
+        rows = [
+            ['2026-01-01', 'First', 'Buy', '100.00', ''],
+            ['2026-01-02', 'Zero fee waived', 'Fee', '0.00', ''],
+            ['2026-01-03', 'Third', 'Buy', '300.00', ''],
+        ]
+        created = self._import(rows)
+
+        self.assertEqual(
+            len(created), 3,
+            "a legitimate $0.00 row used to end the import, dropping every "
+            "row after it",
+        )
+        self.assertEqual(
+            [t.description for t in created], ['First', 'Zero fee waived', 'Third']
+        )
+        self.assertEqual(created[1].amount, Decimal('0.00'))
+
+    def test_row_with_no_amount_cell_still_ends_the_import(self):
+        rows = [
+            ['2026-01-01', 'First', 'Buy', '100.00', ''],
+            ['2026-01-02', 'End of data', 'Buy', '', ''],
+            ['2026-01-03', 'Never reached', 'Buy', '300.00', ''],
+        ]
+        created = self._import(rows)
+
+        self.assertEqual(len(created), 1)
+        self.assertEqual(created[0].description, 'First')
+
+
+class CSVClearExtraneousRowsQueryCountTest(TestCase):
+    """_clear_extraneous_rows must not scale queries with row count."""
+
+    def setUp(self):
+        self.csv_profile = CSVProfileFactory(
+            name="QueryCount",
+            date="Trade Date",
+            description="Transaction Description",
+            category="Transaction Type",
+            clear_prepended_until_value="",
+            inflow="Inflow",
+            outflow="Outflow",
+            date_format="%Y-%m-%d",
+        )
+        for column, value in [
+            ("Transaction Type", "Buy"),
+            ("Transaction Type", "Sweep out"),
+        ]:
+            CSVColumnValuePairFactory(
+                csv_profile=self.csv_profile, column=column, value=value
+            )
+
+    def _rows(self, n):
+        return [
+            {
+                "Trade Date": "2026-01-01",
+                "Transaction Description": f"row {i}",
+                "Transaction Type": "Dividend",
+                "Inflow": "1.00",
+                "Outflow": "",
+            }
+            for i in range(n)
+        ]
+
+    def test_query_count_is_constant_regardless_of_row_count(self):
+        # One query for the clear pairs, no matter how many rows.
+        with self.assertNumQueries(1):
+            self.csv_profile._clear_extraneous_rows(self._rows(200))
+
+    def test_still_filters_the_configured_pairs(self):
+        rows = self._rows(3)
+        rows[1]["Transaction Type"] = "Buy"  # configured to be cleared
+        kept = self.csv_profile._clear_extraneous_rows(rows)
+        self.assertEqual(len(kept), 2)
+        self.assertNotIn("Buy", [r["Transaction Type"] for r in kept])
+
+    def test_row_missing_the_configured_column_is_kept(self):
+        # Previously handled by try/except KeyError as control flow.
+        kept = self.csv_profile._clear_extraneous_rows(
+            [{"Some Other Column": "whatever"}]
+        )
+        self.assertEqual(len(kept), 1)

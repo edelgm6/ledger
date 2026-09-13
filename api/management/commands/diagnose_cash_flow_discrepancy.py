@@ -6,7 +6,12 @@ from django.core.management.base import BaseCommand
 from django.db.models import Prefetch, Q
 
 from api.models import Account, JournalEntry, JournalEntryItem
-from api.statement import BalanceSheet, CashFlowStatement, IncomeStatement
+from api.statement import (
+    BalanceSheet,
+    CashFlowStatement,
+    IncomeStatement,
+    StartingEquityMissing,
+)
 
 # The discrepancy flag is an all-time reconciliation, so mirror the global window
 # that calculate_cash_flow_metrics() uses (api/services/statement_services.py).
@@ -41,7 +46,7 @@ class Command(BaseCommand):
 
         try:
             discrepancy = cash_flow.get_cash_flow_discrepancy()
-        except IndexError:
+        except StartingEquityMissing:
             self.stdout.write(
                 self.style.ERROR(
                     "No account has system_role=STARTING_EQUITY, so the "

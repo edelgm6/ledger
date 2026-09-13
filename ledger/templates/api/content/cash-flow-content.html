@@ -1,7 +1,13 @@
 {% load humanize %}
 {{ filter_form }}
 
-{% if cash_flow_discrepancy %}
+{% if cash_flow_discrepancy_error %}
+<div class="page-narrow">
+    <div class="alert alert-danger small mb-2" role="alert">
+    ⚠️ Cash flow reconciliation could not run: {{ cash_flow_discrepancy_error }}
+    </div>
+</div>
+{% elif cash_flow_discrepancy %}
 <div class="page-narrow">
     <div class="alert alert-danger small mb-2" role="alert">
     ⚠️ Cash flow discrepancy: ${{ cash_flow_discrepancy|default:0|floatformat:2 }}

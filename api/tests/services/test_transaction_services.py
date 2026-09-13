@@ -203,3 +203,62 @@ class DeleteTransactionTest(TestCase):
         self.assertTrue(result.success)
         # Verify journal entry was cascade deleted
         self.assertFalse(JournalEntry.objects.filter(pk=journal_entry_id).exists())
+
+
+class FilterEntryPointParityTest(TestCase):
+    """The form and the service must build the same transactions queryset.
+
+    They each constructed it by hand from the same eight arguments and had
+    already drifted: the form omitted suggested_account from select_related, so
+    whether a page issued an extra query per row depended on which entry point
+    rendered it.
+    """
+
+    def setUp(self):
+        self.account = AccountFactory(type=Account.Type.ASSET)
+        self.suggested = AccountFactory(type=Account.Type.EXPENSE)
+        for _ in range(3):
+            TransactionFactory(
+                account=self.account,
+                suggested_account=self.suggested,
+                is_closed=False,
+                type=Transaction.TransactionType.PURCHASE,
+                amount=Decimal("-10.00"),
+            )
+
+    def _bound_form(self):
+        from api.forms import TransactionFilterForm
+
+        form = TransactionFilterForm(
+            {
+                "is_closed": False,
+                "transaction_type": [Transaction.TransactionType.PURCHASE],
+                "account": [],
+                "related_account": [],
+                "suggested_first": False,
+            },
+            prefix=None,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        return form
+
+    def test_both_entry_points_return_the_same_rows(self):
+        from_form = list(self._bound_form().get_transactions())
+        from_service = filter_transactions(
+            is_closed=False,
+            transaction_types=[Transaction.TransactionType.PURCHASE],
+        ).transactions
+
+        self.assertEqual(
+            [t.pk for t in from_form], [t.pk for t in from_service]
+        )
+
+    def test_form_path_also_prefetches_suggested_account(self):
+        """Touching suggested_account must not trigger an extra query."""
+        transactions = list(self._bound_form().get_transactions())
+        self.assertEqual(len(transactions), 3)
+
+        with self.assertNumQueries(0):
+            for txn in transactions:
+                _ = txn.account.name
+                _ = txn.suggested_account.name

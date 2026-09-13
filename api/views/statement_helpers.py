@@ -211,6 +211,7 @@ def render_cash_flow_statement(metrics: CashFlowMetrics) -> str:
         "levered_cash_flow": metrics.levered_cash_flow,
         "levered_cash_flow_post_restricted": metrics.levered_cash_flow_post_restricted,
         "cash_flow_discrepancy": metrics.cash_flow_discrepancy,
+        "cash_flow_discrepancy_error": metrics.cash_flow_discrepancy_error,
     }
 
     return render_to_string("api/content/cash-flow-content.html", context)

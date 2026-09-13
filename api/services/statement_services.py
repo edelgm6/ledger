@@ -6,6 +6,7 @@ finding unbalanced entries, and calculating metrics. All database writes
 go through services with atomic transactions.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
@@ -20,7 +21,10 @@ from api.statement import (
     CashFlowStatement,
     EntityBalance,
     IncomeStatement,
+    StartingEquityMissing,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -104,6 +108,10 @@ class CashFlowMetrics:
     levered_cash_flow: Decimal
     levered_cash_flow_post_restricted: Decimal
     cash_flow_discrepancy: Optional[Decimal]
+    # Set when the discrepancy could not be computed at all (no STARTING_EQUITY
+    # account). Distinct from cash_flow_discrepancy=None, which means the books
+    # reconcile -- conflating the two hid a real misconfiguration.
+    cash_flow_discrepancy_error: Optional[str] = None
 
 
 def filter_closed_accounts(balances: List[Balance]) -> List[Balance]:
@@ -439,6 +447,37 @@ def get_statement_detail_items_by_entity(
     return StatementDetailData(journal_entry_items=journal_entry_items)
 
 
+GLOBAL_CASH_FLOW_START = "1900-01-01"
+GLOBAL_CASH_FLOW_END = "2500-01-01"
+
+
+def _get_global_cash_flow_discrepancy():
+    """Whole-ledger reconciliation check: does measured cash flow match cash?
+
+    Deliberately spans all of history, so it is a *constant* with respect to any
+    requested reporting period -- it is not a metric of the period being viewed.
+    It costs roughly half the queries of calculate_cash_flow_metrics, and every
+    cash-flow page view and REST report call pays for it.
+
+    Returns (discrepancy, error). A discrepancy of None means the books
+    reconcile; error is set only when the check could not run at all.
+    """
+    global_cash_statement = CashFlowStatement(
+        income_statement=IncomeStatement(
+            end_date=GLOBAL_CASH_FLOW_END, start_date=GLOBAL_CASH_FLOW_START
+        ),
+        end_balance_sheet=BalanceSheet(end_date=GLOBAL_CASH_FLOW_END),
+        start_balance_sheet=BalanceSheet(end_date=GLOBAL_CASH_FLOW_START),
+    )
+    try:
+        return global_cash_statement.get_cash_flow_discrepancy(), None
+    except StartingEquityMissing as exc:
+        # Previously swallowed as "no discrepancy", which rendered a missing
+        # STARTING_EQUITY account as "everything reconciles".
+        logger.error("Cash flow discrepancy check could not run: %s", exc)
+        return None, str(exc)
+
+
 def calculate_cash_flow_metrics(from_date: date, to_date: date) -> CashFlowMetrics:
     """
     Calculate all cash flow metrics for rendering.
@@ -464,17 +503,6 @@ def calculate_cash_flow_metrics(from_date: date, to_date: date) -> CashFlowMetri
         end_balance_sheet=end_balance_sheet,
     )
 
-    # Create global cash flow statement for discrepancy check
-    global_end_date = "2500-01-01"
-    global_start_date = "1900-01-01"
-    global_cash_statement = CashFlowStatement(
-        income_statement=IncomeStatement(
-            end_date=global_end_date, start_date=global_start_date
-        ),
-        end_balance_sheet=BalanceSheet(end_date=global_end_date),
-        start_balance_sheet=BalanceSheet(end_date=global_start_date),
-    )
-
     # Extract metrics from summaries
     def get_summary_value(name: str) -> Decimal:
         return sum(
@@ -482,11 +510,9 @@ def calculate_cash_flow_metrics(from_date: date, to_date: date) -> CashFlowMetri
             Decimal("0"),
         )
 
-    # Handle case where starting equity account doesn't exist
-    try:
-        cash_flow_discrepancy = global_cash_statement.get_cash_flow_discrepancy()
-    except IndexError:
-        cash_flow_discrepancy = None
+    cash_flow_discrepancy, cash_flow_discrepancy_error = (
+        _get_global_cash_flow_discrepancy()
+    )
 
     return CashFlowMetrics(
         operations_flows=filter_closed_accounts(
@@ -505,4 +531,5 @@ def calculate_cash_flow_metrics(from_date: date, to_date: date) -> CashFlowMetri
         levered_cash_flow=cash_statement.get_levered_after_tax_cash_flow(),
         levered_cash_flow_post_restricted=cash_statement.get_levered_after_tax_after_restricted_cash_flow(),
         cash_flow_discrepancy=cash_flow_discrepancy,
+        cash_flow_discrepancy_error=cash_flow_discrepancy_error,
     )
