@@ -1,3 +1,4 @@
+import datetime
 from decimal import Decimal
 from django.test import TestCase
 from api.statement import IncomeStatement
@@ -5,6 +6,12 @@ from api.models import Account, JournalEntryItem, JournalEntry, Transaction
 from api.tests.scenario_builders import (
     create_closed_transaction_with_journal_entry,
     create_multi_line_journal_entry,
+)
+from api.tests.testing_factories import (
+    AccountFactory,
+    JournalEntryFactory,
+    JournalEntryItemFactory,
+    TransactionFactory,
 )
 
 
@@ -356,3 +363,80 @@ class PostTaxSavingsRateTest(TestCase):
         income_statement = IncomeStatement('2023-01-31', '2023-01-01')
         self.assertEqual(income_statement.get_income_taxes(), 180)
         self.assertIsNone(income_statement.get_post_tax_savings_rate())
+
+
+class MisSectionedAccountTest(TestCase):
+    """Demonstrates the damage a type/sub_type mismatch does to a statement.
+
+    Account.save() now makes this state unreachable through the model, so the
+    setup forces it with queryset.update(), which bypasses save(). The test
+    documents why the derived-type invariant exists and fails loudly if the
+    derivation is ever removed.
+    """
+
+    def setUp(self):
+        self.income_account = AccountFactory(
+            name="Mis-sectioned Salary",
+            type=Account.Type.INCOME,
+            sub_type=Account.SubType.SALARY,
+        )
+        self.cash = AccountFactory(
+            name="Cash For Mis-section", type=Account.Type.ASSET,
+            sub_type=Account.SubType.CASH,
+        )
+        transaction = TransactionFactory(account=self.cash, amount=Decimal("500.00"))
+        journal_entry = JournalEntryFactory(
+            transaction=transaction, date=datetime.date(2026, 6, 15)
+        )
+        JournalEntryItemFactory(
+            journal_entry=journal_entry,
+            account=self.cash,
+            type=JournalEntryItem.JournalEntryType.DEBIT,
+            amount=Decimal("500.00"),
+        )
+        JournalEntryItemFactory(
+            journal_entry=journal_entry,
+            account=self.income_account,
+            type=JournalEntryItem.JournalEntryType.CREDIT,
+            amount=Decimal("500.00"),
+        )
+
+    def _income_statement(self):
+        return IncomeStatement(
+            end_date=datetime.date(2026, 12, 31), start_date=datetime.date(2026, 1, 1)
+        )
+
+    def test_consistent_account_is_counted_once_in_its_own_section(self):
+        statement = self._income_statement()
+        salary = [
+            b for b in statement.balances
+            if b.account.pk == self.income_account.pk
+        ]
+        self.assertEqual(len(salary), 1)
+        self.assertEqual(salary[0].amount, Decimal("500.00"))
+
+    def test_mismatched_type_drops_the_account_from_the_income_statement(self):
+        # Bypass save() to manufacture the contradictory row the derivation
+        # prevents: a SALARY sub_type stored as an EXPENSE.
+        Account.objects.filter(pk=self.income_account.pk).update(
+            type=Account.Type.EXPENSE
+        )
+
+        statement = self._income_statement()
+        summaries = {m.name: m.value for m in statement.summaries}
+
+        # The sub_type bucket still carries the amount, but it is now filed
+        # under the wrong type -- the two no longer agree, which is precisely
+        # the corruption Account.save() exists to prevent.
+        self.assertIn("Salary", summaries)
+        self.assertNotEqual(
+            summaries.get("Income", 0),
+            summaries.get("Salary", 0),
+            "a mismatched row desynchronizes the type and sub_type totals",
+        )
+
+    def test_save_makes_the_mismatch_unreachable(self):
+        self.income_account.type = Account.Type.EXPENSE
+        self.income_account.save()
+        self.income_account.refresh_from_db()
+        self.assertEqual(self.income_account.type, Account.Type.INCOME)

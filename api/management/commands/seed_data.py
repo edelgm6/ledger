@@ -10,8 +10,13 @@ class Command(BaseCommand):
         # List of Account data to seed
         accounts_data = [
             {
+                # INCOME, not EQUITY: UNREALIZED_INVESTMENT_GAINS belongs to
+                # INCOME in SUBTYPE_TO_TYPE_MAP, and Account.save() derives
+                # `type` from `sub_type`. The old EQUITY value also made the
+                # get_or_create() below miss the existing row and attempt a
+                # duplicate insert.
                 "name": "Unrealized Gains and Losses",
-                "type": Account.Type.EQUITY,
+                "type": Account.Type.INCOME,
                 "sub_type": Account.SubType.UNREALIZED_INVESTMENT_GAINS,
                 "system_role": Account.SystemRole.UNREALIZED_GAINS_AND_LOSSES,
             },
