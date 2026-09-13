@@ -469,3 +469,89 @@ class PaystubTableViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         # Should return paystub table (even if empty)
         self.assertIn(b"paystub", response.content.lower())
+
+
+class JournalEntryAutofocusTest(TestCase):
+    """Autofocus must land on the column the user still has to fill in.
+
+    `autofocus_debit` is read inverted by the template: true focuses the CREDIT
+    column, because a positive (income) transaction prefills the debit side.
+    It used to be hard-coded True whenever bound formsets were supplied -- i.e.
+    on every failed validation -- so a negative-amount purchase refocused the
+    already-prefilled credit column instead of the debit column.
+    """
+
+    def setUp(self):
+        self.account = AccountFactory(type=Account.Type.ASSET)
+
+    def _render(self, amount, **kwargs):
+        from api.views.journal_entry_helpers import render_journal_entry_form
+
+        txn = TransactionFactory(account=self.account, amount=amount)
+        return render_journal_entry_form(transaction=txn, **kwargs), txn
+
+    def test_purchase_focuses_debit_column_when_formsets_are_bound(self):
+        from api.views.journal_entry_helpers import (
+            get_debits_and_credits,
+            get_formsets,
+            render_journal_entry_form,
+        )
+
+        txn = TransactionFactory(account=self.account, amount=Decimal("-100.00"))
+        debits, credits = get_debits_and_credits(txn)
+        debit_formset, credit_formset = get_formsets(
+            debits_initial_data=[],
+            credits_initial_data=[],
+            journal_entry_debits=debits,
+            journal_entry_credits=credits,
+            bound_debits_count=debits.count(),
+            bound_credits_count=credits.count(),
+        )
+
+        html = render_journal_entry_form(
+            transaction=txn,
+            debit_formset=debit_formset,
+            credit_formset=credit_formset,
+        )
+
+        # The debits section comes first; autofocus must appear before the
+        # Credits heading, i.e. in the debit column.
+        credits_heading = html.index("Credits")
+        first_autofocus = html.index("autofocus")
+        self.assertLess(
+            first_autofocus,
+            credits_heading,
+            "a failed negative-amount entry must refocus the debit column",
+        )
+
+    def test_income_focuses_credit_column_when_formsets_are_bound(self):
+        from api.views.journal_entry_helpers import (
+            get_debits_and_credits,
+            get_formsets,
+            render_journal_entry_form,
+        )
+
+        txn = TransactionFactory(account=self.account, amount=Decimal("100.00"))
+        debits, credits = get_debits_and_credits(txn)
+        debit_formset, credit_formset = get_formsets(
+            debits_initial_data=[],
+            credits_initial_data=[],
+            journal_entry_debits=debits,
+            journal_entry_credits=credits,
+            bound_debits_count=debits.count(),
+            bound_credits_count=credits.count(),
+        )
+
+        html = render_journal_entry_form(
+            transaction=txn,
+            debit_formset=debit_formset,
+            credit_formset=credit_formset,
+        )
+
+        credits_heading = html.index("Credits")
+        first_autofocus = html.index("autofocus")
+        self.assertGreater(
+            first_autofocus,
+            credits_heading,
+            "a failed positive-amount entry must refocus the credit column",
+        )

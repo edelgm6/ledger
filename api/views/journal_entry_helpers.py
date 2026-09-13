@@ -95,14 +95,24 @@ def render_journal_entry_form(
     if not transaction:
         return ""
 
-    # Build formsets if not provided
-    if not (debit_formset and credit_formset):
+    # Which column the source account lands in is purely a function of the
+    # transaction's sign, so derive it once for both branches. It used to be
+    # hard-coded True when bound formsets were supplied (i.e. after failed
+    # validation), which sent focus to the already-prefilled column instead of
+    # the one the user still has to fill in.
+    #
+    # Note the template reads this inverted: `autofocus_debit` true focuses the
+    # CREDIT column, because a positive (income) transaction prefills the debit
+    # side and the user completes the credit side.
+    is_debit = transaction.amount >= 0
+
+    # Build formsets if not provided. Test for absence explicitly: a formset's
+    # truthiness is its form count, so a bound formset with zero forms is falsy
+    # and would be silently replaced while its errors were still rendering.
+    if debit_formset is None or credit_formset is None:
         journal_entry_debits, journal_entry_credits = get_debits_and_credits(transaction)
         bound_debits_count = journal_entry_debits.count()
         bound_credits_count = journal_entry_credits.count()
-
-        # Determine if transaction's source account is a debit
-        is_debit = transaction.amount >= 0
 
         if bound_debits_count + bound_credits_count == 0:
             debits_initial_data, credits_initial_data = get_initial_data(
@@ -120,8 +130,6 @@ def render_journal_entry_form(
             bound_debits_count=bound_debits_count,
             bound_credits_count=bound_credits_count,
         )
-    else:
-        is_debit = True  # Default if formsets provided with errors
 
     # Build metadata form
     metadata = {"index": index, "paystub_id": paystub_id}

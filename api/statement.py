@@ -8,6 +8,15 @@ from django.db.models import Case, DecimalField, Q, Sum, Value, When
 from api.models import Account, JournalEntryItem
 
 
+class StartingEquityMissing(Exception):
+    """No account has system_role=STARTING_EQUITY.
+
+    The cash-flow discrepancy cannot be computed without it. This is a
+    configuration fault, not a reconciled ledger, and callers must not report it
+    as "everything reconciles".
+    """
+
+
 def _tagged_balances(rows, origin):
     """Shallow-copy `rows`, labeling each with its originating statement.
 
@@ -276,11 +285,18 @@ class CashFlowStatement(Statement):
             self.end_balance_sheet
         ) - self.get_cash_balance(self.start_balance_sheet)
 
-        starting_equity = [
+        starting_equity_balances = [
             balance
             for balance in self.end_balance_sheet.balances
             if balance.account.is_starting_equity
-        ][0]
+        ]
+        if not starting_equity_balances:
+            # Was an IndexError, which callers swallowed into "no discrepancy".
+            raise StartingEquityMissing(
+                "No account has system_role=STARTING_EQUITY, so the cash flow "
+                "discrepancy cannot be computed."
+            )
+        starting_equity = starting_equity_balances[0]
 
         measured_cash_flow = self.net_cash_flow + starting_equity.amount
 

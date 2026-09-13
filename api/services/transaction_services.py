@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from django.db import transaction as db_transaction
+from django.db.models import QuerySet
 
 from api.models import Account, Transaction
 
@@ -31,6 +32,38 @@ class TransactionFilterResult:
     """Result of transaction filtering."""
     transactions: List[Transaction]
     count: int
+
+
+def build_transaction_queryset(
+    is_closed: Optional[bool] = None,
+    has_linked_transaction: Optional[bool] = None,
+    transaction_types: Optional[List[str]] = None,
+    accounts: Optional[List[Account]] = None,
+    date_from: Optional[datetime.date] = None,
+    date_to: Optional[datetime.date] = None,
+    related_accounts: Optional[List[Account]] = None,
+    suggested_first: bool = False,
+) -> QuerySet:
+    """The single definition of "the transactions table queryset".
+
+    Both entry points funnel through here: `filter_transactions` (called with
+    explicit kwargs for the unfiltered/default views) and
+    `TransactionFilterForm.get_transactions` (called with a bound form's
+    cleaned_data). They previously each built this queryset by hand with the
+    same eight arguments and had already drifted -- the form omitted
+    suggested_account from select_related, so the same page issued an extra
+    query per row depending on which entry point rendered it.
+    """
+    return Transaction.objects.filter_for_table(
+        is_closed=is_closed,
+        has_linked_transaction=has_linked_transaction,
+        transaction_types=transaction_types,
+        accounts=accounts,
+        date_from=date_from,
+        date_to=date_to,
+        related_accounts=related_accounts,
+        suggested_first=suggested_first,
+    ).select_related("account", "suggested_account")
 
 
 def filter_transactions(
@@ -62,18 +95,18 @@ def filter_transactions(
     Returns:
         TransactionFilterResult with transactions and count
     """
-    queryset = Transaction.objects.filter_for_table(
-        is_closed=is_closed,
-        has_linked_transaction=has_linked_transaction,
-        transaction_types=transaction_types,
-        accounts=accounts,
-        date_from=date_from,
-        date_to=date_to,
-        related_accounts=related_accounts,
-        suggested_first=suggested_first,
-    ).select_related("account", "suggested_account")
-
-    transactions = list(queryset)
+    transactions = list(
+        build_transaction_queryset(
+            is_closed=is_closed,
+            has_linked_transaction=has_linked_transaction,
+            transaction_types=transaction_types,
+            accounts=accounts,
+            date_from=date_from,
+            date_to=date_to,
+            related_accounts=related_accounts,
+            suggested_first=suggested_first,
+        )
+    )
     return TransactionFilterResult(
         transactions=transactions,
         count=len(transactions)
