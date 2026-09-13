@@ -260,7 +260,6 @@ class JournalEntryViewTest(TestCase):
             url="https://example.com/paystub.pdf",
             user_filename="paystub.pdf",
             s3_filename="paystub.pdf",
-            textract_job_id="job123",
             analysis_complete=timezone.now(),
         )
         paystub = Paystub.objects.create(

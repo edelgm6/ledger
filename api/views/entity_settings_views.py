@@ -53,9 +53,6 @@ class EntitySettingsView(LoginRequiredMixin, View):
     def post(self, request, entity_id=None):
         action = request.POST.get("action")
 
-        if action == "clear":
-            return HttpResponse(self._render_content())
-
         if action == "delete":
             result = entity_services.delete_entity(entity_id)
             if result.success:

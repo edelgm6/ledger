@@ -60,9 +60,6 @@ class SettingsView(LoginRequiredMixin, View):
     def post(self, request, account_id=None):
         action = request.POST.get("action")
 
-        if action == "clear":
-            return HttpResponse(self._render_content())
-
         if action == "delete":
             result = account_services.delete_account(account_id)
             if result.success:

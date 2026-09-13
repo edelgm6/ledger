@@ -416,7 +416,6 @@ class Command(BaseCommand):
                 url=f"https://example-bucket.s3.amazonaws.com/paystub_{i+1}.pdf",
                 user_filename=f"paystub_{i+1}.pdf",
                 s3_filename=f"paystub_{i+1}.pdf",
-                textract_job_id=f"textract_job_{i+1}",
                 analysis_complete=timezone.now(),
             )
 

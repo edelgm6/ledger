@@ -34,7 +34,6 @@ class GetPaystubsTableDataTest(TestCase):
             url="https://example.com/pending.pdf",
             user_filename="pending.pdf",
             s3_filename="pending.pdf",
-            textract_job_id="job123",
             analysis_complete=None,
         )
 
@@ -51,7 +50,6 @@ class GetPaystubsTableDataTest(TestCase):
             url="https://example.com/complete.pdf",
             user_filename="complete.pdf",
             s3_filename="complete.pdf",
-            textract_job_id="job456",
             analysis_complete=timezone.now(),
         )
         paystub = Paystub.objects.create(
@@ -75,7 +73,6 @@ class GetPaystubsTableDataTest(TestCase):
             url="https://example.com/linked.pdf",
             user_filename="linked.pdf",
             s3_filename="linked.pdf",
-            textract_job_id="job789",
             analysis_complete=timezone.now(),
         )
         journal_entry = JournalEntryFactory()
@@ -131,7 +128,6 @@ class GetPaystubsTableDataTest(TestCase):
             url="https://example.com/ordered.pdf",
             user_filename="ordered.pdf",
             s3_filename="ordered.pdf",
-            textract_job_id="job000",
             analysis_complete=timezone.now(),
         )
         paystub_b = Paystub.objects.create(
@@ -162,7 +158,6 @@ class GetPaystubDetailDataTest(TestCase):
             url="https://example.com/detail.pdf",
             user_filename="detail.pdf",
             s3_filename="detail.pdf",
-            textract_job_id="job999",
             analysis_complete=timezone.now(),
         )
         self.paystub = Paystub.objects.create(

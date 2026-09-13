@@ -8,13 +8,6 @@ from django.db.models import Case, Q, Value, When
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from api.aws_services import (
-    clean_and_convert_string_to_decimal,
-    clean_string,
-    convert_table_to_cleaned_dataframe,
-    create_textract_job,
-    get_textract_results,
-)
 from api.utils import parse_currency, short_error_label
 from api.validators import non_zero
 
@@ -42,7 +35,6 @@ class S3File(models.Model):
     url = models.URLField(max_length=200, unique=True)
     user_filename = models.CharField(max_length=200)
     s3_filename = models.CharField(max_length=200)
-    textract_job_id = models.CharField(max_length=200)
     analysis_complete = models.DateTimeField(blank=True, null=True)
     status = models.CharField(
         max_length=20,
@@ -58,125 +50,6 @@ class S3File(models.Model):
     def short_error(self) -> str:
         """A compact, human-friendly label for the stored error_message."""
         return short_error_label(self.error_message)
-
-    def create_textract_job(self):
-        job_id = create_textract_job(filename=self.s3_filename)
-        self.textract_job_id = job_id
-        self.save()
-        return job_id
-
-    def create_paystubs_from_textract_data(self):
-        textract_data = self._extract_data()
-        for page_id, page_data in textract_data.items():
-            try:
-                company_name = page_data["Company"]
-            except KeyError:
-                company_name = self.prefill.name
-            paystub = Paystub.objects.create(
-                document=self,
-                page_id=page_id,
-                title=company_name + " " + page_data["End Period"],
-            )
-            paystub_values = []
-            for account, value in page_data.items():
-                if not isinstance(account, Account):
-                    continue
-                amount = value["value"]
-                if amount != 0:
-                    paystub_values.append(
-                        PaystubValue(
-                            paystub=paystub,
-                            account=account,
-                            amount=amount,
-                            journal_entry_item_type=value["entry_type"],
-                            entity=value["entity"],
-                        )
-                    )
-            PaystubValue.objects.bulk_create(paystub_values)
-
-    def _extract_data(self):
-        from textractor.entities.document import Document
-
-        textract_job_response = get_textract_results(job_id=self.textract_job_id)
-
-        # Load the Textract response from the JSON file using textractor
-        document = Document.open(textract_job_response)
-
-        # Step 1: Build pages data structure
-        page_ids = []
-        data = {}
-        for page in document.pages:
-            page_id = page.id
-            page_ids.append(page_id)
-            data[page_id] = {}
-
-        # Step 2: Name each page and create a data structure
-        # Extract key-value pairs
-        key_value_pairs = document.key_values
-
-        # Print the key-value pairs and create data object
-        keyword_searches = DocSearch.objects.filter(
-            keyword__isnull=False, prefill=self.prefill
-        )
-
-        for kv in key_value_pairs:
-            key = clean_string(kv.key.text)
-            # print(key)
-            # print(kv.value.text)
-            for keyword_search in keyword_searches:
-                if key == keyword_search.keyword:
-                    identifier = keyword_search.get_selection_or_account()
-                    # Keyword searches can look for dollars or strings and need
-                    # to be treated differently for each
-                    if isinstance(identifier, Account):
-                        data[kv.page_id][identifier] = {}
-                        data[kv.page_id][identifier]["value"] = (
-                            clean_and_convert_string_to_decimal(kv.value.text)
-                        )
-                        data[kv.page_id][identifier]["entry_type"] = (
-                            keyword_search.journal_entry_item_type
-                        )
-                        data[kv.page_id][identifier]["entity"] = keyword_search.entity
-                    else:
-                        data[kv.page_id][identifier] = clean_string(kv.value.text)
-
-        # Step 3: Grab table data from tables
-        table_searches = DocSearch.objects.filter(
-            keyword__isnull=True, prefill=self.prefill
-        )
-        for table in document.tables:
-            # print(table.get_text_and_words())
-            for table_search in table_searches:
-                table_title = table.title if table.title is None else table.title.text
-                both_table_names_none_condition = (
-                    table_search.table_name is None and table_title is None
-                )
-                table_names_equal_condition = table_search.table_name == clean_string(
-                    table_title
-                )
-
-                if not (both_table_names_none_condition or table_names_equal_condition):
-                    continue
-
-                pandas_table = convert_table_to_cleaned_dataframe(table)
-                try:
-                    value = pandas_table.loc[table_search.row, table_search.column]
-                except KeyError:
-                    continue
-
-                value = clean_and_convert_string_to_decimal(value)
-                identifier = table_search.get_selection_or_account()
-                if identifier in data[table.page_id]:
-                    data[table.page_id][identifier]["value"] += value
-                else:
-                    data[table.page_id][identifier] = {}
-                    data[table.page_id][identifier]["value"] = value
-                    data[table.page_id][identifier]["entry_type"] = (
-                        table_search.journal_entry_item_type
-                    )
-                    data[table.page_id][identifier]["entity"] = table_search.entity
-
-        return data
 
 
 class Amortization(models.Model):
