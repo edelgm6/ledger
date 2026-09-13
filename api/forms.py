@@ -481,8 +481,13 @@ class TransactionFilterForm(BaseFilterForm):
         return None
 
     def get_transactions(self):
+        # Delegates to the service so there is one definition of the
+        # transactions-table queryset. Building it here separately had already
+        # drifted from the service on select_related.
+        from api.services.transaction_services import build_transaction_queryset
+
         data = self.cleaned_data
-        queryset = Transaction.objects.filter_for_table(
+        return build_transaction_queryset(
             is_closed=data.get("is_closed"),
             has_linked_transaction=data.get("has_linked_transaction"),
             transaction_types=data["transaction_type"],
@@ -491,8 +496,7 @@ class TransactionFilterForm(BaseFilterForm):
             date_to=data.get("date_to"),
             related_accounts=data["related_account"],
             suggested_first=data["suggested_first"],
-        ).select_related("account")
-        return queryset
+        )
 
 
 class TransactionForm(forms.ModelForm):
