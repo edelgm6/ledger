@@ -5,12 +5,13 @@ Handles the full flow: S3 upload -> dispatch async Gemini task -> Paystub/Paystu
 """
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 from django.conf import settings
 
 from api.aws_services import upload_file_to_s3
-from api.models import Account, Paystub, PaystubValue, Prefill, S3File
+from api.models import Paystub, PaystubValue, Prefill, S3File
+from api.services.gemini_services import ExtractedPage
 
 logger = logging.getLogger(__name__)
 
@@ -87,44 +88,36 @@ def retry_paystub_processing(s3file_id: int) -> UploadResult:
 
 def create_paystubs_from_data(
     s3file: S3File,
-    parsed_data: Dict[str, Dict[Any, Any]],
+    parsed_data: Dict[str, ExtractedPage],
     prefill: Prefill,
 ) -> None:
     """
-    Creates Paystub and PaystubValue records from parsed data.
-
-    Extracted from S3File.create_paystubs_from_textract_data() so it can
-    be used by both Gemini and Textract paths.
+    Creates Paystub and PaystubValue records from parsed pages.
 
     Args:
         s3file: The S3File record this paystub belongs to
-        parsed_data: Dict keyed by page_id with Account -> {value, entry_type, entity} mappings
+        parsed_data: Dict keyed by page_id -> ExtractedPage
         prefill: The Prefill for fallback naming
     """
-    for page_id, page_data in parsed_data.items():
-        company_name = page_data.get("Company", prefill.name)
-        end_period = page_data.get("End Period", "")
-
+    for page_id, page in parsed_data.items():
         paystub = Paystub.objects.create(
             document=s3file,
             page_id=page_id,
-            title=f"{company_name} {end_period}".strip(),
+            title=page.title_for(prefill.name),
         )
 
-        paystub_values = []
-        for key, value in page_data.items():
-            if not isinstance(key, Account):
-                continue
-            amount = value["value"]
-            if amount != 0:
-                paystub_values.append(
-                    PaystubValue(
-                        paystub=paystub,
-                        account=key,
-                        amount=amount,
-                        journal_entry_item_type=value["entry_type"],
-                        entity=value["entity"],
-                    )
+        # Metadata and line items are separate fields now, so telling them
+        # apart no longer needs an isinstance(key, Account) filter.
+        PaystubValue.objects.bulk_create(
+            [
+                PaystubValue(
+                    paystub=paystub,
+                    account=value.account,
+                    amount=value.amount,
+                    journal_entry_item_type=value.entry_type,
+                    entity=value.entity,
                 )
-
-        PaystubValue.objects.bulk_create(paystub_values)
+                for value in page.values
+                if value.amount != 0
+            ]
+        )
