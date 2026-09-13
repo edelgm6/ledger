@@ -57,14 +57,16 @@ class LoanScheduleRowSaveTest(HTMXViewTestCase):
 
     def test_every_save_creates_an_anchor(self):
         loan = make_loan()
+        rows = {r.sequence: r for r in loan.schedule_with_running_balance()}
         row = loan.payments.order_by("sequence")[3]
+        shown_balance = rows[row.sequence].remaining_balance
         # Even leaving the balance at its shown value, saving anchors the row.
         response = self.client.post(
             self._url(row),
             {
                 "principal_amount": str(row.principal_amount),
                 "interest_amount": str(row.interest_amount),
-                "balance_override": str(row.remaining_balance),
+                "balance_override": str(shown_balance),
             },
         )
         self.assertEqual(response.status_code, 200)

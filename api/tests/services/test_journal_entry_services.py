@@ -849,7 +849,6 @@ class GetLoanInitialDataTest(TestCase):
             payment_amount=payment,
             principal_amount=principal,
             interest_amount=interest,
-            remaining_balance=Decimal("0.00"),
             transaction=txn,
         )
         txn.refresh_from_db()
