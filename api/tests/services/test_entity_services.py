@@ -6,17 +6,14 @@ from django.test import TestCase
 from api.models import Account, Entity, JournalEntryItem
 from api.services.entity_services import (
     TAG_USAGE_WINDOW_DAYS,
-    EntityBalance,
     EntityHistoryData,
     EntityHistoryItem,
     GroupedEntityBalances,
     UntaggedItemsData,
     get_entities,
-    get_entities_balances,
     get_entity_history,
     get_grouped_entities_balances,
     get_untagged_journal_entry_items,
-    tag_journal_entry_item,
     untag_journal_entry_item,
 )
 from api.tests.testing_factories import (
@@ -69,128 +66,6 @@ class GetEntitiesTest(TestCase):
         entity = EntityFactory()
         by_id = {e.id: e for e in get_entities()}
         self.assertEqual(by_id[entity.id].recent_tag_count, 0)
-
-
-class GetEntitiesBalancesTest(TestCase):
-    """Tests for get_entities_balances() function."""
-
-    def setUp(self):
-        self.ar_account = AccountFactory(
-            type=Account.Type.ASSET,
-            sub_type=Account.SubType.ACCOUNTS_RECEIVABLE,
-        )
-        self.non_ar_account = AccountFactory(
-            type=Account.Type.ASSET,
-            sub_type=Account.SubType.CASH,
-        )
-        self.entity1 = EntityFactory(name="Entity One")
-        self.entity2 = EntityFactory(name="Entity Two")
-
-    def test_returns_entity_balances(self):
-        """Test returns balances grouped by entity."""
-        journal_entry = JournalEntryFactory()
-        JournalEntryItemFactory(
-            journal_entry=journal_entry,
-            account=self.ar_account,
-            entity=self.entity1,
-            type=JournalEntryItem.JournalEntryType.CREDIT,
-            amount=Decimal("100.00"),
-        )
-
-        balances = get_entities_balances()
-
-        self.assertEqual(len(balances), 1)
-        self.assertIsInstance(balances[0], EntityBalance)
-        self.assertEqual(balances[0].entity_id, self.entity1.id)
-        self.assertEqual(balances[0].entity_name, "Entity One")
-
-    def test_calculates_balance_correctly(self):
-        """Test balance calculation: credits - debits."""
-        journal_entry = JournalEntryFactory()
-        JournalEntryItemFactory(
-            journal_entry=journal_entry,
-            account=self.ar_account,
-            entity=self.entity1,
-            type=JournalEntryItem.JournalEntryType.CREDIT,
-            amount=Decimal("150.00"),
-        )
-        JournalEntryItemFactory(
-            journal_entry=journal_entry,
-            account=self.ar_account,
-            entity=self.entity1,
-            type=JournalEntryItem.JournalEntryType.DEBIT,
-            amount=Decimal("50.00"),
-        )
-
-        balances = get_entities_balances()
-
-        self.assertEqual(len(balances), 1)
-        self.assertEqual(balances[0].total_credits, Decimal("150.00"))
-        self.assertEqual(balances[0].total_debits, Decimal("50.00"))
-        self.assertEqual(balances[0].balance, Decimal("100.00"))
-
-    def test_orders_by_absolute_balance_descending(self):
-        """Test ordering by absolute balance descending."""
-        journal_entry = JournalEntryFactory()
-        # Entity1: balance = 50
-        JournalEntryItemFactory(
-            journal_entry=journal_entry,
-            account=self.ar_account,
-            entity=self.entity1,
-            type=JournalEntryItem.JournalEntryType.CREDIT,
-            amount=Decimal("50.00"),
-        )
-        # Entity2: balance = -100 (abs = 100, higher)
-        JournalEntryItemFactory(
-            journal_entry=journal_entry,
-            account=self.ar_account,
-            entity=self.entity2,
-            type=JournalEntryItem.JournalEntryType.DEBIT,
-            amount=Decimal("100.00"),
-        )
-
-        balances = get_entities_balances()
-
-        self.assertEqual(len(balances), 2)
-        # Entity2 should come first (higher absolute balance)
-        self.assertEqual(balances[0].entity_id, self.entity2.id)
-        self.assertEqual(balances[1].entity_id, self.entity1.id)
-
-    def test_excludes_items_without_entities(self):
-        """Test items without entity assignment are excluded."""
-        journal_entry = JournalEntryFactory()
-        JournalEntryItemFactory(
-            journal_entry=journal_entry,
-            account=self.ar_account,
-            entity=None,  # No entity
-            type=JournalEntryItem.JournalEntryType.CREDIT,
-            amount=Decimal("100.00"),
-        )
-
-        balances = get_entities_balances()
-
-        self.assertEqual(len(balances), 0)
-
-    def test_excludes_non_accounts_receivable(self):
-        """Test only accounts receivable items are included."""
-        journal_entry = JournalEntryFactory()
-        JournalEntryItemFactory(
-            journal_entry=journal_entry,
-            account=self.non_ar_account,  # Not AR
-            entity=self.entity1,
-            type=JournalEntryItem.JournalEntryType.CREDIT,
-            amount=Decimal("100.00"),
-        )
-
-        balances = get_entities_balances()
-
-        self.assertEqual(len(balances), 0)
-
-    def test_returns_empty_list_when_no_data(self):
-        """Test returns empty list when no matching items."""
-        balances = get_entities_balances()
-
-        self.assertEqual(balances, [])
 
 
 class GetGroupedEntitiesBalancesTest(TestCase):
@@ -664,44 +539,3 @@ class UntagJournalEntryItemTest(TestCase):
         result = untag_journal_entry_item(item.id)
 
         self.assertEqual(result, self.entity)
-
-
-class TagJournalEntryItemTest(TestCase):
-    """Tests for tag_journal_entry_item() function."""
-
-    def setUp(self):
-        self.account = AccountFactory()
-        self.entity = EntityFactory()
-
-    def test_assigns_entity_to_item(self):
-        """Test entity is assigned to journal entry item."""
-        journal_entry = JournalEntryFactory()
-        item = JournalEntryItemFactory(
-            journal_entry=journal_entry,
-            account=self.account,
-            entity=None,
-            type=JournalEntryItem.JournalEntryType.CREDIT,
-            amount=Decimal("100.00"),
-        )
-
-        tag_journal_entry_item(item.id, self.entity.id)
-
-        item.refresh_from_db()
-        self.assertEqual(item.entity, self.entity)
-
-    def test_replaces_existing_entity(self):
-        """Test can replace existing entity assignment."""
-        old_entity = EntityFactory(name="Old Entity")
-        journal_entry = JournalEntryFactory()
-        item = JournalEntryItemFactory(
-            journal_entry=journal_entry,
-            account=self.account,
-            entity=old_entity,
-            type=JournalEntryItem.JournalEntryType.CREDIT,
-            amount=Decimal("100.00"),
-        )
-
-        tag_journal_entry_item(item.id, self.entity.id)
-
-        item.refresh_from_db()
-        self.assertEqual(item.entity, self.entity)

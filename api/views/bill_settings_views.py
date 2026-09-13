@@ -58,9 +58,6 @@ class BillRulesView(LoginRequiredMixin, View):
     def post(self, request, rule_id=None):
         action = request.POST.get("action")
 
-        if action == "clear":
-            return HttpResponse(self._render_content())
-
         if action == "delete":
             result = bill_rule_services.delete_bill_rule(rule_id)
             if result.success:

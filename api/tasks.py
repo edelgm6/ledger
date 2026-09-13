@@ -3,22 +3,12 @@ import logging
 from celery import shared_task
 from django.utils import timezone
 
-from api.aws_services import download_file_from_s3, wait_for_textract_completion
+from api.aws_services import download_file_from_s3
 from api.models import S3File
 from api.services.gemini_services import parse_paystub_with_gemini
 from api.services.paystub_upload_services import create_paystubs_from_data
 
 logger = logging.getLogger(__name__)
-
-
-@shared_task
-def orchestrate_paystub_extraction(s3file_pk):
-    s3file = S3File.objects.get(pk=s3file_pk)
-    job_id = s3file.create_textract_job()
-    wait_for_textract_completion(job_id)
-    s3file.create_paystubs_from_textract_data()
-    s3file.analysis_complete = timezone.now()
-    s3file.save()
 
 
 @shared_task

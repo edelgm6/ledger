@@ -65,9 +65,6 @@ class LoanSettingsView(LoginRequiredMixin, View):
     def post(self, request, loan_id=None):
         action = request.POST.get("action")
 
-        if action == "clear":
-            return HttpResponse(self._render_content())
-
         if action == "delete":
             result = loan_services.delete_loan(loan_id)
             if result.success:

@@ -219,19 +219,6 @@ class TaxChargeFilterForm(forms.Form):
         six_months_ago_date_string = last_days_of_month_tuples[5][0]
         self.fields["date_from"].initial = six_months_ago_date_string
 
-    def get_tax_charges(self):
-        queryset = TaxCharge.objects.all()
-        if self.cleaned_data.get("date_to"):
-            queryset = queryset.filter(date__gte=self.cleaned_data["date_from"])
-        if self.cleaned_data.get("date_from"):
-            queryset = queryset.filter(date__lte=self.cleaned_data["date_to"])
-        if self.cleaned_data["tax_type"]:
-            queryset = queryset.filter(
-                transaction__account=self.cleaned_data["tax_type"]
-            )
-
-        return queryset.order_by("date")
-
 
 class TaxChargeForm(forms.ModelForm):
     date = forms.ChoiceField(required=False, choices=[])

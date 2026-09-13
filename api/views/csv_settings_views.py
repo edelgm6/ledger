@@ -53,9 +53,6 @@ class CSVProfileSettingsView(LoginRequiredMixin, View):
     def post(self, request, csv_profile_id=None):
         action = request.POST.get("action")
 
-        if action == "clear":
-            return HttpResponse(self._render_content())
-
         if action == "delete":
             result = csv_profile_services.delete_csv_profile(csv_profile_id)
             if result.success:
