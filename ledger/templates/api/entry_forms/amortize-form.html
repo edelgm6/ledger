@@ -35,6 +35,7 @@
                         {{ option }}
                     {% endfor %}
                 </select>
+                {% if date_form.date.errors %}<div class="field-error">{{ date_form.date.errors.as_text }}</div>{% endif %}
             </div>
             <div class="actions">
                 <button id="clear-button" class="btn btn-primary">Amortize</button>

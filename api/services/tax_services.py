@@ -253,6 +253,7 @@ def get_filtered_tax_charges(
     )
 
     if tax_type:
-        queryset = queryset.filter(transaction__account=tax_type)
+        # Filter on the charge's own account, not the transaction's mirror of it.
+        queryset = queryset.filter(account=tax_type)
 
     return queryset.order_by("date")

@@ -31,6 +31,9 @@
                         {{ option }}
                     {% endfor %}
                 </select>
+                {% if form.date.errors %}
+                    <div class="field-error">{{ form.date.errors|striptags }}</div>
+                {% endif %}
             </div>
 
             <!-- Amount Field -->
@@ -38,6 +41,9 @@
                 <label class="label" for="id_amount">Amount</label>
                 <input type="text" name="amount" id="id_amount" class="input"
                        value="{% if form.amount.value %}{{ form.amount.value|intcomma }}{% else %}0.00{% endif %}">
+                {% if form.amount.errors %}
+                    <div class="field-error">{{ form.amount.errors|striptags }}</div>
+                {% endif %}
             </div>
 
             <div class="field">

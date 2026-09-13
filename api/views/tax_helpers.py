@@ -35,6 +35,7 @@ def render_tax_form(
     taxable_income: Decimal,
     tax_accounts: List[TaxAccountRecommendation],
     end_date: date,
+    bound_form=None,
 ) -> str:
     """
     Render the tax charge entry form HTML.
@@ -49,7 +50,11 @@ def render_tax_form(
     Returns:
         HTML string for the tax form.
     """
-    if tax_charge:
+    # A bound form is passed back in after failed validation so the template can
+    # render its errors, rather than the submission being silently discarded.
+    if bound_form is not None:
+        form = bound_form
+    elif tax_charge:
         form = TaxChargeForm(instance=tax_charge)
     else:
         form = TaxChargeForm()

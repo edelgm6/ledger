@@ -135,7 +135,11 @@ class IndexView(LoginRequiredMixin, View):
             }
             html = render_to_string(success_template, context)
             return HttpResponse(html)
-        print(form.errors)
+
+        # Re-render the bound form so its errors show. Falling through returned
+        # None, which Django turns into a 500.
+        context = {"form": render_to_string(self.form_template, {"form": form})}
+        return HttpResponse(render_to_string("api/content/wallet-content.html", context))
 
 
 class TrendView(LoginRequiredMixin, View):

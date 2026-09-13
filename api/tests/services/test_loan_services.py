@@ -279,6 +279,35 @@ class MatchOffScheduleTest(TestCase):
         loan.refresh_from_db()
         self.assertTrue(loan.is_closed)
 
+    def test_payoff_clears_the_forecast_tail(self):
+        """A paid-off loan must not leave future-dated forecast rows behind.
+
+        Payoff used to skip generate_schedule(), which is the only thing that
+        deletes disposable forecast rows, so the schedule rendered "paid off"
+        above a tail of future payments walking the balance down to zero.
+        """
+        loan = make_loan()
+        self.assertTrue(
+            loan.payments.filter(transaction__isnull=True).exists(),
+            "precondition: an unpaid forecast tail exists before payoff",
+        )
+
+        txn = TransactionFactory(
+            amount=Decimal("-10000.00"), date=datetime.date(2026, 7, 15)
+        )
+        match_transactions_to_loans([txn])
+
+        loan.refresh_from_db()
+        self.assertTrue(loan.is_closed)
+        self.assertEqual(
+            list(loan.payments.filter(transaction__isnull=True)),
+            [],
+            "payoff must delete the forecast tail",
+        )
+        # The payoff row itself survives, and it is the only row left.
+        self.assertEqual(loan.payments.count(), 1)
+        self.assertEqual(loan.remaining_balance(), Decimal("0.00"))
+
 
 class MatchScopingTest(TestCase):
     def test_ambiguous_two_loans_skipped(self):

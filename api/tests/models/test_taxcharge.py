@@ -154,3 +154,91 @@ class TaxChargeModelTests(TestCase):
         self.assertTrue(tax_charge.transaction)
         transaction.refresh_from_db()
         self.assertEqual(transaction.amount, Decimal('100.00'))
+
+
+class TaxChargeAccountSyncTests(TestCase):
+    """Editing an existing charge must keep its transaction in step.
+
+    TaxCharge stores its account (and date) twice: on itself and on the
+    transaction it owns. save() used to sync only `amount` on the
+    existing-transaction path, so editing the account on the edit form left the
+    transaction pointing at the old account. Everything that reached through
+    the transaction then stopped finding the charge.
+    """
+
+    def setUp(self):
+        # tax_payable_account is one-to-one, so each tax account needs its own.
+        self.state_payable = AccountFactory(
+            type=Account.Type.LIABILITY, sub_type=Account.SubType.TAXES_PAYABLE
+        )
+        self.state_tax = AccountFactory(
+            tax_kind=Account.TaxKind.STATE, type=Account.Type.EXPENSE
+        )
+        self.state_tax.tax_payable_account = self.state_payable
+        self.state_tax.save()
+
+        self.federal_payable = AccountFactory(
+            type=Account.Type.LIABILITY, sub_type=Account.SubType.TAXES_PAYABLE
+        )
+        self.federal_tax = AccountFactory(
+            tax_kind=Account.TaxKind.FEDERAL, type=Account.Type.EXPENSE
+        )
+        self.federal_tax.tax_payable_account = self.federal_payable
+        self.federal_tax.save()
+
+        self.charge = TaxCharge.objects.create(
+            account=self.state_tax, date=date(2026, 3, 31), amount=Decimal("100.00")
+        )
+
+    def test_editing_account_syncs_the_transaction(self):
+        self.charge.account = self.federal_tax
+        self.charge.save()
+
+        self.charge.refresh_from_db()
+        self.charge.transaction.refresh_from_db()
+        self.assertEqual(self.charge.transaction.account, self.federal_tax)
+
+    def test_editing_date_syncs_transaction_and_journal_entry(self):
+        new_date = date(2026, 4, 30)
+        self.charge.date = new_date
+        self.charge.save()
+
+        self.charge.refresh_from_db()
+        self.assertEqual(self.charge.transaction.date, new_date)
+        self.assertEqual(
+            self.charge.transaction.journal_entry.date,
+            new_date,
+            "a stale journal entry date strands the expense in the old month",
+        )
+
+    def test_edited_charge_is_still_found_by_its_own_filter(self):
+        from api.services.tax_services import get_filtered_tax_charges
+
+        self.charge.account = self.federal_tax
+        self.charge.save()
+
+        found = get_filtered_tax_charges(
+            date_from=date(2026, 1, 1),
+            date_to=date(2026, 12, 31),
+            tax_type=self.federal_tax,
+        )
+        self.assertIn(self.charge, list(found))
+
+    def test_bulk_factory_does_not_duplicate_an_edited_charge(self):
+        """The taxes page calls create_bulk_tax_charges on every load. An edited
+        charge used to look absent to it, so it re-created the row and hit the
+        ("account", "date") unique constraint -- a hard 500 on every load."""
+        from api.factories import TaxChargeFactory
+
+        self.charge.account = self.federal_tax
+        self.charge.save()
+
+        # Must not raise IntegrityError.
+        TaxChargeFactory.create_bulk_tax_charges(date=date(2026, 3, 31))
+
+        self.assertEqual(
+            TaxCharge.objects.filter(
+                account=self.federal_tax, date=date(2026, 3, 31)
+            ).count(),
+            1,
+        )

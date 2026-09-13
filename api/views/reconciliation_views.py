@@ -77,6 +77,15 @@ class ReconciliationTableView(ReconciliationTableMixin, LoginRequiredMixin, View
             )
             return HttpResponse(reconciliations_table)
 
+        # An invalid filter used to fall through and return None (a 500). Fall
+        # back to the default month rather than crashing.
+        fallback_date = utils.get_last_day_of_last_month()
+        return HttpResponse(
+            self.get_reconciliation_html(
+                Reconciliation.objects.filter(date=fallback_date), date=fallback_date
+            )
+        )
+
 
 # Loads full page
 class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
@@ -106,6 +115,9 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
 
     def post(self, request):
         plug_error = None
+        # Bound up front: the plug branch below never assigns it, so an invalid
+        # filter form left it undefined -> UnboundLocalError.
+        reconciliations = Reconciliation.objects.none()
         if request.POST.get("plug"):
             reconciliation = get_object_or_404(
                 Reconciliation, pk=request.POST.get("plug")
@@ -126,9 +138,14 @@ class ReconciliationView(ReconciliationTableMixin, LoginRequiredMixin, View):
         filter_form = ReconciliationFilterForm(request.POST)
         if filter_form.is_valid():
             reconciliations = filter_form.get_reconciliations()
+            table_date = filter_form.cleaned_data["date"]
+        else:
+            # cleaned_data has no "date" key when validation failed, so reading
+            # it here raised KeyError. Fall back to the default month.
+            table_date = utils.get_last_day_of_last_month()
 
         reconciliation_table = self.get_reconciliation_html(
-            reconciliations, date=filter_form.cleaned_data["date"], error=plug_error
+            reconciliations, date=table_date, error=plug_error
         )
 
         return HttpResponse(reconciliation_table)

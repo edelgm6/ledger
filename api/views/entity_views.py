@@ -107,9 +107,14 @@ class TagEntitiesForm(LoginRequiredMixin, View):
         )
 
         form = JournalEntryItemEntityForm(request.POST, instance=journal_entry_item)
-        if form.is_valid():
-            form.save()
+        if not form.is_valid():
+            # cleaned_data has no "entity" key when validation failed, so
+            # reaching through it here raised KeyError -> 500. Re-render the
+            # page with the item's existing entity instead.
+            html = _render_full_page(preloaded_entity=journal_entry_item.entity)
+            return HttpResponse(html)
 
+        form.save()
         html = _render_full_page(preloaded_entity=form.cleaned_data["entity"])
         return HttpResponse(html)
 
