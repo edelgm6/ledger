@@ -34,7 +34,7 @@ class GenerateScheduleTest(TestCase):
             term_months=12,
         )
         loan.generate_schedule()
-        rows = list(loan.payments.order_by("sequence"))
+        rows = loan.schedule_with_running_balance()
 
         # Roughly the term length (final row may absorb rounding).
         self.assertGreaterEqual(len(rows), 12)
@@ -104,7 +104,6 @@ class ReAmortizeTest(TestCase):
             payment_amount=Decimal("2000.00"),
             principal_amount=Decimal("2000.00"),
             interest_amount=Decimal("0.00"),
-            remaining_balance=Decimal("8000.00"),
             kind=LoanPayment.Kind.PRINCIPAL_ONLY,
             transaction=txn,
         )
@@ -113,5 +112,104 @@ class ReAmortizeTest(TestCase):
         # Forecast rows rebuilt from the lower balance; loan still pays off.
         forecast = loan.payments.filter(transaction__isnull=True).order_by("sequence")
         self.assertTrue(forecast.exists())
-        self.assertEqual(forecast.last().remaining_balance, Decimal("0.00"))
+        computed = loan.schedule_with_running_balance()
+        self.assertEqual(computed[-1].remaining_balance, Decimal("0.00"))
         self.assertEqual(loan.remaining_balance(), Decimal("8000.00"))
+
+
+class ScheduleRunningBalanceOrderingTest(TestCase):
+    """The running balance rolls chronologically; the table renders by sequence.
+
+    Those two orderings genuinely differ. An off-schedule payment takes
+    max(sequence) + 1 but can be dated *earlier* than existing rows, so rolling
+    the balance in sequence order would apply it after payments it actually
+    precedes. This is the trap the audit flagged when the persisted
+    remaining_balance column was removed.
+    """
+
+    def setUp(self):
+        self.loan = LoanFactory(
+            original_amount=Decimal("10000.00"),
+            annual_interest_rate=Decimal("0.0000"),  # zero rate: principal == payment
+            term_months=10,
+            payment_amount=Decimal("1000.00"),
+            start_date=datetime.date(2026, 1, 1),
+        )
+        self.loan.generate_schedule()
+
+    def _pay(self, row, amount):
+        """Marks a scheduled row as paid so it becomes a 'fixed' row."""
+        row.transaction = TransactionFactory(amount=-amount, date=row.date)
+        row.save()
+
+    def test_rows_render_in_sequence_order(self):
+        rows = self.loan.schedule_with_running_balance()
+        self.assertEqual(
+            [r.sequence for r in rows], sorted(r.sequence for r in rows)
+        )
+
+    def test_balance_declines_by_principal_each_row(self):
+        rows = self.loan.schedule_with_running_balance()
+        self.assertEqual(rows[0].remaining_balance, Decimal("9000.00"))
+        self.assertEqual(rows[1].remaining_balance, Decimal("8000.00"))
+        self.assertEqual(rows[-1].remaining_balance, Decimal("0.00"))
+
+    def test_off_schedule_payment_dated_earlier_rolls_chronologically(self):
+        """The regression case: highest sequence, earliest date."""
+        first_two = list(self.loan.payments.order_by("sequence")[:2])
+        for row in first_two:
+            self._pay(row, Decimal("1000.00"))
+
+        # An extra $500 principal payment that happened back on Jan 15 -- after
+        # row 1 (Jan 1) but before row 2 (Feb 1) -- recorded late, so it takes
+        # the highest sequence in the table.
+        max_sequence = max(r.sequence for r in self.loan.payments.all())
+        late_recorded = LoanPayment.objects.create(
+            loan=self.loan,
+            sequence=max_sequence + 1,
+            date=datetime.date(2026, 1, 15),
+            payment_amount=Decimal("500.00"),
+            principal_amount=Decimal("500.00"),
+            interest_amount=Decimal("0.00"),
+            kind=LoanPayment.Kind.PRINCIPAL_ONLY,
+            transaction=TransactionFactory(
+                amount=Decimal("-500.00"), date=datetime.date(2026, 1, 15)
+            ),
+        )
+
+        rows = {r.sequence: r for r in self.loan.schedule_with_running_balance()}
+
+        # Chronological roll: Jan 1 (-1000) -> Jan 15 (-500) -> Feb 1 (-1000).
+        self.assertEqual(rows[1].remaining_balance, Decimal("9000.00"))
+        self.assertEqual(
+            rows[late_recorded.sequence].remaining_balance,
+            Decimal("8500.00"),
+            "the Jan 15 payment must roll between Jan 1 and Feb 1",
+        )
+        self.assertEqual(
+            rows[2].remaining_balance,
+            Decimal("7500.00"),
+            "Feb 1 follows the Jan 15 payment chronologically, not by sequence",
+        )
+
+        # And rolling by sequence instead would put the late row last, giving
+        # Feb 1 a balance of 8000 and the late row 7500 -- demonstrably different.
+        by_sequence = {}
+        balance = self.loan.original_amount
+        for row in sorted(self.loan.payments.all(), key=lambda r: r.sequence):
+            balance -= row.principal_amount
+            by_sequence[row.sequence] = balance
+        self.assertNotEqual(
+            by_sequence[2],
+            rows[2].remaining_balance,
+            "sequence-order and chronological rolls must differ here, or this "
+            "test is not exercising the trap",
+        )
+
+    def test_balance_anchor_resets_the_roll(self):
+        row = self.loan.payments.order_by("sequence")[2]
+        row.balance_override = Decimal("5000.00")
+        row.save()
+
+        rows = {r.sequence: r for r in self.loan.schedule_with_running_balance()}
+        self.assertEqual(rows[row.sequence].remaining_balance, Decimal("5000.00"))
