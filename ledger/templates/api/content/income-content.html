@@ -8,8 +8,8 @@
         <h4>Net Income: ${{ summary.equity.total|floatformat:"0"|intcomma }}</h4>
         <table class="table mb-4">
             <tbody>
-                {% for account in summary.equity.balances %}
-                    {% for balance in account.balances %}
+                {% for section in summary.equity.sub_types %}
+                    {% for balance in section.balances %}
                     <tr>
                         <td class="td-name">{{ balance.account }}</td>
                         <td class="right">${{ balance.amount|floatformat:"0"|intcomma }}</td>
@@ -51,14 +51,14 @@
 
             <div>
                 <h4>Expenses: ${{ summary.expense.total|floatformat:"0"|intcomma }}</h4>
-                {% for account in summary.expense.balances %}
+                {% for section in summary.expense.sub_types %}
                 <table class="table mb-3">
                     <tbody>
                         <tr>
-                            <td class="td-strong">{{ account.name }}</td>
-                            <td class="right td-strong">${{ account.total|floatformat:"0"|intcomma }}</td>
+                            <td class="td-strong">{{ section.name }}</td>
+                            <td class="right td-strong">${{ section.total|floatformat:"0"|intcomma }}</td>
                         </tr>
-                        {% for balance in account.balances %}
+                        {% for balance in section.balances %}
                         {% include "api/content/statement-detail-row.html" %}
                         {% endfor %}
                     </tbody>

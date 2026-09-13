@@ -11,6 +11,13 @@ JSON encoder renders ``Decimal``/``date`` natively).
 Pure functions: object → dict. No database access, no business logic. The
 shapes mirror the hierarchy that ``api/views/statement_helpers`` renders to
 HTML, so the JSON reconciles with the on-screen statements.
+
+That claim was briefly untrue: the HTML path used to flatten ``StatementSummary``
+through a helper that renamed ``sub_types`` to ``"balances"``, so the two
+consumers of the same dataclass disagreed on a key name. The HTML path now
+passes the dataclass through untouched, so both really do walk
+``account_type → name/total/sub_types → name/total/balances``. Keep the key
+names here in step with the dataclass fields rather than with this module.
 """
 
 from typing import Any, Dict, List
