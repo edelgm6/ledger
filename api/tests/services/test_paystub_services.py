@@ -1,7 +1,6 @@
 from decimal import Decimal
 
 from django.test import TestCase
-from django.utils import timezone
 
 from api.models import (
     Account,
@@ -28,13 +27,12 @@ class GetPaystubsTableDataTest(TestCase):
         self.prefill = PrefillFactory()
 
     def test_returns_pending_when_textract_jobs_exist(self):
-        """has_pending_jobs=True when S3File.analysis_complete is null."""
+        """has_pending_jobs=True when a file has not reached COMPLETE."""
         S3File.objects.create(
             prefill=self.prefill,
             url="https://example.com/pending.pdf",
             user_filename="pending.pdf",
             s3_filename="pending.pdf",
-            analysis_complete=None,
         )
 
         result = get_paystubs_table_data()
@@ -50,7 +48,7 @@ class GetPaystubsTableDataTest(TestCase):
             url="https://example.com/complete.pdf",
             user_filename="complete.pdf",
             s3_filename="complete.pdf",
-            analysis_complete=timezone.now(),
+            status=S3File.Status.COMPLETE,
         )
         paystub = Paystub.objects.create(
             document=s3file,
@@ -73,7 +71,7 @@ class GetPaystubsTableDataTest(TestCase):
             url="https://example.com/linked.pdf",
             user_filename="linked.pdf",
             s3_filename="linked.pdf",
-            analysis_complete=timezone.now(),
+            status=S3File.Status.COMPLETE,
         )
         journal_entry = JournalEntryFactory()
         Paystub.objects.create(
@@ -96,7 +94,6 @@ class GetPaystubsTableDataTest(TestCase):
             user_filename="processing.pdf",
             s3_filename="processing.pdf",
             status=S3File.Status.PROCESSING,
-            analysis_complete=None,
         )
 
         result = get_paystubs_table_data()
@@ -113,7 +110,6 @@ class GetPaystubsTableDataTest(TestCase):
             s3_filename="failed.pdf",
             status=S3File.Status.FAILED,
             error_message="503 UNAVAILABLE",
-            analysis_complete=None,
         )
 
         result = get_paystubs_table_data()
@@ -128,7 +124,7 @@ class GetPaystubsTableDataTest(TestCase):
             url="https://example.com/ordered.pdf",
             user_filename="ordered.pdf",
             s3_filename="ordered.pdf",
-            analysis_complete=timezone.now(),
+            status=S3File.Status.COMPLETE,
         )
         paystub_b = Paystub.objects.create(
             document=s3file, page_id="page1", title="B Paystub"
@@ -158,7 +154,7 @@ class GetPaystubDetailDataTest(TestCase):
             url="https://example.com/detail.pdf",
             user_filename="detail.pdf",
             s3_filename="detail.pdf",
-            analysis_complete=timezone.now(),
+            status=S3File.Status.COMPLETE,
         )
         self.paystub = Paystub.objects.create(
             document=self.s3file, page_id="page1", title="Detail Paystub"
@@ -206,3 +202,94 @@ class GetPaystubDetailDataTest(TestCase):
 
         self.assertEqual(result.paystub_id, 99999)
         self.assertEqual(result.paystub_values.count(), 0)
+
+
+class FailedFileDoesNotHidePaystubsTest(TestCase):
+    """A terminal FAILED upload must not blank the paystubs table.
+
+    `status` used to have a rival encoding of "done" in an `analysis_complete`
+    timestamp, and the gate read the timestamp. A FAILED file never got one, so
+    it counted as pending forever: `paystubs` came back empty and every unlinked
+    paystub vanished from the journal-entry page until someone retried or
+    deleted the failed upload. `has_active_jobs` was correctly False, so the
+    poller had already stopped -- the page just sat there showing nothing.
+    """
+
+    def setUp(self):
+        self.prefill = PrefillFactory()
+        self.complete_file = S3File.objects.create(
+            prefill=self.prefill,
+            url="https://example.com/ok.pdf",
+            user_filename="ok.pdf",
+            s3_filename="ok.pdf",
+            status=S3File.Status.COMPLETE,
+        )
+        self.paystub = Paystub.objects.create(
+            document=self.complete_file,
+            page_id="p1",
+            title="Unlinked Paystub",
+            journal_entry=None,
+        )
+
+    def _add_failed_file(self):
+        return S3File.objects.create(
+            prefill=self.prefill,
+            url="https://example.com/failed.pdf",
+            user_filename="failed.pdf",
+            s3_filename="failed.pdf",
+            status=S3File.Status.FAILED,
+            error_message="503 UNAVAILABLE",
+        )
+
+    def test_failed_file_still_shows_unlinked_paystubs(self):
+        self._add_failed_file()
+
+        result = get_paystubs_table_data()
+
+        self.assertEqual(
+            result.paystubs,
+            [self.paystub],
+            "a failed upload must not hide unlinked paystubs",
+        )
+        self.assertFalse(result.has_active_jobs)
+
+    def test_failed_file_is_still_listed_so_it_can_be_retried(self):
+        failed = self._add_failed_file()
+
+        result = get_paystubs_table_data()
+
+        self.assertIn(failed, result.pending_files)
+        self.assertTrue(result.has_pending_jobs)
+
+    def test_active_job_still_hides_paystubs(self):
+        """Work genuinely in flight keeps gating the list, as before."""
+        S3File.objects.create(
+            prefill=self.prefill,
+            url="https://example.com/busy.pdf",
+            user_filename="busy.pdf",
+            s3_filename="busy.pdf",
+            status=S3File.Status.PROCESSING,
+        )
+
+        result = get_paystubs_table_data()
+
+        self.assertEqual(result.paystubs, [])
+        self.assertTrue(result.has_active_jobs)
+
+    def test_rendered_table_shows_both_the_failure_and_the_paystub(self):
+        """End to end through the helper: the retry affordance and the paystub
+        must appear together, in one root element so the HTMX outerHTML swap
+        does not leave a duplicate table behind."""
+        from api.views.journal_entry_helpers import render_paystubs_table
+
+        self._add_failed_file()
+        html = render_paystubs_table(get_paystubs_table_data())
+
+        self.assertIn("Unlinked Paystub", html)
+        self.assertIn("failed.pdf", html)
+        self.assertIn("Retry", html)
+        self.assertEqual(
+            html.count('id="paystubs-table-wrapper"'),
+            1,
+            "the paystubs table must be rendered exactly once",
+        )

@@ -130,7 +130,7 @@ class PaystubAdmin(admin.ModelAdmin):
 
 
 class S3FileAdmin(admin.ModelAdmin):
-    list_display = ("user_filename", "prefill", "analysis_complete")
+    list_display = ("user_filename", "prefill", "status")
 
 
 class UtilityBillRuleAdmin(admin.ModelAdmin):

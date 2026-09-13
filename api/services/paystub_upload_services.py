@@ -36,7 +36,7 @@ def process_paystub_upload(file, prefill: Prefill) -> UploadResult:
     """
     Orchestrates the paystub upload flow:
     1. Upload file to S3
-    2. Create S3File record (analysis_complete=None signals pending)
+    2. Create S3File record (status defaults to PENDING)
     3. Dispatch Celery task to call Gemini and create Paystub/PaystubValue records
 
     Args:
@@ -60,7 +60,6 @@ def process_paystub_upload(file, prefill: Prefill) -> UploadResult:
         url=file_url,
         user_filename=file.name,
         s3_filename=unique_name,
-        analysis_complete=None,
     )
 
     # 3. Dispatch Celery task — Gemini call and DB writes happen on the worker
@@ -79,8 +78,7 @@ def retry_paystub_processing(s3file_id: int) -> UploadResult:
     s3file = S3File.objects.get(pk=s3file_id)
     s3file.status = S3File.Status.PENDING
     s3file.error_message = ""
-    s3file.analysis_complete = None
-    s3file.save(update_fields=["status", "error_message", "analysis_complete"])
+    s3file.save(update_fields=["status", "error_message"])
 
     _dispatch_gemini_processing(s3file.pk)
 

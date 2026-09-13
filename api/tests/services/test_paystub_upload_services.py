@@ -179,7 +179,7 @@ class ProcessPaystubUploadTest(TestCase):
         self.assertTrue(result.success)
         self.assertIsNotNone(result.s3file)
         # S3File is created immediately in pending state
-        self.assertIsNone(result.s3file.analysis_complete)
+        self.assertEqual(result.s3file.status, S3File.Status.PENDING)
         # Celery task is dispatched
         mock_task.delay.assert_called_once_with(result.s3file.pk)
         # No paystubs yet — those are created by the task
@@ -219,7 +219,6 @@ class ProcessGeminiPaystubTaskTest(TestCase):
             url="https://bucket.s3.amazonaws.com/test.pdf",
             user_filename="paystub.pdf",
             s3_filename="uuid-test.pdf",
-            analysis_complete=None,
         )
 
     @patch("api.tasks.download_file_from_s3")
@@ -243,7 +242,7 @@ class ProcessGeminiPaystubTaskTest(TestCase):
         process_gemini_paystub(self.s3file.pk)
 
         self.s3file.refresh_from_db()
-        self.assertIsNotNone(self.s3file.analysis_complete)
+        self.assertEqual(self.s3file.status, S3File.Status.COMPLETE)
 
         paystubs = Paystub.objects.filter(document=self.s3file)
         self.assertEqual(paystubs.count(), 1)
@@ -265,9 +264,9 @@ class ProcessGeminiPaystubTaskTest(TestCase):
         with self.assertRaises(Exception, msg="API error"):
             process_gemini_paystub(self.s3file.pk)
 
-        # S3File remains in pending state so the poller keeps showing the spinner
+        # The failure is recorded so the table can offer a Retry button.
         self.s3file.refresh_from_db()
-        self.assertIsNone(self.s3file.analysis_complete)
+        self.assertEqual(self.s3file.status, S3File.Status.FAILED)
 
 
 class RetryPaystubProcessingTest(TestCase):
@@ -291,6 +290,5 @@ class RetryPaystubProcessingTest(TestCase):
         self.s3file.refresh_from_db()
         self.assertEqual(self.s3file.status, S3File.Status.PENDING)
         self.assertEqual(self.s3file.error_message, "")
-        self.assertIsNone(self.s3file.analysis_complete)
 
         mock_task.delay.assert_called_once_with(self.s3file.pk)
