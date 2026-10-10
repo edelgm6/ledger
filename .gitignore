@@ -176,3 +176,6 @@ staticfiles/
 
 # Generated finance dashboards — contain real financial figures, never commit
 /dashboards/
+
+# Local-only: PII incident paperwork. Must never be committed to this public repo.
+PRIVATE_INFO_REMOVAL_REQUEST.md
