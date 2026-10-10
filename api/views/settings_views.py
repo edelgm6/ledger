@@ -21,6 +21,31 @@ from api.views import settings_helpers
 from api.views.page_utils import render_full_page
 
 
+# The Settings page sections, defined once. The template renders both the menu
+# and the panes from this, so a section's label is not repeated between an
+# Alpine array and a matching x-show guard (where they could drift apart).
+# `url_name` is None for the pane the view renders server-side; the rest are
+# fetched on first reveal.
+SETTINGS_SECTIONS = (
+    {"label": "Accounts", "pane_id": "settings-content", "url_name": None},
+    {
+        "label": "Bill Rules",
+        "pane_id": "bill-rules-content",
+        "url_name": "settings-bill-rules",
+    },
+    {"label": "Utility Bills", "pane_id": "bills-content", "url_name": "settings-bills"},
+    {"label": "Loans", "pane_id": "loans-content", "url_name": "settings-loans"},
+    {"label": "Entities", "pane_id": "entities-content", "url_name": "settings-entities"},
+    {"label": "Prefills", "pane_id": "prefills-content", "url_name": "settings-prefills"},
+    {"label": "Auto Tags", "pane_id": "autotags-content", "url_name": "settings-autotags"},
+    {
+        "label": "CSV Profiles",
+        "pane_id": "csv-profiles-content",
+        "url_name": "settings-csv-profiles",
+    },
+)
+
+
 class SettingsView(LoginRequiredMixin, View):
     login_url = "/login/"
     redirect_field_name = "next"
@@ -54,7 +79,10 @@ class SettingsView(LoginRequiredMixin, View):
 
     def get(self, request):
         content_html = self._render_content()
-        html = render_to_string(self.view_template, {"content": content_html})
+        html = render_to_string(
+            self.view_template,
+            {"content": content_html, "sections": SETTINGS_SECTIONS},
+        )
         return render_full_page(request, html)
 
     def post(self, request, account_id=None):

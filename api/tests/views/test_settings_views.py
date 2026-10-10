@@ -22,9 +22,47 @@ class SettingsViewTest(HTMXViewTestCase):
         self.assertContains(response, "Settings")
 
     def test_page_contains_flat_menu_sections(self):
+        """Every configured section appears in the menu.
+
+        This used to assert on the literal text of an Alpine array. The menu
+        is now server-rendered from SETTINGS_SECTIONS, so assert against that
+        definition rather than against a hard-coded string.
+        """
+        from api.views.settings_views import SETTINGS_SECTIONS
+
         response = self.client.get(reverse("settings"))
-        # The flat menu is client-rendered from this section list.
-        self.assertContains(response, "'Entities', 'Prefills', 'Auto Tags', 'CSV Profiles'")
+        for section in SETTINGS_SECTIONS:
+            self.assertContains(response, section["label"])
+
+    def test_lazy_panes_load_on_reveal_not_on_page_load(self):
+        """The seven fetched panes used to carry hx-trigger="load", so all of
+        them were fetched on page load -- x-show only sets display:none, so a
+        pane nobody opened was still a round trip."""
+        from api.views.settings_views import SETTINGS_SECTIONS
+
+        response = self.client.get(reverse("settings"))
+        html = response.content.decode()
+
+        lazy = [s for s in SETTINGS_SECTIONS if s["url_name"]]
+        self.assertEqual(len(lazy), 7, "expected seven fetched panes")
+        for section in lazy:
+            self.assertIn(f'id="{section["pane_id"]}"', html)
+        self.assertNotIn(
+            'hx-trigger="load"',
+            html,
+            "no pane may fetch itself on page load",
+        )
+        self.assertEqual(
+            html.count('hx-trigger="intersect once"'),
+            len(lazy),
+            "each fetched pane should load on first reveal",
+        )
+
+    def test_dead_stub_markup_is_gone(self):
+        """`stubs: {}` was always empty, so the stub block was unreachable."""
+        html = self.client.get(reverse("settings")).content.decode()
+        self.assertNotIn("stubs", html)
+        self.assertNotIn("stub-title", html)
 
     def test_new_account_form_view(self):
         response = self.client.get(reverse("settings-account-new-form"))

@@ -7,10 +7,12 @@
             <i class="bi bi-list"></i>
         </button>
 
-        {# The server owns which tab is active. hx-select-oob re-renders this
-           list on every boosted navigation so the highlight follows the page
-           that actually loaded -- previously a jQuery click handler moved it
-           optimistically, which disagreed with the server. #}
+        {% comment %}
+          The server owns which tab is active. hx-select-oob re-renders this
+          list on every boosted navigation so the highlight follows the page
+          that actually loaded -- previously a jQuery click handler moved it
+          optimistically, which disagreed with the server.
+        {% endcomment %}
         <ul id="nav-links" class="nav-links" :class="{ open: menu }"
             hx-boost="true" hx-target="#container" hx-select="#container"
             hx-select-oob="#nav-links" hx-swap="outerHTML show:window:top">
