@@ -31,7 +31,8 @@ import os
 
 os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
 
-from django.test import LiveServerTestCase, tag
+from django.contrib.staticfiles.testing import StaticLiveServerTestCase
+from django.test import tag
 from playwright.sync_api import sync_playwright
 
 # Counts htmx requests that have started but not yet settled. Installed on
@@ -59,8 +60,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 @tag("e2e")
-class PlaywrightTestCase(LiveServerTestCase):
-    """LiveServerTestCase with a browser and deterministic waits."""
+class PlaywrightTestCase(StaticLiveServerTestCase):
+    """Live-server browser tests with deterministic waits.
+
+    StaticLiveServerTestCase, not LiveServerTestCase: the latter does not
+    serve static files, so /static/css/app.css 404s and every page renders
+    unstyled. That was the real source of the suite's flakiness. Unstyled,
+    `.table-scroll` loses `overflow: auto` and its max-height, the table lays
+    out with default border-spacing, and a row's centre point can land on that
+    spacing rather than on a cell -- at which point Playwright correctly
+    reports the table intercepting the click and spins until it times out.
+    """
 
     @classmethod
     def setUpClass(cls):
@@ -129,18 +139,40 @@ class PlaywrightTestCase(LiveServerTestCase):
         )
 
     def click_in_scroll_container(self, selector):
-        """Clicks an element inside a scrollable table, centering it first.
+        """Clicks a row inside a scrollable table, positioned so it owns its
+        own click point.
 
-        `.table th` is `position: sticky; z-index: 1` and the transactions
-        table lives in a 200px-max scroll container, so Playwright's default
-        scrollIntoView can land the target row directly beneath its own sticky
-        header -- which then intercepts the click. Playwright retries for 30s
-        and reports "<table class=\"table\"> intercepts pointer events".
-        Centering the row in its container puts it clear of the header.
+        The transactions table lives in a `max-height: 200px` scroll container
+        with a `position: sticky` header. A row can end up geometrically
+        placed but *clipped outside* the container's visible region -- its
+        bounding rect looks reasonable while the element at its centre is the
+        table rather than the row, and Playwright's actionability check then
+        spins for 30s and reports
+        "<table class=\"table\"> intercepts pointer events".
+
+        scrollIntoView() is not sufficient, because it positions relative to
+        the viewport rather than the inner scroller, and Playwright re-scrolls
+        before clicking anyway. So the scroll offset is computed directly:
+        place the row at the vertical middle of its container, which is both
+        inside the clip region and clear of the sticky header.
+
+        The hit test is preserved rather than bypassed with force=True, so a
+        genuine "a user could not click this" regression still fails.
         """
         locator = self.page.locator(selector)
+        # Bring the container itself into the page's view first.
         locator.scroll_into_view_if_needed()
-        locator.evaluate("el => el.scrollIntoView({block: 'center'})")
+        locator.evaluate(
+            """el => {
+                const scroller = el.closest('.table-scroll');
+                if (!scroller) return;
+                const middle = el.offsetTop
+                    - scroller.clientHeight / 2
+                    + el.offsetHeight / 2;
+                const max = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+                scroller.scrollTop = Math.min(Math.max(0, middle), max);
+            }"""
+        )
         locator.click()
 
     def wait_for_visible_text(self, selector, expected):
