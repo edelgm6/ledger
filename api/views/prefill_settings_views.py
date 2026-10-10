@@ -21,11 +21,20 @@ from api.forms import DocSearchForm, PrefillForm
 from api.models import DocSearch, Prefill
 from api.services import prefill_services
 from api.views import prefill_settings_helpers
+from api.views.settings_crud import SettingsCrudView
 
 
-class PrefillSettingsView(LoginRequiredMixin, View):
-    login_url = "/login/"
-    redirect_field_name = "next"
+class PrefillSettingsView(SettingsCrudView):
+    noun = "prefill"
+    model = Prefill
+    form_class = PrefillForm
+    pk_url_kwarg = "prefill_id"
+
+    def save(self, cleaned_data, instance):
+        return prefill_services.save_prefill(cleaned_data, instance=instance)
+
+    def delete(self, pk):
+        return prefill_services.delete_prefill(pk)
 
     def _render_content(
         self,
@@ -52,57 +61,6 @@ class PrefillSettingsView(LoginRequiredMixin, View):
     def get(self, request):
         return HttpResponse(self._render_content())
 
-    def post(self, request, prefill_id=None):
-        action = request.POST.get("action")
-
-        if action == "delete":
-            result = prefill_services.delete_prefill(prefill_id)
-            if result.success:
-                return HttpResponse(self._render_content(change="delete"))
-            return HttpResponse(
-                self._render_content(
-                    prefill=result.prefill,
-                    error=result.error,
-                    selected_id=result.prefill.id if result.prefill else None,
-                )
-            )
-
-        if prefill_id:
-            prefill = get_object_or_404(Prefill, pk=prefill_id)
-            form = PrefillForm(request.POST, instance=prefill)
-            change = "update"
-        else:
-            prefill = None
-            form = PrefillForm(request.POST)
-            change = "create"
-
-        if not form.is_valid():
-            return HttpResponse(
-                self._render_content(
-                    prefill=prefill,
-                    form=form,
-                    selected_id=prefill.id if prefill else None,
-                )
-            )
-
-        result = prefill_services.save_prefill(form.cleaned_data, instance=prefill)
-        if not result.success:
-            return HttpResponse(
-                self._render_content(
-                    prefill=prefill,
-                    form=form,
-                    error=result.error,
-                    selected_id=prefill.id if prefill else None,
-                )
-            )
-
-        return HttpResponse(
-            self._render_content(
-                prefill=result.prefill,
-                change=change,
-                selected_id=result.prefill.id,
-            )
-        )
 
 
 class PrefillFormView(LoginRequiredMixin, View):

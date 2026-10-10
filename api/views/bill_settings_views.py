@@ -21,11 +21,20 @@ from api.forms import UtilityBillRuleForm
 from api.models import UtilityBillRule
 from api.services import bill_rule_services, bill_services
 from api.views import bill_settings_helpers
+from api.views.settings_crud import SettingsCrudView
 
 
-class BillRulesView(LoginRequiredMixin, View):
-    login_url = "/login/"
-    redirect_field_name = "next"
+class BillRulesView(SettingsCrudView):
+    noun = "rule"
+    model = UtilityBillRule
+    form_class = UtilityBillRuleForm
+    pk_url_kwarg = "rule_id"
+
+    def save(self, cleaned_data, instance):
+        return bill_rule_services.save_bill_rule(cleaned_data, instance=instance)
+
+    def delete(self, pk):
+        return bill_rule_services.delete_bill_rule(pk)
 
     def _render_content(
         self,
@@ -55,57 +64,6 @@ class BillRulesView(LoginRequiredMixin, View):
     def get(self, request):
         return HttpResponse(self._render_content())
 
-    def post(self, request, rule_id=None):
-        action = request.POST.get("action")
-
-        if action == "delete":
-            result = bill_rule_services.delete_bill_rule(rule_id)
-            if result.success:
-                return HttpResponse(self._render_content(change="delete"))
-            return HttpResponse(
-                self._render_content(
-                    rule=result.rule,
-                    error=result.error,
-                    selected_id=result.rule.id if result.rule else None,
-                )
-            )
-
-        if rule_id:
-            rule = get_object_or_404(UtilityBillRule, pk=rule_id)
-            form = UtilityBillRuleForm(request.POST, instance=rule)
-            change = "update"
-        else:
-            rule = None
-            form = UtilityBillRuleForm(request.POST)
-            change = "create"
-
-        if not form.is_valid():
-            return HttpResponse(
-                self._render_content(
-                    rule=rule,
-                    form=form,
-                    selected_id=rule.id if rule else None,
-                )
-            )
-
-        result = bill_rule_services.save_bill_rule(form.cleaned_data, instance=rule)
-        if not result.success:
-            return HttpResponse(
-                self._render_content(
-                    rule=rule,
-                    form=form,
-                    error=result.error,
-                    selected_id=rule.id if rule else None,
-                )
-            )
-
-        return HttpResponse(
-            self._render_content(
-                rule=result.rule,
-                change=change,
-                selected_id=result.rule.id,
-            )
-        )
 
 
 class BillRuleFormView(LoginRequiredMixin, View):
