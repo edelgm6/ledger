@@ -100,11 +100,12 @@ def render_income_statement(
     Returns:
         HTML string for income statement
     """
-    # Convert StatementSummary to dict format expected by template
-    summary_dict = _convert_summary_to_dict(summary)
-
     context = {
-        "summary": summary_dict,
+        # The typed summary goes straight to the template: Django resolves
+        # dataclass attributes natively, so flattening it bought nothing and
+        # cost a renamed key (sub_types -> "balances"), which is why the
+        # templates read balances-inside-balances.
+        "summary": summary.account_types,
         "tax_rate": tax_rate if tax_rate is not None else 0,
         "savings_rate": savings_rate if savings_rate is not None else 0,
         "post_tax_savings_rate": (
@@ -176,11 +177,12 @@ def render_balance_sheet(
     Returns:
         HTML string for balance sheet
     """
-    # Convert StatementSummary to dict format expected by template
-    summary_dict = _convert_summary_to_dict(summary)
-
     context = {
-        "summary": summary_dict,
+        # The typed summary goes straight to the template: Django resolves
+        # dataclass attributes natively, so flattening it bought nothing and
+        # cost a renamed key (sub_types -> "balances"), which is why the
+        # templates read balances-inside-balances.
+        "summary": summary.account_types,
         "cash_percent_assets": cash_percent_assets,
         "debt_to_equity_ratio": debt_to_equity_ratio,
         "liquid_percent_assets": liquid_percent_assets,
@@ -232,32 +234,3 @@ def render_statement_detail_table(detail_data: StatementDetailData) -> str:
     }
 
     return render_to_string("api/tables/statement-detail-table.html", context)
-
-
-def _convert_summary_to_dict(summary: StatementSummary) -> dict:
-    """
-    Convert StatementSummary dataclass to dict format expected by templates.
-
-    Internal helper function.
-
-    Args:
-        summary: StatementSummary dataclass
-
-    Returns:
-        Dict matching the template's expected structure
-    """
-    result = {}
-    for account_type, type_summary in summary.account_types.items():
-        result[account_type] = {
-            "name": type_summary.name,
-            "total": type_summary.total,
-            "balances": [
-                {
-                    "name": sub.name,
-                    "balances": sub.balances,
-                    "total": sub.total,
-                }
-                for sub in type_summary.sub_types
-            ],
-        }
-    return result
