@@ -11,6 +11,7 @@ from api.models import (
     PaystubValue,
     S3File,
 )
+from api.services.gemini_services import ExtractedPage, ExtractedValue
 from api.services.paystub_upload_services import (
     create_paystubs_from_data,
     process_paystub_upload,
@@ -42,20 +43,24 @@ class CreatePaystubsFromDataTest(TestCase):
 
     def test_creates_paystub_and_values(self):
         parsed_data = {
-            "0": {
-                "Company": "Acme Corp",
-                "End Period": "01/15/2026",
-                self.account_gross: {
-                    "value": Decimal("5000.00"),
-                    "entry_type": JournalEntryItem.JournalEntryType.CREDIT,
-                    "entity": self.entity,
-                },
-                self.account_fed_tax: {
-                    "value": Decimal("800.00"),
-                    "entry_type": JournalEntryItem.JournalEntryType.DEBIT,
-                    "entity": self.entity,
-                },
-            }
+            "0": ExtractedPage(
+                company="Acme Corp",
+                end_period="01/15/2026",
+                values=[
+                    ExtractedValue(
+                        account=self.account_gross,
+                        amount=Decimal("5000.00"),
+                        entry_type=JournalEntryItem.JournalEntryType.CREDIT,
+                        entity=self.entity,
+                    ),
+                    ExtractedValue(
+                        account=self.account_fed_tax,
+                        amount=Decimal("800.00"),
+                        entry_type=JournalEntryItem.JournalEntryType.DEBIT,
+                        entity=self.entity,
+                    ),
+                ],
+            )
         }
 
         create_paystubs_from_data(
@@ -82,14 +87,17 @@ class CreatePaystubsFromDataTest(TestCase):
 
     def test_skips_zero_amounts(self):
         parsed_data = {
-            "0": {
-                "End Period": "01/15/2026",
-                self.account_gross: {
-                    "value": Decimal("0.00"),
-                    "entry_type": JournalEntryItem.JournalEntryType.CREDIT,
-                    "entity": self.entity,
-                },
-            }
+            "0": ExtractedPage(
+                end_period="01/15/2026",
+                values=[
+                    ExtractedValue(
+                        account=self.account_gross,
+                        amount=Decimal("0.00"),
+                        entry_type=JournalEntryItem.JournalEntryType.CREDIT,
+                        entity=self.entity,
+                    )
+                ],
+            )
         }
 
         create_paystubs_from_data(
@@ -101,14 +109,17 @@ class CreatePaystubsFromDataTest(TestCase):
 
     def test_uses_prefill_name_when_company_missing(self):
         parsed_data = {
-            "0": {
-                "End Period": "01/15/2026",
-                self.account_gross: {
-                    "value": Decimal("1000.00"),
-                    "entry_type": JournalEntryItem.JournalEntryType.CREDIT,
-                    "entity": self.entity,
-                },
-            }
+            "0": ExtractedPage(
+                end_period="01/15/2026",
+                values=[
+                    ExtractedValue(
+                        account=self.account_gross,
+                        amount=Decimal("1000.00"),
+                        entry_type=JournalEntryItem.JournalEntryType.CREDIT,
+                        entity=self.entity,
+                    )
+                ],
+            )
         }
 
         create_paystubs_from_data(
@@ -120,24 +131,30 @@ class CreatePaystubsFromDataTest(TestCase):
 
     def test_creates_multiple_paystubs_for_multi_page(self):
         parsed_data = {
-            "0": {
-                "Company": "Acme",
-                "End Period": "01/15/2026",
-                self.account_gross: {
-                    "value": Decimal("5000.00"),
-                    "entry_type": JournalEntryItem.JournalEntryType.CREDIT,
-                    "entity": self.entity,
-                },
-            },
-            "1": {
-                "Company": "Acme",
-                "End Period": "01/31/2026",
-                self.account_gross: {
-                    "value": Decimal("5200.00"),
-                    "entry_type": JournalEntryItem.JournalEntryType.CREDIT,
-                    "entity": self.entity,
-                },
-            },
+            "0": ExtractedPage(
+                company="Acme",
+                end_period="01/15/2026",
+                values=[
+                    ExtractedValue(
+                        account=self.account_gross,
+                        amount=Decimal("5000.00"),
+                        entry_type=JournalEntryItem.JournalEntryType.CREDIT,
+                        entity=self.entity,
+                    )
+                ],
+            ),
+            "1": ExtractedPage(
+                company="Acme",
+                end_period="01/31/2026",
+                values=[
+                    ExtractedValue(
+                        account=self.account_gross,
+                        amount=Decimal("5200.00"),
+                        entry_type=JournalEntryItem.JournalEntryType.CREDIT,
+                        entity=self.entity,
+                    )
+                ],
+            ),
         }
 
         create_paystubs_from_data(
@@ -228,15 +245,18 @@ class ProcessGeminiPaystubTaskTest(TestCase):
 
         mock_download.return_value = b"fake-pdf"
         mock_parse.return_value = {
-            "0": {
-                "Company": "Test Co",
-                "End Period": "01/15/2026",
-                self.account: {
-                    "value": Decimal("4500.00"),
-                    "entry_type": JournalEntryItem.JournalEntryType.CREDIT,
-                    "entity": self.entity,
-                },
-            }
+            "0": ExtractedPage(
+                company="Test Co",
+                end_period="01/15/2026",
+                values=[
+                    ExtractedValue(
+                        account=self.account,
+                        amount=Decimal("4500.00"),
+                        entry_type=JournalEntryItem.JournalEntryType.CREDIT,
+                        entity=self.entity,
+                    )
+                ],
+            )
         }
 
         process_gemini_paystub(self.s3file.pk)
