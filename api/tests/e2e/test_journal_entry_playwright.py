@@ -12,16 +12,10 @@ Run:
     uv run python manage.py test api.tests.e2e
 """
 import datetime
-import os
 from decimal import Decimal
 
-# Playwright's sync API runs an internal event loop that Django's async-safety check
-# detects as an "async context". This env var disables that check for test use.
-os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
-
 from django.contrib.auth.models import User
-from django.test import Client, LiveServerTestCase, tag
-from playwright.sync_api import sync_playwright
+from django.test import Client
 
 from api.models import (
     Account,
@@ -31,6 +25,7 @@ from api.models import (
     S3File,
     Transaction,
 )
+from api.tests.e2e.playwright_base import PlaywrightTestCase
 from api.tests.testing_factories import (
     AccountFactory,
     EntityFactory,
@@ -39,31 +34,13 @@ from api.tests.testing_factories import (
 )
 
 
-@tag("e2e")
-class JournalEntryE2EBase(LiveServerTestCase):
-    """Base class: spins up Playwright Chromium and handles auth cookie injection."""
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.playwright = sync_playwright().start()
-        cls.browser = cls.playwright.chromium.launch(headless=True)
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.browser.close()
-        cls.playwright.stop()
-        super().tearDownClass()
+class JournalEntryE2EBase(PlaywrightTestCase):
+    """Journal-entry flows: auth cookie injection plus the shared page helpers."""
 
     def setUp(self):
+        super().setUp()
         self.user = User.objects.create_user(username="testuser", password="testpass")
-        self.context = self.browser.new_context()
         self._inject_auth_cookie()
-        self.page = self.context.new_page()
-
-    def tearDown(self):
-        self.page.close()
-        self.context.close()
 
     def _inject_auth_cookie(self):
         # Bypasses Playwright's browser isolation: injects Django's session cookie
@@ -76,24 +53,29 @@ class JournalEntryE2EBase(LiveServerTestCase):
         )
 
     def goto_journal_entries(self):
-        # Navigate to / to load base.html (HTMX + Alpine.js from CDN), then HTMX-navigate
-        # to journal entries. Checking typeof htmx guards against CDN load delay.
-        self.page.goto(self.live_server_url + "/")
-        self.page.wait_for_load_state("networkidle")
-        self.page.wait_for_function("typeof htmx !== 'undefined'")
-        with self.page.expect_response(lambda r: "journal-entries" in r.url and "table" not in r.url):
+        # Load base.html first (htmx + Alpine come from a CDN), then let
+        # hx-boost navigate. goto() waits for both libraries to exist.
+        self.goto("/")
+        with self.page.expect_response(
+            lambda r: "journal-entries" in r.url and "table" not in r.url
+        ):
             self.page.click("a:has-text('Entries')")
         self.page.wait_for_selector("#transactions-filter-form")
+        self.wait_for_htmx()
 
     def apply_filter(self):
         with self.page.expect_response(lambda r: "journal-entries/table" in r.url):
             self.page.click("button[type='submit']:has-text('Filter')")
-        self.page.wait_for_load_state("networkidle")
+        self.wait_for_htmx()
 
     def click_transaction_row(self, transaction_id):
-        with self.page.expect_response(lambda r: f"journal-entries/form/{transaction_id}" in r.url):
-            self.page.click(f"tr[data-transaction-id='{transaction_id}']")
-        self.page.wait_for_load_state("networkidle")
+        with self.page.expect_response(
+            lambda r: f"journal-entries/form/{transaction_id}" in r.url
+        ):
+            self.click_in_scroll_container(
+                f"tr[data-transaction-id='{transaction_id}']"
+            )
+        self.wait_for_htmx()
 
     def submit_form(self, transaction_id):
         with self.page.expect_response(
@@ -102,7 +84,7 @@ class JournalEntryE2EBase(LiveServerTestCase):
             and "table" not in r.url
         ):
             self.page.click("input[type='submit'][value='Submit']")
-        self.page.wait_for_load_state("networkidle")
+        self.wait_for_htmx()
 
 
 class JournalEntryFilterTests(JournalEntryE2EBase):
@@ -395,7 +377,8 @@ class JournalEntryFormValidationTests(JournalEntryE2EBase):
         self.page.fill("input[name='credits-0-account']", "Groceries")
         self.page.fill("input[name='credits-0-entity']", "Test Vendor")
 
-        # wait_for_selector is more reliable than networkidle for HX-Retarget DOM swaps.
+        # HX-Retarget swaps a different element, so wait for the element the
+        # retarget actually produces.
         self.page.click("input[type='submit'][value='Submit']")
         self.page.wait_for_selector("input[name='debits-0-account'].is-invalid")
 
@@ -412,7 +395,8 @@ class JournalEntryFormValidationTests(JournalEntryE2EBase):
         self.page.fill("input[name='credits-0-account']", "Groceries")
         self.page.fill("input[name='credits-0-entity']", "Test Vendor")
 
-        # wait_for_selector is more reliable than networkidle for HX-Retarget DOM swaps.
+        # HX-Retarget swaps a different element, so wait for the element the
+        # retarget actually produces.
         self.page.click("input[type='submit'][value='Submit']")
         self.page.wait_for_selector("input[name='debits-0-entity'].is-invalid")
 
@@ -499,7 +483,7 @@ class JournalEntryPaystubTests(JournalEntryE2EBase):
             lambda r: f"journal-entries/form/{self.txn.id}" in r.url and "paystub_id" in r.url
         ):
             self.page.click("button:has-text('Fill Paystub')")
-        self.page.wait_for_load_state("networkidle")
+        self.wait_for_htmx()
 
     def test_fill_paystub_prefills_form(self):
         """Fill Paystub populates the debit and credit fields from PaystubValues."""
