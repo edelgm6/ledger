@@ -7,8 +7,13 @@
             <i class="bi bi-list"></i>
         </button>
 
-        <ul class="nav-links" :class="{ open: menu }"
-            hx-boost="true" hx-target="#container" hx-select="#container" hx-swap="outerHTML show:window:top">
+        {# The server owns which tab is active. hx-select-oob re-renders this
+           list on every boosted navigation so the highlight follows the page
+           that actually loaded -- previously a jQuery click handler moved it
+           optimistically, which disagreed with the server. #}
+        <ul id="nav-links" class="nav-links" :class="{ open: menu }"
+            hx-boost="true" hx-target="#container" hx-select="#container"
+            hx-select-oob="#nav-links" hx-swap="outerHTML show:window:top">
             <li class="nav-item {% if request.resolver_match.url_name == 'journal-entries' %}active{% endif %}">
                 <a class="nav-link" href="{% url 'journal-entries' %}">Entries</a>
             </li>
@@ -41,7 +46,8 @@
             </li>
 
             <!-- Financials dropdown (Alpine-driven; hx-boost disabled on the toggle) -->
-            <li class="nav-item nav-dropdown" @click.outside="fin = false">
+            <li class="nav-item nav-dropdown{% if request.resolver_match.url_name == 'statements' %} active{% endif %}"
+                @click.outside="fin = false">
                 <a class="nav-link" href="#" role="button" hx-boost="false"
                    @click.prevent="fin = !fin">Financials ▾</a>
                 <div class="nav-dropdown-menu" x-show="fin" x-cloak @click="fin = false">
