@@ -174,7 +174,17 @@ class AccountDetailReportView(APIView):
             from_date=utils.format_datetime_to_string(from_date),
             to_date=utils.format_datetime_to_string(to_date),
         )
-        return Response(report_serializers.serialize_detail(detail))
+        # Echo the period, as every other report response does. The dates
+        # default to last month when omitted, so without this a caller cannot
+        # tell which period the items cover. Purely additive: serialize_detail
+        # already returns a dict.
+        return Response(
+            {
+                "from_date": from_date,
+                "to_date": to_date,
+                **report_serializers.serialize_detail(detail),
+            }
+        )
 
 
 class EntityDetailReportView(APIView):
@@ -197,4 +207,10 @@ class EntityDetailReportView(APIView):
             from_date=utils.format_datetime_to_string(from_date),
             to_date=utils.format_datetime_to_string(to_date),
         )
-        return Response(report_serializers.serialize_detail(detail))
+        return Response(
+            {
+                "from_date": from_date,
+                "to_date": to_date,
+                **report_serializers.serialize_detail(detail),
+            }
+        )
