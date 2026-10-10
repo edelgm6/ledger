@@ -40,12 +40,25 @@ def get_loans() -> List[Loan]:
 
 
 def get_schedule(loan_id: int) -> List[LoanPayment]:
-    """Returns a loan's schedule rows in order, with linked transactions."""
-    return list(
-        LoanPayment.objects.filter(loan_id=loan_id)
-        .select_related("transaction")
-        .order_by("sequence")
-    )
+    """Returns a loan's schedule rows in display order, with linked
+    transactions and a computed running balance on each row.
+
+    remaining_balance is no longer a stored column; it is derived here so it
+    cannot go stale. The balance rolls in (date, sequence) order while the rows
+    render in sequence order -- see Loan.schedule_with_running_balance.
+    """
+    loan = Loan.objects.get(pk=loan_id)
+    rows = loan.schedule_with_running_balance()
+    # Attach the transactions the template needs without a query per row.
+    linked = {
+        row.pk: row
+        for row in LoanPayment.objects.filter(loan_id=loan_id).select_related(
+            "transaction"
+        )
+    }
+    for row in rows:
+        row.transaction = linked[row.pk].transaction
+    return rows
 
 
 def get_loan_form_options() -> Tuple[QuerySet, QuerySet, QuerySet, QuerySet]:
@@ -131,7 +144,6 @@ def save_schedule_row(
     row.interest_amount = loan._round(interest_amount)
     row.payment_amount = loan._round(row.principal_amount + row.interest_amount)
     row.balance_override = loan._round(balance)
-    row.remaining_balance = row.balance_override
     row.save()
     loan.generate_schedule()
     return LoanResult(success=True, loan=loan)
@@ -229,7 +241,6 @@ def _record_off_schedule(
         payment_amount=amount,
         principal_amount=principal,
         interest_amount=interest,
-        remaining_balance=new_balance,
         kind=kind,
         transaction=txn,
     )
