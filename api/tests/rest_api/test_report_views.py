@@ -202,3 +202,63 @@ class ReportEndpointsTest(TestCase):
         client = APIClient()
         response = client.get("/api/v1/reports/income/")
         self.assertEqual(response.status_code, 403)
+
+
+@override_settings(LEDGER_API_KEY=API_KEY)
+class ReportPeriodEchoTest(TestCase):
+    """Every report response states the period it covers.
+
+    The dates default to last month when the caller omits them, so a response
+    that does not echo them leaves the consumer guessing. The two drill-down
+    endpoints were the only ones that did not -- an omission, since the rest of
+    the reporting API has echoed its period all along.
+    """
+
+    def setUp(self):
+        self.client = APIClient()
+        self.client.credentials(HTTP_AUTHORIZATION=f"Api-Key {API_KEY}")
+        self.account = AccountFactory(
+            name="Groceries",
+            type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.OPERATING,
+        )
+
+    def test_account_detail_echoes_the_period(self):
+        response = self.client.get(
+            "/api/v1/reports/account-detail/",
+            {
+                "account_id": self.account.id,
+                "from_date": "2026-03-01",
+                "to_date": "2026-03-31",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(str(response.data["from_date"]), "2026-03-01")
+        self.assertEqual(str(response.data["to_date"]), "2026-03-31")
+        # Additive only -- the existing keys are untouched.
+        self.assertIn("items", response.data)
+        self.assertIn("account", response.data)
+
+    def test_entity_detail_echoes_the_period(self):
+        response = self.client.get(
+            "/api/v1/reports/entity-detail/",
+            {
+                "sub_type": Account.SubType.OPERATING,
+                "from_date": "2026-03-01",
+                "to_date": "2026-03-31",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(str(response.data["from_date"]), "2026-03-01")
+        self.assertEqual(str(response.data["to_date"]), "2026-03-31")
+        self.assertIn("items", response.data)
+
+    def test_defaulted_period_is_echoed_too(self):
+        """This is the case that actually needed it: no dates supplied, so the
+        server picks last month and the caller has no other way to know."""
+        response = self.client.get(
+            "/api/v1/reports/account-detail/", {"account_id": self.account.id}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(response.data["from_date"])
+        self.assertIsNotNone(response.data["to_date"])
