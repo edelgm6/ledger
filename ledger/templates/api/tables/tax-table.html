@@ -18,7 +18,14 @@
                 <td>{{ tax_charge.date }}</td>
                 <td>${{ tax_charge.amount|floatformat:2|intcomma }}</td>
                 <td>${{ tax_charge.taxable_income|floatformat:2|intcomma }}</td>
-                <td>{% if not tax_charge.type == 'property' %}{{ tax_charge.tax_rate|multiply:100|floatformat:2 }}%{% endif %}</td>
+                {% comment %}
+                  A rate is tax / taxable income, so it only means anything for
+                  an income tax. This used to read tax_charge.type, a field
+                  removed in migration 0011 -- which Django resolved to '',
+                  making the guard always true, so property charges showed a
+                  rate regardless.
+                {% endcomment %}
+                <td>{% if tax_charge.account.is_income_tax %}{{ tax_charge.tax_rate|multiply:100|floatformat:2 }}%{% endif %}</td>
             </tr>
         {% empty %}
             <tr>

@@ -2,7 +2,7 @@ import datetime
 from decimal import Decimal
 
 import factory
-from api.models import Account, CSVColumnValuePair, CSVProfile, Entity, Transaction, Amortization, Reconciliation, JournalEntry, JournalEntryItem, AutoTag, Prefill, TaxCharge, Loan, LoanPayment
+from api.models import Account, CSVColumnValuePair, CSVProfile, Entity, Transaction, Amortization, Reconciliation, JournalEntry, JournalEntryItem, AutoTag, Prefill, Loan, LoanPayment
 
 
 # Entity Factory
@@ -127,16 +127,6 @@ class AutoTagFactory(factory.django.DjangoModelFactory):
     prefill = factory.SubFactory(PrefillFactory)
 
 # TaxCharge Factory
-class TaxChargeFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = TaxCharge
-
-    type = factory.Iterator(TaxCharge.Type.choices, getter=lambda c: c[0])
-    transaction = factory.SubFactory(TransactionFactory)
-    date = factory.Faker('date_object')
-    amount = factory.Faker('pydecimal', left_digits=10, right_digits=2, positive=True)
-
-
 # Loan Factory
 class LoanFactory(factory.django.DjangoModelFactory):
     class Meta:
