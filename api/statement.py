@@ -17,6 +17,56 @@ class StartingEquityMissing(Exception):
     """
 
 
+def _sum_amounts_by_account_pk(balances):
+    """Total each account's amount across `balances`, keyed by primary key.
+
+    Rows for *unsaved* accounts are skipped on purpose. The balance lists carry
+    synthetic display-only accounts -- "9000-Net Retained Earnings" and
+    "9100-Investment Gains/Losses" on the balance sheet, "Realized Net Income"
+    and "Unrealized Gains/Losses" on the income statement -- which are never
+    persisted and so all share ``pk is None``. Keying them would collide them
+    all under one ``None`` entry and sum them together, which is how retained
+    earnings would double-count into the cash flow statement.
+
+    This matches the behavior of the ``balance.account == account`` scans this
+    replaces: Django's ``Model.__eq__`` falls back to identity comparison for
+    unsaved instances, so a saved account never matched a synthetic row.
+    """
+    totals = {}
+    for balance in balances:
+        pk = balance.account.pk
+        if pk is None:
+            continue
+        # .get(pk, 0) rather than a Decimal default, so an absent account
+        # yields int 0 exactly as the previous sum([]) did.
+        totals[pk] = totals.get(pk, 0) + balance.amount
+    return totals
+
+
+def _first_amounts_by_account_pk(balances):
+    """First amount seen per account primary key.
+
+    Mirrors the ``[...][0]`` the scan it replaces took: first match wins rather
+    than summing. Unsaved (synthetic) accounts are skipped for the same reason
+    as in _sum_amounts_by_account_pk.
+    """
+    amounts = {}
+    for balance in balances:
+        pk = balance.account.pk
+        if pk is None or pk in amounts:
+            continue
+        amounts[pk] = balance.amount
+    return amounts
+
+
+def _group_balances_by_sub_type(balances):
+    """Bucket balances by their account's sub_type, in input order."""
+    grouped = {}
+    for balance in balances:
+        grouped.setdefault(balance.account.sub_type, []).append(balance)
+    return grouped
+
+
 def _tagged_balances(rows, origin):
     """Shallow-copy `rows`, labeling each with its originating statement.
 
@@ -228,6 +278,11 @@ class CashFlowStatement(Statement):
         self.start_balance_sheet = start_balance_sheet
         self.end_balance_sheet = end_balance_sheet
         self.balance_sheet_deltas = self.get_balance_sheet_account_deltas()
+        # Bucketed once. The three get_cash_from_* methods below pulled five
+        # different sub_types out of this list, each with its own full scan.
+        self._deltas_by_sub_type = _group_balances_by_sub_type(
+            self.balance_sheet_deltas
+        )
         self.net_income_less_gains_and_losses = (
             self.income_statement.net_income - self.income_statement.investment_gains
         )
@@ -349,22 +404,15 @@ class CashFlowStatement(Statement):
         accounts = Account.objects.filter(
             type__in=[Account.Type.ASSET, Account.Type.LIABILITY, Account.Type.EQUITY]
         )
+        # Index both sheets once instead of scanning each of them per account,
+        # which was two full passes over every balance for every account.
+        start_totals = _sum_amounts_by_account_pk(self.start_balance_sheet.balances)
+        end_totals = _sum_amounts_by_account_pk(self.end_balance_sheet.balances)
+
         account_deltas = []
         for account in accounts:
-            starting_balance = sum(
-                [
-                    balance.amount
-                    for balance in self.start_balance_sheet.balances
-                    if balance.account == account
-                ]
-            )
-            ending_balance = sum(
-                [
-                    balance.amount
-                    for balance in self.end_balance_sheet.balances
-                    if balance.account == account
-                ]
-            )
+            starting_balance = start_totals.get(account.pk, 0)
+            ending_balance = end_totals.get(account.pk, 0)
             delta = ending_balance - starting_balance
             if account.type == Account.Type.ASSET:
                 delta = delta * -1
@@ -375,6 +423,10 @@ class CashFlowStatement(Statement):
             )
 
         return account_deltas
+
+    def _deltas_for(self, sub_type):
+        """Balance-sheet deltas for one sub_type, from the prebuilt buckets."""
+        return self._deltas_by_sub_type.get(sub_type, [])
 
     def get_cash_from_operations_balances(self):
         realized_net_income_account = Account(
@@ -399,26 +451,14 @@ class CashFlowStatement(Statement):
             for balance in self.income_statement.balances
             if balance.account.is_depreciation
         ]
-        accounts_receivable_accounts = [
-            balance
-            for balance in self.balance_sheet_deltas
-            if balance.account.sub_type == Account.SubType.ACCOUNTS_RECEIVABLE
-        ]
-        short_term_debt_accounts = [
-            balance
-            for balance in self.balance_sheet_deltas
-            if balance.account.sub_type == Account.SubType.SHORT_TERM_DEBT
-        ]
-        taxes_payable_accounts = [
-            balance
-            for balance in self.balance_sheet_deltas
-            if balance.account.sub_type == Account.SubType.TAXES_PAYABLE
-        ]
-        prepaid_expenses_accounts = [
-            balance
-            for balance in self.balance_sheet_deltas
-            if balance.account.sub_type == Account.SubType.PREPAID_EXPENSES
-        ]
+        accounts_receivable_accounts = self._deltas_for(
+            Account.SubType.ACCOUNTS_RECEIVABLE
+        )
+        short_term_debt_accounts = self._deltas_for(Account.SubType.SHORT_TERM_DEBT)
+        taxes_payable_accounts = self._deltas_for(Account.SubType.TAXES_PAYABLE)
+        prepaid_expenses_accounts = self._deltas_for(
+            Account.SubType.PREPAID_EXPENSES
+        )
         return (
             net_income_less_gains_and_losses
             + accounts_receivable_accounts
@@ -429,12 +469,7 @@ class CashFlowStatement(Statement):
         )
 
     def get_cash_from_financing_balances(self):
-        long_term_debt = [
-            balance
-            for balance in self.balance_sheet_deltas
-            if balance.account.sub_type == Account.SubType.LONG_TERM_DEBT
-        ]
-        return long_term_debt
+        return self._deltas_for(Account.SubType.LONG_TERM_DEBT)
 
     def get_cash_from_investing_balances(self):
         start_date = self.income_statement.start_date
@@ -676,6 +711,9 @@ class BalanceSheet(Statement):
 
     def __init__(self, end_date):
         super().__init__(end_date)
+        # Built lazily by get_balance(); the synthetic rows below are appended
+        # after this point, so it must not be built until first use.
+        self._balances_by_account_pk = None
         self.balances = self.get_balances()
         investment_gains_losses, net_retained_earnings = (
             self.get_retained_earnings_values()
@@ -727,16 +765,25 @@ class BalanceSheet(Statement):
         return investment_gains_losses, net_retained_earnings
 
     def get_balance(self, account):
-        try:
-            balance = [
-                balance.amount
-                for balance in self.balances
-                if balance.account == account
-            ][0]
-        # Need this when there is no balance for a given account
-        except IndexError:
-            balance = 0
-        return balance
+        """This account's balance on the sheet, or 0 if it has none.
+
+        Indexed, because the reconciliation page builds one balance sheet and
+        then calls this once per reconciliation row -- previously a full scan
+        of every balance each time.
+        """
+        if account.pk is None:
+            # Unsaved accounts are not in the index (see
+            # _sum_amounts_by_account_pk). Django compares unsaved instances by
+            # identity, so fall back to that rather than reporting 0 for a
+            # synthetic row the caller happens to hold.
+            for balance in self.balances:
+                if balance.account is account:
+                    return balance.amount
+            return 0
+
+        if self._balances_by_account_pk is None:
+            self._balances_by_account_pk = _first_amounts_by_account_pk(self.balances)
+        return self._balances_by_account_pk.get(account.pk, 0)
 
     def get_metrics(self):
         metrics = [

@@ -1,7 +1,9 @@
+import datetime
 from decimal import Decimal
 from django.test import TestCase
-from api.statement import CashFlowStatement, BalanceSheet, IncomeStatement
+from api.statement import Balance, CashFlowStatement, BalanceSheet, IncomeStatement
 from api.models import Account, JournalEntry, Transaction
+from api.tests.testing_factories import AccountFactory
 from api.tests.scenario_builders import (
     create_closed_transaction_with_journal_entry,
     create_multi_line_journal_entry,
@@ -399,3 +401,117 @@ class DepreciationCashFlowTest(TestCase):
         )
         # -1000 purchase + 900 sale proceeds; -100 depreciation still excluded.
         self.assertEqual(vehicle_amount, -100)
+
+
+class SyntheticAccountIndexingTest(TestCase):
+    """The pk-keyed indexes must skip unsaved (synthetic) accounts.
+
+    The balance lists carry display-only rows that are never persisted --
+    "9000-Net Retained Earnings" and "9100-Investment Gains/Losses" on the
+    balance sheet, "Realized Net Income" and "Unrealized Gains/Losses" on the
+    income statement. They all share ``pk is None``, so indexing them by
+    primary key would collide every one of them under a single ``None`` entry
+    and sum them together. That is how retained earnings would double-count
+    into the cash flow statement.
+
+    Previously they were excluded only incidentally, because Django's
+    ``Model.__eq__`` falls back to identity comparison for unsaved instances,
+    so a saved account never matched one.
+    """
+
+    def _synthetic(self, name, amount):
+        account = Account(
+            name=name,
+            type=Account.Type.EQUITY,
+            sub_type=Account.SubType.RETAINED_EARNINGS,
+        )
+        return Balance(account, Decimal(amount), datetime.date(2026, 3, 31))
+
+    def test_sum_index_skips_unsaved_accounts(self):
+        from api.statement import _sum_amounts_by_account_pk
+
+        saved = AccountFactory(
+            name="Real Cash", type=Account.Type.ASSET, sub_type=Account.SubType.CASH
+        )
+        balances = [
+            Balance(saved, Decimal("100.00"), datetime.date(2026, 3, 31)),
+            self._synthetic("9000-Net Retained Earnings", "500.00"),
+            self._synthetic("9100-Investment Gains/Losses", "250.00"),
+        ]
+
+        totals = _sum_amounts_by_account_pk(balances)
+
+        self.assertEqual(totals, {saved.pk: Decimal("100.00")})
+        self.assertNotIn(
+            None,
+            totals,
+            "unsaved accounts must not share a None key -- they would be "
+            "summed together",
+        )
+
+    def test_sum_index_still_totals_repeated_saved_accounts(self):
+        from api.statement import _sum_amounts_by_account_pk
+
+        saved = AccountFactory(
+            name="Real Cash 2", type=Account.Type.ASSET, sub_type=Account.SubType.CASH
+        )
+        totals = _sum_amounts_by_account_pk([
+            Balance(saved, Decimal("10.00"), datetime.date(2026, 3, 31)),
+            Balance(saved, Decimal("5.00"), datetime.date(2026, 3, 31)),
+        ])
+        self.assertEqual(totals[saved.pk], Decimal("15.00"))
+
+    def test_first_amount_index_skips_unsaved_and_keeps_first_match(self):
+        from api.statement import _first_amounts_by_account_pk
+
+        saved = AccountFactory(
+            name="Real Cash 3", type=Account.Type.ASSET, sub_type=Account.SubType.CASH
+        )
+        amounts = _first_amounts_by_account_pk([
+            self._synthetic("9000-Net Retained Earnings", "500.00"),
+            Balance(saved, Decimal("1.00"), datetime.date(2026, 3, 31)),
+            Balance(saved, Decimal("99.00"), datetime.date(2026, 3, 31)),
+        ])
+        self.assertNotIn(None, amounts)
+        self.assertEqual(
+            amounts[saved.pk],
+            Decimal("1.00"),
+            "first match wins, mirroring the [0] on the scan this replaced",
+        )
+
+    def test_balance_sheet_get_balance_excludes_synthetic_rows(self):
+        """The synthetic equity rows must not be reachable by a saved account."""
+        sheet = BalanceSheet(end_date=datetime.date(2026, 12, 31))
+        synthetic_names = {
+            b.account.name for b in sheet.balances if b.account.pk is None
+        }
+        self.assertTrue(
+            synthetic_names,
+            "precondition: the balance sheet appends synthetic equity rows",
+        )
+        for balance in sheet.balances:
+            if balance.account.pk is not None:
+                # A saved account resolves to its own amount, never a
+                # synthetic row's.
+                self.assertEqual(
+                    sheet.get_balance(balance.account), balance.amount
+                )
+
+    def test_balance_sheet_get_balance_falls_back_to_identity_when_unsaved(self):
+        sheet = BalanceSheet(end_date=datetime.date(2026, 12, 31))
+        synthetic = next(
+            (b for b in sheet.balances if b.account.pk is None), None
+        )
+        self.assertIsNotNone(synthetic, "precondition: a synthetic row exists")
+        self.assertEqual(
+            sheet.get_balance(synthetic.account),
+            synthetic.amount,
+            "an unsaved account the caller holds must still resolve by identity",
+        )
+        # A *different* unsaved account must not match it.
+        other = Account(
+            name="9000-Net Retained Earnings",
+            type=Account.Type.EQUITY,
+            sub_type=Account.SubType.RETAINED_EARNINGS,
+        )
+        self.assertEqual(sheet.get_balance(other), 0)
