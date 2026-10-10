@@ -1,7 +1,9 @@
+import datetime
 from decimal import Decimal
 from django.test import TestCase
 from api.statement import BalanceSheet, IncomeStatement
 from api.models import Account, JournalEntryItem, JournalEntry, Transaction
+from api.tests.testing_factories import AccountFactory
 from api.tests.scenario_builders import (
     create_closed_transaction_with_journal_entry,
     create_multi_line_journal_entry,
@@ -270,3 +272,80 @@ class BalanceSheetTest(TestCase):
         )
         balance_sheet = BalanceSheet('2023-01-31')
         self.assertEqual(balance_sheet.get_liquid_assets(), 440)
+
+
+class StatementDeclarationTest(TestCase):
+    """Each statement declares what it covers, instead of being identified by
+    isinstance() from inside the base class."""
+
+    def test_income_statement_declares_income_and_expense_as_flow(self):
+        self.assertEqual(
+            set(IncomeStatement.account_types),
+            {Account.Type.INCOME, Account.Type.EXPENSE},
+        )
+        self.assertEqual(IncomeStatement.balance_type, "flow")
+
+    def test_balance_sheet_declares_the_balance_sheet_types_as_stock(self):
+        self.assertEqual(
+            set(BalanceSheet.account_types),
+            {Account.Type.ASSET, Account.Type.LIABILITY, Account.Type.EQUITY},
+        )
+        self.assertEqual(BalanceSheet.balance_type, "stock")
+
+    def test_the_two_statements_partition_every_account_type(self):
+        """Between them they must cover all types exactly once, or some
+        account would never appear on a statement -- or appear on both."""
+        covered = list(IncomeStatement.account_types) + list(
+            BalanceSheet.account_types
+        )
+        self.assertEqual(len(covered), len(set(covered)), "a type is double-counted")
+        self.assertEqual(set(covered), set(Account.Type.values))
+
+    def test_balances_carry_the_declared_balance_type(self):
+        # One account per statement so each has rows to carry a type.
+        AccountFactory(
+            name="Some Expense",
+            type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.OPERATING,
+        )
+        AccountFactory(
+            name="Some Asset",
+            type=Account.Type.ASSET,
+            sub_type=Account.SubType.CASH,
+        )
+        income = IncomeStatement(
+            end_date=datetime.date(2026, 12, 31), start_date=datetime.date(2026, 1, 1)
+        )
+        posted = [b for b in income.get_balances()]
+        self.assertTrue(posted)
+        self.assertTrue(all(b.type == "flow" for b in posted))
+
+        sheet = BalanceSheet(end_date=datetime.date(2026, 12, 31))
+        posted = [b for b in sheet.get_balances()]
+        self.assertTrue(posted)
+        self.assertTrue(all(b.type == "stock" for b in posted))
+
+    def test_get_balances_includes_accounts_with_no_activity_at_zero(self):
+        """The zero-fill is what makes every account render in its section."""
+        AccountFactory(
+            name="Zzz Never Used",
+            type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.OPERATING,
+        )
+        income = IncomeStatement(
+            end_date=datetime.date(2026, 12, 31), start_date=datetime.date(2026, 1, 1)
+        )
+        by_name = {b.account.name: b for b in income.get_balances()}
+        self.assertIn("Zzz Never Used", by_name)
+        self.assertEqual(by_name["Zzz Never Used"].amount, 0)
+
+    def test_get_balances_is_sorted_by_account_name(self):
+        for name in ("Zebra Asset", "Alpha Asset", "Middle Asset"):
+            AccountFactory(
+                name=name,
+                type=Account.Type.ASSET,
+                sub_type=Account.SubType.CASH,
+            )
+        sheet = BalanceSheet(end_date=datetime.date(2026, 12, 31))
+        names = [b.account.name for b in sheet.get_balances()]
+        self.assertEqual(names, sorted(names))
