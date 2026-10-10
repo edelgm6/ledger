@@ -1,93 +1,41 @@
-<div x-data="{
-        section: 'Accounts',
-        sections: ['Accounts', 'Bill Rules', 'Utility Bills', 'Loans', 'Entities', 'Prefills', 'Auto Tags', 'CSV Profiles'],
-        stubs: {}
-     }">
+{% comment %}
+Sections come from SETTINGS_SECTIONS in settings_views. The menu and the panes
+are both generated from it, so a label cannot drift between the two -- it used
+to be written in an Alpine array *and* in a matching x-show guard per pane.
+{% endcomment %}
+<div x-data="{ section: '{{ sections.0.label }}' }">
   <div class="split">
 
     <!-- section menu -->
     <div class="split-side">
       <div class="menu-title">Settings</div>
       <div class="menu-list">
-        <template x-for="s in sections" :key="s">
-          <span class="menu-item" :class="{ active: section === s }"
-                @click="section = s" x-text="s"></span>
-        </template>
+        {% for s in sections %}
+        <span class="menu-item" :class="{ active: section === '{{ s.label }}' }"
+              @click="section = '{{ s.label }}'">{{ s.label }}</span>
+        {% endfor %}
       </div>
     </div>
 
     <!-- main -->
     <div class="split-main">
-      <!-- Accounts (functional) -->
-      <div x-show="section === 'Accounts'">
-        <div id="settings-content">{{ content }}</div>
-      </div>
-
-      <!-- Bill Rules (functional, lazy-loaded) -->
-      <div x-show="section === 'Bill Rules'">
-        <div id="bill-rules-content"
-             hx-get="{% url 'settings-bill-rules' %}" hx-trigger="load">
+      {% for s in sections %}
+      <div x-show="section === '{{ s.label }}'">
+        {% if s.url_name %}
+        {% comment %}
+          Fetched on first reveal. These used to trigger on page load, which
+          fetched all seven regardless of visibility -- x-show only sets
+          display:none, so a pane nobody opened was still a round trip.
+        {% endcomment %}
+        <div id="{{ s.pane_id }}"
+             hx-get="{% url s.url_name %}" hx-trigger="intersect once">
           <div class="table-empty">Loading…</div>
         </div>
+        {% else %}
+        <div id="{{ s.pane_id }}">{{ content }}</div>
+        {% endif %}
       </div>
-
-      <!-- Utility Bills (functional, lazy-loaded) -->
-      <div x-show="section === 'Utility Bills'">
-        <div id="bills-content"
-             hx-get="{% url 'settings-bills' %}" hx-trigger="load">
-          <div class="table-empty">Loading…</div>
-        </div>
-      </div>
-
-      <!-- Entities (functional, lazy-loaded) -->
-      <div x-show="section === 'Entities'">
-        <div id="entities-content"
-             hx-get="{% url 'settings-entities' %}" hx-trigger="load">
-          <div class="table-empty">Loading…</div>
-        </div>
-      </div>
-
-      <!-- Loans (functional, lazy-loaded) -->
-      <div x-show="section === 'Loans'">
-        <div id="loans-content"
-             hx-get="{% url 'settings-loans' %}" hx-trigger="load">
-          <div class="table-empty">Loading…</div>
-        </div>
-      </div>
-
-      <!-- Prefills (functional, lazy-loaded) -->
-      <div x-show="section === 'Prefills'">
-        <div id="prefills-content"
-             hx-get="{% url 'settings-prefills' %}" hx-trigger="load">
-          <div class="table-empty">Loading…</div>
-        </div>
-      </div>
-
-      <!-- Auto Tags (functional, lazy-loaded) -->
-      <div x-show="section === 'Auto Tags'">
-        <div id="autotags-content"
-             hx-get="{% url 'settings-autotags' %}" hx-trigger="load">
-          <div class="table-empty">Loading…</div>
-        </div>
-      </div>
-
-      <!-- CSV Profiles (functional, lazy-loaded) -->
-      <div x-show="section === 'CSV Profiles'">
-        <div id="csv-profiles-content"
-             hx-get="{% url 'settings-csv-profiles' %}" hx-trigger="load">
-          <div class="table-empty">Loading…</div>
-        </div>
-      </div>
-
-      <!-- Stub sections -->
-      <div x-show="stubs[section]" x-cloak>
-        <h2 class="card-title mb-2" x-text="section"></h2>
-        <p class="muted fs-body mb-4" x-text="stubs[section]"></p>
-        <div class="stub">
-          <div class="stub-title"><span x-text="section"></span> settings</div>
-          <div class="stub-sub">List + form for this section follows the same pattern as Accounts.</div>
-        </div>
-      </div>
+      {% endfor %}
     </div>
 
   </div>
