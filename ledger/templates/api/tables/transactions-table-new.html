@@ -14,8 +14,19 @@
             {% for transaction in transactions %}
             <tr
                 class="clickable-row{% if forloop.counter0 == index and not no_highlight %} table-active{% endif %}"
+                {% comment %}
+                  Only emit the row-click request when a row_url was supplied.
+                  The linking page does not supply one -- it selects rows with
+                  two-row-select-script instead -- and `{{ row_url }}`
+                  stringified None, so every row carried
+                  hx-get="Noneform/<id>/..." and each click fired a 404 at a
+                  relative path, against an #form-div that does not exist on
+                  that page.
+                {% endcomment %}
+                {% if row_url %}
                 hx-get="{{ row_url }}form/{{ transaction.id }}/?row_index={{ forloop.counter0 }}"
                 hx-target="#form-div"
+                {% endif %}
                 data-transaction-id="{{ transaction.id }}"
                 @click="selectedRowId = {{ transaction.id }}; rowIndex = {{ forloop.counter0 }}"
             >
