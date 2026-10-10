@@ -1430,23 +1430,45 @@ class Loan(models.Model):
             ).order_by("date", "sequence")
         )
 
-    def _running_balance(self, rows, persist=False):
+    def _running_balance(self, rows):
         """Rolls the balance forward through ``rows``: a balance anchor resets
-        the running balance, otherwise each payment's principal reduces it.
-        When ``persist`` is set, writes each row's resulting remaining_balance."""
+        the running balance, otherwise each payment's principal reduces it."""
         balance = self.original_amount
         for row in rows:
             if row.balance_override is not None:
                 balance = self._round(row.balance_override)
             else:
                 balance = self._round(balance - row.principal_amount)
-            if persist:
-                row.remaining_balance = balance
         return balance
 
     def remaining_balance(self):
         """Outstanding principal, honoring any balance-anchor reset."""
         return self._round(self._running_balance(self._fixed_rows()))
+
+    def schedule_with_running_balance(self):
+        """Schedule rows in display order, each carrying a computed balance.
+
+        The running balance is rolled in ``(date, sequence)`` order but the
+        table renders in ``sequence`` order, and the two genuinely differ: an
+        off-schedule payment takes ``max(sequence) + 1`` while being dated
+        *earlier* than existing rows. Rolling in sequence order would apply it
+        after payments it actually precedes.
+
+        Sets a transient ``remaining_balance`` on each row. It is not a stored
+        field: the value is a pure function of the rows before it, and keeping
+        it in a column meant it went stale whenever generate_schedule() did not
+        run.
+        """
+        rows = list(self.payments.all())
+        balance = self.original_amount
+        for row in sorted(rows, key=lambda r: (r.date, r.sequence)):
+            if row.balance_override is not None:
+                balance = self._round(row.balance_override)
+            else:
+                balance = self._round(balance - row.principal_amount)
+            row.remaining_balance = balance
+        rows.sort(key=lambda r: r.sequence)
+        return rows
 
     def _build_schedule(self, balance, first_date, start_sequence, payment):
         rate = self.annual_interest_rate / 12
@@ -1472,7 +1494,6 @@ class Loan(models.Model):
                     payment_amount=row_payment,
                     principal_amount=principal,
                     interest_amount=interest,
-                    remaining_balance=balance,
                     kind=LoanPayment.Kind.SCHEDULED,
                 )
             )
@@ -1500,9 +1521,7 @@ class Loan(models.Model):
             self.save(update_fields=["payment_amount"])
 
         fixed = self._fixed_rows()
-        balance = self._running_balance(fixed, persist=True)
-        if fixed:
-            LoanPayment.objects.bulk_update(fixed, ["remaining_balance"])
+        balance = self._running_balance(fixed)
 
         if balance <= 0 or self.is_closed:
             return
@@ -1538,7 +1557,9 @@ class LoanPayment(models.Model):
     payment_amount = models.DecimalField(decimal_places=2, max_digits=12)
     principal_amount = models.DecimalField(decimal_places=2, max_digits=12)
     interest_amount = models.DecimalField(decimal_places=2, max_digits=12, default=0)
-    remaining_balance = models.DecimalField(decimal_places=2, max_digits=12)
+    # No remaining_balance column: it is a pure function of the rows before it
+    # and went stale whenever generate_schedule() did not run. Loan.
+    # schedule_with_running_balance() computes it for display.
     # When set, the outstanding principal is forced to this value as of this row
     # (a user "reset" of the balance) and the forward schedule amortizes from it,
     # ignoring any unreliable computed history before it.
