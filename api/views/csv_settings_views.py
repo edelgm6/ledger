@@ -19,11 +19,20 @@ from api.forms import CSVProfileForm
 from api.models import CSVProfile
 from api.services import csv_profile_services
 from api.views import csv_settings_helpers
+from api.views.settings_crud import SettingsCrudView
 
 
-class CSVProfileSettingsView(LoginRequiredMixin, View):
-    login_url = "/login/"
-    redirect_field_name = "next"
+class CSVProfileSettingsView(SettingsCrudView):
+    noun = "csv_profile"
+    model = CSVProfile
+    form_class = CSVProfileForm
+    pk_url_kwarg = "csv_profile_id"
+
+    def save(self, cleaned_data, instance):
+        return csv_profile_services.save_csv_profile(cleaned_data, instance=instance)
+
+    def delete(self, pk):
+        return csv_profile_services.delete_csv_profile(pk)
 
     def _render_content(
         self,
@@ -50,61 +59,6 @@ class CSVProfileSettingsView(LoginRequiredMixin, View):
     def get(self, request):
         return HttpResponse(self._render_content())
 
-    def post(self, request, csv_profile_id=None):
-        action = request.POST.get("action")
-
-        if action == "delete":
-            result = csv_profile_services.delete_csv_profile(csv_profile_id)
-            if result.success:
-                return HttpResponse(self._render_content(change="delete"))
-            return HttpResponse(
-                self._render_content(
-                    csv_profile=result.csv_profile,
-                    error=result.error,
-                    selected_id=(
-                        result.csv_profile.id if result.csv_profile else None
-                    ),
-                )
-            )
-
-        if csv_profile_id:
-            csv_profile = get_object_or_404(CSVProfile, pk=csv_profile_id)
-            form = CSVProfileForm(request.POST, instance=csv_profile)
-            change = "update"
-        else:
-            csv_profile = None
-            form = CSVProfileForm(request.POST)
-            change = "create"
-
-        if not form.is_valid():
-            return HttpResponse(
-                self._render_content(
-                    csv_profile=csv_profile,
-                    form=form,
-                    selected_id=csv_profile.id if csv_profile else None,
-                )
-            )
-
-        result = csv_profile_services.save_csv_profile(
-            form.cleaned_data, instance=csv_profile
-        )
-        if not result.success:
-            return HttpResponse(
-                self._render_content(
-                    csv_profile=csv_profile,
-                    form=form,
-                    error=result.error,
-                    selected_id=csv_profile.id if csv_profile else None,
-                )
-            )
-
-        return HttpResponse(
-            self._render_content(
-                csv_profile=result.csv_profile,
-                change=change,
-                selected_id=result.csv_profile.id,
-            )
-        )
 
 
 class CSVProfileFormView(LoginRequiredMixin, View):

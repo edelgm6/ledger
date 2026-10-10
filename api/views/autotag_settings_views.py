@@ -19,11 +19,20 @@ from api.forms import AutoTagForm
 from api.models import AutoTag
 from api.services import autotag_services
 from api.views import autotag_settings_helpers
+from api.views.settings_crud import SettingsCrudView
 
 
-class AutoTagSettingsView(LoginRequiredMixin, View):
-    login_url = "/login/"
-    redirect_field_name = "next"
+class AutoTagSettingsView(SettingsCrudView):
+    noun = "autotag"
+    model = AutoTag
+    form_class = AutoTagForm
+    pk_url_kwarg = "autotag_id"
+
+    def save(self, cleaned_data, instance):
+        return autotag_services.save_autotag(cleaned_data, instance=instance)
+
+    def delete(self, pk):
+        return autotag_services.delete_autotag(pk)
 
     def _render_content(
         self,
@@ -54,59 +63,6 @@ class AutoTagSettingsView(LoginRequiredMixin, View):
     def get(self, request):
         return HttpResponse(self._render_content())
 
-    def post(self, request, autotag_id=None):
-        action = request.POST.get("action")
-
-        if action == "delete":
-            result = autotag_services.delete_autotag(autotag_id)
-            if result.success:
-                return HttpResponse(self._render_content(change="delete"))
-            return HttpResponse(
-                self._render_content(
-                    autotag=result.autotag,
-                    error=result.error,
-                    selected_id=result.autotag.id if result.autotag else None,
-                )
-            )
-
-        if autotag_id:
-            autotag = get_object_or_404(AutoTag, pk=autotag_id)
-            form = AutoTagForm(request.POST, instance=autotag)
-            change = "update"
-        else:
-            autotag = None
-            form = AutoTagForm(request.POST)
-            change = "create"
-
-        if not form.is_valid():
-            return HttpResponse(
-                self._render_content(
-                    autotag=autotag,
-                    form=form,
-                    selected_id=autotag.id if autotag else None,
-                )
-            )
-
-        result = autotag_services.save_autotag(
-            form.cleaned_data, instance=autotag
-        )
-        if not result.success:
-            return HttpResponse(
-                self._render_content(
-                    autotag=autotag,
-                    form=form,
-                    error=result.error,
-                    selected_id=autotag.id if autotag else None,
-                )
-            )
-
-        return HttpResponse(
-            self._render_content(
-                autotag=result.autotag,
-                change=change,
-                selected_id=result.autotag.id,
-            )
-        )
 
 
 class AutoTagFormView(LoginRequiredMixin, View):

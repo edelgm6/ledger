@@ -19,6 +19,7 @@ from api.models import Account
 from api.services import account_services
 from api.views import settings_helpers
 from api.views.page_utils import render_full_page
+from api.views.settings_crud import SettingsCrudView
 
 
 # The Settings page sections, defined once. The template renders both the menu
@@ -46,9 +47,17 @@ SETTINGS_SECTIONS = (
 )
 
 
-class SettingsView(LoginRequiredMixin, View):
-    login_url = "/login/"
-    redirect_field_name = "next"
+class SettingsView(SettingsCrudView):
+    noun = "account"
+    model = Account
+    form_class = AccountForm
+    pk_url_kwarg = "account_id"
+
+    def save(self, cleaned_data, instance):
+        return account_services.save_account(cleaned_data, instance=instance)
+
+    def delete(self, pk):
+        return account_services.delete_account(pk)
 
     view_template = "api/views/settings.html"
 
@@ -85,59 +94,6 @@ class SettingsView(LoginRequiredMixin, View):
         )
         return render_full_page(request, html)
 
-    def post(self, request, account_id=None):
-        action = request.POST.get("action")
-
-        if action == "delete":
-            result = account_services.delete_account(account_id)
-            if result.success:
-                return HttpResponse(self._render_content(change="delete"))
-            # Re-render the still-existing account with the friendly error.
-            return HttpResponse(
-                self._render_content(
-                    account=result.account,
-                    error=result.error,
-                    selected_id=result.account.id if result.account else None,
-                )
-            )
-
-        # Create or update
-        if account_id:
-            account = get_object_or_404(Account, pk=account_id)
-            form = AccountForm(request.POST, instance=account)
-            change = "update"
-        else:
-            account = None
-            form = AccountForm(request.POST)
-            change = "create"
-
-        if not form.is_valid():
-            return HttpResponse(
-                self._render_content(
-                    account=account,
-                    form=form,
-                    selected_id=account.id if account else None,
-                )
-            )
-
-        result = account_services.save_account(form.cleaned_data, instance=account)
-        if not result.success:
-            return HttpResponse(
-                self._render_content(
-                    account=account,
-                    form=form,
-                    error=result.error,
-                    selected_id=account.id if account else None,
-                )
-            )
-
-        return HttpResponse(
-            self._render_content(
-                account=result.account,
-                change=change,
-                selected_id=result.account.id,
-            )
-        )
 
 
 class AccountFormView(LoginRequiredMixin, View):
