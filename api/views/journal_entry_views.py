@@ -42,6 +42,51 @@ class TriggerAutoTagView(LoginRequiredMixin, View):
         return HttpResponse(render_action_status("Autotag complete", count))
 
 
+JOURNAL_ENTRY_PAGE_TEMPLATE = "api/views/journal-entry-view.html"
+
+
+def _render_journal_entry_page(
+    transactions,
+    transaction,
+    index=0,
+    created_entities=None,
+    **extra,
+) -> str:
+    """Assembles the journal-entry page: table + entry form + paystubs table.
+
+    Three handlers built this same five-key context and made the same three
+    render calls, so adding a key meant remembering all three. Which row is
+    selected is *not* folded in -- the filter path takes the first row, the
+    save path takes the row its service computed -- so each caller still
+    decides that and passes it here.
+    """
+    table_html = transaction_helpers.render_transaction_table(
+        transactions=transactions,
+        index=index,
+        row_url=reverse("journal-entries"),
+    )
+    entry_form_html = (
+        render_journal_entry_form(
+            transaction=transaction,
+            index=index,
+            created_entities=created_entities,
+        )
+        if transaction is not None
+        else ""
+    )
+    context = {
+        "entry_form": entry_form_html,
+        "table": table_html,
+        "paystubs_table": render_paystubs_table(get_paystubs_table_data()),
+        "transaction_id": transaction.id if transaction else None,
+        "index": index,
+    }
+    # The full page load adds filter_form and is_initial_load; the HTMX
+    # fragments do not.
+    context.update(extra)
+    return render_to_string(JOURNAL_ENTRY_PAGE_TEMPLATE, context)
+
+
 # Called every time the page is filtered
 class JournalEntryTableView(LoginRequiredMixin, View):
     login_url = "/login/"
@@ -51,44 +96,15 @@ class JournalEntryTableView(LoginRequiredMixin, View):
         form = TransactionFilterForm(request.GET, prefix="filter")
         if form.is_valid():
             transactions = form.get_transactions()
-            table_html = transaction_helpers.render_transaction_table(
-                transactions=transactions, row_url=reverse("journal-entries")
+            # The filter path selects the first row.
+            transaction = transactions[0] if transactions else None
+            return HttpResponse(
+                _render_journal_entry_page(transactions, transaction)
             )
-            try:
-                transaction = transactions[0]
-            except IndexError:
-                transaction = None
-            entry_form_html = render_journal_entry_form(transaction=transaction)
-            paystubs_table_data = get_paystubs_table_data()
-            paystubs_table_html = render_paystubs_table(paystubs_table_data)
-            view_template = "api/views/journal-entry-view.html"
-            context = {
-                "entry_form": entry_form_html,
-                "table": table_html,
-                "paystubs_table": paystubs_table_html,
-                "transaction_id": transaction.id if transaction else None,
-                "index": 0,
-            }
-
-            html = render_to_string(view_template, context)
-            return HttpResponse(html)
 
         # An invalid filter form used to fall through and return None (a 500).
         # Render the page with an empty result set instead.
-        table_html = transaction_helpers.render_transaction_table(
-            transactions=[], row_url=reverse("journal-entries")
-        )
-        paystubs_table_html = render_paystubs_table(get_paystubs_table_data())
-        context = {
-            "entry_form": render_journal_entry_form(transaction=None),
-            "table": table_html,
-            "paystubs_table": paystubs_table_html,
-            "transaction_id": None,
-            "index": 0,
-        }
-        return HttpResponse(
-            render_to_string("api/views/journal-entry-view.html", context)
-        )
+        return HttpResponse(_render_journal_entry_page([], None))
 
 
 # Called every time a table row is clicked
@@ -139,7 +155,6 @@ class PaystubDetailView(LoginRequiredMixin, View):
 class JournalEntryView(LoginRequiredMixin, View):
     login_url = "/login/"
     redirect_field_name = "next"
-    view_template = "api/views/journal-entry-view.html"
 
     def get(self, request):
         # Collect HTML for all components in view
@@ -164,27 +179,14 @@ class JournalEntryView(LoginRequiredMixin, View):
             get_url=reverse("journal-entries-table"),
             suggested_first=True,
         )
-        table_html = transaction_helpers.render_transaction_table(
-            transactions=transactions, row_url=reverse("journal-entries")
+        # Like the filter path, the initial load selects the first row.
+        transaction = transactions[0] if transactions else None
+        html = _render_journal_entry_page(
+            transactions,
+            transaction,
+            filter_form=filter_form_html,
+            is_initial_load=True,
         )
-        try:
-            transaction = transactions[0]
-        except IndexError:
-            transaction = None
-        entry_form_html = render_journal_entry_form(transaction=transaction)
-        paystubs_table_data = get_paystubs_table_data()
-        paystubs_table_html = render_paystubs_table(paystubs_table_data)
-        context = {
-            "filter_form": filter_form_html,
-            "table": table_html,
-            "entry_form": entry_form_html,
-            "paystubs_table": paystubs_table_html,
-            "index": 0,
-            "transaction_id": transactions[0].pk if transactions else None,
-            "is_initial_load": True,
-        }
-
-        html = render_to_string(self.view_template, context)
         return render_full_page(request, html)
 
     def post(self, request, transaction_id):
@@ -296,34 +298,12 @@ class JournalEntryView(LoginRequiredMixin, View):
         )
 
         # 6. Render response via helpers
-        if context.highlighted_transaction:
-            entry_form_html = render_journal_entry_form(
-                transaction=context.highlighted_transaction,
+        # The save path selects whichever row its service computed.
+        return HttpResponse(
+            _render_journal_entry_page(
+                context.transactions,
+                context.highlighted_transaction,
                 index=context.highlighted_index,
                 created_entities=context.created_entities,
             )
-        else:
-            entry_form_html = ""
-
-        table_html = transaction_helpers.render_transaction_table(
-            transactions=context.transactions,
-            index=context.highlighted_index,
-            row_url=reverse("journal-entries"),
         )
-        paystubs_table_data = get_paystubs_table_data()
-        paystubs_table_html = render_paystubs_table(paystubs_table_data)
-
-        html = render_to_string(
-            self.view_template,
-            {
-                "table": table_html,
-                "entry_form": entry_form_html,
-                "index": context.highlighted_index,
-                "transaction_id": context.highlighted_transaction.pk
-                if context.highlighted_transaction
-                else None,
-                "paystubs_table": paystubs_table_html,
-            },
-        )
-
-        return HttpResponse(html)

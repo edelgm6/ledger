@@ -39,6 +39,16 @@ def _parse_int_param(request, key: str, default: int = -1) -> int:
         return default
 
 
+def _preview_for(operations):
+    """The plan preview for ``operations``, or None when there is no plan.
+
+    An empty operation list has no preview, and this conditional was written
+    out at each call site. Expressing "no plan" one way keeps the callers from
+    drifting into two.
+    """
+    return recharacterize_services.preview_plan(operations) if operations else None
+
+
 def _render_main(
     preview=None,
     *,
@@ -174,9 +184,7 @@ class RecharacterizeEditView(LoginRequiredMixin, View):
         state = _get_state(request)
         operations = state["operations"]
 
-        preview = (
-            recharacterize_services.preview_plan(operations) if operations else None
-        )
+        preview = _preview_for(operations)
         # A valid ``op`` enters edit mode; its absence (Cancel) falls through to a
         # fresh builder. Either way the plan is untouched.
         catalogs = recharacterize_services.manual_form_catalogs()
@@ -260,9 +268,7 @@ class RecharacterizeRevertView(LoginRequiredMixin, View):
                 note += f" {result.missing_count} no longer exist."
             flash = note
 
-        preview = (
-            recharacterize_services.preview_plan(operations) if operations else None
-        )
+        preview = _preview_for(operations)
         return HttpResponse(_render_main(preview, flash=flash, flash_error=flash_error))
 
 
