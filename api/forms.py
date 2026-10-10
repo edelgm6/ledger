@@ -113,7 +113,15 @@ class AmortizationForm(forms.ModelForm):
         ]
 
     def clean_periods(self):
-        periods = self.cleaned_data["periods"]
+        # Amortization.periods is nullable on the model, so this field is not
+        # required by default -- but an amortization without it is unusable
+        # (amortize() and get_remaining_balance_and_periods_and_max_date both
+        # do arithmetic on it). A blank submit used to reach `periods < 1` and
+        # raise TypeError, i.e. a 500 instead of a form error.
+        periods = self.cleaned_data.get("periods")
+
+        if periods is None:
+            raise ValidationError("Periods is required.")
 
         if periods < 1:
             raise ValidationError("Periods must be >= 1")
@@ -150,8 +158,13 @@ class UploadTransactionsForm(forms.Form):
     transaction_csv = forms.FileField()
 
     def _csv_to_list_of_lists(self, csvfile):
-        # Open the file in text mode with the correct encoding
-        decoded_file = csvfile.read().decode("utf-8").splitlines()
+        # utf-8-sig, not utf-8: Excel and most Windows tools prefix exports
+        # with a byte-order mark. Plain utf-8 does not reject it -- it decodes
+        # to U+FEFF and stays glued to the first column header, so "Date"
+        # arrives as "\ufeffDate" and every lookup against the CSV profile's
+        # configured column names misses. utf-8-sig strips a BOM if present
+        # and is otherwise identical.
+        decoded_file = csvfile.read().decode("utf-8-sig").splitlines()
         csv_reader = csv.reader(decoded_file)
         list_of_lists = list(csv_reader)
         return list_of_lists
