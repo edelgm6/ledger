@@ -100,43 +100,48 @@ class JournalEntryCreateView(APIView):
             return self._handle_bulk(request)
         return self._handle_single(request)
 
+    @staticmethod
+    def _created_or_error(create, log_message):
+        """Runs a creation service and maps its outcome to a response.
+
+        The services raise ValueError for anything the caller can fix (unknown
+        transaction, already closed, unbalanced) and let everything else
+        surface as a 500. Both entry points handle it identically, so the
+        handling lives here once.
+        """
+        try:
+            result = create()
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception(log_message)
+            return Response(
+                {"error": "An internal error occurred."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        return Response(result, status=status.HTTP_201_CREATED)
+
     def _handle_single(self, request):
         serializer = JournalEntryInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        try:
-            result = create_journal_entry_from_api(
+        return self._created_or_error(
+            lambda: create_journal_entry_from_api(
                 transaction_id=data["transaction_id"],
                 debits_data=data["debits"],
                 credits_data=data["credits"],
                 created_by=data["created_by"],
-            )
-        except ValueError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception:
-            logger.exception("Unexpected error creating journal entry")
-            return Response(
-                {"error": "An internal error occurred."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-        return Response(result, status=status.HTTP_201_CREATED)
+            ),
+            "Unexpected error creating journal entry",
+        )
 
     def _handle_bulk(self, request):
         serializer = BulkJournalEntryInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         entries_data = serializer.validated_data["journal_entries"]
 
-        try:
-            result = bulk_create_journal_entries(entries_data)
-        except ValueError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception:
-            logger.exception("Unexpected error in bulk journal entry creation")
-            return Response(
-                {"error": "An internal error occurred."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-        return Response(result, status=status.HTTP_201_CREATED)
+        return self._created_or_error(
+            lambda: bulk_create_journal_entries(entries_data),
+            "Unexpected error in bulk journal entry creation",
+        )

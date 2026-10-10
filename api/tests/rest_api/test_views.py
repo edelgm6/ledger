@@ -395,3 +395,142 @@ class JournalEntryCreateViewTest(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 403)
+
+
+@override_settings(LEDGER_API_KEY=API_KEY)
+class JournalEntryAtomicityTest(TestCase):
+    """A rejected POST must not leave auto-created Entity rows behind.
+
+    resolve_names_to_objects auto-creates any entity it does not recognise.
+    The single-entry path was not wrapped in a transaction, so an entry that
+    failed balance validation returned 400 *after* those entities had already
+    been committed: the request was rejected but the ledger had changed, and
+    the caller had no way to learn what was created.
+    """
+
+    def setUp(self):
+        self.client = APIClient()
+        self.client.credentials(HTTP_AUTHORIZATION=f"Api-Key {API_KEY}")
+        self.checking = AccountFactory(
+            name="Checking", type=Account.Type.ASSET, sub_type=Account.SubType.CASH
+        )
+        self.groceries = AccountFactory(
+            name="Groceries",
+            type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.OPERATING,
+        )
+        self.transaction = TransactionFactory(
+            account=self.checking,
+            amount=Decimal("150.00"),
+            is_closed=False,
+            type=Transaction.TransactionType.PURCHASE,
+        )
+
+    def _post(self, data):
+        return self.client.post(
+            "/api/v1/journal-entries/",
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+    def test_rejected_single_entry_creates_no_entities(self):
+        response = self._post(
+            {
+                "transaction_id": self.transaction.id,
+                "debits": [
+                    {
+                        "account": "Checking",
+                        "amount": "150.00",
+                        "entity": "Brand New Vendor",
+                    }
+                ],
+                # Deliberately unbalanced, so validation rejects the entry.
+                "credits": [{"account": "Groceries", "amount": "75.00"}],
+            }
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(
+            Entity.objects.filter(name="Brand New Vendor").exists(),
+            "a rejected entry must not leave its auto-created entity behind",
+        )
+
+    def test_rejected_single_entry_creates_no_journal_entry(self):
+        before = JournalEntry.objects.count()
+        response = self._post(
+            {
+                "transaction_id": self.transaction.id,
+                "debits": [{"account": "Checking", "amount": "150.00"}],
+                "credits": [{"account": "Groceries", "amount": "75.00"}],
+            }
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(JournalEntry.objects.count(), before)
+        self.transaction.refresh_from_db()
+        self.assertFalse(self.transaction.is_closed)
+
+    def test_accepted_single_entry_does_create_the_entity(self):
+        """The rollback must not cost the feature: a valid entry still creates
+        the entity and reports it."""
+        response = self._post(
+            {
+                "transaction_id": self.transaction.id,
+                "debits": [
+                    {
+                        "account": "Checking",
+                        "amount": "150.00",
+                        "entity": "Brand New Vendor",
+                    }
+                ],
+                "credits": [{"account": "Groceries", "amount": "150.00"}],
+            }
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(Entity.objects.filter(name="Brand New Vendor").exists())
+        self.assertIn("Brand New Vendor", response.data["created_entities"])
+
+    def test_rejected_bulk_creates_no_entities(self):
+        """The bulk path was already atomic -- this pins that it stays so."""
+        second = TransactionFactory(
+            account=self.checking,
+            amount=Decimal("50.00"),
+            is_closed=False,
+            type=Transaction.TransactionType.PURCHASE,
+        )
+        response = self._post(
+            {
+                "journal_entries": [
+                    {
+                        "transaction_id": self.transaction.id,
+                        "debits": [
+                            {
+                                "account": "Checking",
+                                "amount": "150.00",
+                                "entity": "Bulk Vendor One",
+                            }
+                        ],
+                        "credits": [{"account": "Groceries", "amount": "150.00"}],
+                    },
+                    {
+                        "transaction_id": second.id,
+                        "debits": [
+                            {
+                                "account": "Checking",
+                                "amount": "50.00",
+                                "entity": "Bulk Vendor Two",
+                            }
+                        ],
+                        # Second entry is unbalanced, so the batch rolls back.
+                        "credits": [{"account": "Groceries", "amount": "25.00"}],
+                    },
+                ]
+            }
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Entity.objects.filter(name="Bulk Vendor One").exists())
+        self.assertFalse(Entity.objects.filter(name="Bulk Vendor Two").exists())
+        self.transaction.refresh_from_db()
+        self.assertFalse(
+            self.transaction.is_closed,
+            "the first entry must roll back with the batch",
+        )
