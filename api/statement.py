@@ -135,79 +135,74 @@ class Metric:
 
 
 class Statement:
+    """Base for the statements that aggregate posted journal entry items.
+
+    Subclasses declare what they cover rather than being identified by
+    ``isinstance`` from inside this class:
+
+    ``account_types``
+        The account types whose balances the statement reports.
+    ``balance_type``
+        ``"stock"`` for a point-in-time balance (balance sheet), ``"flow"``
+        for one scoped to a period (income statement).
+
+    ``CashFlowStatement`` is a special case: it composes the other statements
+    rather than aggregating items itself, so it has no account types and
+    overrides ``get_balances``.
+    """
+
+    account_types: tuple = ()
+    balance_type: str = "flow"
+
     def __init__(self, end_date):
         self.end_date = end_date
 
-    # TODO: Is there a reason this is a staticmethod?
-    @staticmethod
-    def _get_balance_from_aggregates(aggregates, end_date=None, balance_type=None):
-        account_balance_list = []
-        for aggregate in aggregates:
-            account = aggregate["account"]
-            debits = aggregate["debit_total"]
-            credits = aggregate["credit_total"]
+    def _item_date_filters(self):
+        """The date window the aggregation covers.
 
-            balance = Account.get_balance_from_debit_and_credit(
-                account.type, debits=debits, credits=credits
-            )
-            account_balance_list.append(
-                Balance(account, balance, end_date, balance_type)
-            )
-
-        sorted_list = sorted(account_balance_list, key=lambda k: k.account.name)
-        return sorted_list
+        Everything up to ``end_date`` by default, which is what a
+        point-in-time balance needs. ``IncomeStatement`` narrows it to its
+        reporting period.
+        """
+        return {"journal_entry__date__lte": self.end_date}
 
     def get_balances(self):
-        if isinstance(self, IncomeStatement):
-            ACCOUNT_TYPES = ["income", "expense"]
-            aggregates = JournalEntryItem.objects.filter(
-                account__type__in=ACCOUNT_TYPES,
-                journal_entry__date__gte=self.start_date,
-                journal_entry__date__lte=self.end_date,
-            )
-        else:
-            ACCOUNT_TYPES = ["asset", "liability", "equity"]
-            aggregates = JournalEntryItem.objects.filter(
-                account__type__in=ACCOUNT_TYPES, journal_entry__date__lte=self.end_date
-            )
+        """One ``Balance`` per eligible account, sorted by account name.
 
-        aggregates = list(
-            aggregates.values("account__name").annotate(
-                **_debit_credit_total_annotations()
+        Accounts with no activity in the window are included at zero, so the
+        statement sections render every account rather than only the active
+        ones.
+        """
+        totals_by_account_id = {
+            row["account_id"]: row
+            for row in JournalEntryItem.objects.filter(
+                account__type__in=self.account_types,
+                **self._item_date_filters(),
             )
-        )
+            .values("account_id")
+            .annotate(**_debit_credit_total_annotations())
+        }
 
-        # Convert to account objects and add accounts without any activity
-        type_objects = [
-            Account.Type[type_value.upper()] for type_value in ACCOUNT_TYPES
-        ]
-        eligible_accounts = Account.objects.filter(type__in=type_objects)
-        for account in eligible_accounts:
-            account_in_aggregates = False
-            for aggregate in aggregates:
-                if account.name == aggregate["account__name"]:
-                    aggregate["account"] = account
-                    account_in_aggregates = True
-                    break
-            if not account_in_aggregates:
-                aggregates.append(
-                    {
-                        "account": account,
-                        "account__name": account.name,
-                        "debit_total": 0,
-                        "credit_total": 0,
-                    }
+        balances = []
+        for account in Account.objects.filter(type__in=self.account_types):
+            # Indexed by primary key. This used to scan the whole aggregate
+            # list per account comparing Account.name, which was quadratic and
+            # silently depended on name being unique.
+            totals = totals_by_account_id.get(account.pk)
+            balances.append(
+                Balance(
+                    account,
+                    Account.get_balance_from_debit_and_credit(
+                        account.type,
+                        debits=totals["debit_total"] if totals else 0,
+                        credits=totals["credit_total"] if totals else 0,
+                    ),
+                    self.end_date,
+                    self.balance_type,
                 )
+            )
 
-        # TODO: Set this further up
-        balance_type = "flow"
-        if isinstance(self, BalanceSheet):
-            balance_type = "stock"
-
-        balances = self._get_balance_from_aggregates(
-            aggregates, self.end_date, balance_type
-        )
-        return balances
+        return sorted(balances, key=lambda balance: balance.account.name)
 
     def get_summaries(self):
         summary_metrics = {}
@@ -322,6 +317,11 @@ class CashFlowStatement(Statement):
         return cash_flow
 
     def get_balances(self):
+        """Composed from the other statements in __init__, not aggregated here.
+
+        This is why CashFlowStatement declares no ``account_types`` and does
+        not call ``Statement.__init__`` -- it has no single ``end_date``.
+        """
         return self.balances
 
     def get_levered_after_tax_cash_flow(self):
@@ -484,8 +484,19 @@ class CashFlowStatement(Statement):
 
 
 class IncomeStatement(Statement):
+    account_types = (Account.Type.INCOME, Account.Type.EXPENSE)
+    balance_type = "flow"
+
+    def _item_date_filters(self):
+        """Income and expense are period-scoped, so the window has a floor."""
+        return {
+            "journal_entry__date__gte": self.start_date,
+            "journal_entry__date__lte": self.end_date,
+        }
+
     def __init__(self, end_date, start_date):
         super().__init__(end_date)
+        # Set before get_balances(), which reads it via _item_date_filters().
         self.start_date = start_date
         self.balances = self.get_balances()
 
@@ -656,6 +667,13 @@ class IncomeStatement(Statement):
 
 
 class BalanceSheet(Statement):
+    account_types = (
+        Account.Type.ASSET,
+        Account.Type.LIABILITY,
+        Account.Type.EQUITY,
+    )
+    balance_type = "stock"
+
     def __init__(self, end_date):
         super().__init__(end_date)
         self.balances = self.get_balances()
