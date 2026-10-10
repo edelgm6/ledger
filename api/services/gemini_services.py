@@ -7,15 +7,72 @@ Uses Google Gemini to read PDFs directly and return structured JSON.
 import datetime
 import json
 import logging
+from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
 
 from dateutil import parser as date_parser
 from django.conf import settings
 
-from api.models import Account, DocSearch, Prefill
+from api.models import Account, DocSearch, Entity, Prefill
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class ExtractedValue:
+    """One line item extracted from a paystub page."""
+
+    account: Account
+    amount: Decimal
+    entry_type: str
+    entity: Optional[Entity] = None
+
+
+@dataclass
+class ExtractedPage:
+    """One page of an extracted paystub: its metadata plus its line items.
+
+    Replaces a dict whose keys were *either* three magic strings ("Company",
+    "Begin Period", "End Period") or ``Account`` instances, which forced every
+    consumer to filter with ``isinstance(key, Account)`` to tell metadata from
+    line items.
+    """
+
+    company: Optional[str] = None
+    begin_period: Optional[str] = None
+    end_period: Optional[str] = None
+    values: List[ExtractedValue] = field(default_factory=list)
+
+    def add_value(self, account, amount, entry_type, entity):
+        """Adds a line item, summing into an account already present.
+
+        A paystub can list the same account on several lines (e.g. two separate
+        tax withholdings mapping to one ledger account); they total into a
+        single PaystubValue. This rule used to be hand-rolled at each producer.
+        """
+        for index, existing in enumerate(self.values):
+            if existing.account == account:
+                self.values[index] = ExtractedValue(
+                    account=existing.account,
+                    amount=existing.amount + amount,
+                    entry_type=existing.entry_type,
+                    entity=existing.entity,
+                )
+                return
+        self.values.append(
+            ExtractedValue(
+                account=account,
+                amount=amount,
+                entry_type=entry_type,
+                entity=entity,
+            )
+        )
+
+    def title_for(self, prefill_name: str) -> str:
+        """The paystub title: company (falling back to the prefill) + period."""
+        company = self.company or prefill_name
+        return f"{company} {self.end_period or ''}".strip()
 
 
 def build_gemini_prompt(prefill: Prefill, doc_searches: Optional[List] = None) -> str:
@@ -148,16 +205,12 @@ def loads_gemini_json(response_text: str) -> Dict[str, Any]:
 
 def parse_gemini_response(
     response_text: str, prefill: Prefill, doc_searches: Optional[List] = None
-) -> Dict[str, Dict[Any, Any]]:
+) -> Dict[str, ExtractedPage]:
     """
-    Parses Gemini's JSON response into the data structure expected by
-    paystub creation logic.
+    Parses Gemini's JSON response into ExtractedPage records.
 
     Returns:
-        Dict keyed by page index (as string) with:
-        - "Company": str (optional)
-        - "End Period": str
-        - Account objects as keys mapping to {"value": Decimal, "entry_type": str, "entity": Entity}
+        Dict keyed by page index (as string) -> ExtractedPage.
     """
     parsed = loads_gemini_json(response_text)
     pages = parsed.get("pages", [])
@@ -172,16 +225,15 @@ def parse_gemini_response(
         if ds.account:
             account_name_to_ds[ds.account.name] = ds
 
-    result: Dict[str, Dict[Any, Any]] = {}
+    result: Dict[str, ExtractedPage] = {}
 
     for i, page_data in enumerate(pages):
         page_key = str(i)
-        page_result: Dict[Any, Any] = {}
-
-        # Extract metadata
-        for field in ["Company", "Begin Period", "End Period"]:
-            if field in page_data:
-                page_result[field] = page_data[field]
+        page = ExtractedPage(
+            company=page_data.get("Company"),
+            begin_period=page_data.get("Begin Period"),
+            end_period=page_data.get("End Period"),
+        )
 
         # Extract line items
         line_items = page_data.get("line_items", {})
@@ -204,25 +256,21 @@ def parse_gemini_response(
                 )
                 continue
 
-            account = ds.account
-            if account in page_result:
-                # Sum if already present (same behavior as Textract path)
-                page_result[account]["value"] += decimal_amount
-            else:
-                page_result[account] = {
-                    "value": decimal_amount,
-                    "entry_type": ds.journal_entry_item_type,
-                    "entity": ds.entity,
-                }
+            page.add_value(
+                account=ds.account,
+                amount=decimal_amount,
+                entry_type=ds.journal_entry_item_type,
+                entity=ds.entity,
+            )
 
-        result[page_key] = page_result
+        result[page_key] = page
 
     return result
 
 
 def parse_paystub_with_gemini(
     file_bytes: bytes, prefill: Prefill
-) -> Dict[str, Dict[Any, Any]]:
+) -> Dict[str, ExtractedPage]:
     """
     High-level function: sends PDF to Gemini and returns parsed data structure.
     """

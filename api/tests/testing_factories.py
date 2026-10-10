@@ -174,7 +174,6 @@ class LoanPaymentFactory(factory.django.DjangoModelFactory):
     payment_amount = Decimal("1896.20")
     principal_amount = Decimal("271.20")
     interest_amount = Decimal("1625.00")
-    remaining_balance = Decimal("299728.80")
     kind = LoanPayment.Kind.SCHEDULED
     transaction = None
 

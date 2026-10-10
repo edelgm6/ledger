@@ -7,6 +7,7 @@ from django.test import TestCase
 
 from api.models import Account, DocSearch, JournalEntryItem, Prefill
 from api.services.gemini_services import (
+    ExtractedPage,
     build_bill_prompt,
     build_gemini_prompt,
     call_gemini_api,
@@ -127,15 +128,16 @@ class ParseGeminiResponseTest(TestCase):
 
         self.assertIn("0", result)
         page = result["0"]
-        self.assertEqual(page["Company"], "Acme Corp")
-        self.assertEqual(page["End Period"], "01/15/2026")
-        self.assertEqual(page[self.account_gross]["value"], Decimal("5000.00"))
+        self.assertEqual(page.company, "Acme Corp")
+        self.assertEqual(page.end_period, "01/15/2026")
+        by_account = {v.account: v for v in page.values}
+        self.assertEqual(by_account[self.account_gross].amount, Decimal("5000.00"))
         self.assertEqual(
-            page[self.account_gross]["entry_type"],
+            by_account[self.account_gross].entry_type,
             JournalEntryItem.JournalEntryType.CREDIT,
         )
-        self.assertEqual(page[self.account_gross]["entity"], self.entity)
-        self.assertEqual(page[self.account_fed_tax]["value"], Decimal("800.50"))
+        self.assertEqual(by_account[self.account_gross].entity, self.entity)
+        self.assertEqual(by_account[self.account_fed_tax].amount, Decimal("800.50"))
 
     def test_parses_multi_page_response(self):
         response_json = json.dumps({
@@ -155,15 +157,16 @@ class ParseGeminiResponseTest(TestCase):
 
         result = parse_gemini_response(response_json, self.prefill)
         self.assertEqual(len(result), 2)
-        self.assertEqual(result["0"][self.account_gross]["value"], Decimal("5000.00"))
-        self.assertEqual(result["1"][self.account_gross]["value"], Decimal("5200.00"))
+        self.assertEqual(result["0"].values[0].amount, Decimal("5000.00"))
+        self.assertEqual(result["1"].values[0].amount, Decimal("5200.00"))
 
     def test_handles_markdown_fenced_response(self):
         response_text = '```json\n{"pages": [{"End Period": "01/15/2026", "line_items": {"Gross Pay": 3000}}]}\n```'
 
         result = parse_gemini_response(response_text, self.prefill)
         self.assertIn("0", result)
-        self.assertEqual(result["0"][self.account_gross]["value"], Decimal("3000.00"))
+        self.assertEqual(result["0"].values[0].account, self.account_gross)
+        self.assertEqual(result["0"].values[0].amount, Decimal("3000.00"))
 
     def test_skips_unknown_accounts(self):
         response_json = json.dumps({
@@ -180,10 +183,11 @@ class ParseGeminiResponseTest(TestCase):
 
         result = parse_gemini_response(response_json, self.prefill)
         page = result["0"]
-        # Should have Gross Pay but not Unknown Account
-        account_keys = [k for k in page.keys() if isinstance(k, Account)]
-        self.assertEqual(len(account_keys), 1)
-        self.assertEqual(account_keys[0], self.account_gross)
+        # Should have Gross Pay but not Unknown Account. Line items are their
+        # own field now, so this no longer needs an isinstance(key, Account)
+        # filter to separate them from metadata.
+        self.assertEqual(len(page.values), 1)
+        self.assertEqual(page.values[0].account, self.account_gross)
 
     def test_missing_metadata_uses_defaults(self):
         response_json = json.dumps({
@@ -192,8 +196,10 @@ class ParseGeminiResponseTest(TestCase):
 
         result = parse_gemini_response(response_json, self.prefill)
         page = result["0"]
-        self.assertNotIn("Company", page)
-        self.assertNotIn("End Period", page)
+        self.assertIsNone(page.company)
+        self.assertIsNone(page.end_period)
+        # The title falls back to the prefill name when company is absent.
+        self.assertEqual(page.title_for(self.prefill.name), "Payroll")
 
 
 class CallGeminiApiTest(TestCase):
@@ -245,8 +251,9 @@ class ParsePaystubWithGeminiTest(TestCase):
         result = parse_paystub_with_gemini(b"pdf-bytes", self.prefill)
 
         self.assertIn("0", result)
-        self.assertEqual(result["0"]["Company"], "Test Co")
-        self.assertEqual(result["0"][self.account]["value"], Decimal("4500.00"))
+        self.assertEqual(result["0"].company, "Test Co")
+        self.assertEqual(result["0"].values[0].account, self.account)
+        self.assertEqual(result["0"].values[0].amount, Decimal("4500.00"))
 
 
 class BuildBillPromptTest(TestCase):
@@ -306,3 +313,76 @@ class ParseBillWithGeminiTest(TestCase):
 
         self.assertEqual(result["vendor"], "X")
         self.assertEqual(result["amount"], Decimal("50.00"))
+
+
+class ExtractedPageTest(TestCase):
+    """The payload is typed: metadata and line items are separate fields.
+
+    It used to be one dict keyed by *either* three magic strings or Account
+    instances, so every consumer had to filter with isinstance(key, Account)
+    to tell them apart.
+    """
+
+    def setUp(self):
+        self.account = AccountFactory(
+            name="Federal Tax",
+            type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.TAX,
+        )
+        self.other = AccountFactory(
+            name="State Tax",
+            type=Account.Type.EXPENSE,
+            sub_type=Account.SubType.TAX,
+        )
+        self.entity = EntityFactory(name="Employer")
+
+    def _add(self, page, account, amount):
+        page.add_value(
+            account=account,
+            amount=amount,
+            entry_type=JournalEntryItem.JournalEntryType.DEBIT,
+            entity=self.entity,
+        )
+
+    def test_repeated_account_sums_into_one_value(self):
+        """A paystub can list one ledger account on several lines."""
+        page = ExtractedPage()
+        self._add(page, self.account, Decimal("100.00"))
+        self._add(page, self.account, Decimal("50.25"))
+
+        self.assertEqual(len(page.values), 1)
+        self.assertEqual(page.values[0].account, self.account)
+        self.assertEqual(page.values[0].amount, Decimal("150.25"))
+
+    def test_distinct_accounts_stay_separate(self):
+        page = ExtractedPage()
+        self._add(page, self.account, Decimal("100.00"))
+        self._add(page, self.other, Decimal("25.00"))
+
+        self.assertEqual(len(page.values), 2)
+        self.assertEqual(
+            {v.account for v in page.values}, {self.account, self.other}
+        )
+
+    def test_summing_preserves_the_first_entry_type_and_entity(self):
+        page = ExtractedPage()
+        self._add(page, self.account, Decimal("100.00"))
+        self._add(page, self.account, Decimal("10.00"))
+
+        value = page.values[0]
+        self.assertEqual(
+            value.entry_type, JournalEntryItem.JournalEntryType.DEBIT
+        )
+        self.assertEqual(value.entity, self.entity)
+
+    def test_title_uses_company_then_falls_back_to_prefill(self):
+        self.assertEqual(
+            ExtractedPage(company="Acme", end_period="01/15/2026").title_for("Payroll"),
+            "Acme 01/15/2026",
+        )
+        self.assertEqual(
+            ExtractedPage(end_period="01/15/2026").title_for("Payroll"),
+            "Payroll 01/15/2026",
+        )
+        # A page with no period at all must not leave trailing whitespace.
+        self.assertEqual(ExtractedPage().title_for("Payroll"), "Payroll")

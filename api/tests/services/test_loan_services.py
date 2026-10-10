@@ -110,8 +110,11 @@ class SaveScheduleRowTest(TestCase):
         self.assertEqual(third.interest_amount, Decimal("50.00"))
         self.assertEqual(third.payment_amount, Decimal("950.00"))
         self.assertEqual(third.balance_override, Decimal("4000.00"))
-        self.assertEqual(third.remaining_balance, Decimal("4000.00"))
         self.assertTrue(third.is_anchored)
+        # On an anchored row the computed balance equals the anchor by
+        # construction -- which is why storing it added nothing.
+        computed = {r.pk: r for r in loan.schedule_with_running_balance()}
+        self.assertEqual(computed[third.pk].remaining_balance, Decimal("4000.00"))
 
         # Outstanding balance and the forward forecast both start from $4,000.
         loan.refresh_from_db()
@@ -122,7 +125,10 @@ class SaveScheduleRowTest(TestCase):
         self.assertTrue(forecast.exists())
         # 4000 * 0.005 = 20.00 interest on the next payment.
         self.assertEqual(forecast.first().interest_amount, Decimal("20.00"))
-        self.assertEqual(forecast.last().remaining_balance, Decimal("0.00"))
+        self.assertEqual(
+            loan.schedule_with_running_balance()[-1].remaining_balance,
+            Decimal("0.00"),
+        )
 
     def test_save_on_forecast_row_keeps_forward_dates(self):
         loan = make_loan()  # monthly, starts 2026-07-01
