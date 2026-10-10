@@ -48,14 +48,14 @@
 <div class="grid grid-3">
     <div>
         <h4>Assets: ${{ summary.asset.total|floatformat:"0"|intcomma }}</h4>
-        {% for account in summary.asset.balances %}
+        {% for section in summary.asset.sub_types %}
         <table class="table mb-3">
             <tbody>
                 <tr>
-                    <td class="td-strong">{{ account.name }}</td>
-                    <td class="right td-strong">${{ account.total|floatformat:"0"|intcomma }}</td>
+                    <td class="td-strong">{{ section.name }}</td>
+                    <td class="right td-strong">${{ section.total|floatformat:"0"|intcomma }}</td>
                 </tr>
-                {% for balance in account.balances %}
+                {% for balance in section.balances %}
                 <tr>
                     <td class="td-name">{{ balance.account }}</td>
                     <td class="right">${{ balance.amount|floatformat:"0"|intcomma }}</td>
@@ -68,14 +68,14 @@
 
     <div>
         <h4>Liabilities: ${{ summary.liability.total|floatformat:"0"|intcomma }}</h4>
-        {% for account in summary.liability.balances %}
+        {% for section in summary.liability.sub_types %}
         <table class="table mb-3">
             <tbody>
                 <tr>
-                    <td class="td-strong">{{ account.name }}</td>
-                    <td class="right td-strong">${{ account.total|floatformat:"0"|intcomma }}</td>
+                    <td class="td-strong">{{ section.name }}</td>
+                    <td class="right td-strong">${{ section.total|floatformat:"0"|intcomma }}</td>
                 </tr>
-                {% for balance in account.balances %}
+                {% for balance in section.balances %}
                 <tr>
                     <td class="td-name">{{ balance.account }}</td>
                     <td class="right">${{ balance.amount|floatformat:"0"|intcomma }}</td>
@@ -88,14 +88,14 @@
 
     <div>
         <h4>Equity: ${{ summary.equity.total|floatformat:"0"|intcomma }}</h4>
-        {% for account in summary.equity.balances %}
+        {% for section in summary.equity.sub_types %}
         <table class="table mb-3">
             <tbody>
                 <tr>
-                    <td class="td-strong">{{ account.name }}</td>
-                    <td class="right td-strong">${{ account.total|floatformat:"0"|intcomma }}</td>
+                    <td class="td-strong">{{ section.name }}</td>
+                    <td class="right td-strong">${{ section.total|floatformat:"0"|intcomma }}</td>
                 </tr>
-                {% for balance in account.balances %}
+                {% for balance in section.balances %}
                 <tr>
                     <td class="td-name">{{ balance.account }}</td>
                     <td class="right">${{ balance.amount|floatformat:"0"|intcomma }}</td>
