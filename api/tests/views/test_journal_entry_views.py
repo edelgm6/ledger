@@ -10,6 +10,7 @@ from decimal import Decimal
 
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
+from bs4 import BeautifulSoup
 from django.urls import reverse
 
 
@@ -555,3 +556,18 @@ class JournalEntryAutofocusTest(TestCase):
             credits_heading,
             "a failed positive-amount entry must refocus the credit column",
         )
+
+
+    def test_typeahead_inputs_render_data_list_not_list(self):
+        """Typeahead inputs render data-list, not list (see lazy-datalist-script)."""
+        html, _ = self._render(Decimal("-50.00"))
+        soup = BeautifulSoup(html, "html.parser")
+
+        self.assertEqual(soup.select("input[list]"), [])
+        for list_id in (
+            "debitAccountOptions",
+            "debitEntityOptions",
+            "creditEntityOptions",
+        ):
+            self.assertTrue(soup.select(f'input[data-list="{list_id}"]'))
+            self.assertTrue(soup.select(f"datalist#{list_id}"))

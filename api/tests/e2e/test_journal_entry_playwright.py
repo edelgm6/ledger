@@ -323,6 +323,40 @@ class JournalEntryRowAndFormTests(JournalEntryE2EBase):
         self.assertEqual(debit_account, "Checking")
         self.assertIn("200", debit_amount)
 
+    def test_row_select_does_not_open_typeahead_until_user_types(self):
+        """The autofocused account input is not bound to its datalist until typed in."""
+        txn = TransactionFactory(
+            account=self.asset_account,
+            amount=Decimal("100.00"),
+            type=Transaction.TransactionType.PURCHASE,
+            is_closed=False,
+        )
+
+        self.goto_journal_entries()
+        self.click_transaction_row(txn.id)
+
+        focused = self.page.evaluate(
+            "() => { const el = document.activeElement;"
+            " return {name: el.name, list: el.getAttribute('list'),"
+            " dataList: el.dataset.list}; }"
+        )
+        self.assertTrue(focused["name"].endswith("-account"))
+        self.assertIsNone(focused["list"])
+        self.assertEqual(focused["dataList"], "debitAccountOptions")
+
+        self.page.keyboard.type("Gro")
+        self.assertEqual(
+            self.page.evaluate("() => document.activeElement.getAttribute('list')"),
+            "debitAccountOptions",
+        )
+
+        # Leaving the field detaches it again, so the next row select is quiet.
+        name = focused["name"]
+        self.page.keyboard.press("Tab")
+        self.assertIsNone(
+            self.page.get_attribute(f"input[name='{name}']", "list")
+        )
+
     def test_successful_submit_closes_transaction(self):
         """Submitting a balanced journal entry closes the transaction and removes it from the table."""
         txn = TransactionFactory(

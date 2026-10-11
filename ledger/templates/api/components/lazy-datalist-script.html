@@ -1,0 +1,20 @@
+<script>
+// Typeahead inputs carry data-list instead of list, so a programmatic focus
+// (the autofocus htmx applies after a row select) does not pop open every
+// option. The datalist is attached only once the user clicks or types in the
+// field, and detached on blur so the next row select stays quiet.
+// Delegated on document so it survives htmx swaps.
+(() => {
+    const IGNORED_KEYS = ['Tab', 'Shift', 'Control', 'Alt', 'Meta', 'Escape', 'Enter'];
+    const typeaheadInput = (event) => event.target.closest?.('input[data-list]');
+    const attach = (input) => input && input.setAttribute('list', input.dataset.list);
+
+    document.addEventListener('pointerdown', (event) => attach(typeaheadInput(event)), true);
+    document.addEventListener('keydown', (event) => {
+        if (!IGNORED_KEYS.includes(event.key)) attach(typeaheadInput(event));
+    }, true);
+    document.addEventListener('focusout', (event) => {
+        typeaheadInput(event)?.removeAttribute('list');
+    }, true);
+})();
+</script>
