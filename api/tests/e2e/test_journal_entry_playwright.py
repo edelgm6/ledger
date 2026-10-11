@@ -323,39 +323,68 @@ class JournalEntryRowAndFormTests(JournalEntryE2EBase):
         self.assertEqual(debit_account, "Checking")
         self.assertIn("200", debit_amount)
 
-    def test_row_select_does_not_open_typeahead_until_user_types(self):
-        """The autofocused account input is not bound to its datalist until typed in."""
+    def _list_attr(self, name):
+        return self.page.get_attribute(f"input[name='{name}']", "list")
+
+    def _open_purchase_form(self):
+        # A purchase from Checking prefills debits-0-account with the valid
+        # "Checking" and leaves the credit account empty and autofocused.
         txn = TransactionFactory(
             account=self.asset_account,
             amount=Decimal("100.00"),
             type=Transaction.TransactionType.PURCHASE,
             is_closed=False,
         )
-
         self.goto_journal_entries()
         self.click_transaction_row(txn.id)
 
+    def test_focus_alone_never_binds_the_datalist(self):
+        """Autofocus on row select, and tabbing in, leave the datalist detached."""
+        self._open_purchase_form()
+
         focused = self.page.evaluate(
-            "() => { const el = document.activeElement;"
-            " return {name: el.name, list: el.getAttribute('list'),"
-            " dataList: el.dataset.list}; }"
+            "() => ({name: document.activeElement.name,"
+            " list: document.activeElement.getAttribute('list')})"
         )
-        self.assertTrue(focused["name"].endswith("-account"))
+        self.assertEqual(focused["name"], "credits-0-account")
         self.assertIsNone(focused["list"])
-        self.assertEqual(focused["dataList"], "debitAccountOptions")
+
+        self.page.focus("input[name='debits-0-amount']")
+        self.page.keyboard.press("Shift+Tab")
+        self.assertEqual(
+            self.page.evaluate("() => document.activeElement.name"),
+            "debits-0-account",
+        )
+        self.assertIsNone(self._list_attr("debits-0-account"))
+
+    def test_click_binds_datalist_only_when_value_is_not_valid(self):
+        """Clicking an empty field opens the options; clicking a valid one does not."""
+        self._open_purchase_form()
+
+        self.page.click("input[name='debits-0-account']")
+        self.assertEqual(self.page.input_value("input[name='debits-0-account']"), "Checking")
+        self.assertIsNone(self._list_attr("debits-0-account"))
+
+        self.page.click("input[name='credits-0-account']")
+        self.assertEqual(self._list_attr("credits-0-account"), "debitAccountOptions")
+
+        # Blurring detaches it again.
+        self.page.click("input[name='debits-0-amount']")
+        self.assertIsNone(self._list_attr("credits-0-account"))
+
+    def test_typing_binds_datalist_until_value_is_valid(self):
+        """Typing opens the options; reaching a valid option closes them."""
+        self._open_purchase_form()
 
         self.page.keyboard.type("Gro")
-        self.assertEqual(
-            self.page.evaluate("() => document.activeElement.getAttribute('list')"),
-            "debitAccountOptions",
-        )
+        self.assertEqual(self._list_attr("credits-0-account"), "debitAccountOptions")
 
-        # Leaving the field detaches it again, so the next row select is quiet.
-        name = focused["name"]
-        self.page.keyboard.press("Tab")
-        self.assertIsNone(
-            self.page.get_attribute(f"input[name='{name}']", "list")
-        )
+        self.page.keyboard.type("ceries")
+        self.assertIsNone(self._list_attr("credits-0-account"))
+
+        # Editing a valid value makes it invalid again, so the options return.
+        self.page.keyboard.press("Backspace")
+        self.assertEqual(self._list_attr("credits-0-account"), "debitAccountOptions")
 
     def test_successful_submit_closes_transaction(self):
         """Submitting a balanced journal entry closes the transaction and removes it from the table."""
