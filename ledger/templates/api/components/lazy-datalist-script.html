@@ -1,17 +1,36 @@
 <script>
-// Typeahead inputs carry data-list instead of list, so a programmatic focus
-// (the autofocus htmx applies after a row select) does not pop open every
-// option. The datalist is attached only once the user clicks or types in the
-// field, and detached on blur so the next row select stays quiet.
+// Typeahead inputs carry data-list instead of list, so focus alone (the
+// autofocus htmx applies after a row select, or tabbing in) never pops open
+// the options. The datalist is attached only when the field's value is not
+// already a valid option and the user clicks into it or starts typing; it is
+// detached again once the value becomes valid, and on blur.
 // Delegated on document so it survives htmx swaps.
 (() => {
-    const IGNORED_KEYS = ['Tab', 'Shift', 'Control', 'Alt', 'Meta', 'Escape', 'Enter'];
+    const EDIT_KEYS = ['Backspace', 'Delete'];
     const typeaheadInput = (event) => event.target.closest?.('input[data-list]');
-    const attach = (input) => input && input.setAttribute('list', input.dataset.list);
+    const isValid = (input) => {
+        const datalist = document.getElementById(input.dataset.list);
+        return [...(datalist?.options ?? [])].some((option) => option.value === input.value);
+    };
+    const attach = (input) => input.setAttribute('list', input.dataset.list);
+    const sync = (input) => isValid(input) ? input.removeAttribute('list') : attach(input);
+    const isEditKey = (event) =>
+        EDIT_KEYS.includes(event.key)
+        || (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey);
 
-    document.addEventListener('pointerdown', (event) => attach(typeaheadInput(event)), true);
+    document.addEventListener('pointerdown', (event) => {
+        const input = typeaheadInput(event);
+        if (input && !isValid(input)) attach(input);
+    }, true);
+    // Typing changes the value, so attach before the keystroke lands; the
+    // input listener then drops it again if the result is a valid option.
     document.addEventListener('keydown', (event) => {
-        if (!IGNORED_KEYS.includes(event.key)) attach(typeaheadInput(event));
+        const input = typeaheadInput(event);
+        if (input && isEditKey(event)) attach(input);
+    }, true);
+    document.addEventListener('input', (event) => {
+        const input = typeaheadInput(event);
+        if (input) sync(input);
     }, true);
     document.addEventListener('focusout', (event) => {
         typeaheadInput(event)?.removeAttribute('list');
