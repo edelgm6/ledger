@@ -89,7 +89,21 @@ def resolve_bill_account(bill: UtilityBill) -> Optional[UtilityBillRule]:
     utility account number (fallback: address hint). Sets account/entity/rule
     and status (PARSED on success, UNRESOLVED otherwise).
     """
-    rules = list(UtilityBillRule.objects.select_related("account", "entity"))
+    match = _apply_matching_rule(bill, _load_rules())
+    bill.save()
+    return match
+
+
+def _load_rules() -> List[UtilityBillRule]:
+    return list(UtilityBillRule.objects.select_related("account", "entity"))
+
+
+def _apply_matching_rule(
+    bill: UtilityBill, rules: List[UtilityBillRule]
+) -> Optional[UtilityBillRule]:
+    """Sets rule/account/entity/status on `bill` from the first matching rule
+    (account number, then address hint) without saving, so batch callers can
+    load rules once and bulk_update."""
     match: Optional[UtilityBillRule] = None
 
     if bill.account_number:
@@ -120,7 +134,6 @@ def resolve_bill_account(bill: UtilityBill) -> Optional[UtilityBillRule]:
         bill.account = None
         bill.entity = None
         bill.status = UtilityBill.Status.UNRESOLVED
-    bill.save()
     return match
 
 
@@ -149,6 +162,9 @@ def match_transactions_to_bills(transactions: Iterable[Transaction]) -> int:
     links the bill (status MATCHED). Ambiguous candidates (>1 transaction per
     bill or >1 bill per transaction) are skipped for manual review.
 
+    Transactions already linked to a bill never compete: last month's matched
+    payment would otherwise stay a candidate for this month's same-amount bill.
+
     Returns the number of transactions tagged.
     """
     bills = list(
@@ -158,8 +174,16 @@ def match_transactions_to_bills(transactions: Iterable[Transaction]) -> int:
             account__isnull=False,
         ).select_related("rule", "account", "entity")
     )
-    txns = list(transactions)
-    if not bills or not txns:
+    if not bills:
+        return 0  # before list(): skip evaluating a lazy queryset
+    already_matched = set(
+        UtilityBill.objects.filter(matched_transaction__isnull=False).values_list(
+            "matched_transaction_id", flat=True
+        )
+    )
+    # Unsaved import rows have pk None, so they always pass.
+    txns = [t for t in transactions if t.pk not in already_matched]
+    if not txns:
         return 0
 
     # Group candidate matches both ways so we can keep only unique 1:1 pairs.
@@ -205,6 +229,28 @@ def match_transactions_to_bills(transactions: Iterable[Transaction]) -> int:
         )
 
     return len(txns_to_update)
+
+
+@db_transaction.atomic
+def rematch_open_transactions() -> int:
+    """Re-run bill matching on all open transactions, returning the number newly
+    tagged. Safe to repeat: the matcher skips transactions already linked to a
+    bill, and matched bills leave PARSED status.
+
+    UNRESOLVED bills are re-resolved first (no Gemini call), so a bill ingested
+    before its rule existed can match once the rule is added.
+    """
+    unresolved = list(
+        UtilityBill.objects.filter(status=UtilityBill.Status.UNRESOLVED)
+    )
+    if unresolved:
+        rules = _load_rules()
+        resolved = [b for b in unresolved if _apply_matching_rule(b, rules)]
+        UtilityBill.objects.bulk_update(
+            resolved, ["rule", "account", "entity", "status"]
+        )
+
+    return match_transactions_to_bills(Transaction.objects.filter(is_closed=False))
 
 
 @dataclass

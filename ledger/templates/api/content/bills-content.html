@@ -26,6 +26,14 @@
         <option value="failed">Failed</option>
         <option value="pending">Pending</option>
       </select>
+      <span id="bills-match-busy" class="busy">⚙️ Matching…</span>
+      <button class="btn btn-secondary"
+              hx-post="{% url 'settings-bills' %}"
+              hx-vals='{"action": "match"}'
+              hx-target="#bills-content"
+              hx-swap="innerHTML"
+              hx-indicator="#bills-match-busy"
+              hx-disabled-elt="this">Match transactions</button>
       <span id="bills-poll-busy" class="busy">⚙️ Polling…</span>
       <button class="btn btn-primary"
               hx-post="{% url 'settings-bills' %}"
