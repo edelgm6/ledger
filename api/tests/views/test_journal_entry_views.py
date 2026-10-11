@@ -471,6 +471,18 @@ class PaystubTableViewTest(TestCase):
         # Should return paystub table (even if empty)
         self.assertIn(b"paystub", response.content.lower())
 
+    def test_poller_does_not_leak_template_comments(self):
+        """A multi-line {# #} comment renders as literal text; the poller must not show any."""
+        from api.services.paystub_services import PaystubsTableData
+        from api.views.journal_entry_helpers import render_paystubs_table
+
+        html = render_paystubs_table(
+            PaystubsTableData(has_pending_jobs=True, paystubs=[])
+        )
+
+        self.assertIn("paystubs-table-poller", html)
+        self.assertNotIn("{#", html)
+
 
 class JournalEntryAutofocusTest(TestCase):
     """Autofocus must land on the column the user still has to fill in.

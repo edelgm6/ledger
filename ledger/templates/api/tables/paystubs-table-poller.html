@@ -34,7 +34,9 @@
         </tbody>
     </table>
 
-    {# Rendered inside the poller so the outerHTML swap replaces both together;
-       as a sibling it would leave a stale duplicate table behind. #}
+    {% comment %}
+        Rendered inside the poller so the outerHTML swap replaces both together;
+        as a sibling it would leave a stale duplicate table behind.
+    {% endcomment %}
     {% include "api/tables/paystubs-table.html" %}
 </div>
