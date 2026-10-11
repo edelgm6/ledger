@@ -9,6 +9,7 @@ from api.services.bill_services import (
     ingest_message,
     match_transactions_to_bills,
     poll_bill_emails,
+    rematch_open_transactions,
     resolve_bill_account,
     retry_bill,
     retry_failed_bills,
@@ -73,7 +74,7 @@ class ResolveBillAccountTest(TestCase):
         self.assertIsNone(bill.account)
 
 
-class MatchTransactionsToBillsTest(TestCase):
+class BillMatchFixtures:
     def setUp(self):
         self.bank = AccountFactory(type=Account.Type.ASSET)
         self.today = datetime.date.today()
@@ -102,6 +103,8 @@ class MatchTransactionsToBillsTest(TestCase):
         defaults.update(kwargs)
         return TransactionFactory(**defaults)
 
+
+class MatchTransactionsToBillsTest(BillMatchFixtures, TestCase):
     def test_in_window_match(self):
         rule = make_rule()
         bill = self._parsed_bill(rule, source_message_id="b1")
@@ -186,6 +189,73 @@ class MatchTransactionsToBillsTest(TestCase):
         txn = self._txn(description="CITY GAS PAYMENT")
 
         self.assertEqual(match_transactions_to_bills([txn]), 0)
+
+
+class RematchOpenTransactionsTest(BillMatchFixtures, TestCase):
+    def test_matches_open_transaction(self):
+        rule = make_rule()
+        bill = self._parsed_bill(rule, source_message_id="b1")
+        txn = self._txn(is_closed=False)
+
+        self.assertEqual(rematch_open_transactions(), 1)
+
+        bill.refresh_from_db()
+        txn.refresh_from_db()
+        self.assertEqual(bill.status, UtilityBill.Status.MATCHED)
+        self.assertEqual(bill.matched_transaction, txn)
+        self.assertEqual(txn.suggested_account, rule.account)
+
+    def test_closed_transaction_skipped(self):
+        rule = make_rule()
+        bill = self._parsed_bill(rule, source_message_id="b1")
+        self._txn(is_closed=True)
+
+        self.assertEqual(rematch_open_transactions(), 0)
+        bill.refresh_from_db()
+        self.assertEqual(bill.status, UtilityBill.Status.PARSED)
+
+    def test_already_matched_transaction_excluded(self):
+        # Recurring same-amount bill: last month's transaction is already linked
+        # to last month's bill, so it must not compete for this month's.
+        rule = make_rule()
+        last_txn = self._txn(
+            is_closed=False, date=self.today - datetime.timedelta(days=30)
+        )
+        self._parsed_bill(
+            rule,
+            source_message_id="sep",
+            bill_date=self.today - datetime.timedelta(days=30),
+            status=UtilityBill.Status.MATCHED,
+            matched_transaction=last_txn,
+        )
+        this_bill = self._parsed_bill(rule, source_message_id="oct")
+        this_txn = self._txn(is_closed=False)
+
+        self.assertEqual(rematch_open_transactions(), 1)
+        this_bill.refresh_from_db()
+        self.assertEqual(this_bill.matched_transaction, this_txn)
+
+    def test_second_run_is_noop(self):
+        rule = make_rule()
+        self._parsed_bill(rule, source_message_id="b1")
+        self._txn(is_closed=False)
+
+        self.assertEqual(rematch_open_transactions(), 1)
+        self.assertEqual(rematch_open_transactions(), 0)
+
+    def test_unresolved_bill_resolved_then_matched(self):
+        bill = make_bill(
+            source_message_id="b1",
+            status=UtilityBill.Status.UNRESOLVED,
+            bill_date=self.today,
+        )
+        txn = self._txn(is_closed=False)
+        rule = make_rule()  # rule added after the bill was ingested
+
+        self.assertEqual(rematch_open_transactions(), 1)
+        bill.refresh_from_db()
+        self.assertEqual(bill.rule, rule)
+        self.assertEqual(bill.matched_transaction, txn)
 
 
 class IngestMessageTest(TestCase):
@@ -395,7 +465,7 @@ class RetryFailedBillsTest(TestCase):
         self.assertEqual(bill.status, UtilityBill.Status.PARSED)
 
 
-class TriggerWiringTest(TestCase):
+class TriggerWiringTest(BillMatchFixtures, TestCase):
     """The manual autotag trigger also applies utility-bill matches."""
 
     def test_apply_autotags_trigger_matches_bills(self):
@@ -404,24 +474,8 @@ class TriggerWiringTest(TestCase):
         )
 
         rule = make_rule()
-        today = datetime.date.today()
-        UtilityBill.objects.create(
-            source_message_id="b1",
-            amount=Decimal("88.42"),
-            account_number=rule.account_number,
-            status=UtilityBill.Status.PARSED,
-            rule=rule,
-            account=rule.account,
-            bill_date=today,
-        )
-        txn = TransactionFactory(
-            account=AccountFactory(type=Account.Type.ASSET),
-            amount=Decimal("-88.42"),
-            description="DOMINION ENERGY PAYMENT",
-            date=today,
-            is_closed=False,
-            type=Transaction.TransactionType.PURCHASE,
-        )
+        self._parsed_bill(rule, source_message_id="b1")
+        txn = self._txn(is_closed=False)
 
         apply_autotags_to_open_transactions()
 

@@ -6,41 +6,47 @@ so imported transactions surface pre-filled in the review table. It is never par
 of the core write, so a matcher blowing up must never break the operation that
 triggered it (a CSV import, the autotag re-apply). This module owns that
 isolation invariant in one place so every caller behaves the same.
+
+Two paths:
+- tag_transactions: import time, runs every matcher over the new rows.
+- rematch_bills: re-runs bill matching over open transactions via
+  ``bill_services.rematch_open_transactions``.
+
+Buttons that exist only to rematch (Loans, Utility Bills settings) call the
+services' ``rematch_open_transactions`` directly so failures surface to the user.
 """
 import logging
-from typing import Callable, Iterable, List
+from typing import Callable, List
 
 from api.models import Transaction
-from api.services.bill_services import match_transactions_to_bills
-from api.services.loan_services import match_transactions_to_loans
+from api.services import bill_services, loan_services
 
 logger = logging.getLogger(__name__)
 
-Matcher = Callable[[Iterable[Transaction]], int]
 
-
-def _run_advisory(matcher: Matcher, transactions: Iterable[Transaction]) -> None:
+def _run_advisory(matcher: Callable[..., int], *args) -> None:
     """Run one matcher, swallowing + logging any failure. Matching is
     best-effort tagging and must never break its caller."""
     try:
-        matcher(transactions)
+        matcher(*args)
     except Exception:
         logger.exception(
             "Advisory matcher %s failed; tagging skipped.", matcher.__name__
         )
 
 
-def tag_transactions(
-    transactions: List[Transaction], *, include_loans: bool = True
-) -> None:
-    """
-    Bill (and, by default, loan) matching over ``transactions``, isolated so a
-    matcher failure never breaks the caller.
+def tag_transactions(transactions: List[Transaction]) -> None:
+    """Bill and loan matching over newly imported ``transactions``, isolated so
+    a matcher failure never breaks the caller."""
+    _run_advisory(bill_services.match_transactions_to_bills, transactions)
+    _run_advisory(loan_services.match_transactions_to_loans, transactions)
 
-    Loan matching creates schedule rows and links transactions, so it isn't safe
-    to re-run on already-matched transactions; callers that re-tag existing
-    transactions pass ``include_loans=False``.
+
+def rematch_bills() -> None:
+    """Bill matching over eligible open transactions, isolated so a failure
+    never breaks the caller.
+
+    Loans are deliberately not rematched here: loan matching creates schedule
+    rows, so it only runs on demand from the Loans settings button.
     """
-    _run_advisory(match_transactions_to_bills, transactions)
-    if include_loans:
-        _run_advisory(match_transactions_to_loans, transactions)
+    _run_advisory(bill_services.rematch_open_transactions)

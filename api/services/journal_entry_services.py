@@ -10,7 +10,7 @@ from django.forms import BaseModelFormSet, modelformset_factory
 
 from api.forms import BaseJournalEntryItemFormset, JournalEntryItemForm
 from api.models import Account, Entity, JournalEntry, JournalEntryItem, Paystub, PaystubValue, Transaction
-from api.services.tagging_services import tag_transactions
+from api.services.tagging_services import rematch_bills
 
 
 # Cached formset factory - created once at module load
@@ -564,8 +564,7 @@ def apply_autotags_to_open_transactions() -> int:
     )
 
     # Also re-attempt utility-bill matches so newly-arrived bills get applied.
-    # Bills only: loan matching creates schedule rows and isn't safe to re-run on
-    # already-matched transactions. Isolated so a matcher failure can't break the
-    # re-tag (see api.services.tagging_services).
-    tag_transactions(open_transactions, include_loans=False)
+    # Isolated so a matcher failure can't break the re-tag (see
+    # api.services.tagging_services).
+    rematch_bills()
     return len(open_transactions)

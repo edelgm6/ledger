@@ -3,8 +3,8 @@ Views for the utility-bill Settings sections.
 
 Two surfaces, both loaded as HTML fragments into the Settings shell:
 - Bill Rules: config CRUD over UtilityBillRule (mirrors SettingsView/Accounts).
-- Utility Bills: a read-only monitor of ingested bills with "Poll now" and a
-  per-bill "Retry" action.
+- Utility Bills: a read-only monitor of ingested bills with "Poll now",
+  "Match transactions", and a per-bill "Retry" action.
 
 Views parse requests, call services for business logic, and call helpers for
 rendering. No database writes and no HTML building here.
@@ -90,7 +90,7 @@ class BillRuleFormView(LoginRequiredMixin, View):
 
 
 class BillsView(LoginRequiredMixin, View):
-    """Read-only monitor of ingested bills with Poll-now and per-bill Retry."""
+    """Read-only monitor of ingested bills with Poll-now, Match, and per-bill Retry."""
 
     login_url = "/login/"
     redirect_field_name = "next"
@@ -116,6 +116,9 @@ class BillsView(LoginRequiredMixin, View):
                 f"parsed {result.parsed}, unresolved {result.unresolved}, "
                 f"failed {result.failed}, recovered {result.recovered}."
             )
+        elif action == "match":
+            count = bill_services.rematch_open_transactions()
+            message = f"Matching complete ({count} transactions)."
         elif action == "retry":
             bill_id = request.POST.get("bill_id")
             bill = bill_services.retry_bill(int(bill_id)) if bill_id else None

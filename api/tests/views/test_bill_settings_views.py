@@ -149,6 +149,16 @@ class BillsViewTest(HTMXViewTestCase):
         self.assertContains(response, "Poll complete")
         mock_poll.assert_called_once()
 
+    @patch("api.views.bill_settings_views.bill_services.rematch_open_transactions")
+    def test_match_now(self, mock_rematch):
+        mock_rematch.return_value = 3
+        response = self.client.post(
+            reverse("settings-bills"), data={"action": "match"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Matching complete (3 transactions)")
+        mock_rematch.assert_called_once_with()
+
     @patch("api.views.bill_settings_views.bill_services.retry_bill")
     def test_retry(self, mock_retry):
         bill = UtilityBill.objects.create(
