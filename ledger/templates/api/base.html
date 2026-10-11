@@ -9,7 +9,7 @@
     <!-- Include jQuery (independent of the removed Bootstrap; powers behavior scripts) -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <!-- htmx -->
-    <script src="https://unpkg.com/htmx.org"></script>
+    <script src="https://unpkg.com/htmx.org@2.0.11/dist/htmx.min.js"></script>
 
     <!-- Bootstrap Icons (icon font only; framework removed in favor of app.css) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
@@ -17,7 +17,7 @@
     <!-- Central design system: the single source of truth for all styling -->
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
 
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.17.4/dist/cdn.min.js" defer></script>
 
     <!-- Typeahead multi-select Alpine component (Option B). Registered once,
          before Alpine inits, so it is available to htmx-swapped filter forms. -->
