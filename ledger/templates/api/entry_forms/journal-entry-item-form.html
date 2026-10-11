@@ -41,7 +41,7 @@
                     {{ form.id }}
                     <input
                         class="input {% if form.account.errors %}is-invalid{% endif %}"
-                        list="debitAccountOptions"
+                        data-list="debitAccountOptions"
                         name="{{ form.account.html_name }}"
                         id="{{ form.account.auto_id }}"
                         tabindex="{{ forloop.counter|multiply:6|add:1 }}"
@@ -68,7 +68,7 @@
                 <div>
                     <input
                         class="input {% if form.entity.errors %}is-invalid{% endif %}"
-                        list="debitEntityOptions"
+                        data-list="debitEntityOptions"
                         name="{{ form.entity.html_name }}"
                         id="{{ form.entity.auto_id }}"
                         tabindex="{{ forloop.counter|multiply:6|add:3 }}"
@@ -95,7 +95,7 @@
                     {{ form.id }}
                     <input
                         class="input {% if form.account.errors %}is-invalid{% endif %}"
-                        list="debitAccountOptions"
+                        data-list="debitAccountOptions"
                         name="{{ form.account.html_name }}"
                         id="{{ form.account.auto_id }}"
                         tabindex="{{ forloop.counter|multiply:6|add:4 }}"
@@ -122,7 +122,7 @@
                 <div>
                     <input
                         class="input {% if form.entity.errors %}is-invalid{% endif %}"
-                        list="creditEntityOptions"
+                        data-list="creditEntityOptions"
                         name="{{ form.entity.html_name }}"
                         id="{{ form.entity.auto_id }}"
                         tabindex="{{ forloop.counter|multiply:6|add:6 }}"
